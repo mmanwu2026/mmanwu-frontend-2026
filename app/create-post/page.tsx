@@ -8,13 +8,15 @@ export default function CreatePostPage() {
 
   async function submitPost() {
     try {
-      // Call our local API route instead of Railway directly
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          content: text,   // <-- FIXED: backend expects "content"
+          mask: 3          // <-- temporary default mask until UI added
+        }),
       });
 
       const data = await res.json();
