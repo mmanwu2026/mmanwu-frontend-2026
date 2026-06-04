@@ -3,7 +3,8 @@
 import { useState } from "react";
 
 export default function CreatePostPage() {
-  const [text, setText] = useState("");
+  const [content, setContent] = useState("");
+
   const [response, setResponse] = useState("");
 
   async function submitPost() {
@@ -14,10 +15,10 @@ export default function CreatePostPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          content: text,   // <-- FIXED: backend expects "content"
-          mask: 3          // <-- temporary default mask until UI added
-        }),
-      });
+  content,
+  mask: selectedMask
+})
+
 
       const data = await res.json();
       setResponse(JSON.stringify(data, null, 2));
@@ -31,12 +32,10 @@ export default function CreatePostPage() {
       <h1 className="text-3xl font-bold mb-6">Create Post</h1>
 
       <textarea
-        className="w-full border p-3 rounded mb-4"
-        rows={6}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Type your post here..."
-      />
+  value={content}
+  onChange={(e) => setContent(e.target.value)}
+/>
+
 
       <button
         onClick={submitPost}
