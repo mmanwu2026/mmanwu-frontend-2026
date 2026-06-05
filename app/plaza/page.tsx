@@ -10,11 +10,20 @@ export default function PlazaPage() {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/posts`);
+        // ⭐ Correct backend URL + correct route (/plaza)
+        const res = await fetch(
+          "https://mmanwu-clean-production-6465.up.railway.app/plaza",
+          { cache: "no-store" }
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch posts");
+        }
+
         const data = await res.json();
 
         // Sort newest first
-        const sorted = (data.posts || []).sort(
+        const sorted = (data || []).sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
 
