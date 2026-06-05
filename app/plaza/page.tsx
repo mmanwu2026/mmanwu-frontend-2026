@@ -9,7 +9,8 @@ type Post = {
   content: string;
   mask: number;
   createdAt: string;
-  creatorId?: string; // add this if your backend returns creatorId
+  creatorId?: string;
+  spiritScore?: number;
   reactions?: {
     1: number;
     2: number;
@@ -38,13 +39,14 @@ export default function PlazaPage() {
 
         const data: Post[] = await res.json();
 
-        // Add empty reaction counts for now
-        const withReactions = data.map((p) => ({
+        // Ensure spiritScore exists
+        const patched = data.map((p) => ({
           ...p,
-          reactions: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+          spiritScore: p.spiritScore ?? 0,
+          reactions: p.reactions ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
         }));
 
-        const sorted = withReactions.sort(
+        const sorted = patched.sort(
           (a: Post, b: Post) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
@@ -61,6 +63,16 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
+  // ⭐ Aura class generator
+  function auraClass(score: number = 0) {
+    if (score < 6) return "border-gray-300";
+    if (score < 16)
+      return "border-green-400 shadow-md shadow-green-200";
+    if (score < 31)
+      return "border-green-500 shadow-lg shadow-green-300";
+    return "border-green-600 shadow-xl shadow-green-400 animate-pulse";
+  }
+
   return (
     <div className="p-10 max-w-3xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
@@ -76,8 +88,16 @@ export default function PlazaPage() {
         {posts.map((post) => (
           <div
             key={post.id}
-            className="border p-5 rounded-lg shadow-sm bg-white"
+            className={`
+              p-5 rounded-lg bg-white transition-all duration-300
+              border ${auraClass(post.spiritScore)}
+            `}
           >
+            {/* ⭐ Spirit Score Badge */}
+            <div className="text-xs text-green-700 font-semibold mb-1">
+              Spirit Score: {post.spiritScore}
+            </div>
+
             <p className="whitespace-pre-line text-lg">{post.content}</p>
 
             <div className="mt-4 flex justify-between text-sm text-gray-500">
@@ -85,7 +105,7 @@ export default function PlazaPage() {
               <span>{new Date(post.createdAt).toLocaleString()}</span>
             </div>
 
-            {/* ⭐ NEW Reaction Bar */}
+            {/* ⭐ Reaction Bar */}
             <ReactionBar
               postId={String(post.id)}
               creatorId={post.creatorId ?? "demo-creator-123"}
