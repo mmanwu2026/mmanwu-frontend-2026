@@ -1,29 +1,51 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function CreatePostPage() {
+  const router = useRouter();
+
   const [content, setContent] = useState("");
   const [mask, setMask] = useState(3); // default mask
-  const [response, setResponse] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(""); // success or error message
 
   async function submitPost() {
+    if (!content.trim()) {
+      setMessage("Post content cannot be empty.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
     try {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          content,
-          mask,
-        }),
+        body: JSON.stringify({ content, mask }),
       });
 
-      const data = await res.json();
-      setResponse(JSON.stringify(data, null, 2));
+      if (!res.ok) {
+        setMessage("Failed to create post.");
+        setLoading(false);
+        return;
+      }
+
+      setMessage("Post created successfully!");
+
+      // Wait briefly so user sees the success message
+      setTimeout(() => {
+        router.push("/plaza");
+      }, 800);
+
     } catch (err) {
-      setResponse("Network error — request blocked by browser.");
+      setMessage("Network error — unable to reach backend.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -56,15 +78,17 @@ export default function CreatePostPage() {
 
       <button
         onClick={submitPost}
-        className="bg-black text-white px-4 py-2 rounded"
+        disabled={loading}
+        className={`px-4 py-2 rounded text-white ${
+          loading ? "bg-gray-600" : "bg-black"
+        }`}
       >
-        Submit
+        {loading ? "Posting…" : "Submit"}
       </button>
 
-      {response && (
+      {message && (
         <div className="mt-6 p-4 border rounded bg-gray-50">
-          <h2 className="font-semibold mb-2">Backend Response:</h2>
-          <pre>{response}</pre>
+          <p className="font-semibold">{message}</p>
         </div>
       )}
     </div>
