@@ -2,15 +2,22 @@
 
 import { useEffect, useState } from "react";
 
+// Define a Post type so TypeScript is happy during Vercel builds
+type Post = {
+  id: number;
+  content: string;
+  mask: number;
+  createdAt: string;
+};
+
 export default function PlazaPage() {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     async function fetchPosts() {
       try {
-        // ⭐ Correct backend URL + correct route (/plaza)
         const res = await fetch(
           "https://mmanwu-clean-production-6465.up.railway.app/plaza",
           { cache: "no-store" }
@@ -20,11 +27,12 @@ export default function PlazaPage() {
           throw new Error("Failed to fetch posts");
         }
 
-        const data = await res.json();
+        const data: Post[] = await res.json();
 
-        // Sort newest first
-        const sorted = (data || []).sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        // Sort newest first — fully typed, Vercel-safe
+        const sorted = data.sort(
+          (a: Post, b: Post) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
         setPosts(sorted);
