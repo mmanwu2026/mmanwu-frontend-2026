@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ⭐ Mmanwu Spirit Aura Animations */
+
+/* Soft breathing glow */
+@keyframes aura-breathe {
+  0% { box-shadow: 0 0 6px rgba(34,197,94,0.3); }
+  50% { box-shadow: 0 0 14px rgba(34,197,94,0.5); }
+  100% { box-shadow: 0 0 6px rgba(34,197,94,0.3); }
+}
+
+/* Strong radiant pulse */
+@keyframes aura-pulse {
+  0% { box-shadow: 0 0 10px rgba(34,197,94,0.4); }
+  50% { box-shadow: 0 0 22px rgba(34,197,94,0.7); }
+  100% { box-shadow: 0 0 10px rgba(34,197,94,0.4); }
+}
+
+/* Floating particles */
+@keyframes spirit-particles {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  50% { transform: translateY(-10px) scale(1.2); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 0.6; }
+}
+
+.spirit-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(34,197,94,0.4);
+  border-radius: 50%;
+  animation: spirit-particles 3s ease-in-out infinite;
+}
