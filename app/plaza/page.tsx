@@ -39,7 +39,6 @@ export default function PlazaPage() {
 
         const data: Post[] = await res.json();
 
-        // Ensure spiritScore exists
         const patched = data.map((p) => ({
           ...p,
           spiritScore: p.spiritScore ?? 0,
@@ -65,12 +64,16 @@ export default function PlazaPage() {
 
   // ⭐ Aura class generator
   function auraClass(score: number = 0) {
-    if (score < 6) return "border-gray-300";
+    if (score < 6)
+      return "border-gray-300";
+
     if (score < 16)
-      return "border-green-400 shadow-md shadow-green-200";
+      return "border-green-400 shadow-md shadow-green-200 animate-[aura-breathe_3s_ease-in-out_infinite]";
+
     if (score < 31)
-      return "border-green-500 shadow-lg shadow-green-300";
-    return "border-green-600 shadow-xl shadow-green-400 animate-pulse";
+      return "border-green-500 shadow-lg shadow-green-300 animate-[aura-breathe_2s_ease-in-out_infinite]";
+
+    return "border-green-600 shadow-xl shadow-green-400 animate-[aura-pulse_1.5s_ease-in-out_infinite]";
   }
 
   return (
@@ -89,13 +92,39 @@ export default function PlazaPage() {
           <div
             key={post.id}
             className={`
-              p-5 rounded-lg bg-white transition-all duration-300
+              p-5 rounded-lg bg-white transition-all duration-300 relative
               border ${auraClass(post.spiritScore)}
             `}
           >
-            {/* ⭐ Spirit Score Badge */}
+            {/* Floating spirit particles for high-spirit posts */}
+            {post.spiritScore !== undefined && post.spiritScore >= 16 && (
+              <>
+                <div
+                  className="spirit-particle"
+                  style={{ top: "10%", left: "5%" }}
+                />
+                <div
+                  className="spirit-particle"
+                  style={{
+                    top: "50%",
+                    left: "90%",
+                    animationDelay: "1s",
+                  }}
+                />
+                <div
+                  className="spirit-particle"
+                  style={{
+                    top: "80%",
+                    left: "20%",
+                    animationDelay: "2s",
+                  }}
+                />
+              </>
+            )}
+
+            {/* Spirit Score Badge */}
             <div className="text-xs text-green-700 font-semibold mb-1">
-              Spirit Score: {post.spiritScore}
+              Spirit Score: {post.spiritScore ?? 0}
             </div>
 
             <p className="whitespace-pre-line text-lg">{post.content}</p>
@@ -105,7 +134,6 @@ export default function PlazaPage() {
               <span>{new Date(post.createdAt).toLocaleString()}</span>
             </div>
 
-            {/* ⭐ Reaction Bar */}
             <ReactionBar
               postId={String(post.id)}
               creatorId={post.creatorId ?? "demo-creator-123"}
