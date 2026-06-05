@@ -62,18 +62,53 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  // ⭐ Aura class generator
-  function auraClass(score: number = 0) {
+  // ⭐ Mask → color mapping
+  function auraColor(mask: number) {
+    switch (mask) {
+      case 1:
+        return "#7C3AED"; // violet — Dark Whisper
+      case 2:
+        return "#DC2626"; // red — Fierce Awakener
+      case 3:
+        return "#22C55E"; // green — Uplift
+      case 4:
+        return "#FACC15"; // gold — Harmony
+      case 5:
+        return "#3B82F6"; // blue — Witness
+      default:
+        return "#22C55E"; // fallback
+    }
+  }
+
+  // ⭐ Aura class generator (score + mask)
+  function auraClass(score: number = 0, mask: number) {
+    const color = auraColor(mask);
+
     if (score < 6)
-      return "border-gray-300";
+      return `border-[${color}]`;
 
     if (score < 16)
-      return "border-green-400 shadow-md shadow-green-200 animate-[aura-breathe_3s_ease-in-out_infinite]";
+      return `
+        border-[${color}]
+        shadow-md
+        shadow-[${color}33]
+        animate-[aura-breathe_3s_ease-in-out_infinite]
+      `;
 
     if (score < 31)
-      return "border-green-500 shadow-lg shadow-green-300 animate-[aura-breathe_2s_ease-in-out_infinite]";
+      return `
+        border-[${color}]
+        shadow-lg
+        shadow-[${color}55]
+        animate-[aura-breathe_2s_ease-in-out_infinite]
+      `;
 
-    return "border-green-600 shadow-xl shadow-green-400 animate-[aura-pulse_1.5s_ease-in-out_infinite]";
+    return `
+      border-[${color}]
+      shadow-xl
+      shadow-[${color}77]
+      animate-[aura-pulse_1.5s_ease-in-out_infinite]
+    `;
   }
 
   return (
@@ -93,7 +128,7 @@ export default function PlazaPage() {
             key={post.id}
             className={`
               p-5 rounded-lg bg-white transition-all duration-300 relative
-              border ${auraClass(post.spiritScore)}
+              border ${auraClass(post.spiritScore ?? 0, post.mask)}
             `}
           >
             {/* Floating spirit particles for high-spirit posts */}
@@ -101,7 +136,11 @@ export default function PlazaPage() {
               <>
                 <div
                   className="spirit-particle"
-                  style={{ top: "10%", left: "5%" }}
+                  style={{
+                    top: "10%",
+                    left: "5%",
+                    background: auraColor(post.mask),
+                  }}
                 />
                 <div
                   className="spirit-particle"
@@ -109,6 +148,7 @@ export default function PlazaPage() {
                     top: "50%",
                     left: "90%",
                     animationDelay: "1s",
+                    background: auraColor(post.mask),
                   }}
                 />
                 <div
@@ -117,13 +157,17 @@ export default function PlazaPage() {
                     top: "80%",
                     left: "20%",
                     animationDelay: "2s",
+                    background: auraColor(post.mask),
                   }}
                 />
               </>
             )}
 
             {/* Spirit Score Badge */}
-            <div className="text-xs text-green-700 font-semibold mb-1">
+            <div
+              className="text-xs font-semibold mb-1"
+              style={{ color: auraColor(post.mask) }}
+            >
               Spirit Score: {post.spiritScore ?? 0}
             </div>
 
