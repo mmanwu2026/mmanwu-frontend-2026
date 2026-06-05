@@ -8,6 +8,10 @@ interface ReactionBarProps {
   currentUserId: string;
 }
 
+type ReactionCounts = {
+  [key: number]: number;
+};
+
 const MASKS = [
   { id: 1, label: "Dark Whisper", emoji: "🜂", creatorOnly: true },
   { id: 2, label: "Fierce Awakener", emoji: "🔥", creatorOnly: true },
@@ -23,7 +27,7 @@ export default function ReactionBar({
 }: ReactionBarProps) {
   const [selectedMask, setSelectedMask] = useState<number | null>(null);
   const [spiritScore, setSpiritScore] = useState<number>(0);
-  const [reactionCounts, setReactionCounts] = useState({
+  const [reactionCounts, setReactionCounts] = useState<ReactionCounts>({
     1: 0,
     2: 0,
     3: 0,
@@ -55,13 +59,14 @@ export default function ReactionBar({
         return;
       }
 
-      // Update UI with backend results
       setSelectedMask(maskId);
+
       if (data.spiritScore !== undefined) {
         setSpiritScore(data.spiritScore);
       }
+
       if (data.reactions) {
-        setReactionCounts(data.reactions);
+        setReactionCounts(data.reactions as ReactionCounts);
       }
     } catch (err) {
       console.error("Network error:", err);
@@ -70,12 +75,10 @@ export default function ReactionBar({
 
   return (
     <div className="mt-4">
-      {/* Spirit Score Display */}
       <div className="text-sm text-green-700 font-semibold mb-2">
         Spirit Score: {spiritScore}
       </div>
 
-      {/* Reaction Buttons */}
       <div className="flex gap-3">
         {MASKS.map((mask) => {
           const disabled = mask.creatorOnly && !isCreator;
@@ -96,7 +99,7 @@ export default function ReactionBar({
                   : mask.label
               }
             >
-              {mask.emoji} ({reactionCounts[mask.id]})
+              {mask.emoji} ({reactionCounts[mask.id] ?? 0})
             </button>
           );
         })}
