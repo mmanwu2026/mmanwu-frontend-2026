@@ -22,13 +22,16 @@ export default function CreatePostPage() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content, mask }),
-      });
+      const res = await fetch(
+        "https://mmanwu-clean-production-6465.up.railway.app/plaza",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content, mask }),
+        }
+      );
 
       if (!res.ok) {
         setMessage("Failed to create post.");
