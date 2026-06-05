@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import MaskSelector from "@/components/MaskSelector";
 
 export default function CreatePostPage() {
   const router = useRouter();
 
   const [content, setContent] = useState("");
-  const [mask, setMask] = useState(3); // default mask
+  const [mask, setMask] = useState(3);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(""); // success or error message
+  const [message, setMessage] = useState("");
 
   async function submitPost() {
     if (!content.trim()) {
@@ -37,11 +38,9 @@ export default function CreatePostPage() {
 
       setMessage("Post created successfully!");
 
-      // Wait briefly so user sees the success message
       setTimeout(() => {
         router.push("/plaza");
       }, 800);
-
     } catch (err) {
       setMessage("Network error — unable to reach backend.");
     } finally {
@@ -61,19 +60,8 @@ export default function CreatePostPage() {
         placeholder="Type your post here..."
       />
 
-      <div className="mb-4">
-        <label className="font-semibold mr-2">Mask:</label>
-        <select
-          value={mask}
-          onChange={(e) => setMask(Number(e.target.value))}
-          className="border p-2 rounded"
-        >
-          <option value={1}>1 — Dark Whisper</option>
-          <option value={2}>2 — Fierce Awakener</option>
-          <option value={3}>3 — Neutral Mask</option>
-          <option value={4}>4 — Bright Mask</option>
-          <option value={5}>5 — Radiant Mask</option>
-        </select>
+      <div className="mb-6">
+        <MaskSelector value={mask} onChange={setMask} />
       </div>
 
       <button
