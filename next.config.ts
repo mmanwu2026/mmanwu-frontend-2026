@@ -3,19 +3,20 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // Ensures Next.js App Router API routes register correctly
+  // ⭐ Enable the App Router
   experimental: {
+    appDir: true,
     serverActions: {
       allowedOrigins: ["*"],
     },
   },
 
-  // If your backend runs on Railway or localhost, this helps during development
+  // ⭐ Local dev backend proxy (ignored in production)
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*", // local dev backend
+        destination: "http://localhost:5000/api/:path*",
       },
     ];
   },
