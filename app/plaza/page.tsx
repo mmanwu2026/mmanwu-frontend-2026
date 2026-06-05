@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ReactionBar from "@/components/ReactionBar";
 
 // Define a Post type so TypeScript is happy during Vercel builds
 type Post = {
@@ -8,6 +9,7 @@ type Post = {
   content: string;
   mask: number;
   createdAt: string;
+  creatorId?: string; // add this if your backend returns creatorId
   reactions?: {
     1: number;
     2: number;
@@ -21,12 +23,6 @@ export default function PlazaPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // Temporary reaction handler (Step 3B will connect to backend)
-  function handleReaction(postId: number, mask: number) {
-    console.log("Reacted to post", postId, "with mask", mask);
-    alert(`Reaction ${mask} clicked! (Backend coming in Step 3B)`);
-  }
 
   useEffect(() => {
     async function fetchPosts() {
@@ -89,45 +85,12 @@ export default function PlazaPage() {
               <span>{new Date(post.createdAt).toLocaleString()}</span>
             </div>
 
-            {/* Reaction Row */}
-            <div className="mt-4 flex gap-3 items-center">
-              {/* Mask 1 & 2 (creator-only) */}
-              <button
-                disabled
-                className="px-3 py-1 rounded bg-gray-300 text-gray-600 opacity-50 cursor-not-allowed"
-              >
-                1 ({post.reactions?.[1]})
-              </button>
-
-              <button
-                disabled
-                className="px-3 py-1 rounded bg-red-300 text-red-700 opacity-50 cursor-not-allowed"
-              >
-                2 ({post.reactions?.[2]})
-              </button>
-
-              {/* Masks 3, 4, 5 (public reactions) */}
-              <button
-                onClick={() => handleReaction(post.id, 3)}
-                className="px-3 py-1 rounded bg-yellow-500 text-white"
-              >
-                3 ({post.reactions?.[3]})
-              </button>
-
-              <button
-                onClick={() => handleReaction(post.id, 4)}
-                className="px-3 py-1 rounded bg-green-600 text-white"
-              >
-                4 ({post.reactions?.[4]})
-              </button>
-
-              <button
-                onClick={() => handleReaction(post.id, 5)}
-                className="px-3 py-1 rounded bg-blue-600 text-white"
-              >
-                5 ({post.reactions?.[5]})
-              </button>
-            </div>
+            {/* ⭐ NEW Reaction Bar */}
+            <ReactionBar
+              postId={String(post.id)}
+              creatorId={post.creatorId ?? "demo-creator-123"}
+              currentUserId={"demo-user-123"}
+            />
           </div>
         ))}
       </div>
