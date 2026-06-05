@@ -1,3 +1,4 @@
+// force plaza rebuild
 "use client";
 
 import { useEffect, useState } from "react";
@@ -170,6 +171,7 @@ export default function PlazaPage() {
             >
               Spirit Score: {post.spiritScore ?? 0}
             </div>
+// end rebuild
 
             <p className="whitespace-pre-line text-lg">{post.content}</p>
 
