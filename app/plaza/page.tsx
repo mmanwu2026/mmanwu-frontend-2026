@@ -97,15 +97,28 @@ export default function PlazaPage() {
     }
   }
 
-  // ⭐ Aura style generator (still old version — Step 2 will upgrade this)
-  function auraStyle(score: number = 0, mask: number) {
+  // ⭐ C6 Step 2 — Dynamic auraStyle
+  function auraStyle(score: number = 0, mask: number, positivityRatio: number) {
     const color = auraColor(mask);
 
-    if (score < 6) {
+    // Base intensity from score
+    let intensityLevel;
+    if (score < 6) intensityLevel = 0;
+    else if (score < 16) intensityLevel = 1;
+    else if (score < 31) intensityLevel = 2;
+    else intensityLevel = 3;
+
+    // Dynamic boost/dampen from positivity
+    const boost = positivityRatio > 0.6 ? 1 : 0;
+    const dampen = positivityRatio < 0.3 ? -1 : 0;
+
+    const finalLevel = Math.max(0, Math.min(3, intensityLevel + boost + dampen));
+
+    if (finalLevel === 0) {
       return { borderColor: color };
     }
 
-    if (score < 16) {
+    if (finalLevel === 1) {
       return {
         borderColor: color,
         boxShadow: `0 0 10px ${color}33`,
@@ -113,7 +126,7 @@ export default function PlazaPage() {
       };
     }
 
-    if (score < 31) {
+    if (finalLevel === 2) {
       return {
         borderColor: color,
         boxShadow: `0 0 15px ${color}55`,
@@ -187,8 +200,8 @@ export default function PlazaPage() {
               style={
                 {
                   "--aura-color": auraColor(post.mask),
-                  // ⭐ Step 1: still using old auraStyle; Step 2 will upgrade this
-                  ...auraStyle(score, post.mask),
+                  // ⭐ Step 2: dynamic aura
+                  ...auraStyle(score, post.mask, positivityRatio),
                 } as unknown as React.CSSProperties
               }
             >
