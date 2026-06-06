@@ -221,7 +221,7 @@ export default function PlazaPage() {
           return (
             <div
               key={post.id}
-              className="p-5 rounded-lg bg-white transition-all duration-300 relative border overflow-visible min-h-[140px]"
+              className="p-5 rounded-lg bg-white transition-all duration-300 relative border overflow-visible min-h-[140px] w-full"
               style={
                 {
                   "--aura-color": auraColor(post.mask),
