@@ -151,13 +151,17 @@ body {
 
 .surge-ripple {
   position: absolute;
-  inset: -20px;          /* PATCH 2: more space for ripple */
+  inset: -20px;
   border-radius: 9999px;
   border: 2px solid var(--aura-color);
   pointer-events: none;
   animation: surge-ripple 0.8s ease-out forwards;
-  z-index: 0;            /* PATCH 2: no more shrinking */
+  z-index: 0;
 }
-.contain-layout {
-  contain: layout;
+
+/* --------------------------------------------- */
+/* PATCH 7 — SAFE LAYOUT ISOLATION               */
+/* --------------------------------------------- */
+.isolate-layout {
+  isolation: isolate;
 }
