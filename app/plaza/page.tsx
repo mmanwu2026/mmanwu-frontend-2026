@@ -184,6 +184,39 @@ export default function PlazaPage() {
               {/* ⭐ C4 Halo Crown */}
               {stage >= 5 && <div className="ascension-halo" />}
 
+              {/* ⭐ C5 Spirit Sparks */}
+              {stage >= 4 && (
+                <>
+                  <div
+                    className="spirit-spark"
+                    style={{
+                      top: "20%",
+                      left: "40%",
+                      animationDelay: "0s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-spark"
+                    style={{
+                      top: "60%",
+                      left: "55%",
+                      animationDelay: "0.2s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-spark"
+                    style={{
+                      top: "35%",
+                      left: "70%",
+                      animationDelay: "0.4s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                </>
+              )}
+
               {/* Floating spirit particles for high-spirit posts */}
               {score >= 16 && (
                 <>
