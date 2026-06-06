@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* ============================
+   🌞 Base Theme Variables
+   ============================ */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -80,4 +84,32 @@ body {
   height: 7px;
   border-radius: 50%;
   animation: spirit-particles 3s ease-in-out infinite;
+}
+
+/* ============================
+   🌬️ C3 — Spirit Trails
+   ============================ */
+
+.spirit-trail {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.9;
+  transform: translate(-50%, -50%);
+  background: var(--aura-color);
+  filter: blur(6px);
+  animation: spirit-trail-fade 0.5s ease-out forwards;
+}
+
+@keyframes spirit-trail-fade {
+  0% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
 }
