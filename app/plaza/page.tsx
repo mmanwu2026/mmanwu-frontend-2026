@@ -146,7 +146,7 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="p-10 w-full max-w-5xl mx-auto">
+    <div className="p-10 w-full max-w-3xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
 
       {loading && <p className="text-gray-500">Loading posts…</p>}
