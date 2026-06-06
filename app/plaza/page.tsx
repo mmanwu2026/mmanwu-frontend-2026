@@ -179,14 +179,14 @@ export default function PlazaPage() {
                 border
                 overflow-visible
                 isolate-layout
-                min-h-[180px]
+                min-h-[220px]
                 shadow-[0_0_1px_rgba(0,0,0,0.01)]
               "
               style={
                 {
                   "--aura-color": auraColor(post.mask),
                   ...auraStyle(score, post.mask, positivityRatio),
-                } as unknown as React.CSSProperties
+                } as any
               }
             >
               {surge && <div className="surge-flash absolute inset-0 rounded-lg"></div>}
@@ -203,25 +203,66 @@ export default function PlazaPage() {
 
               {stage >= 4 && positivityRatio > 0.4 && (
                 <>
-                  <div className="spirit-spark" style={{ top: "20%", left: "40%", background: auraColor(post.mask) }} />
+                  <div
+                    className="spirit-spark"
+                    style={{ top: "20%", left: "40%", background: auraColor(post.mask) }}
+                  />
                   {positivityRatio > 0.6 && (
-                    <div className="spirit-spark" style={{ top: "60%", left: "55%", animationDelay: "0.2s", background: auraColor(post.mask) }} />
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "60%",
+                        left: "55%",
+                        animationDelay: "0.2s",
+                        background: auraColor(post.mask),
+                      }}
+                    />
                   )}
                   {positivityRatio > 0.8 && (
-                    <div className="spirit-spark" style={{ top: "35%", left: "70%", animationDelay: "0.4s", background: auraColor(post.mask) }} />
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "35%",
+                        left: "70%",
+                        animationDelay: "0.4s",
+                        background: auraColor(post.mask),
+                      }}
+                    />
                   )}
                 </>
               )}
 
               {score >= 16 && (
                 <>
-                  <div className="spirit-particle" style={{ top: "10%", left: "5%", background: auraColor(post.mask) }} />
-                  <div className="spirit-particle" style={{ top: "50%", left: "90%", animationDelay: "1s", background: auraColor(post.mask) }} />
-                  <div className="spirit-particle" style={{ top: "80%", left: "20%", animationDelay: "2s", background: auraColor(post.mask) }} />
+                  <div
+                    className="spirit-particle"
+                    style={{ top: "10%", left: "5%", background: auraColor(post.mask) }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "50%",
+                      left: "90%",
+                      animationDelay: "1s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "80%",
+                      left: "20%",
+                      animationDelay: "2s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
                 </>
               )}
 
-              <div className="text-xs font-semibold mb-1" style={{ color: auraColor(post.mask) }}>
+              <div
+                className="text-xs font-semibold mb-1"
+                style={{ color: auraColor(post.mask) }}
+              >
                 Spirit Score: {score}
               </div>
 
