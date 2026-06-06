@@ -218,9 +218,10 @@ export default function PlazaPage() {
               {/* ⭐ C4 Halo Crown */}
               {stage >= 5 && <div className="ascension-halo" />}
 
-              {/* ⭐ C5 Spirit Sparks */}
-              {stage >= 4 && (
+              {/* ⭐ C6 Step 3 — Dynamic C5 Spirit Sparks */}
+              {stage >= 4 && positivityRatio > 0.4 && (
                 <>
+                  {/* 1 spark */}
                   <div
                     className="spirit-spark"
                     style={{
@@ -230,24 +231,32 @@ export default function PlazaPage() {
                       background: auraColor(post.mask),
                     }}
                   />
-                  <div
-                    className="spirit-spark"
-                    style={{
-                      top: "60%",
-                      left: "55%",
-                      animationDelay: "0.2s",
-                      background: auraColor(post.mask),
-                    }}
-                  />
-                  <div
-                    className="spirit-spark"
-                    style={{
-                      top: "35%",
-                      left: "70%",
-                      animationDelay: "0.4s",
-                      background: auraColor(post.mask),
-                    }}
-                  />
+
+                  {/* 2 sparks */}
+                  {positivityRatio > 0.6 && (
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "60%",
+                        left: "55%",
+                        animationDelay: "0.2s",
+                        background: auraColor(post.mask),
+                      }}
+                    />
+                  )}
+
+                  {/* 3 sparks */}
+                  {positivityRatio > 0.8 && (
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "35%",
+                        left: "70%",
+                        animationDelay: "0.4s",
+                        background: auraColor(post.mask),
+                      }}
+                    />
+                  )}
                 </>
               )}
 
