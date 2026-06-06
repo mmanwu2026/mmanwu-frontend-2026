@@ -72,7 +72,7 @@ body {
   opacity: 0.4;
   animation: ring-rotate 6s linear infinite;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 @keyframes ring-rotate {
@@ -95,6 +95,7 @@ body {
   opacity: 0.35;
   animation: halo-spin 8s linear infinite;
   pointer-events: none;
+  z-index: 0;
 }
 
 @keyframes halo-spin {
@@ -136,7 +137,7 @@ body {
   animation: surge-flash 0.6s ease-out forwards;
 }
 
-/* Shockwave ripple */
+/* Shockwave ripple — PATCH 2 FIXED VERSION */
 @keyframes surge-ripple {
   0% {
     opacity: 0.8;
@@ -150,10 +151,10 @@ body {
 
 .surge-ripple {
   position: absolute;
-  inset: -10px;
+  inset: -20px;          /* PATCH 2: more space for ripple */
   border-radius: 9999px;
   border: 2px solid var(--aura-color);
   pointer-events: none;
   animation: surge-ripple 0.8s ease-out forwards;
-  z-index: -1;
+  z-index: 0;            /* PATCH 2: no more shrinking */
 }
