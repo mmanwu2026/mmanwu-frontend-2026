@@ -26,6 +26,22 @@ export default function PlazaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ⭐ C4 Debug Mode toggle
+  const [debugAscension, setDebugAscension] = useState(false);
+
+  // ⭐ Press "D" to toggle debug mode
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "d") {
+        setDebugAscension((prev) => !prev);
+        console.log("C4 Debug Mode:", !debugAscension);
+      }
+    }
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [debugAscension]);
+
   useEffect(() => {
     async function fetchPosts() {
       try {
@@ -86,9 +102,7 @@ export default function PlazaPage() {
     const color = auraColor(mask);
 
     if (score < 6) {
-      return {
-        borderColor: color,
-      };
+      return { borderColor: color };
     }
 
     if (score < 16) {
@@ -126,71 +140,105 @@ export default function PlazaPage() {
       )}
 
       <div className="space-y-6">
-        {posts.map((post) => (
-          <div
-            key={post.id}
-            className="p-5 rounded-lg bg-white transition-all duration-300 relative border"
-            style={
-              {
-                "--aura-color": auraColor(post.mask),
-                ...auraStyle(post.spiritScore ?? 0, post.mask),
-              } as unknown as React.CSSProperties
-            }
-          >
-            {/* Floating spirit particles for high-spirit posts */}
-            {post.spiritScore !== undefined && post.spiritScore >= 16 && (
-              <>
-                <div
-                  className="spirit-particle"
-                  style={{
-                    top: "10%",
-                    left: "5%",
-                    background: auraColor(post.mask),
-                  }}
-                />
-                <div
-                  className="spirit-particle"
-                  style={{
-                    top: "50%",
-                    left: "90%",
-                    animationDelay: "1s",
-                    background: auraColor(post.mask),
-                  }}
-                />
-                <div
-                  className="spirit-particle"
-                  style={{
-                    top: "80%",
-                    left: "20%",
-                    animationDelay: "2s",
-                    background: auraColor(post.mask),
-                  }}
-                />
-              </>
-            )}
+        {posts.map((post) => {
+          const score = post.spiritScore ?? 0;
 
-            {/* Spirit Score Badge */}
+          // ⭐ C4 Stage Logic (with Debug Override)
+          let stage;
+          if (debugAscension) {
+            stage = ((post.id % 5) + 1); // cycle stages 1–5
+          } else {
+            stage =
+              score < 6
+                ? 1
+                : score < 16
+                ? 2
+                : score < 31
+                ? 3
+                : score < 51
+                ? 4
+                : 5;
+          }
+
+          return (
             <div
-              className="text-xs font-semibold mb-1"
-              style={{ color: auraColor(post.mask) }}
+              key={post.id}
+              className="p-5 rounded-lg bg-white transition-all duration-300 relative border"
+              style={
+                {
+                  "--aura-color": auraColor(post.mask),
+                  ...auraStyle(score, post.mask),
+                } as unknown as React.CSSProperties
+              }
             >
-              Spirit Score: {post.spiritScore ?? 0}
+              {/* ⭐ Debug Badge */}
+              {debugAscension && (
+                <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
+                  DEBUG S{stage}
+                </div>
+              )}
+
+              {/* ⭐ C4 Ascension Ring */}
+              {stage >= 4 && <div className="ascension-ring" />}
+
+              {/* ⭐ C4 Halo Crown */}
+              {stage >= 5 && <div className="ascension-halo" />}
+
+              {/* Floating spirit particles for high-spirit posts */}
+              {score >= 16 && (
+                <>
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "10%",
+                      left: "5%",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "50%",
+                      left: "90%",
+                      animationDelay: "1s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "80%",
+                      left: "20%",
+                      animationDelay: "2s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                </>
+              )}
+
+              {/* Spirit Score Badge */}
+              <div
+                className="text-xs font-semibold mb-1"
+                style={{ color: auraColor(post.mask) }}
+              >
+                Spirit Score: {score}
+              </div>
+
+              <p className="whitespace-pre-line text-lg">{post.content}</p>
+
+              <div className="mt-4 flex justify-between text-sm text-gray-500">
+                <span>Mask: {post.mask}</span>
+                <span>{new Date(post.createdAt).toLocaleString()}</span>
+              </div>
+
+              <ReactionBar
+                postId={String(post.id)}
+                creatorId={post.creatorId ?? "demo-creator-123"}
+                currentUserId={"demo-user-123"}
+              />
             </div>
-
-            <p className="whitespace-pre-line text-lg">{post.content}</p>
-
-            <div className="mt-4 flex justify-between text-sm text-gray-500">
-              <span>Mask: {post.mask}</span>
-              <span>{new Date(post.createdAt).toLocaleString()}</span>
-            </div>
-
-            <ReactionBar
-              postId={String(post.id)}
-              creatorId={post.creatorId ?? "demo-creator-123"}
-              currentUserId={"demo-user-123"}
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
