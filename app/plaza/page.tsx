@@ -179,6 +179,7 @@ export default function PlazaPage() {
                 border
                 overflow-visible
                 isolate-layout
+                min-h-[140px]
               "
               style={
                 {
