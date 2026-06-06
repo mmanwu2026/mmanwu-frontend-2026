@@ -25,24 +25,26 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ⭐ Mmanwu Spirit Aura Animations — Option C2 (Strong Glow + Radiant Pulse) */
+/* ============================
+   🌟 C2 — Radiant Aura System
+   ============================ */
 
-/* Soft breathing glow — brightened with color-mix */
+/* Soft breathing glow */
 @keyframes aura-breathe {
   0% {
     box-shadow:
-      0 0 10px color-mix(in srgb, currentColor 60%, transparent),
-      0 0 20px color-mix(in srgb, currentColor 40%, transparent);
+      0 0 10px var(--aura-color),
+      0 0 20px var(--aura-color);
   }
   50% {
     box-shadow:
-      0 0 18px color-mix(in srgb, currentColor 80%, transparent),
-      0 0 30px color-mix(in srgb, currentColor 60%, transparent);
+      0 0 18px var(--aura-color),
+      0 0 30px var(--aura-color);
   }
   100% {
     box-shadow:
-      0 0 10px color-mix(in srgb, currentColor 60%, transparent),
-      0 0 20px color-mix(in srgb, currentColor 40%, transparent);
+      0 0 10px var(--aura-color),
+      0 0 20px var(--aura-color);
   }
 }
 
@@ -50,22 +52,22 @@ body {
 @keyframes aura-pulse {
   0% {
     box-shadow:
-      0 0 14px color-mix(in srgb, currentColor 70%, transparent),
-      0 0 28px color-mix(in srgb, currentColor 50%, transparent);
+      0 0 14px var(--aura-color),
+      0 0 28px var(--aura-color);
   }
   50% {
     box-shadow:
-      0 0 26px color-mix(in srgb, currentColor 90%, transparent),
-      0 0 40px color-mix(in srgb, currentColor 70%, transparent);
+      0 0 26px var(--aura-color),
+      0 0 45px var(--aura-color);
   }
   100% {
     box-shadow:
-      0 0 14px color-mix(in srgb, currentColor 70%, transparent),
-      0 0 28px color-mix(in srgb, currentColor 50%, transparent);
+      0 0 14px var(--aura-color),
+      0 0 28px var(--aura-color);
   }
 }
 
-/* Floating particles — color set inline */
+/* Floating particles */
 @keyframes spirit-particles {
   0%   { transform: translateY(0) scale(1); opacity: 0.6; }
   50%  { transform: translateY(-12px) scale(1.3); opacity: 1; }
