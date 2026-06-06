@@ -167,3 +167,15 @@ body {
 .isolate-layout {
   isolation: isolate;
 }
+
+/* --------------------------------------------- */
+/* ⭐ OPTION A — FIXED HEIGHT WRAPPER             */
+/* --------------------------------------------- */
+.post-wrapper {
+  height: 180px;
+  overflow: hidden;
+}
+
+.post-card {
+  height: 100%;
+}
