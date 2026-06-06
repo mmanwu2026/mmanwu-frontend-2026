@@ -113,3 +113,56 @@ body {
     transform: translate(-50%, -50%) scale(0.4);
   }
 }
+
+/* ============================
+   🔺 C4 — Ascension Stages
+   ============================ */
+
+/* Rotating ascension ring behind high-spirit posts */
+.ascension-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 16px;
+  border: 2px solid var(--aura-color);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: -1;
+  animation: ascension-ring-rotate 8s linear infinite;
+}
+
+@keyframes ascension-ring-rotate {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1.05);
+  }
+}
+
+/* Crowned halo arc above very high-spirit posts */
+.ascension-halo {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 18px;
+  border-radius: 999px;
+  border-top: 2px solid var(--aura-color);
+  opacity: 0.7;
+  pointer-events: none;
+  filter: blur(1px);
+  animation: ascension-halo-glow 3s ease-in-out infinite;
+}
+
+@keyframes ascension-halo-glow {
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
