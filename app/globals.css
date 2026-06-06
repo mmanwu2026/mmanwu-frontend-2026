@@ -25,26 +25,26 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ⭐ Mmanwu Spirit Aura Animations */
+/* ⭐ Mmanwu Spirit Aura Animations — Color Adaptive (Option B) */
 
-/* Soft breathing glow */
+/* Soft breathing glow — uses currentColor instead of green */
 @keyframes aura-breathe {
-  0% { box-shadow: 0 0 6px rgba(34,197,94,0.3); }
-  50% { box-shadow: 0 0 14px rgba(34,197,94,0.5); }
-  100% { box-shadow: 0 0 6px rgba(34,197,94,0.3); }
+  0%   { box-shadow: 0 0 6px currentColor; }
+  50%  { box-shadow: 0 0 14px currentColor; }
+  100% { box-shadow: 0 0 6px currentColor; }
 }
 
-/* Strong radiant pulse */
+/* Strong radiant pulse — also uses currentColor */
 @keyframes aura-pulse {
-  0% { box-shadow: 0 0 10px rgba(34,197,94,0.4); }
-  50% { box-shadow: 0 0 22px rgba(34,197,94,0.7); }
-  100% { box-shadow: 0 0 10px rgba(34,197,94,0.4); }
+  0%   { box-shadow: 0 0 10px currentColor; }
+  50%  { box-shadow: 0 0 22px currentColor; }
+  100% { box-shadow: 0 0 10px currentColor; }
 }
 
-/* Floating particles */
+/* Floating particles — color is set inline by React */
 @keyframes spirit-particles {
-  0% { transform: translateY(0) scale(1); opacity: 0.6; }
-  50% { transform: translateY(-10px) scale(1.2); opacity: 1; }
+  0%   { transform: translateY(0) scale(1); opacity: 0.6; }
+  50%  { transform: translateY(-10px) scale(1.2); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 0.6; }
 }
 
@@ -52,7 +52,7 @@ body {
   position: absolute;
   width: 6px;
   height: 6px;
-  background: rgba(34,197,94,0.4);
   border-radius: 50%;
   animation: spirit-particles 3s ease-in-out infinite;
+  /* background color is now controlled inline by React */
 }
