@@ -1,4 +1,4 @@
-// plaza-bundle-refresh-001
+// plaza-bundle-refresh-002
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -167,76 +167,76 @@ export default function PlazaPage() {
           prevPositiveReactionsMap.current[post.id] = positive;
 
           return (
-            <div key={post.id} className="post-wrapper">
-              <div
-                className="
-                  post-card
-                  p-7
-                  rounded-lg
-                  bg-white
-                  transition-all
-                  duration-300
-                  relative
-                  border
-                  overflow-visible
-                  isolate-layout
-                  shadow-[0_0_1px_rgba(0,0,0,0.01)]
-                "
-                style={{
-                  height: "180px",
+            <div
+              key={post.id}
+              className="
+                p-7
+                rounded-lg
+                bg-white
+                transition-all
+                duration-300
+                relative
+                border
+                overflow-visible
+                isolate-layout
+                min-h-[180px]
+                shadow-[0_0_1px_rgba(0,0,0,0.01)]
+              "
+              style={
+                {
                   "--aura-color": auraColor(post.mask),
                   ...auraStyle(score, post.mask, positivityRatio),
-                }}
-              >
-                {surge && <div className="surge-flash absolute inset-0 rounded-lg"></div>}
-                {surge && <div className="surge-ripple"></div>}
+                } as unknown as React.CSSProperties
+              }
+            >
+              {surge && <div className="surge-flash absolute inset-0 rounded-lg"></div>}
+              {surge && <div className="surge-ripple"></div>}
 
-                {debugAscension && (
-                  <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
-                    DEBUG S{stage}
-                  </div>
-                )}
-
-                {stage >= 4 && <div className="ascension-ring" />}
-                {stage >= 5 && <div className="ascension-halo" />}
-
-                {stage >= 4 && positivityRatio > 0.4 && (
-                  <>
-                    <div className="spirit-spark" style={{ top: "20%", left: "40%", background: auraColor(post.mask) }} />
-                    {positivityRatio > 0.6 && (
-                      <div className="spirit-spark" style={{ top: "60%", left: "55%", animationDelay: "0.2s", background: auraColor(post.mask) }} />
-                    )}
-                    {positivityRatio > 0.8 && (
-                      <div className="spirit-spark" style={{ top: "35%", left: "70%", animationDelay: "0.4s", background: auraColor(post.mask) }} />
-                    )}
-                  </>
-                )}
-
-                {score >= 16 && (
-                  <>
-                    <div className="spirit-particle" style={{ top: "10%", left: "5%", background: auraColor(post.mask) }} />
-                    <div className="spirit-particle" style={{ top: "50%", left: "90%", animationDelay: "1s", background: auraColor(post.mask) }} />
-                    <div className="spirit-particle" style={{ top: "80%", left: "20%", animationDelay: "2s", background: auraColor(post.mask) }} />
-                  </>
-                )}
-
-                <div className="text-xs font-semibold mb-1" style={{ color: auraColor(post.mask) }}>
-                  Spirit Score: {score}
+              {debugAscension && (
+                <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
+                  DEBUG S{stage}
                 </div>
+              )}
 
-                <p className="whitespace-pre-line text-lg">{post.content}</p>
+              {stage >= 4 && <div className="ascension-ring" />}
+              {stage >= 5 && <div className="ascension-halo" />}
 
-                <div className="mt-4 flex justify-between text-sm text-gray-500">
-                  <span>Mask: {post.mask}</span>
-                  <span>{new Date(post.createdAt).toLocaleString()}</span>
-                </div>
+              {stage >= 4 && positivityRatio > 0.4 && (
+                <>
+                  <div className="spirit-spark" style={{ top: "20%", left: "40%", background: auraColor(post.mask) }} />
+                  {positivityRatio > 0.6 && (
+                    <div className="spirit-spark" style={{ top: "60%", left: "55%", animationDelay: "0.2s", background: auraColor(post.mask) }} />
+                  )}
+                  {positivityRatio > 0.8 && (
+                    <div className="spirit-spark" style={{ top: "35%", left: "70%", animationDelay: "0.4s", background: auraColor(post.mask) }} />
+                  )}
+                </>
+              )}
 
-                <ReactionBar
-                  postId={String(post.id)}
-                  creatorId={post.creatorId ?? "demo-creator-123"}
-                  currentUserId={"demo-user-123"}
-                />
+              {score >= 16 && (
+                <>
+                  <div className="spirit-particle" style={{ top: "10%", left: "5%", background: auraColor(post.mask) }} />
+                  <div className="spirit-particle" style={{ top: "50%", left: "90%", animationDelay: "1s", background: auraColor(post.mask) }} />
+                  <div className="spirit-particle" style={{ top: "80%", left: "20%", animationDelay: "2s", background: auraColor(post.mask) }} />
+                </>
+              )}
+
+              <div className="text-xs font-semibold mb-1" style={{ color: auraColor(post.mask) }}>
+                Spirit Score: {score}
               </div>
+
+              <p className="whitespace-pre-line text-lg">{post.content}</p>
+
+              <div className="mt-4 flex justify-between text-sm text-gray-500">
+                <span>Mask: {post.mask}</span>
+                <span>{new Date(post.createdAt).toLocaleString()}</span>
+              </div>
+
+              <ReactionBar
+                postId={String(post.id)}
+                creatorId={post.creatorId ?? "demo-creator-123"}
+                currentUserId={"demo-user-123"}
+              />
             </div>
           );
         })}
