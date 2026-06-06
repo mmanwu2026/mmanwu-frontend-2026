@@ -146,7 +146,7 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="p-10 w-full max-w-none mx-auto">
+    <div className="p-10 w-full max-w-5xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
 
       {loading && <p className="text-gray-500">Loading posts…</p>}
@@ -173,7 +173,7 @@ export default function PlazaPage() {
             (post.reactions?.[4] ?? 0) +
             (post.reactions?.[5] ?? 0);
 
-          const negativeReactions =
+          const negativity =
             (post.reactions?.[1] ?? 0) +
             (post.reactions?.[2] ?? 0);
 
@@ -221,7 +221,7 @@ export default function PlazaPage() {
           return (
             <div
               key={post.id}
-              className="p-5 rounded-lg bg-white transition-all duration-300 relative border overflow-visible min-h-[140px] w-full"
+              className="p-7 rounded-lg bg-white transition-all duration-300 relative border overflow-visible min-h-[180px] w-full"
               style={
                 {
                   "--aura-color": auraColor(post.mask),
