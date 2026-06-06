@@ -179,11 +179,11 @@ export default function PlazaPage() {
                 border
                 overflow-visible
                 isolate-layout
-                min-h-[180px]
                 shadow-[0_0_1px_rgba(0,0,0,0.01)]
               "
               style={
                 {
+                  minHeight: "180px",
                   "--aura-color": auraColor(post.mask),
                   ...auraStyle(score, post.mask, positivityRatio),
                 } as unknown as React.CSSProperties
