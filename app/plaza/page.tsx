@@ -97,7 +97,7 @@ export default function PlazaPage() {
     }
   }
 
-  // ⭐ Aura style generator (score + mask)
+  // ⭐ Aura style generator (still old version — Step 2 will upgrade this)
   function auraStyle(score: number = 0, mask: number) {
     const color = auraColor(mask);
 
@@ -141,12 +141,32 @@ export default function PlazaPage() {
 
       <div className="space-y-6">
         {posts.map((post) => {
+          // ⭐ C6 Dynamics — Step 1 (core metrics)
           const score = post.spiritScore ?? 0;
+
+          const totalReactions =
+            (post.reactions?.[1] ?? 0) +
+            (post.reactions?.[2] ?? 0) +
+            (post.reactions?.[3] ?? 0) +
+            (post.reactions?.[4] ?? 0) +
+            (post.reactions?.[5] ?? 0);
+
+          const positiveReactions =
+            (post.reactions?.[3] ?? 0) +
+            (post.reactions?.[4] ?? 0) +
+            (post.reactions?.[5] ?? 0);
+
+          const negativeReactions =
+            (post.reactions?.[1] ?? 0) +
+            (post.reactions?.[2] ?? 0);
+
+          const positivityRatio =
+            totalReactions > 0 ? positiveReactions / totalReactions : 0.5;
 
           // ⭐ C4 Stage Logic (with Debug Override)
           let stage;
           if (debugAscension) {
-            stage = ((post.id % 5) + 1); // cycle stages 1–5
+            stage = (post.id % 5) + 1; // cycle stages 1–5
           } else {
             stage =
               score < 6
@@ -167,6 +187,7 @@ export default function PlazaPage() {
               style={
                 {
                   "--aura-color": auraColor(post.mask),
+                  // ⭐ Step 1: still using old auraStyle; Step 2 will upgrade this
                   ...auraStyle(score, post.mask),
                 } as unknown as React.CSSProperties
               }
