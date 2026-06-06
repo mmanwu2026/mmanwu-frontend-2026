@@ -130,7 +130,10 @@ export default function PlazaPage() {
           <div
             key={post.id}
             className="p-5 rounded-lg bg-white transition-all duration-300 relative border"
-            style={auraStyle(post.spiritScore ?? 0, post.mask)}
+            style={{
+              "--aura-color": auraColor(post.mask),
+              ...auraStyle(post.spiritScore ?? 0, post.mask),
+            } as React.CSSProperties}
           >
             {/* Floating spirit particles for high-spirit posts */}
             {post.spiritScore !== undefined && post.spiritScore >= 16 && (
