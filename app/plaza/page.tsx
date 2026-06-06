@@ -180,6 +180,7 @@ export default function PlazaPage() {
                 overflow-visible
                 isolate-layout
                 min-h-[140px]
+                shadow-[0_0_1px_rgba(0,0,0,0.01)]
               "
               style={
                 {
