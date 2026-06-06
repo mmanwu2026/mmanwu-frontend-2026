@@ -146,7 +146,7 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="p-10 max-w-3xl mx-auto">
+    <div className="p-10 w-full max-w-none mx-auto">
       <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
 
       {loading && <p className="text-gray-500">Loading posts…</p>}
@@ -156,7 +156,7 @@ export default function PlazaPage() {
         <p className="text-gray-500">No posts yet…</p>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-6 w-full">
         {posts.map((post) => {
           // ⭐ C6 Dynamics — Step 1 (core metrics)
           const score = post.spiritScore ?? 0;
@@ -253,7 +253,6 @@ export default function PlazaPage() {
               {/* ⭐ C6 Step 3 — Dynamic C5 Spirit Sparks */}
               {stage >= 4 && positivityRatio > 0.4 && (
                 <>
-                  {/* 1 spark */}
                   <div
                     className="spirit-spark"
                     style={{
@@ -264,7 +263,6 @@ export default function PlazaPage() {
                     }}
                   />
 
-                  {/* 2 sparks */}
                   {positivityRatio > 0.6 && (
                     <div
                       className="spirit-spark"
@@ -277,7 +275,6 @@ export default function PlazaPage() {
                     />
                   )}
 
-                  {/* 3 sparks */}
                   {positivityRatio > 0.8 && (
                     <div
                       className="spirit-spark"
@@ -292,7 +289,7 @@ export default function PlazaPage() {
                 </>
               )}
 
-              {/* Floating spirit particles for high-spirit posts */}
+              {/* Floating spirit particles */}
               {score >= 16 && (
                 <>
                   <div
@@ -324,7 +321,7 @@ export default function PlazaPage() {
                 </>
               )}
 
-              {/* Spirit Score Badge */}
+              {/* Spirit Score */}
               <div
                 className="text-xs font-semibold mb-1"
                 style={{ color: auraColor(post.mask) }}
