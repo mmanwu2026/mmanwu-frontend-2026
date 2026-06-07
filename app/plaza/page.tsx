@@ -1,4 +1,4 @@
-// plaza-bundle-refresh-003
+// plaza-bundle-refresh-004
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -117,7 +117,7 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="p-10 w-full max-w-2xl mx-auto">
+    <div className="p-10 w-full max-w-xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
 
       {loading && <p>Loading posts…</p>}
@@ -180,6 +180,7 @@ export default function PlazaPage() {
                 overflow-visible
                 isolate-layout
                 min-h-[220px]
+                mb-8
                 shadow-[0_0_1px_rgba(0,0,0,0.01)]
               "
               style={
