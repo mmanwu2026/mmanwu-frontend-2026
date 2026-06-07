@@ -3,7 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // ⭐ REQUIRED: Enable App Router so /app/plaza/page.tsx works
   experimental: {
+    appDir: true,
     serverActions: {
       allowedOrigins: ["*"],
     },
