@@ -1,155 +1,247 @@
-// Mmanwu Clean Backend – Full Express Server (Patched)
+// plaza-bundle-refresh-005
+"use client";
 
-const express = require("express");
-const cors = require("cors");
+import { useEffect, useState, useRef } from "react";
+import ReactionBar from "@/components/ReactionBar";
 
-const app = express();
+type Post = {
+  id: number;
+  content: string;
+  mask: number;
+  createdAt: string;
+  creatorId?: string;
+  spiritScore?: number;
+  reactions?: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
+};
 
-// ⭐ UPDATED CORS — allows local dev + BOTH Vercel frontend domains
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "https://mmanwu-frontend-2026.vercel.app",
-      "https://mmanwu-frontend-2026-rf3cm3bb7-mmanwu2026s-projects.vercel.app"
-    ],
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
+export default function PlazaPage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-app.use(express.json());
+  const [debugAscension, setDebugAscension] = useState(false);
 
-// In-memory storage (temporary until DB is added)
-let posts = [];
-let users = [];
-let reactions = [];
-let comments = [];
+  const prevPositivityMap = useRef<Record<number, number>>({});
+  const prevPositiveReactionsMap = useRef<Record<number, number>>({});
 
-// ⭐ Auto‑patch old posts so Plaza never crashes
-function patchPosts() {
-  posts = posts.map((p) => ({
-    ...p,
-    creatorId: p.creatorId || "demo-creator-123",
-    spiritScore: p.spiritScore || 0,
-  }));
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "d") {
+        setDebugAscension((prev) => !prev);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [debugAscension]);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        const res = await fetch(
+          "https://mmanwu-clean-production-6465.up.railway.app/plaza",
+          { cache: "no-store" }
+        );
+        if (!res.ok) throw new Error("Failed to fetch posts");
+
+        const data: Post[] = await res.json();
+
+        const patched = data.map((p) => ({
+          ...p,
+          spiritScore: p.spiritScore ?? 0,
+          reactions: p.reactions ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        }));
+
+        const sorted = patched.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() -
+            new Date(a.createdAt).getTime()
+        );
+
+        setPosts(sorted);
+      } catch (err) {
+        setError("Unable to load posts.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPosts();
+  }, []);
+
+  function auraColor(mask: number) {
+    switch (mask) {
+      case 1: return "#7C3AED";
+      case 2: return "#DC2626";
+      case 3: return "#22C55E";
+      case 4: return "#FACC15";
+      case 5: return "#3B82F6";
+      default: return "#22C55E";
+    }
+  }
+
+  function auraStyle(score = 0, mask: number, positivityRatio: number) {
+    const color = auraColor(mask);
+
+    let intensityLevel =
+      score < 6 ? 0 :
+      score < 16 ? 1 :
+      score < 31 ? 2 : 3;
+
+    const boost = positivityRatio > 0.6 ? 1 : 0;
+    const dampen = positivityRatio < 0.3 ? -1 : 0;
+
+    const finalLevel = Math.max(0, Math.min(3, intensityLevel + boost + dampen));
+
+    if (finalLevel === 0) return { borderColor: color };
+    if (finalLevel === 1) return {
+      borderColor: color,
+      boxShadow: `0 0 10px ${color}33`,
+      animation: "aura-breathe 3s ease-in-out infinite",
+    };
+    if (finalLevel === 2) return {
+      borderColor: color,
+      boxShadow: `0 0 15px ${color}55`,
+      animation: "aura-breathe 2s ease-in-out infinite",
+    };
+    return {
+      borderColor: color,
+      boxShadow: `0 0 20px ${color}77`,
+      animation: "aura-pulse 1.5s ease-in-out infinite",
+    };
+  }
+
+  return (
+    <div className="p-10 w-full max-w-xl mx-auto">
+      <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
+
+      {loading && <p>Loading posts…</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      {!loading && posts.length === 0 && <p>No posts yet…</p>}
+
+      <div className="space-y-6">
+        {posts.map((post) => {
+          const score = post.spiritScore ?? 0;
+
+          const total =
+            (post.reactions?.[1] ?? 0) +
+            (post.reactions?.[2] ?? 0) +
+            (post.reactions?.[3] ?? 0) +
+            (post.reactions?.[4] ?? 0) +
+            (post.reactions?.[5] ?? 0);
+
+          const positive =
+            (post.reactions?.[3] ?? 0) +
+            (post.reactions?.[4] ?? 0) +
+            (post.reactions?.[5] ?? 0);
+
+          const positivityRatio = total > 0 ? positive / total : 0.5;
+
+          let baseStage =
+            score < 6 ? 1 :
+            score < 16 ? 2 :
+            score < 31 ? 3 :
+            score < 51 ? 4 : 5;
+
+          const stageBoost = positivityRatio > 0.7 ? 1 : 0;
+          const stageDampen = positivityRatio < 0.3 ? -1 : 0;
+
+          let stage = Math.max(1, Math.min(5, baseStage + stageBoost + stageDampen));
+
+          if (debugAscension) stage = (post.id % 5) + 1;
+
+          const prevPos = prevPositivityMap.current[post.id] ?? positivityRatio;
+          const prevPosReacts = prevPositiveReactionsMap.current[post.id] ?? positive;
+
+          const positivitySpike = positivityRatio - prevPos > 0.25;
+          const newPositiveReaction = positive > prevPosReacts;
+
+          const surge = positivitySpike || newPositiveReaction;
+
+          prevPositivityMap.current[post.id] = positivityRatio;
+          prevPositiveReactionsMap.current[post.id] = positive;
+
+          return (
+            <div
+              key={post.id}
+              className="
+                p-7
+                rounded-lg
+                bg-white
+                transition-all
+                duration-300
+                relative
+                border
+                overflow-visible
+                isolate-layout
+                min-h-[220px]
+                mb-8
+                shadow-[0_0_1px_rgba(0,0,0,0.01)]
+              "
+              style={
+                {
+                  "--aura-color": auraColor(post.mask),
+                  ...auraStyle(score, post.mask, positivityRatio),
+                } as any
+              }
+            >
+              {surge && <div className="surge-flash absolute inset-0 rounded-lg"></div>}
+              {surge && <div className="surge-ripple"></div>}
+
+              {debugAscension && (
+                <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
+                  DEBUG S{stage}
+                </div>
+              )}
+
+              {stage >= 4 && <div className="ascension-ring" />}
+              {stage >= 5 && <div className="ascension-halo" />}
+
+              {stage >= 4 && positivityRatio > 0.4 && (
+                <>
+                  <div className="spirit-spark" style={{ top: "20%", left: "40%", background: auraColor(post.mask) }} />
+                  {positivityRatio > 0.6 && (
+                    <div className="spirit-spark" style={{ top: "60%", left: "55%", animationDelay: "0.2s", background: auraColor(post.mask) }} />
+                  )}
+                  {positivityRatio > 0.8 && (
+                    <div className="spirit-spark" style={{ top: "35%", left: "70%", animationDelay: "0.4s", background: auraColor(post.mask) }} />
+                  )}
+                </>
+              )}
+
+              {score >= 16 && (
+                <>
+                  <div className="spirit-particle" style={{ top: "10%", left: "5%", background: auraColor(post.mask) }} />
+                  <div className="spirit-particle" style={{ top: "50%", left: "90%", animationDelay: "1s", background: auraColor(post.mask) }} />
+                  <div className="spirit-particle" style={{ top: "80%", left: "20%", animationDelay: "2s", background: auraColor(post.mask) }} />
+                </>
+              )}
+
+              <div className="text-xs font-semibold mb-1" style={{ color: auraColor(post.mask) }}>
+                Spirit Score: {score}
+              </div>
+
+              <p className="whitespace-pre-line text-lg">{post.content}</p>
+
+              <div className="mt-4 flex justify-between text-sm text-gray-500">
+                <span>Mask: {post.mask}</span>
+                <span>{new Date(post.createdAt).toLocaleString()}</span>
+              </div>
+
+              <ReactionBar
+                postId={String(post.id)}
+                creatorId={post.creatorId ?? "demo-creator-123"}
+                currentUserId={"demo-user-123"}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
-
-// Root route
-app.get("/", (req, res) => {
-  res.send("Hello from Mmanwu!");
-});
-
-// Health check
-app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
-    service: "mmanwu-clean",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// ⭐ Plaza POST route — used by frontend create-post page
-app.post("/plaza", (req, res) => {
-  const { content, mask } = req.body;
-
-  if (!content) {
-    return res.status(400).json({ error: "Content is required" });
-  }
-
-  const newPost = {
-    id: posts.length + 1,
-    content,
-    mask: mask || 3,
-    creatorId: "demo-creator-123", // TEMPORARY FIX
-    spiritScore: 0,
-    createdAt: new Date().toISOString(),
-  };
-
-  // Add to top of feed
-  posts.unshift(newPost);
-
-  res.status(201).json(newPost);
-});
-
-// ⭐ Plaza GET route — returns posts array directly
-app.get("/plaza", (req, res) => {
-  patchPosts(); // ensure all posts have creatorId + spiritScore
-  res.json(posts);
-});
-
-// ⭐ Reactions + Spirit Score Engine
-app.post("/reactions", (req, res) => {
-  const { postId, userId, maskTier } = req.body;
-
-  // Validate mask
-  if (![1, 2, 3, 4, 5].includes(maskTier)) {
-    return res.status(400).json({
-      error: "Invalid mask tier. Must be 1, 2, 3, 4, or 5.",
-    });
-  }
-
-  // Find post
-  const post = posts.find((p) => p.id === postId);
-  if (!post) {
-    return res.status(404).json({ error: "Post not found." });
-  }
-
-  // Determine if user is creator
-  const isCreator = post.creatorId === userId;
-
-  // Enforce anti-bullying rule
-  if ((maskTier === 1 || maskTier === 2) && !isCreator) {
-    return res.status(403).json({
-      error: "Only the content creator can issue mask #1 or #2.",
-    });
-  }
-
-  // Record reaction
-  const reaction = {
-    id: reactions.length + 1,
-    postId,
-    userId,
-    maskTier,
-    createdAt: new Date().toISOString(),
-  };
-
-  reactions.push(reaction);
-
-  // ⭐ Spirit Score values
-  const spiritValues = {
-    1: 0, // creator-only
-    2: 0, // creator-only
-    3: 1,
-    4: 3,
-    5: 5,
-  };
-
-  // Initialize spiritScore if missing
-  if (!post.spiritScore) post.spiritScore = 0;
-
-  // Add spirit energy
-  post.spiritScore += spiritValues[maskTier];
-
-  // ⭐ Build reaction summary for this post
-  const reactionSummary = {
-    1: reactions.filter((r) => r.postId === postId && r.maskTier === 1).length,
-    2: reactions.filter((r) => r.postId === postId && r.maskTier === 2).length,
-    3: reactions.filter((r) => r.postId === postId && r.maskTier === 3).length,
-    4: reactions.filter((r) => r.postId === postId && r.maskTier === 4).length,
-    5: reactions.filter((r) => r.postId === postId && r.maskTier === 5).length,
-  };
-
-  res.status(201).json({
-    message: "Reaction recorded successfully.",
-    reaction,
-    spiritScore: post.spiritScore,
-    reactions: reactionSummary,
-  });
-});
-
-// Start server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Mmanwu backend running on port ${PORT}`);
-});
