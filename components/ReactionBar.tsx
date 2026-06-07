@@ -26,7 +26,6 @@ export default function ReactionBar({
   currentUserId,
 }: ReactionBarProps) {
   const [selectedMask, setSelectedMask] = useState<number | null>(null);
-  const [spiritScore, setSpiritScore] = useState<number>(0);
   const [reactionCounts, setReactionCounts] = useState<ReactionCounts>({
     1: 0,
     2: 0,
@@ -61,10 +60,6 @@ export default function ReactionBar({
 
       setSelectedMask(maskId);
 
-      if (data.spiritScore !== undefined) {
-        setSpiritScore(data.spiritScore);
-      }
-
       if (data.reactions) {
         setReactionCounts(data.reactions as ReactionCounts);
       }
@@ -75,10 +70,6 @@ export default function ReactionBar({
 
   return (
     <div className="mt-4">
-      <div className="text-sm text-green-700 font-semibold mb-2">
-        Spirit Score: {spiritScore}
-      </div>
-
       <div className="flex gap-3">
         {MASKS.map((mask) => {
           const disabled = mask.creatorOnly && !isCreator;
