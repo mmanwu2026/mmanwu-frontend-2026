@@ -1,10 +1,5 @@
 /* plaza-bundle-refresh-006 */
 
-/* Tailwind base */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Root theme variables */
 :root {
   --foreground-rgb: 0, 0, 0;
