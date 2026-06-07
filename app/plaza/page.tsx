@@ -2,6 +2,8 @@
 // plaza-sync-verify-001
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
 
