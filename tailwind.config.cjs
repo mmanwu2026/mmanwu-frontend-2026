@@ -1,13 +1,9 @@
-// tailwind.config.cjs — Tailwind v4 format
-
-import { defineConfig } from "tailwindcss";
-
-export default defineConfig({
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
   ],
-
   safelist: [
     "ascension-ring",
     "ascension-halo",
@@ -16,8 +12,8 @@ export default defineConfig({
     "surge-flash",
     "surge-ripple",
   ],
-
   theme: {
     extend: {},
   },
-});
+  plugins: [],
+};
