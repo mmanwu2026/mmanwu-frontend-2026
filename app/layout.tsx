@@ -13,7 +13,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// ⭐ UPDATED METADATA — this controls your browser tab title
 export const metadata: Metadata = {
   title: "Mmanwu Plaza",
   description: "The official Mmanwu social square",
@@ -29,8 +28,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="min-h-screen">
-        {children}
+      <body className="min-h-screen flex justify-center">
+        <main className="w-full max-w-[300px]">
+          {children}
+        </main>
       </body>
     </html>
   );
