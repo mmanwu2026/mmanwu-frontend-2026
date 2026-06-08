@@ -330,11 +330,17 @@ export default function PlazaPage() {
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
 
-              {/* Reaction Bar */}
+              {/* Reaction Bar — FIXED */}
               <ReactionBar
                 postId={String(post.id)}
-                creatorId={post.creatorId ?? "demo-creator-123"}
-                currentUserId={"demo-user-123"}
+                userId={"demo-user-123"}
+                reactions={{
+                  mask1: post.reactions?.[1] ?? 0,
+                  mask2: post.reactions?.[2] ?? 0,
+                  mask3: post.reactions?.[3] ?? 0,
+                  mask4: post.reactions?.[4] ?? 0,
+                  mask5: post.reactions?.[5] ?? 0,
+                }}
                 onReact={() => fetchPosts()}
               />
             </div>
