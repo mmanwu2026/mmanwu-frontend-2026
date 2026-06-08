@@ -38,10 +38,10 @@ export default async function ProfilePage({
 }) {
   const { userId } = params;
 
-  // ⭐ REAL CODE CHANGE #1 — forces Vercel to rebuild server bundle
+  // ⭐ Forces Vercel to rebuild server bundle
   const vercelSync = "008";
 
-  // ⭐ REAL CODE CHANGE #2 — guaranteed unique value every build
+  // ⭐ Guaranteed unique value every build
   const vercelHardReset = Math.random();
 
   let data;
@@ -127,14 +127,9 @@ export default async function ProfilePage({
   );
 }
 
-// ⭐ FINAL NUCLEAR INVALIDATION — forces Vercel to rebuild server bundle
+// ⭐ Safe rebuild trigger
 export function vercelInvalidate() {
   return "invalidate-009";
-}
-
-// ⭐ NEW: Forces Vercel to rebuild route module
-export function generateStaticParams() {
-  return [];
 }
 
 // ⭐ Guaranteed Vercel rebuild trigger
