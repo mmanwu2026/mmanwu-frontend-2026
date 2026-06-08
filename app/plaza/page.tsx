@@ -1,4 +1,4 @@
-// plaza-bundle-refresh-007
+// plaza-bundle-refresh-008
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -122,8 +122,8 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="p-10 w-full max-w-md mx-auto">
-      <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
+    <div className="p-6 w-full max-w-[300px] mx-auto">
+      <h1 className="text-4xl font-bold mb-8 text-center">MMANWU PLAZA</h1>
 
       {loading && <p>Loading posts…</p>}
       {error && <p className="text-red-500">{error}</p>}
@@ -186,10 +186,10 @@ export default function PlazaPage() {
                 border
                 overflow-visible
                 isolate-layout
-                min-h-[360px]
+                min-h-[420px]
                 mb-10
                 shadow-[0_10px_30px_rgba(0,0,0,0.05)]
-                max-w-md
+                max-w-[300px]
                 mx-auto
               "
               style={{
