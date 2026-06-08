@@ -1,4 +1,4 @@
-// force vercel rebuild 004
+// force vercel rebuild 006
 // app/profile/[userId]/page.tsx
 
 import React from "react";
@@ -41,7 +41,7 @@ export default async function ProfilePage({
   let data;
 
   try {
-    // ⭐ FIXED: Use internal API route so Vercel applies rewrites
+    // ⭐ Correct internal fetch so Vercel applies rewrites
     const res = await fetch(`/api/profile/${userId}`, {
       cache: "no-store",
     });
