@@ -130,7 +130,7 @@
   box-shadow: 0 0 1px rgba(0,0,0,0.04);
 }
 
-/* === REACTION ENGINE ANIMATIONS (STYLE B — Energetic & Expressive) === */
+/* === REACTION ENGINE ANIMATIONS === */
 
 /* Hover lift */
 .mask-hover:hover {
@@ -184,7 +184,7 @@
   100% { transform: translateY(-10px); opacity: 0; }
 }
 
-/* === MASK BREATHING (idle animation) === */
+/* === MASK BREATHING === */
 @keyframes mask-breathe {
   0% { transform: scale(1); }
   50% { transform: scale(1.06); }
@@ -195,7 +195,7 @@
   animation: mask-breathe 3.5s ease-in-out infinite;
 }
 
-/* === MASK BLINKING (SVG eyes) === */
+/* === MASK BLINKING === */
 @keyframes mask-blink {
   0% { transform: scaleY(1); }
   48% { transform: scaleY(1); }
@@ -216,7 +216,7 @@
   transition: filter 0.2s ease-out;
 }
 
-/* === ENERGY RIPPLE ON CLICK === */
+/* === ENERGY RIPPLE === */
 .energy-ripple {
   position: absolute;
   width: 44px;
@@ -230,4 +230,42 @@
 @keyframes energy-ripple {
   0% { transform: scale(0.6); opacity: 0.8; }
   100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* === C1 EXPRESSION ENGINE (Mythic + Anime) === */
+
+/* Expression shift */
+.expression-shift {
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+
+/* Eye styles */
+.eyes-bright {
+  transform: scale(1.08) translateY(-1px);
+  opacity: 1;
+}
+
+.eyes-joyful {
+  transform: scale(1.04);
+  opacity: 0.95;
+}
+
+.eyes-neutral {
+  transform: scale(1);
+  opacity: 0.9;
+}
+
+.eyes-stern {
+  transform: scale(0.9) translateY(1px);
+  opacity: 0.8;
+}
+
+.eyes-dark {
+  transform: scale(0.88) translateY(2px);
+  opacity: 0.7;
+}
+
+/* Mouth morphing */
+.mask-mouth {
+  transition: d 0.18s ease-out, stroke 0.18s ease-out;
 }
