@@ -12,8 +12,8 @@ interface ReactionBarProps {
     mask4: number;
     mask5: number;
   };
-  spiritScore?: number;          // ⭐ NEW for C2
-  positivityRatio?: number;      // ⭐ NEW for C2
+  spiritScore?: number;
+  positivityRatio?: number;
   onReact?: () => void;
 }
 
@@ -23,8 +23,8 @@ export default function ReactionBar({
   postId,
   userId,
   reactions,
-  spiritScore = 50,        // ⭐ Default mid‑energy
-  positivityRatio = 0.5,   // ⭐ Default neutral
+  spiritScore = 50,
+  positivityRatio = 0.5,
   onReact,
 }: ReactionBarProps) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -51,11 +51,11 @@ export default function ReactionBar({
   };
 
   const maskData = [
-    { tier: 1, label: "Dark Whisper", count: reactions.mask1, color: "#1A1A1A" },
-    { tier: 2, label: "Fierce Awakener", count: reactions.mask2, color: "#3B0A0A" },
-    { tier: 3, label: "Warm Guardian", count: reactions.mask3, color: "#2F3B0F" },
-    { tier: 4, label: "Joyful Spirit", count: reactions.mask4, color: "#15406B" },
-    { tier: 5, label: "Radiant Ascender", count: reactions.mask5, color: "#4A148C" },
+    { tier: 1, label: "Dark Whisper", count: reactions.mask1 },
+    { tier: 2, label: "Fierce Awakener", count: reactions.mask2 },
+    { tier: 3, label: "Warm Guardian", count: reactions.mask3 },
+    { tier: 4, label: "Joyful Spirit", count: reactions.mask4 },
+    { tier: 5, label: "Radiant Ascender", count: reactions.mask5 },
   ];
 
   const getMouthPath = (tier: number) => {
@@ -67,11 +67,31 @@ export default function ReactionBar({
   };
 
   const getEyeClass = (tier: number) => {
-    if (tier >= 5) return "eyes-bright";
-    if (tier === 4) return "eyes-joyful";
-    if (tier === 3) return "eyes-neutral";
-    if (tier === 2) return "eyes-stern";
-    return "eyes-dark";
+    if (tier >= 5) return "eye-joy";
+    if (tier === 4) return "eye-happy";
+    if (tier === 3) return "eye-neutral";
+    if (tier === 2) return "eye-serious";
+    return "eye-dark";
+  };
+
+  const getEmotionClass = () => {
+    if (positivityRatio > 0.75) return "emotion-boost";
+    if (positivityRatio > 0.55) return "emotion-intense";
+    if (positivityRatio < 0.25) return "emotion-soft";
+    return "emotion-calm";
+  };
+
+  const getAscensionClass = () => {
+    if (spiritScore > 200) return "ascend-tier-4";
+    if (spiritScore > 150) return "ascend-tier-3";
+    if (spiritScore > 100) return "ascend-tier-2";
+    return "ascend-tier-1";
+  };
+
+  const getSurgeClass = () => {
+    if (spiritScore > 200) return "surge-strong";
+    if (spiritScore > 150) return "surge-medium";
+    return "surge-weak";
   };
 
   return (
@@ -100,37 +120,20 @@ export default function ReactionBar({
                   w-10 h-10 rounded-xl flex items-center justify-center
                   transition-all duration-200
                   mask-hover mask-breathe mask-color-pulse expression-shift
-                  ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
+                  mask-tier-${mask.tier}
+                  mask-aura ${getEmotionClass()} ${getAscensionClass()} ${getSurgeClass()}
+                  ${selected === mask.tier ? "mask-pop mask-glow-strong emotion-bounce" : ""}
                 `}
                 style={{
-                  backgroundColor: mask.color,
                   "--blink-offset": index % 3,
                   "--spirit-score": spiritScore,
                   "--positivity-ratio": positivityRatio,
                 } as React.CSSProperties}
               >
                 <svg width="26" height="26" viewBox="0 0 64 64">
-                  <circle
-                    cx="24"
-                    cy="28"
-                    r="4"
-                    fill="#fff"
-                    className={`mask-eyes ${eyeClass}`}
-                  />
-                  <circle
-                    cx="40"
-                    cy="28"
-                    r="4"
-                    fill="#fff"
-                    className={`mask-eyes ${eyeClass}`}
-                  />
-                  <path
-                    d={mouthPath}
-                    stroke="#fff"
-                    strokeWidth="3"
-                    fill="none"
-                    className="mask-mouth"
-                  />
+                  <circle cx="24" cy="28" r="4" fill="#fff" className={`mask-eyes ${eyeClass}`} />
+                  <circle cx="40" cy="28" r="4" fill="#fff" className={`mask-eyes ${eyeClass}`} />
+                  <path d={mouthPath} stroke="#fff" strokeWidth="3" fill="none" className="mask-mouth" />
                 </svg>
               </div>
             </div>
