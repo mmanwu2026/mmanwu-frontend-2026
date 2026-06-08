@@ -43,15 +43,12 @@ export default async function ProfilePage({
   // ⭐ Forces Vercel to rebuild server bundle
   const vercelSync = "010-FINAL";
 
-  // ⭐ Correct backend base URL (Railway)
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    "https://mmanwu-clean-production-6465.up.railway.app";
+  // ⭐ FIXED: Hard-coded backend URL (env var was undefined on Vercel)
+  const baseUrl = "https://mmanwu-clean-production-6465.up.railway.app";
 
   let data;
 
   try {
-    // ⭐ Correct backend fetch
     const res = await fetch(`${baseUrl}/profile/${userId}`, {
       cache: "no-store",
     });
