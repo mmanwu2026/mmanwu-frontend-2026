@@ -1,4 +1,4 @@
-// force vercel rebuild 007
+// force vercel rebuild 008
 // app/profile/[userId]/page.tsx
 
 import React from "react";
@@ -37,6 +37,9 @@ export default async function ProfilePage({
   params: { userId: string };
 }) {
   const { userId } = params;
+
+  // ⭐ REAL CODE CHANGE — forces Vercel to rebuild server bundle
+  const vercelSync = "008";
 
   let data;
 
