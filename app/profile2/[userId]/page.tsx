@@ -1,6 +1,6 @@
-// vercel sync 013
-// hard invalidate test
-// backend url fix active
+// vercel sync 014
+// hard invalidate active
+// regenerated Profile2 page
 // app/profile2/[userId]/page.tsx
 
 import React from "react";
@@ -40,10 +40,10 @@ export default async function ProfilePage({
 }) {
   const { userId } = params;
 
-  // ⭐ Forces Vercel to rebuild server bundle
-  const vercelSync = "010-FINAL";
+  // ⭐ Guaranteed Vercel rebuild token
+  const vercelSync = "014-REBUILD";
 
-  // ⭐ FIXED: Hard-coded backend URL (env var was undefined on Vercel)
+  // ⭐ FIXED: Hard-coded backend URL (env var removed)
   const baseUrl = "https://mmanwu-clean-production-6465.up.railway.app";
 
   let data;
@@ -51,6 +51,7 @@ export default async function ProfilePage({
   try {
     const res = await fetch(`${baseUrl}/profile/${userId}`, {
       cache: "no-store",
+      next: { revalidate: 0 },
     });
 
     if (!res.ok) {
@@ -130,11 +131,11 @@ export default async function ProfilePage({
 
 // ⭐ Safe rebuild trigger
 export function vercelInvalidate() {
-  return "invalidate-010-FINAL";
+  return "invalidate-014-REBUILD";
 }
 
 // ⭐ Guaranteed Vercel rebuild trigger
 export const forceRebuild = true;
 
 // ⭐ Deep invalidation for dynamic route bundle
-export const vercelHardInvalidate = "010-FINAL";
+export const vercelHardInvalidate = "014-REBUILD";
