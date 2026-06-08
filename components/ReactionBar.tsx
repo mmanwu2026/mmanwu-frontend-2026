@@ -76,15 +76,31 @@ export default function ReactionBar({
                 <div className="pulse-ring"></div>
               )}
 
-              <div
-                className={`
-                  w-10 h-10 rounded-xl flex items-center justify-center
-                  transition-all duration-200
-                  mask-hover
-                  ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
-                `}
-                style={{ backgroundColor: mask.color }}
-              >
+              <div className="relative">
+  {/* Energy ripple on click */}
+  {selected === mask.tier && <div className="energy-ripple"></div>}
+
+  <div
+    className={`
+      w-10 h-10 rounded-xl flex items-center justify-center
+      transition-all duration-200
+      mask-hover mask-breathe mask-color-pulse
+      ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
+    `}
+    style={{ backgroundColor: mask.color }}
+  >
+    <svg width="26" height="26" viewBox="0 0 64 64">
+      <circle cx="24" cy="28" r="4" fill="#fff" className="mask-eyes" />
+      <circle cx="40" cy="28" r="4" fill="#fff" className="mask-eyes" />
+      <path
+        d="M24 38 Q32 42 40 38"
+        stroke="#fff"
+        strokeWidth="3"
+        fill="none"
+      />
+    </svg>
+  </div>
+</div>
                 <svg width="26" height="26" viewBox="0 0 64 64">
                   <circle cx="24" cy="28" r="4" fill="#fff" />
                   <circle cx="40" cy="28" r="4" fill="#fff" />
