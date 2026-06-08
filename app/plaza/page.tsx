@@ -1,5 +1,4 @@
-// plaza-bundle-refresh-005
-// plaza-sync-verify-001
+// plaza-bundle-refresh-006
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +32,7 @@ export default function PlazaPage() {
   const prevPositivityMap = useRef<Record<number, number>>({});
   const prevPositiveReactionsMap = useRef<Record<number, number>>({});
 
+  // Toggle debug ascension with "D"
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key.toLowerCase() === "d") {
@@ -43,40 +43,42 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [debugAscension]);
 
-  useEffect(() => {
-    async function fetchPosts() {
-      try {
-        const res = await fetch(
-          "https://mmanwu-clean-production-6465.up.railway.app/plaza",
-          { cache: "no-store" }
-        );
-        if (!res.ok) throw new Error("Failed to fetch posts");
+  // Fetch posts
+  async function fetchPosts() {
+    try {
+      const res = await fetch(
+        "https://mmanwu-clean-production-6465.up.railway.app/plaza",
+        { cache: "no-store" }
+      );
+      if (!res.ok) throw new Error("Failed to fetch posts");
 
-        const data: Post[] = await res.json();
+      const data: Post[] = await res.json();
 
-        const patched = data.map((p) => ({
-          ...p,
-          spiritScore: p.spiritScore ?? 0,
-          reactions: p.reactions ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-        }));
+      const patched = data.map((p) => ({
+        ...p,
+        spiritScore: p.spiritScore ?? 0,
+        reactions: p.reactions ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      }));
 
-        const sorted = patched.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() -
-            new Date(a.createdAt).getTime()
-        );
+      const sorted = patched.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
 
-        setPosts(sorted);
-      } catch (err) {
-        setError("Unable to load posts.");
-      } finally {
-        setLoading(false);
-      }
+      setPosts(sorted);
+    } catch (err) {
+      setError("Unable to load posts.");
+    } finally {
+      setLoading(false);
     }
+  }
 
+  useEffect(() => {
     fetchPosts();
   }, []);
 
+  // Aura color by mask
   function auraColor(mask: number) {
     switch (mask) {
       case 1: return "#7C3AED";
@@ -88,6 +90,7 @@ export default function PlazaPage() {
     }
   }
 
+  // Aura intensity logic (C2)
   function auraStyle(score = 0, mask: number, positivityRatio: number) {
     const color = auraColor(mask);
 
@@ -145,6 +148,7 @@ export default function PlazaPage() {
 
           const positivityRatio = total > 0 ? positive / total : 0.5;
 
+          // Stage logic (C3–C4)
           let baseStage =
             score < 6 ? 1 :
             score < 16 ? 2 :
@@ -158,6 +162,7 @@ export default function PlazaPage() {
 
           if (debugAscension) stage = (post.id % 5) + 1;
 
+          // Surge logic (C5)
           const prevPos = prevPositivityMap.current[post.id] ?? positivityRatio;
           const prevPosReacts = prevPositiveReactionsMap.current[post.id] ?? positive;
 
@@ -186,25 +191,27 @@ export default function PlazaPage() {
                 mb-8
                 shadow-[0_0_1px_rgba(0,0,0,0.01)]
               "
-              style={
-                {
-                  "--aura-color": auraColor(post.mask),
-                  ...auraStyle(score, post.mask, positivityRatio),
-                } as any
-              }
+              style={{
+                "--aura-color": auraColor(post.mask),
+                ...auraStyle(score, post.mask, positivityRatio),
+              } as any}
             >
+              {/* Surge flash */}
               {surge && <div className="surge-flash absolute inset-0 rounded-lg"></div>}
               {surge && <div className="surge-ripple"></div>}
 
+              {/* Debug */}
               {debugAscension && (
                 <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
                   DEBUG S{stage}
                 </div>
               )}
 
+              {/* Ascension rings (C4) */}
               {stage >= 4 && <div className="ascension-ring" />}
               {stage >= 5 && <div className="ascension-halo" />}
 
+              {/* Sparks (C6) */}
               {stage >= 4 && positivityRatio > 0.4 && (
                 <>
                   <div className="spirit-spark" style={{ top: "20%", left: "40%", background: auraColor(post.mask) }} />
@@ -217,6 +224,7 @@ export default function PlazaPage() {
                 </>
               )}
 
+              {/* Particles (C7) */}
               {score >= 16 && (
                 <>
                   <div className="spirit-particle" style={{ top: "10%", left: "5%", background: auraColor(post.mask) }} />
@@ -225,10 +233,12 @@ export default function PlazaPage() {
                 </>
               )}
 
+              {/* Spirit Score */}
               <div className="text-xs font-semibold mb-1" style={{ color: auraColor(post.mask) }}>
                 Spirit Score: {score}
               </div>
 
+              {/* Content */}
               <p className="whitespace-pre-line text-lg">{post.content}</p>
 
               <div className="mt-4 flex justify-between text-sm text-gray-500">
@@ -236,10 +246,12 @@ export default function PlazaPage() {
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
 
+              {/* Reaction Bar with refresh callback */}
               <ReactionBar
                 postId={String(post.id)}
                 creatorId={post.creatorId ?? "demo-creator-123"}
                 currentUserId={"demo-user-123"}
+                onReact={() => fetchPosts()}
               />
             </div>
           );
