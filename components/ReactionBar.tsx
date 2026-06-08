@@ -12,7 +12,7 @@ interface ReactionBarProps {
     mask4: number;
     mask5: number;
   };
-  onReact?: () => void; // callback to refresh parent (Plaza or Shrine)
+  onReact?: () => void;
 }
 
 const baseUrl = "https://mmanwu-clean-production-6465.up.railway.app";
@@ -38,7 +38,7 @@ export default function ReactionBar({
         body: JSON.stringify({ postId, userId, maskTier }),
       });
 
-      if (onReact) onReact(); // refresh parent
+      if (onReact) onReact();
     } catch (err) {
       console.error("Reaction error:", err);
     }
@@ -57,7 +57,7 @@ export default function ReactionBar({
   return (
     <div className="flex items-center gap-4 mt-3">
       {maskData.map((mask) => {
-        const isDisabled = mask.tier <= 2 && userId !== "creator"; // creator-only negative masks
+        const isDisabled = mask.tier <= 2 && userId !== "creator";
 
         return (
           <button
@@ -69,40 +69,47 @@ export default function ReactionBar({
               ${isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
             `}
           >
-            {/* Mask Icon */}
-            <div
-              className={`
-                w-10 h-10 rounded-xl flex items-center justify-center
-                transition-all duration-200
-                ${selected === mask.tier ? "scale-110 mask-glow" : "scale-100"}
-                ${!isDisabled && "hover:scale-110"}
-              `}
-              style={{ backgroundColor: mask.color }}
-            >
-              <svg width="26" height="26" viewBox="0 0 64 64">
-                <circle cx="24" cy="28" r="4" fill="#fff" />
-                <circle cx="40" cy="28" r="4" fill="#fff" />
-                <path
-                  d="M24 38 Q32 42 40 38"
-                  stroke="#fff"
-                  strokeWidth="3"
-                  fill="none"
-                />
-              </svg>
+            {/* === ANIMATED MASK WRAPPER === */}
+            <div className="relative">
+              {/* Pulse ring on click */}
+              {selected === mask.tier && (
+                <div className="pulse-ring"></div>
+              )}
+
+              <div
+                className={`
+                  w-10 h-10 rounded-xl flex items-center justify-center
+                  transition-all duration-200
+                  mask-hover
+                  ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
+                `}
+                style={{ backgroundColor: mask.color }}
+              >
+                <svg width="26" height="26" viewBox="0 0 64 64">
+                  <circle cx="24" cy="28" r="4" fill="#fff" />
+                  <circle cx="40" cy="28" r="4" fill="#fff" />
+                  <path
+                    d="M24 38 Q32 42 40 38"
+                    stroke="#fff"
+                    strokeWidth="3"
+                    fill="none"
+                  />
+                </svg>
+              </div>
             </div>
 
-            {/* Count */}
-            <span className="text-xs text-gray-300 mt-1">{mask.count}</span>
+            {/* === ANIMATED COUNT === */}
+            <span
+              className={`
+                text-xs text-gray-300 mt-1
+                ${selected === mask.tier ? "count-float" : ""}
+              `}
+            >
+              {mask.count}
+            </span>
           </button>
         );
       })}
-
-      <style jsx>{`
-        .mask-glow {
-          box-shadow: 0 0 12px rgba(255, 255, 255, 0.6),
-            0 0 20px rgba(255, 255, 255, 0.4);
-        }
-      `}</style>
     </div>
   );
 }
