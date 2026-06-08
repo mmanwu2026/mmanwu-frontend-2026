@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
@@ -11,18 +13,22 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // Local development backend proxy
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*",
-      },
-
-      // Production backend proxy for shrine + profile fetches
+      // ✅ Production rewrite (must come FIRST)
       {
         source: "/api/profile/:userId",
         destination:
           "https://mmanwu-clean-production-6465.up.railway.app/profile/:userId",
       },
+
+      // ✅ Development-only rewrite (localhost)
+      ...(isDev
+        ? [
+            {
+              source: "/api/:path*",
+              destination: "http://localhost:5000/api/:path*",
+            },
+          ]
+        : []),
     ];
   },
 };
