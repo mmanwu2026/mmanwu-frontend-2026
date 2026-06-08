@@ -1,4 +1,4 @@
-// plaza-bundle-refresh-006
+// plaza-bundle-refresh-007
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,6 @@ export default function PlazaPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [debugAscension, setDebugAscension] = useState(false);
 
   const prevPositivityMap = useRef<Record<number, number>>({});
@@ -123,7 +122,7 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="p-10 w-full max-w-xl mx-auto">
+    <div className="p-10 w-full max-w-md mx-auto">
       <h1 className="text-4xl font-bold mb-8">Mmanwu Plaza</h1>
 
       {loading && <p>Loading posts…</p>}
@@ -178,75 +177,157 @@ export default function PlazaPage() {
             <div
               key={post.id}
               className="
-                p-7
-                rounded-lg
+                relative
+                p-8
+                rounded-2xl
                 bg-white
                 transition-all
-                duration-300
-                relative
+                duration-500
                 border
                 overflow-visible
                 isolate-layout
-                min-h-[220px]
-                mb-8
-                shadow-[0_0_1px_rgba(0,0,0,0.01)]
+                min-h-[360px]
+                mb-10
+                shadow-[0_10px_30px_rgba(0,0,0,0.05)]
+                max-w-md
+                mx-auto
               "
               style={{
                 "--aura-color": auraColor(post.mask),
                 ...auraStyle(score, post.mask, positivityRatio),
-              } as any}
+              }}
             >
+              {/* Mask-colored vertical spine */}
+              <div
+                className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
+                style={{ background: auraColor(post.mask) }}
+              ></div>
+
+              {/* Floating mask glyph crest */}
+              <div
+                className="absolute -top-5 left-1/2 -translate-x-1/2 text-4xl drop-shadow-sm"
+                style={{ color: auraColor(post.mask) }}
+              >
+                {post.mask === 1 && "🜂"}
+                {post.mask === 2 && "🔥"}
+                {post.mask === 3 && "🜁"}
+                {post.mask === 4 && "✨"}
+                {post.mask === 5 && "🌿"}
+              </div>
+
+              {/* Soft inner glow */}
+              <div
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  boxShadow: `inset 0 0 40px ${auraColor(post.mask)}15`,
+                }}
+              ></div>
+
               {/* Surge flash */}
-              {surge && <div className="surge-flash absolute inset-0 rounded-lg"></div>}
+              {surge && (
+                <div className="surge-flash absolute inset-0 rounded-2xl"></div>
+              )}
               {surge && <div className="surge-ripple"></div>}
 
-              {/* Debug */}
+              {/* Debug ascension */}
               {debugAscension && (
                 <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
                   DEBUG S{stage}
                 </div>
               )}
 
-              {/* Ascension rings (C4) */}
+              {/* Ascension rings */}
               {stage >= 4 && <div className="ascension-ring" />}
               {stage >= 5 && <div className="ascension-halo" />}
 
-              {/* Sparks (C6) */}
+              {/* Sparks */}
               {stage >= 4 && positivityRatio > 0.4 && (
                 <>
-                  <div className="spirit-spark" style={{ top: "20%", left: "40%", background: auraColor(post.mask) }} />
+                  <div
+                    className="spirit-spark"
+                    style={{
+                      top: "20%",
+                      left: "40%",
+                      background: auraColor(post.mask),
+                    }}
+                  />
                   {positivityRatio > 0.6 && (
-                    <div className="spirit-spark" style={{ top: "60%", left: "55%", animationDelay: "0.2s", background: auraColor(post.mask) }} />
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "60%",
+                        left: "55%",
+                        animationDelay: "0.2s",
+                        background: auraColor(post.mask),
+                      }}
+                    />
                   )}
                   {positivityRatio > 0.8 && (
-                    <div className="spirit-spark" style={{ top: "35%", left: "70%", animationDelay: "0.4s", background: auraColor(post.mask) }} />
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "35%",
+                        left: "70%",
+                        animationDelay: "0.4s",
+                        background: auraColor(post.mask),
+                      }}
+                    />
                   )}
                 </>
               )}
 
-              {/* Particles (C7) */}
+              {/* Particles */}
               {score >= 16 && (
                 <>
-                  <div className="spirit-particle" style={{ top: "10%", left: "5%", background: auraColor(post.mask) }} />
-                  <div className="spirit-particle" style={{ top: "50%", left: "90%", animationDelay: "1s", background: auraColor(post.mask) }} />
-                  <div className="spirit-particle" style={{ top: "80%", left: "20%", animationDelay: "2s", background: auraColor(post.mask) }} />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "10%",
+                      left: "5%",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "50%",
+                      left: "90%",
+                      animationDelay: "1s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "80%",
+                      left: "20%",
+                      animationDelay: "2s",
+                      background: auraColor(post.mask),
+                    }}
+                  />
                 </>
               )}
 
               {/* Spirit Score */}
-              <div className="text-xs font-semibold mb-1" style={{ color: auraColor(post.mask) }}>
+              <div
+                className="text-xs font-semibold mb-2 tracking-wide"
+                style={{ color: auraColor(post.mask) }}
+              >
                 Spirit Score: {score}
               </div>
 
               {/* Content */}
-              <p className="whitespace-pre-line text-lg">{post.content}</p>
+              <p className="whitespace-pre-line text-lg leading-relaxed">
+                {post.content}
+              </p>
 
-              <div className="mt-4 flex justify-between text-sm text-gray-500">
+              {/* Footer */}
+              <div className="mt-6 flex justify-between text-sm text-gray-500">
                 <span>Mask: {post.mask}</span>
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
 
-              {/* Reaction Bar with refresh callback */}
+              {/* Reaction Bar */}
               <ReactionBar
                 postId={String(post.id)}
                 creatorId={post.creatorId ?? "demo-creator-123"}
