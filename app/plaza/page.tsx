@@ -1,11 +1,10 @@
-// vercel rebuild plaza 002
-// vercel rebuild plaza 001
+// vercel rebuild plaza 003
 "use client";
 
 import React, { useEffect, useState } from "react";
 import ReactionBar from "@/components/ReactionBar";
 
-/* === FIX: TypeScript interface for Plaza posts === */
+/* === Plaza Post Type === */
 interface PlazaPost {
   id: string;
   userId: string;
@@ -46,31 +45,70 @@ export default function PlazaPage() {
     <div className="max-w-xl mx-auto mt-10 px-4">
       <h1 className="text-2xl font-bold text-white mb-6">Mmanwu Plaza</h1>
 
-      {posts.map((post) => (
-        <div
-          key={post.id}
-          className="bg-[#111] p-4 rounded-xl mb-6 isolate-layout plaza-card-base"
-        >
-          {/* === POST CONTENT === */}
-          <p className="text-gray-200 mb-3">{post.content}</p>
+      {posts.map((post) => {
+        /* === C2–C8 CLASS LOGIC === */
+        const auraClass = "mask-aura";
 
-          {/* === POST METADATA === */}
-          <div className="text-xs text-gray-500 mb-3">
-            <div>Spirit Score: {post.spiritScore}</div>
-            <div>Mask: {post.maskTier}</div>
-            <div>{new Date(post.createdAt).toLocaleString()}</div>
+        const ascensionClass =
+          post.spiritScore > 200
+            ? "ascend-tier-4"
+            : post.spiritScore > 150
+            ? "ascend-tier-3"
+            : post.spiritScore > 100
+            ? "ascend-tier-2"
+            : "ascend-tier-1";
+
+        const surgeClass =
+          post.spiritScore > 200
+            ? "surge-strong"
+            : post.spiritScore > 150
+            ? "surge-medium"
+            : "surge-weak";
+
+        const emotionClass =
+          post.positivityRatio > 0.75
+            ? "emotion-boost"
+            : post.positivityRatio > 0.55
+            ? "emotion-intense"
+            : post.positivityRatio < 0.25
+            ? "emotion-soft"
+            : "emotion-calm";
+
+        return (
+          <div
+            key={post.id}
+            className={`
+              bg-[#111] p-4 rounded-xl mb-6
+              isolate-layout plaza-card-base
+
+              mask-tier-${post.maskTier}
+              ${auraClass}
+              ${ascensionClass}
+              ${surgeClass}
+              ${emotionClass}
+            `}
+          >
+            {/* === POST CONTENT === */}
+            <p className="text-gray-200 mb-3">{post.content}</p>
+
+            {/* === POST METADATA === */}
+            <div className="text-xs text-gray-500 mb-3">
+              <div>Spirit Score: {post.spiritScore}</div>
+              <div>Mask: {post.maskTier}</div>
+              <div>{new Date(post.createdAt).toLocaleString()}</div>
+            </div>
+
+            {/* === REACTION BAR WITH C2 === */}
+            <ReactionBar
+              postId={post.id}
+              userId={post.userId}
+              reactions={post.reactions}
+              spiritScore={post.spiritScore}
+              positivityRatio={post.positivityRatio}
+            />
           </div>
-
-          {/* === REACTION BAR WITH C2 === */}
-          <ReactionBar
-            postId={post.id}
-            userId={post.userId}
-            reactions={post.reactions}
-            spiritScore={post.spiritScore}          // ⭐ C2 ENABLED
-            positivityRatio={post.positivityRatio}  // ⭐ C2 ENABLED
-          />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
