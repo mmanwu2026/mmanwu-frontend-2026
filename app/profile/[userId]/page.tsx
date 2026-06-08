@@ -41,10 +41,10 @@ export default async function ProfilePage({
   let data;
 
   try {
-    const res = await fetch(
-      `https://mmanwu-clean-production-6465.up.railway.app/profile/${userId}`,
-      { cache: "no-store" }
-    );
+    // ⭐ FIXED: Use internal API route so Vercel applies rewrites
+    const res = await fetch(`/api/profile/${userId}`, {
+      cache: "no-store",
+    });
 
     if (!res.ok) {
       return (
