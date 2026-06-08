@@ -10,7 +10,9 @@ interface ProfileData {
   totalReactions: number;
   positivityRatio: number;
   ascensionLevel: number;
-  auraSignature: string;
+  auraColor: string;
+  auraGlow: number;
+  auraPulse: string;
 }
 
 interface PostData {
@@ -61,7 +63,7 @@ export default async function ProfilePage({
       </h1>
 
       {/* ⭐ Profile Stats */}
-      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+      <div className="bg-gray-100 p-4 rounded-lg mb-6 shadow">
         <p><strong>Mask:</strong> {profile.mask}</p>
         <p><strong>Joined:</strong> {profile.joinedAt}</p>
         <p><strong>Total Spirit:</strong> {profile.totalSpirit}</p>
@@ -74,11 +76,14 @@ export default async function ProfilePage({
 
         {/* ⭐ Aura Signature */}
         <div className="mt-4">
-          <p><strong>Aura Signature:</strong></p>
+          <p><strong>Aura Color:</strong></p>
           <div
-            className="w-24 h-6 rounded"
-            style={{ backgroundColor: profile.auraSignature }}
+            className="w-24 h-6 rounded mb-2"
+            style={{ backgroundColor: profile.auraColor }}
           ></div>
+
+          <p><strong>Glow Intensity:</strong> {profile.auraGlow}</p>
+          <p><strong>Pulse:</strong> {profile.auraPulse}</p>
         </div>
       </div>
 
