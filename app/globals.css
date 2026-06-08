@@ -10,38 +10,21 @@
 
 /* Aura animations */
 @keyframes aura-breathe {
-  0% {
-    box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0));
-  }
-  50% {
-    box-shadow: 0 0 18px var(--aura-color, rgba(59,130,246,0.55));
-  }
-  100% {
-    box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0));
-  }
+  0% { box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0)); }
+  50% { box-shadow: 0 0 18px var(--aura-color, rgba(59,130,246,0.55)); }
+  100% { box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0)); }
 }
 
 @keyframes aura-pulse {
-  0% {
-    box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4));
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 0 22px var(--aura-color, rgba(59,130,246,0.8));
-    transform: scale(1.02);
-  }
-  100% {
-    box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4));
-    transform: scale(1);
-  }
+  0% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
+  50% { box-shadow: 0 0 22px var(--aura-color, rgba(59,130,246,0.8)); transform: scale(1.02); }
+  100% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
 }
 
 /* Surge flash overlay */
 .surge-flash {
   pointer-events: none;
-  background: radial-gradient(circle at center,
-    rgba(255,255,255,0.7),
-    rgba(255,255,255,0));
+  background: radial-gradient(circle at center, rgba(255,255,255,0.7), rgba(255,255,255,0));
   opacity: 0;
   animation: surge-flash-anim 0.6s ease-out forwards;
 }
@@ -62,14 +45,8 @@
 }
 
 @keyframes surge-ripple-anim {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.15);
-    opacity: 0;
-  }
+  0% { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 0; }
 }
 
 /* Ascension ring */
@@ -84,18 +61,9 @@
 }
 
 @keyframes ascension-ring-anim {
-  0% {
-    transform: scale(0.96);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.02);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.96);
-    opacity: 0.7;
-  }
+  0% { transform: scale(0.96); opacity: 0.7; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(0.96); opacity: 0.7; }
 }
 
 /* Ascension halo */
@@ -107,9 +75,7 @@
   width: 120px;
   height: 40px;
   border-radius: 9999px;
-  background: radial-gradient(circle at center,
-    rgba(255,255,255,0.9),
-    rgba(255,255,255,0));
+  background: radial-gradient(circle at center, rgba(255,255,255,0.9), rgba(255,255,255,0));
   filter: blur(4px);
   pointer-events: none;
   animation: ascension-halo-anim 3s ease-in-out infinite;
@@ -135,18 +101,9 @@
 }
 
 @keyframes spirit-spark-anim {
-  0% {
-    transform: translateY(6px) scale(0.7);
-    opacity: 0;
-  }
-  30% {
-    transform: translateY(-4px) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-14px) scale(0.8);
-    opacity: 0;
-  }
+  0% { transform: translateY(6px) scale(0.7); opacity: 0; }
+  30% { transform: translateY(-4px) scale(1); opacity: 1; }
+  100% { transform: translateY(-14px) scale(0.8); opacity: 0; }
 }
 
 /* Spirit particles */
@@ -163,20 +120,12 @@
 }
 
 @keyframes spirit-particle-anim {
-  0% {
-    transform: translateY(10px) scale(0.6);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(-18px) scale(1);
-    opacity: 0;
-  }
+  0% { transform: translateY(10px) scale(0.6); opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { transform: translateY(-18px) scale(1); opacity: 0; }
 }
 
-/* Subtle base card shadow so aura has something to sit on */
+/* Base card shadow */
 .plaza-card-base {
   box-shadow: 0 0 1px rgba(0,0,0,0.04);
 }
@@ -233,4 +182,52 @@
 @keyframes count-float {
   0% { transform: translateY(0); opacity: 1; }
   100% { transform: translateY(-10px); opacity: 0; }
+}
+
+/* === MASK BREATHING (idle animation) === */
+@keyframes mask-breathe {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.mask-breathe {
+  animation: mask-breathe 3.5s ease-in-out infinite;
+}
+
+/* === MASK BLINKING (SVG eyes) === */
+@keyframes mask-blink {
+  0% { transform: scaleY(1); }
+  48% { transform: scaleY(1); }
+  50% { transform: scaleY(0.1); }
+  52% { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
+}
+
+.mask-eyes {
+  transform-origin: center;
+  animation: mask-blink 4.5s ease-in-out infinite;
+  animation-delay: calc(0.5s + (var(--blink-offset, 0) * 1s));
+}
+
+/* === COLOR PULSE ON HOVER === */
+.mask-color-pulse:hover {
+  filter: brightness(1.25);
+  transition: filter 0.2s ease-out;
+}
+
+/* === ENERGY RIPPLE ON CLICK === */
+.energy-ripple {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  animation: energy-ripple 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes energy-ripple {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
 }
