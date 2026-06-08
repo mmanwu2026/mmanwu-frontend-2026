@@ -1,108 +1,108 @@
-// force clean build 004
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 
 interface ReactionBarProps {
   postId: string;
-  creatorId: string;
-  currentUserId: string;
-  onReact?: () => void; // ⭐ NEW: callback to refresh PlazaPage
+  userId: string;
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+  };
+  onReact?: () => void; // callback to refresh parent (Plaza or Shrine)
 }
 
-type ReactionCounts = {
-  [key: number]: number;
-};
-
-const MASKS = [
-  { id: 1, label: "Dark Whisper", emoji: "🜂", creatorOnly: true },
-  { id: 2, label: "Fierce Awakener", emoji: "🔥", creatorOnly: true },
-  { id: 3, label: "Witness", emoji: "🜁", creatorOnly: false },
-  { id: 4, label: "Harmony Caller", emoji: "✨", creatorOnly: false },
-  { id: 5, label: "Uplift", emoji: "🌿", creatorOnly: false },
-];
+const baseUrl = "https://mmanwu-clean-production-6465.up.railway.app";
 
 export default function ReactionBar({
   postId,
-  creatorId,
-  currentUserId,
+  userId,
+  reactions,
   onReact,
 }: ReactionBarProps) {
-  const [selectedMask, setSelectedMask] = useState<number | null>(null);
-  const [reactionCounts, setReactionCounts] = useState<ReactionCounts>({
-    1: 0,
-    2: 0,
-    3: 0,
-    4: 0,
-    5: 0,
-  });
+  const [selected, setSelected] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const isCreator = currentUserId === creatorId;
+  const handleReact = async (maskTier: number) => {
+    if (loading) return;
+    setLoading(true);
+    setSelected(maskTier);
 
-  async function sendReaction(maskId: number) {
     try {
-      const res = await fetch(
-        "https://mmanwu-clean-production-6465.up.railway.app/reactions",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            postId: Number(postId),
-            userId: currentUserId,
-            maskTier: maskId,
-          }),
-        }
-      );
+      await fetch(`${baseUrl}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, userId, maskTier }),
+      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        console.error("Reaction error:", data.error);
-        return;
-      }
-
-      // ⭐ Update local UI
-      setSelectedMask(maskId);
-
-      if (data.reactions) {
-        setReactionCounts(data.reactions as ReactionCounts);
-      }
-
-      // ⭐ Tell PlazaPage to refresh the post
-      if (onReact) onReact();
-
+      if (onReact) onReact(); // refresh parent
     } catch (err) {
-      console.error("Network error:", err);
+      console.error("Reaction error:", err);
     }
-  }
+
+    setLoading(false);
+  };
+
+  const maskData = [
+    { tier: 1, label: "Dark Whisper", count: reactions.mask1, color: "#1A1A1A" },
+    { tier: 2, label: "Fierce Awakener", count: reactions.mask2, color: "#3B0A0A" },
+    { tier: 3, label: "Warm Guardian", count: reactions.mask3, color: "#2F3B0F" },
+    { tier: 4, label: "Joyful Spirit", count: reactions.mask4, color: "#15406B" },
+    { tier: 5, label: "Radiant Ascender", count: reactions.mask5, color: "#4A148C" },
+  ];
 
   return (
-    <div className="mt-4">
-      <div className="flex gap-3">
-        {MASKS.map((mask) => {
-          const disabled = mask.creatorOnly && !isCreator;
+    <div className="flex items-center gap-4 mt-3">
+      {maskData.map((mask) => {
+        const isDisabled = mask.tier <= 2 && userId !== "creator"; // creator-only negative masks
 
-          return (
-            <button
-              key={mask.id}
-              disabled={disabled}
-              onClick={() => sendReaction(mask.id)}
+        return (
+          <button
+            key={mask.tier}
+            disabled={isDisabled}
+            onClick={() => handleReact(mask.tier)}
+            className={`
+              flex flex-col items-center transition-all
+              ${isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+            `}
+          >
+            {/* Mask Icon */}
+            <div
               className={`
-                px-3 py-2 rounded-lg text-xl transition
-                ${disabled ? "opacity-30 cursor-not-allowed" : "hover:scale-110"}
-                ${selectedMask === mask.id ? "ring-2 ring-green-500" : ""}
+                w-10 h-10 rounded-xl flex items-center justify-center
+                transition-all duration-200
+                ${selected === mask.tier ? "scale-110 mask-glow" : "scale-100"}
+                ${!isDisabled && "hover:scale-110"}
               `}
-              title={
-                disabled
-                  ? "Only the creator can use this mask"
-                  : mask.label
-              }
+              style={{ backgroundColor: mask.color }}
             >
-              {mask.emoji} ({reactionCounts[mask.id] ?? 0})
-            </button>
-          );
-        })}
-      </div>
+              <svg width="26" height="26" viewBox="0 0 64 64">
+                <circle cx="24" cy="28" r="4" fill="#fff" />
+                <circle cx="40" cy="28" r="4" fill="#fff" />
+                <path
+                  d="M24 38 Q32 42 40 38"
+                  stroke="#fff"
+                  strokeWidth="3"
+                  fill="none"
+                />
+              </svg>
+            </div>
+
+            {/* Count */}
+            <span className="text-xs text-gray-300 mt-1">{mask.count}</span>
+          </button>
+        );
+      })}
+
+      <style jsx>{`
+        .mask-glow {
+          box-shadow: 0 0 12px rgba(255, 255, 255, 0.6),
+            0 0 20px rgba(255, 255, 255, 0.4);
+        }
+      `}</style>
     </div>
   );
 }
