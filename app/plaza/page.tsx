@@ -1,10 +1,11 @@
-// plaza-bundle-refresh-008
+// plaza-bundle-refresh-009
 "use client";
 
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
+import React from "react";
 
 type Post = {
   id: number;
@@ -192,10 +193,12 @@ export default function PlazaPage() {
                 max-w-[300px]
                 mx-auto
               "
-              style={{
-                "--aura-color": auraColor(post.mask),
-                ...auraStyle(score, post.mask, positivityRatio),
-              }}
+              style={
+                {
+                  "--aura-color": auraColor(post.mask),
+                  ...auraStyle(score, post.mask, positivityRatio),
+                } as unknown as React.CSSProperties
+              }
             >
               {/* Mask-colored vertical spine */}
               <div
