@@ -13,16 +13,25 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ✅ Production rewrite (must come FIRST)
+      // ⭐ Production rewrites (must come FIRST)
       {
         source: "/api/profile/:userId",
         destination:
           "https://mmanwu-clean-production-6465.up.railway.app/profile/:userId",
       },
+      {
+        source: "/api/:path*",
+        destination:
+          "https://mmanwu-clean-production-6465.up.railway.app/api/:path*",
+      },
 
-      // ✅ Development-only rewrite (localhost)
+      // ⭐ Development-only rewrites
       ...(isDev
         ? [
+            {
+              source: "/api/profile/:userId",
+              destination: "http://localhost:5000/profile/:userId",
+            },
             {
               source: "/api/:path*",
               destination: "http://localhost:5000/api/:path*",
