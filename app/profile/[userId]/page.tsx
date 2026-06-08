@@ -1,4 +1,4 @@
-// force vercel rebuild 003
+// force vercel rebuild 004
 // app/profile/[userId]/page.tsx
 
 import React from "react";
@@ -120,3 +120,6 @@ export default async function ProfilePage({
     </div>
   );
 }
+
+// ⭐ Guaranteed Vercel rebuild trigger
+export const forceRebuild = true;
