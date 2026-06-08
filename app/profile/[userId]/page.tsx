@@ -38,8 +38,11 @@ export default async function ProfilePage({
 }) {
   const { userId } = params;
 
-  // ⭐ REAL CODE CHANGE — forces Vercel to rebuild server bundle
+  // ⭐ REAL CODE CHANGE #1 — forces Vercel to rebuild server bundle
   const vercelSync = "008";
+
+  // ⭐ REAL CODE CHANGE #2 — guaranteed unique value every build
+  const vercelHardReset = Math.random();
 
   let data;
 
