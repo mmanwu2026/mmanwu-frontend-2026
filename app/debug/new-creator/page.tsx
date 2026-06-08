@@ -18,7 +18,7 @@ export default function NewCreatorPage() {
     setStatus("⏳ Creating...");
 
     try {
-      const res = await fetch("/api/create", {
+      const res = await fetch("/api/create-post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
