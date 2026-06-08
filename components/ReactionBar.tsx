@@ -54,10 +54,42 @@ export default function ReactionBar({
     { tier: 5, label: "Radiant Ascender", count: reactions.mask5, color: "#4A148C" },
   ];
 
+  const getMouthPath = (tier: number) => {
+    // Mythic style 3
+    if (tier >= 5) {
+      // Radiant joy
+      return "M22 40 Q32 48 42 40";
+    }
+    if (tier === 4) {
+      // Joyful
+      return "M22 40 Q32 46 42 40";
+    }
+    if (tier === 3) {
+      // Warm neutral-smile
+      return "M22 38 Q32 36 42 38";
+    }
+    if (tier === 2) {
+      // Stern
+      return "M22 42 Q32 32 42 42";
+    }
+    // Tier 1 – dark neutral
+    return "M22 42 Q32 34 42 42";
+  };
+
+  const getEyeClass = (tier: number) => {
+    if (tier >= 5) return "eyes-bright";
+    if (tier === 4) return "eyes-joyful";
+    if (tier === 3) return "eyes-neutral";
+    if (tier === 2) return "eyes-stern";
+    return "eyes-dark";
+  };
+
   return (
     <div className="flex items-center gap-4 mt-3">
       {maskData.map((mask, index) => {
         const isDisabled = mask.tier <= 2 && userId !== "creator";
+        const mouthPath = getMouthPath(mask.tier);
+        const eyeClass = getEyeClass(mask.tier);
 
         return (
           <button
@@ -81,7 +113,7 @@ export default function ReactionBar({
                 className={`
                   w-10 h-10 rounded-xl flex items-center justify-center
                   transition-all duration-200
-                  mask-hover mask-breathe mask-color-pulse
+                  mask-hover mask-breathe mask-color-pulse expression-shift
                   ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
                 `}
                 style={{
@@ -90,13 +122,28 @@ export default function ReactionBar({
                 } as React.CSSProperties}
               >
                 <svg width="26" height="26" viewBox="0 0 64 64">
-                  <circle cx="24" cy="28" r="4" fill="#fff" className="mask-eyes" />
-                  <circle cx="40" cy="28" r="4" fill="#fff" className="mask-eyes" />
+                  {/* Sharp anime eyes with tier-based classes */}
+                  <circle
+                    cx="24"
+                    cy="28"
+                    r="4"
+                    fill="#fff"
+                    className={`mask-eyes ${eyeClass}`}
+                  />
+                  <circle
+                    cx="40"
+                    cy="28"
+                    r="4"
+                    fill="#fff"
+                    className={`mask-eyes ${eyeClass}`}
+                  />
+                  {/* Dynamic mythic mouth */}
                   <path
-                    d="M24 38 Q32 42 40 38"
+                    d={mouthPath}
                     stroke="#fff"
                     strokeWidth="3"
                     fill="none"
+                    className="mask-mouth"
                   />
                 </svg>
               </div>
