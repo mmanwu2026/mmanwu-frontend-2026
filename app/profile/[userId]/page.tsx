@@ -37,32 +37,40 @@ export default async function ProfilePage({
 }) {
   const { userId } = params;
 
-  // ⭐ Fetch from your REAL backend
-  const res = await fetch(
-    `https://mmanwu-clean-production-6465.up.railway.app/profile/${userId}`,
-    { cache: "no-store" }
-  );
+  let data;
 
-  if (!res.ok) {
+  try {
+    const res = await fetch(
+      `https://mmanwu-clean-production-6465.up.railway.app/profile/${userId}`,
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+      return (
+        <div className="p-6 text-center text-red-500">
+          Profile not found.
+        </div>
+      );
+    }
+
+    data = await res.json();
+  } catch (err) {
     return (
       <div className="p-6 text-center text-red-500">
-        Profile not found.
+        Shrine temporarily unavailable. Please refresh.
       </div>
     );
   }
 
-  const data = await res.json();
   const profile: ProfileData = data.profile;
   const posts: PostData[] = data.posts;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      {/* ⭐ Shrine Header */}
       <h1 className="text-3xl font-bold mb-4">
         Creator Shrine: {profile.id}
       </h1>
 
-      {/* ⭐ Profile Stats */}
       <div className="bg-gray-100 p-4 rounded-lg mb-6 shadow">
         <p><strong>Mask:</strong> {profile.mask}</p>
         <p><strong>Joined:</strong> {profile.joinedAt}</p>
@@ -74,7 +82,6 @@ export default async function ProfilePage({
         </p>
         <p><strong>Ascension Level:</strong> {profile.ascensionLevel}</p>
 
-        {/* ⭐ Aura Signature */}
         <div className="mt-4">
           <p><strong>Aura Color:</strong></p>
           <div
@@ -87,7 +94,6 @@ export default async function ProfilePage({
         </div>
       </div>
 
-      {/* ⭐ Posts Section */}
       <h2 className="text-2xl font-semibold mb-3">Posts</h2>
 
       {posts.length === 0 ? (
