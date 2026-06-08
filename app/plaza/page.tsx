@@ -3,8 +3,26 @@
 import React, { useEffect, useState } from "react";
 import ReactionBar from "@/components/ReactionBar";
 
+/* === FIX: TypeScript interface for Plaza posts === */
+interface PlazaPost {
+  id: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  maskTier: number;
+  spiritScore: number;
+  positivityRatio: number;
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+  };
+}
+
 export default function PlazaPage() {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<PlazaPost[]>([]);
 
   useEffect(() => {
     async function loadPosts() {
