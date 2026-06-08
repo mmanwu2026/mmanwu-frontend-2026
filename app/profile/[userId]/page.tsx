@@ -132,5 +132,10 @@ export function vercelInvalidate() {
   return "invalidate-009";
 }
 
+// ⭐ NEW: Forces Vercel to rebuild route module
+export function generateStaticParams() {
+  return [];
+}
+
 // ⭐ Guaranteed Vercel rebuild trigger
 export const forceRebuild = true;
