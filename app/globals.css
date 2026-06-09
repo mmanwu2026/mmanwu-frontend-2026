@@ -1,12 +1,12 @@
 /* --------------------------------------------- */
-/* TAILwind ENGINE — REQUIRED                    */
+/* TAILWIND ENGINE — REQUIRED                    */
 /* --------------------------------------------- */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* plaza-css-cache-bust-003 */
+/* plaza-css-cache-bust-004 */
 /* === PLAZA AURA & ASCENSION RESTORE === */
 
 .isolate-layout {
@@ -15,7 +15,7 @@
   overflow: visible;
 }
 
-/* Aura animations */
+/* Aura animations — fog removed */
 @keyframes aura-breathe {
   0% { box-shadow: none; }
   50% { box-shadow: none; }
@@ -293,22 +293,22 @@
 .mouth-neutral { d: path("M2 10 Q8 10 14 10"); }
 .mouth-frown { d: path("M2 12 Q8 6 14 12"); }
 
-/* === C6 ASCENSION — NEW GLOW SYSTEM (NO FOG) === */
+/* === C6 ASCENSION — SAFE GLOW SYSTEM (NO FILTER, NO BLACKOUT) === */
 
 .ascend-tier-1 {
-  filter: drop-shadow(0 0 4px rgba(255,255,255,0.15));
+  box-shadow: 0 0 4px rgba(255,255,255,0.15);
 }
 
 .ascend-tier-2 {
-  filter: drop-shadow(0 0 6px rgba(255,255,255,0.25));
+  box-shadow: 0 0 6px rgba(255,255,255,0.25);
 }
 
 .ascend-tier-3 {
-  filter: drop-shadow(0 0 10px rgba(255,255,255,0.35));
+  box-shadow: 0 0 10px rgba(255,255,255,0.35);
 }
 
 .ascend-tier-4 {
-  filter: drop-shadow(0 0 14px rgba(255,255,255,0.45));
+  box-shadow: 0 0 14px rgba(255,255,255,0.45);
 }
 
 /* === C7 SURGE === */
