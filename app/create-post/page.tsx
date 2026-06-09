@@ -1,17 +1,17 @@
-// rebuild-frontend-004 — force Vercel to rebuild
+// rebuild-frontend-005 — env variable version
 "use client";
 
 import React, { useState } from "react";
 import MaskSelector from "@/components/MaskSelector";
+
+// ⭐ Backend URL now comes from environment variable
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function CreatePostPage() {
   const [content, setContent] = useState("");
   const [mask, setMask] = useState(3);
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // ⭐ Non-breaking change: move backend URL into a constant
-  const BACKEND_URL = "https://mmanwu-backend-2026-production.up.railway.app/plaza";
 
   async function submitPost() {
     if (!content.trim()) {
