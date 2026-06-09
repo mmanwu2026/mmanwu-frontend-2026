@@ -7,9 +7,15 @@ module.exports = {
 
   theme: {
     extend: {
-      // === REAL CACHEBUST KEY ===
+      // === PLAZA CACHEBUST KEYS (Guaranteed to change Tailwind hash) ===
       spacing: {
-        "__plaza_cachebust_002": "1px",
+        "__plaza_cachebust_spacing_003": "7px",
+      },
+      colors: {
+        "__plaza_cachebust_color_003": "#abcdef",
+      },
+      borderRadius: {
+        "__plaza_cachebust_radius_003": "3px",
       },
 
       // Keep your previous dummy key (harmless)
