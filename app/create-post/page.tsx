@@ -1,13 +1,16 @@
-// rebuild-frontend-005 — env variable version
+// rebuild-frontend-006 — env variable + redirect to Plaza
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import MaskSelector from "@/components/MaskSelector";
 
-// ⭐ Backend URL now comes from environment variable
+// ⭐ Backend URL from environment variable
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function CreatePostPage() {
+  const router = useRouter();
+
   const [content, setContent] = useState("");
   const [mask, setMask] = useState(3);
   const [response, setResponse] = useState("");
@@ -30,6 +33,11 @@ export default function CreatePostPage() {
 
       const data = await res.json();
       setResponse(JSON.stringify(data, null, 2));
+
+      // ⭐ Redirect to Plaza after successful post
+      router.push("/plaza");
+
+      // Reset form (optional)
       setContent("");
       setMask(3);
     } catch (err) {
