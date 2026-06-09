@@ -243,7 +243,7 @@ export default function PlazaPage() {
                 relative
                 p-8
                 rounded-2xl
-                bg-[#111]
+                bg-[#0a0a0a]   /* ⭐ FIXED: richer black, not gray */
                 transition-all
                 duration-500
                 border
@@ -287,11 +287,11 @@ export default function PlazaPage() {
                 {post.maskTier === 5 && "🌿"}
               </div>
 
-              {/* Inner glow */}
+              {/* ⭐ FIXED: Soft inner glow (no gray wash) */}
               <div
                 className="absolute inset-0 rounded-2xl pointer-events-none"
                 style={{
-                  boxShadow: `inset 0 0 40px ${auraColor(post.maskTier)}15`,
+                  boxShadow: `inset 0 0 18px ${auraColor(post.maskTier)}22`,
                 }}
               ></div>
 
