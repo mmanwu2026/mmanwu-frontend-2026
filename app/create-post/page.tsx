@@ -1,6 +1,4 @@
-// force rebuild 001
-// rebuild trigger
-// force rebuild
+// rebuild-frontend-004 — force Vercel to rebuild
 "use client";
 
 import React, { useState } from "react";
@@ -12,6 +10,9 @@ export default function CreatePostPage() {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ⭐ Non-breaking change: move backend URL into a constant
+  const BACKEND_URL = "https://mmanwu-backend-2026-production.up.railway.app/plaza";
+
   async function submitPost() {
     if (!content.trim()) {
       setResponse("Post cannot be empty.");
@@ -21,14 +22,11 @@ export default function CreatePostPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(
-        "https://mmanwu-backend-2026-production.up.railway.app/plaza",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, mask }),
-        }
-      );
+      const res = await fetch(BACKEND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, mask }),
+      });
 
       const data = await res.json();
       setResponse(JSON.stringify(data, null, 2));
