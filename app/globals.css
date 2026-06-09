@@ -6,7 +6,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* css-sync-verify-002 */
+/* plaza-css-cache-bust-003 */
 /* === PLAZA AURA & ASCENSION RESTORE === */
 
 .isolate-layout {
@@ -293,13 +293,25 @@
 .mouth-neutral { d: path("M2 10 Q8 10 14 10"); }
 .mouth-frown { d: path("M2 12 Q8 6 14 12"); }
 
-/* === C6 ASCENSION === */
-.ascend-tier-1 { opacity: 0.4; }
-.ascend-tier-2 { opacity: 0.6; }
-.ascend-tier-3 { opacity: 0.8; }
-.ascend-tier-4 { opacity: 1; }
+/* === C6 ASCENSION — NEW GLOW SYSTEM (NO FOG) === */
+
+.ascend-tier-1 {
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.15));
+}
+
+.ascend-tier-2 {
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.25));
+}
+
+.ascend-tier-3 {
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.35));
+}
+
+.ascend-tier-4 {
+  filter: drop-shadow(0 0 14px rgba(255,255,255,0.45));
+}
 
 /* === C7 SURGE === */
-.surge-weak { opacity: 0.4; }
-.surge-medium { opacity: 0.7; }
+.surge-weak { opacity: 1; }
+.surge-medium { opacity: 1; }
 .surge-strong { opacity: 1; }
