@@ -1,4 +1,4 @@
-// rebuild-frontend-006 — env variable + redirect to Plaza
+// rebuild-frontend-007 — guaranteed redirect to Plaza
 "use client";
 
 import React, { useState } from "react";
@@ -32,14 +32,11 @@ export default function CreatePostPage() {
       });
 
       const data = await res.json();
-      setResponse(JSON.stringify(data, null, 2));
 
-      // ⭐ Redirect to Plaza after successful post
+      // ⭐ Redirect IMMEDIATELY after success — no state updates before redirect
       router.push("/plaza");
+      return;
 
-      // Reset form (optional)
-      setContent("");
-      setMask(3);
     } catch (err) {
       setResponse("Network error — request blocked by browser.");
     }
