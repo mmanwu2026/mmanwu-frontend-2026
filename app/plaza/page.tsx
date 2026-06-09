@@ -4,12 +4,11 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
 
-// ⭐ Backend URL
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 interface PlazaPost {
   id: number;
-  userId: string;
+  userId: string; // creator
   content: string;
   createdAt: string;
   maskTier: number;
@@ -33,7 +32,6 @@ export default function PlazaPage() {
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
-  // Debug toggle
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key.toLowerCase() === "d") {
@@ -44,7 +42,6 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // ⭐ Fetch posts
   async function fetchPosts() {
     try {
       const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
@@ -108,19 +105,17 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  // ⭐ Phase‑1 palette (emotional aura)
   function auraColor(mask: number) {
     switch (mask) {
-      case 1: return "#7C3AED"; // purple
-      case 2: return "#DC2626"; // red
-      case 3: return "#22C55E"; // green
-      case 4: return "#FACC15"; // gold
-      case 5: return "#3B82F6"; // blue
+      case 1: return "#7C3AED";
+      case 2: return "#DC2626";
+      case 3: return "#22C55E";
+      case 4: return "#FACC15";
+      case 5: return "#3B82F6";
       default: return "#22C55E";
     }
   }
 
-  // ⭐ Phase‑1 aura engine
   function auraStyle(score = 0, mask: number, positivityRatio: number) {
     const color = auraColor(mask);
 
@@ -195,29 +190,12 @@ export default function PlazaPage() {
           100% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0.0)); }
         }
 
-        .emoji-pulse {
-          animation: emoji-pulse 3s ease-in-out infinite;
-        }
-
-        .emoji-bounce {
-          animation: emoji-bounce 2.4s ease-in-out infinite;
-        }
-
-        .emoji-wiggle {
-          animation: emoji-wiggle 3s ease-in-out infinite;
-        }
-
-        .emoji-pop {
-          animation: emoji-pop 2.2s ease-in-out infinite;
-        }
-
-        .emoji-shimmer {
-          animation: emoji-shimmer 3.2s ease-in-out infinite;
-        }
-
-        .emoji-react-pop {
-          animation: emoji-pop 0.45s ease-out;
-        }
+        .emoji-pulse { animation: emoji-pulse 3s ease-in-out infinite; }
+        .emoji-bounce { animation: emoji-bounce 2.4s ease-in-out infinite; }
+        .emoji-wiggle { animation: emoji-wiggle 3s ease-in-out infinite; }
+        .emoji-pop { animation: emoji-pop 2.2s ease-in-out infinite; }
+        .emoji-shimmer { animation: emoji-shimmer 3.2s ease-in-out infinite; }
+        .emoji-react-pop { animation: emoji-pop 0.45s ease-out; }
       `}</style>
 
       <div className="max-w-xl mx-auto mt-10 px-4">
@@ -278,7 +256,6 @@ export default function PlazaPage() {
             prevPositivityMap.current[key] = positivityRatio;
             prevPositiveReactionsMap.current[key] = positive;
 
-            // ⭐ Phase‑1 aura classes ONLY (no mask-tier-X)
             const auraClass = "mask-aura";
 
             const ascensionClass =
@@ -306,26 +283,14 @@ export default function PlazaPage() {
                 ? "emotion-soft"
                 : "emotion-calm";
 
-            // ⭐ Emoji animation mapping (per mask)
             let emojiAnimClass = "";
             switch (post.maskTier) {
-              case 1:
-                emojiAnimClass = "emoji-pulse";
-                break;
-              case 2:
-                emojiAnimClass = "emoji-bounce";
-                break;
-              case 3:
-                emojiAnimClass = "emoji-wiggle";
-                break;
-              case 4:
-                emojiAnimClass = "emoji-pop";
-                break;
-              case 5:
-                emojiAnimClass = "emoji-shimmer";
-                break;
-              default:
-                emojiAnimClass = "emoji-pulse";
+              case 1: emojiAnimClass = "emoji-pulse"; break;
+              case 2: emojiAnimClass = "emoji-bounce"; break;
+              case 3: emojiAnimClass = "emoji-wiggle"; break;
+              case 4: emojiAnimClass = "emoji-pop"; break;
+              case 5: emojiAnimClass = "emoji-shimmer"; break;
+              default: emojiAnimClass = "emoji-pulse";
             }
 
             const emojiReactClass = surge ? "emoji-react-pop" : "";
@@ -369,7 +334,7 @@ export default function PlazaPage() {
                   style={{ background: auraColor(post.maskTier) }}
                 ></div>
 
-                {/* Mask emoji glyph (animated) */}
+                {/* Mask emoji glyph */}
                 <div
                   className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
                   style={{ color: auraColor(post.maskTier) }}
@@ -385,18 +350,15 @@ export default function PlazaPage() {
                 {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
                 {surge && <div className="surge-ripple"></div>}
 
-                {/* Debug */}
                 {debugAscension && (
                   <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
                     DEBUG S{stage}
                   </div>
                 )}
 
-                {/* Ascension visuals */}
                 {stage >= 4 && <div className="ascension-ring" />}
                 {stage >= 5 && <div className="ascension-halo" />}
 
-                {/* Sparks */}
                 {stage >= 4 && positivityRatio > 0.4 && (
                   <>
                     <div
@@ -432,7 +394,6 @@ export default function PlazaPage() {
                   </>
                 )}
 
-                {/* Particles */}
                 {score >= 16 && (
                   <>
                     <div
@@ -464,7 +425,6 @@ export default function PlazaPage() {
                   </>
                 )}
 
-                {/* Spirit Score */}
                 <div
                   className="text-xs font-semibold mb-2 tracking-wide"
                   style={{ color: auraColor(post.maskTier) }}
@@ -472,21 +432,20 @@ export default function PlazaPage() {
                   Spirit Score: {score}
                 </div>
 
-                {/* Content */}
                 <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200">
                   {post.content}
                 </p>
 
-                {/* Footer */}
                 <div className="mt-6 flex justify-between text-sm text-gray-500">
                   <span>Mask: {post.maskTier}</span>
                   <span>{new Date(post.createdAt).toLocaleString()}</span>
                 </div>
 
-                {/* ⭐ ReactionBar (Phase‑2 UI) */}
+                {/* ⭐ ReactionBar with creatorId + viewerId */}
                 <ReactionBar
                   postId={String(post.id)}
-                  userId={post.userId ?? "demo-user-123"}
+                  userId={"viewer-demo-001"}       // viewer
+                  creatorId={post.userId}          // creator
                   reactions={{
                     mask1: post.reactions?.mask1 ?? 0,
                     mask2: post.reactions?.mask2 ?? 0,
