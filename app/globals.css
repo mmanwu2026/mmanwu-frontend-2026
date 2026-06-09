@@ -17,9 +17,9 @@
 
 /* Aura animations */
 @keyframes aura-breathe {
-  0% { box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0)); }
-  50% { box-shadow: 0 0 18px var(--aura-color, rgba(59,130,246,0.55)); }
-  100% { box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0)); }
+  0% { box-shadow: none; }
+  50% { box-shadow: none; }
+  100% { box-shadow: none; }
 }
 
 @keyframes aura-pulse {
