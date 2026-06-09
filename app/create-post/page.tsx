@@ -19,13 +19,13 @@ export default function CreatePostPage() {
 
     try {
       const res = await fetch(
-        "https://mmanwu-clean-production-6465.up.railway.app/posts",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, mask }),
-        }
-      );
+  "https://mmanwu-backend-2026-production.up.railway.app/posts",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, mask }),
+  }
+);
 
       const data = await res.json();
       setResponse(JSON.stringify(data, null, 2));
