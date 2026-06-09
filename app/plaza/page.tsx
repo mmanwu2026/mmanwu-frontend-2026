@@ -150,272 +150,359 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto mt-10 px-4">
-      <h1 className="text-2xl font-bold text-white mb-6 text-center">
-        Mmanwu Plaza
-      </h1>
+    <>
+      {/* ⭐ Inline emoji animation CSS */}
+      <style>{`
+        .emoji-glyph {
+          position: absolute;
+          top: -1.25rem;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 2.5rem;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+        }
 
-      {loading && <p className="text-gray-400">Loading posts…</p>}
-      {error && <p className="text-red-500">{error}</p>}
-      {!loading && posts.length === 0 && (
-        <p className="text-gray-400">No posts yet…</p>
-      )}
+        @keyframes emoji-pulse {
+          0% { transform: translateX(-50%) scale(1); }
+          50% { transform: translateX(-50%) scale(1.08); }
+          100% { transform: translateX(-50%) scale(1); }
+        }
 
-      <div className="space-y-6">
-        {posts.map((post) => {
-          const score = post.spiritScore ?? 0;
+        @keyframes emoji-bounce {
+          0% { transform: translateX(-50%) translateY(0); }
+          30% { transform: translateX(-50%) translateY(-6px); }
+          60% { transform: translateX(-50%) translateY(2px); }
+          100% { transform: translateX(-50%) translateY(0); }
+        }
 
-          const total =
-            (post.reactions?.mask1 ?? 0) +
-            (post.reactions?.mask2 ?? 0) +
-            (post.reactions?.mask3 ?? 0) +
-            (post.reactions?.mask4 ?? 0) +
-            (post.reactions?.mask5 ?? 0);
+        @keyframes emoji-wiggle {
+          0% { transform: translateX(-50%) rotate(0deg); }
+          25% { transform: translateX(-50%) rotate(-4deg); }
+          50% { transform: translateX(-50%) rotate(4deg); }
+          75% { transform: translateX(-50%) rotate(-2deg); }
+          100% { transform: translateX(-50%) rotate(0deg); }
+        }
 
-          const positive =
-            (post.reactions?.mask3 ?? 0) +
-            (post.reactions?.mask4 ?? 0) +
-            (post.reactions?.mask5 ?? 0);
+        @keyframes emoji-pop {
+          0% { transform: translateX(-50%) scale(1); }
+          40% { transform: translateX(-50%) scale(1.12); }
+          100% { transform: translateX(-50%) scale(1); }
+        }
 
-          const positivityRatio =
-            total > 0 ? positive / total : post.positivityRatio ?? 0.5;
+        @keyframes emoji-shimmer {
+          0% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0.0)); }
+          50% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55)); }
+          100% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0.0)); }
+        }
 
-          let baseStage =
-            score < 6 ? 1 :
-            score < 16 ? 2 :
-            score < 31 ? 3 :
-            score < 51 ? 4 : 5;
+        .emoji-pulse {
+          animation: emoji-pulse 3s ease-in-out infinite;
+        }
 
-          const stageBoost = positivityRatio > 0.7 ? 1 : 0;
-          const stageDampen = positivityRatio < 0.3 ? -1 : 0;
+        .emoji-bounce {
+          animation: emoji-bounce 2.4s ease-in-out infinite;
+        }
 
-          let stage = Math.max(1, Math.min(5, baseStage + stageBoost + stageDampen));
+        .emoji-wiggle {
+          animation: emoji-wiggle 3s ease-in-out infinite;
+        }
 
-          if (debugAscension) {
-            stage = (post.id % 5) + 1;
-          }
+        .emoji-pop {
+          animation: emoji-pop 2.2s ease-in-out infinite;
+        }
 
-          const key = String(post.id);
+        .emoji-shimmer {
+          animation: emoji-shimmer 3.2s ease-in-out infinite;
+        }
 
-          const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
-          const prevPosReacts = prevPositiveReactionsMap.current[key] ?? positive;
+        .emoji-react-pop {
+          animation: emoji-pop 0.45s ease-out;
+        }
+      `}</style>
 
-          const positivitySpike = positivityRatio - prevPos > 0.25;
-          const newPositiveReaction = positive > prevPosReacts;
+      <div className="max-w-xl mx-auto mt-10 px-4">
+        <h1 className="text-2xl font-bold text-white mb-6 text-center">
+          Mmanwu Plaza
+        </h1>
 
-          const surge = positivitySpike || newPositiveReaction;
+        {loading && <p className="text-gray-400">Loading posts…</p>}
+        {error && <p className="text-red-500">{error}</p>}
+        {!loading && posts.length === 0 && (
+          <p className="text-gray-400">No posts yet…</p>
+        )}
 
-          prevPositivityMap.current[key] = positivityRatio;
-          prevPositiveReactionsMap.current[key] = positive;
+        <div className="space-y-6">
+          {posts.map((post) => {
+            const score = post.spiritScore ?? 0;
 
-          // ⭐ Phase‑1 aura classes ONLY (no mask-tier-X)
-          const auraClass = "mask-aura";
+            const total =
+              (post.reactions?.mask1 ?? 0) +
+              (post.reactions?.mask2 ?? 0) +
+              (post.reactions?.mask3 ?? 0) +
+              (post.reactions?.mask4 ?? 0) +
+              (post.reactions?.mask5 ?? 0);
 
-          const ascensionClass =
-            score > 200
-              ? "ascend-tier-4"
-              : score > 150
-              ? "ascend-tier-3"
-              : score > 100
-              ? "ascend-tier-2"
-              : "ascend-tier-1";
+            const positive =
+              (post.reactions?.mask3 ?? 0) +
+              (post.reactions?.mask4 ?? 0) +
+              (post.reactions?.mask5 ?? 0);
 
-          const surgeClass =
-            score > 200
-              ? "surge-strong"
-              : score > 150
-              ? "surge-medium"
-              : "surge-weak";
+            const positivityRatio =
+              total > 0 ? positive / total : post.positivityRatio ?? 0.5;
 
-          const emotionClass =
-            positivityRatio > 0.75
-              ? "emotion-boost"
-              : positivityRatio > 0.55
-              ? "emotion-intense"
-              : positivityRatio < 0.25
-              ? "emotion-soft"
-              : "emotion-calm";
+            let baseStage =
+              score < 6 ? 1 :
+              score < 16 ? 2 :
+              score < 31 ? 3 :
+              score < 51 ? 4 : 5;
 
-          return (
-            <div
-              key={post.id}
-              className={`
-                relative
-                p-8
-                rounded-2xl
-                bg-[#0a0a0a]   /* ⭐ FIXED: richer black, not gray */
-                transition-all
-                duration-500
-                border
-                overflow-visible
-                isolate-layout
-                min-h-[420px]
-                mb-10
-                shadow-[0_10px_30px_rgba(0,0,0,0.05)]
-                max-w-[300px]
-                mx-auto
+            const stageBoost = positivityRatio > 0.7 ? 1 : 0;
+            const stageDampen = positivityRatio < 0.3 ? -1 : 0;
 
-                plaza-card-base
+            let stage = Math.max(1, Math.min(5, baseStage + stageBoost + stageDampen));
 
-                ${auraClass}
-                ${ascensionClass}
-                ${surgeClass}
-                ${emotionClass}
-              `}
-              style={
-                {
-                  "--aura-color": auraColor(post.maskTier),
-                  ...auraStyle(score, post.maskTier, positivityRatio),
-                } as unknown as React.CSSProperties
-              }
-            >
-              {/* Left aura spine */}
+            if (debugAscension) {
+              stage = (post.id % 5) + 1;
+            }
+
+            const key = String(post.id);
+
+            const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
+            const prevPosReacts = prevPositiveReactionsMap.current[key] ?? positive;
+
+            const positivitySpike = positivityRatio - prevPos > 0.25;
+            const newPositiveReaction = positive > prevPosReacts;
+
+            const surge = positivitySpike || newPositiveReaction;
+
+            prevPositivityMap.current[key] = positivityRatio;
+            prevPositiveReactionsMap.current[key] = positive;
+
+            // ⭐ Phase‑1 aura classes ONLY (no mask-tier-X)
+            const auraClass = "mask-aura";
+
+            const ascensionClass =
+              score > 200
+                ? "ascend-tier-4"
+                : score > 150
+                ? "ascend-tier-3"
+                : score > 100
+                ? "ascend-tier-2"
+                : "ascend-tier-1";
+
+            const surgeClass =
+              score > 200
+                ? "surge-strong"
+                : score > 150
+                ? "surge-medium"
+                : "surge-weak";
+
+            const emotionClass =
+              positivityRatio > 0.75
+                ? "emotion-boost"
+                : positivityRatio > 0.55
+                ? "emotion-intense"
+                : positivityRatio < 0.25
+                ? "emotion-soft"
+                : "emotion-calm";
+
+            // ⭐ Emoji animation mapping (per mask)
+            let emojiAnimClass = "";
+            switch (post.maskTier) {
+              case 1:
+                emojiAnimClass = "emoji-pulse";
+                break;
+              case 2:
+                emojiAnimClass = "emoji-bounce";
+                break;
+              case 3:
+                emojiAnimClass = "emoji-wiggle";
+                break;
+              case 4:
+                emojiAnimClass = "emoji-pop";
+                break;
+              case 5:
+                emojiAnimClass = "emoji-shimmer";
+                break;
+              default:
+                emojiAnimClass = "emoji-pulse";
+            }
+
+            const emojiReactClass = surge ? "emoji-react-pop" : "";
+
+            return (
               <div
-                className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
-                style={{ background: auraColor(post.maskTier) }}
-              ></div>
+                key={post.id}
+                className={`
+                  relative
+                  p-8
+                  rounded-2xl
+                  bg-[#0a0a0a]
+                  transition-all
+                  duration-500
+                  border
+                  overflow-visible
+                  isolate-layout
+                  min-h-[420px]
+                  mb-10
+                  shadow-[0_10px_30px_rgba(0,0,0,0.05)]
+                  max-w-[300px]
+                  mx-auto
 
-              {/* Mask glyph */}
-              <div
-                className="absolute -top-5 left-1/2 -translate-x-1/2 text-4xl drop-shadow-sm"
-                style={{ color: auraColor(post.maskTier) }}
+                  plaza-card-base
+
+                  ${auraClass}
+                  ${ascensionClass}
+                  ${surgeClass}
+                  ${emotionClass}
+                `}
+                style={
+                  {
+                    "--aura-color": auraColor(post.maskTier),
+                    ...auraStyle(score, post.maskTier, positivityRatio),
+                  } as unknown as React.CSSProperties
+                }
               >
-                {post.maskTier === 1 && "🜂"}
-                {post.maskTier === 2 && "🔥"}
-                {post.maskTier === 3 && "🜁"}
-                {post.maskTier === 4 && "✨"}
-                {post.maskTier === 5 && "🌿"}
-              </div>
+                {/* Left aura spine */}
+                <div
+                  className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
+                  style={{ background: auraColor(post.maskTier) }}
+                ></div>
 
-              {/* ⭐ FIXED: Soft inner glow (no gray wash) */}
-              <div
-                className="absolute inset-0 rounded-2xl pointer-events-none"
-                style={{
-                  boxShadow: `inset 0 0 18px ${auraColor(post.maskTier)}22`,
-                }}
-              ></div>
-
-              {/* Surge effects */}
-              {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
-              {surge && <div className="surge-ripple"></div>}
-
-              {/* Debug */}
-              {debugAscension && (
-                <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
-                  DEBUG S{stage}
+                {/* Mask emoji glyph (animated) */}
+                <div
+                  className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
+                  style={{ color: auraColor(post.maskTier) }}
+                >
+                  {post.maskTier === 1 && "😶‍🌫️"}
+                  {post.maskTier === 2 && "😤"}
+                  {post.maskTier === 3 && "😊"}
+                  {post.maskTier === 4 && "🤩"}
+                  {post.maskTier === 5 && "😇"}
                 </div>
-              )}
 
-              {/* Ascension visuals */}
-              {stage >= 4 && <div className="ascension-ring" />}
-              {stage >= 5 && <div className="ascension-halo" />}
+                {/* Surge effects */}
+                {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
+                {surge && <div className="surge-ripple"></div>}
 
-              {/* Sparks */}
-              {stage >= 4 && positivityRatio > 0.4 && (
-                <>
-                  <div
-                    className="spirit-spark"
-                    style={{
-                      top: "20%",
-                      left: "40%",
-                      background: auraColor(post.maskTier),
-                    }}
-                  />
-                  {positivityRatio > 0.6 && (
+                {/* Debug */}
+                {debugAscension && (
+                  <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
+                    DEBUG S{stage}
+                  </div>
+                )}
+
+                {/* Ascension visuals */}
+                {stage >= 4 && <div className="ascension-ring" />}
+                {stage >= 5 && <div className="ascension-halo" />}
+
+                {/* Sparks */}
+                {stage >= 4 && positivityRatio > 0.4 && (
+                  <>
                     <div
                       className="spirit-spark"
                       style={{
-                        top: "60%",
-                        left: "55%",
-                        animationDelay: "0.2s",
+                        top: "20%",
+                        left: "40%",
                         background: auraColor(post.maskTier),
                       }}
                     />
-                  )}
-                  {positivityRatio > 0.8 && (
+                    {positivityRatio > 0.6 && (
+                      <div
+                        className="spirit-spark"
+                        style={{
+                          top: "60%",
+                          left: "55%",
+                          animationDelay: "0.2s",
+                          background: auraColor(post.maskTier),
+                        }}
+                      />
+                    )}
+                    {positivityRatio > 0.8 && (
+                      <div
+                        className="spirit-spark"
+                        style={{
+                          top: "35%",
+                          left: "70%",
+                          animationDelay: "0.4s",
+                          background: auraColor(post.maskTier),
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* Particles */}
+                {score >= 16 && (
+                  <>
                     <div
-                      className="spirit-spark"
+                      className="spirit-particle"
                       style={{
-                        top: "35%",
-                        left: "70%",
-                        animationDelay: "0.4s",
+                        top: "10%",
+                        left: "5%",
                         background: auraColor(post.maskTier),
                       }}
                     />
-                  )}
-                </>
-              )}
+                    <div
+                      className="spirit-particle"
+                      style={{
+                        top: "50%",
+                        left: "90%",
+                        animationDelay: "1s",
+                        background: auraColor(post.maskTier),
+                      }}
+                    />
+                    <div
+                      className="spirit-particle"
+                      style={{
+                        top: "80%",
+                        left: "20%",
+                        animationDelay: "2s",
+                        background: auraColor(post.maskTier),
+                      }}
+                    />
+                  </>
+                )}
 
-              {/* Particles */}
-              {score >= 16 && (
-                <>
-                  <div
-                    className="spirit-particle"
-                    style={{
-                      top: "10%",
-                      left: "5%",
-                      background: auraColor(post.maskTier),
-                    }}
-                  />
-                  <div
-                    className="spirit-particle"
-                    style={{
-                      top: "50%",
-                      left: "90%",
-                      animationDelay: "1s",
-                      background: auraColor(post.maskTier),
-                    }}
-                  />
-                  <div
-                    className="spirit-particle"
-                    style={{
-                      top: "80%",
-                      left: "20%",
-                      animationDelay: "2s",
-                      background: auraColor(post.maskTier),
-                    }}
-                  />
-                </>
-              )}
+                {/* Spirit Score */}
+                <div
+                  className="text-xs font-semibold mb-2 tracking-wide"
+                  style={{ color: auraColor(post.maskTier) }}
+                >
+                  Spirit Score: {score}
+                </div>
 
-              {/* Spirit Score */}
-              <div
-                className="text-xs font-semibold mb-2 tracking-wide"
-                style={{ color: auraColor(post.maskTier) }}
-              >
-                Spirit Score: {score}
+                {/* Content */}
+                <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200">
+                  {post.content}
+                </p>
+
+                {/* Footer */}
+                <div className="mt-6 flex justify-between text-sm text-gray-500">
+                  <span>Mask: {post.maskTier}</span>
+                  <span>{new Date(post.createdAt).toLocaleString()}</span>
+                </div>
+
+                {/* ⭐ ReactionBar (Phase‑2 UI) */}
+                <ReactionBar
+                  postId={String(post.id)}
+                  userId={post.userId ?? "demo-user-123"}
+                  reactions={{
+                    mask1: post.reactions?.mask1 ?? 0,
+                    mask2: post.reactions?.mask2 ?? 0,
+                    mask3: post.reactions?.mask3 ?? 0,
+                    mask4: post.reactions?.mask4 ?? 0,
+                    mask5: post.reactions?.mask5 ?? 0,
+                  }}
+                  spiritScore={score}
+                  positivityRatio={positivityRatio}
+                  onReact={() => fetchPosts()}
+                />
               </div>
-
-              {/* Content */}
-              <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200">
-                {post.content}
-              </p>
-
-              {/* Footer */}
-              <div className="mt-6 flex justify-between text-sm text-gray-500">
-                <span>Mask: {post.maskTier}</span>
-                <span>{new Date(post.createdAt).toLocaleString()}</span>
-              </div>
-
-              {/* ⭐ ReactionBar (Phase‑2 UI) */}
-              <ReactionBar
-                postId={String(post.id)}
-                userId={post.userId ?? "demo-user-123"}
-                reactions={{
-                  mask1: post.reactions?.mask1 ?? 0,
-                  mask2: post.reactions?.mask2 ?? 0,
-                  mask3: post.reactions?.mask3 ?? 0,
-                  mask4: post.reactions?.mask4 ?? 0,
-                  mask5: post.reactions?.mask5 ?? 0,
-                }}
-                spiritScore={score}
-                positivityRatio={positivityRatio}
-                onReact={() => fetchPosts()}
-              />
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
