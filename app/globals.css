@@ -1,1 +1,333 @@
+/* --------------------------------------------- */
+/* TAILwind ENGINE — REQUIRED                    */
+/* --------------------------------------------- */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* css-sync-verify-002 */
+/* === PLAZA AURA & ASCENSION RESTORE === */
+
+.isolate-layout {
+  isolation: isolate;
+  position: relative;
+  overflow: visible;
+}
+
+/* Aura animations */
+@keyframes aura-breathe {
+  0% { box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0)); }
+  50% { box-shadow: 0 0 18px var(--aura-color, rgba(59,130,246,0.55)); }
+  100% { box-shadow: 0 0 0px var(--aura-color, rgba(59,130,246,0.0)); }
+}
+
+@keyframes aura-pulse {
+  0% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
+  50% { box-shadow: 0 0 22px var(--aura-color, rgba(59,130,246,0.8)); transform: scale(1.02); }
+  100% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
+}
+
+/* Surge flash overlay */
+.surge-flash {
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.7), rgba(255,255,255,0));
+  opacity: 0;
+  animation: surge-flash-anim 0.6s ease-out forwards;
+}
+
+@keyframes surge-flash-anim {
+  0% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Surge ripple ring */
+.surge-ripple {
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255,255,255,0.7);
+  pointer-events: none;
+  animation: surge-ripple-anim 0.8s ease-out forwards;
+}
+
+@keyframes surge-ripple-anim {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+/* Ascension ring */
+.ascension-ring {
+  position: absolute;
+  inset: -14px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255,255,255,0.8);
+  box-shadow: 0 0 18px rgba(255,255,255,0.7);
+  pointer-events: none;
+  animation: ascension-ring-anim 2.4s ease-in-out infinite;
+}
+
+@keyframes ascension-ring-anim {
+  0% { transform: scale(0.96); opacity: 0.7; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(0.96); opacity: 0.7; }
+}
+
+/* Ascension halo */
+.ascension-halo {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 40px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.9), rgba(255,255,255,0));
+  filter: blur(4px);
+  pointer-events: none;
+  animation: ascension-halo-anim 3s ease-in-out infinite;
+}
+
+@keyframes ascension-halo-anim {
+  0% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  100% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
+}
+
+/* Spirit sparks */
+.spirit-spark {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--aura-color, #3B82F6);
+  box-shadow: 0 0 12px rgba(255,255,255,0.9);
+  opacity: 0;
+  pointer-events: none;
+  animation: spirit-spark-anim 2.2s ease-out infinite;
+}
+
+@keyframes spirit-spark-anim {
+  0% { transform: translateY(6px) scale(0.7); opacity: 0; }
+  30% { transform: translateY(-4px) scale(1); opacity: 1; }
+  100% { transform: translateY(-14px) scale(0.8); opacity: 0; }
+}
+
+/* Spirit particles */
+.spirit-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--aura-color, #3B82F6);
+  opacity: 0;
+  filter: blur(1px);
+  pointer-events: none;
+  animation: spirit-particle-anim 3s linear infinite;
+}
+
+@keyframes spirit-particle-anim {
+  0% { transform: translateY(10px) scale(0.6); opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { transform: translateY(-18px) scale(1); opacity: 0; }
+}
+
+/* Base card shadow */
+.plaza-card-base {
+  box-shadow: 0 0 1px rgba(0,0,0,0.04);
+}
+
+/* === REACTION ENGINE ANIMATIONS === */
+
+.mask-hover:hover {
+  transform: translateY(-4px) scale(1.08);
+  transition: transform 0.15s ease-out;
+}
+
+.mask-pop {
+  animation: mask-pop 0.25s ease-out;
+}
+
+@keyframes mask-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1.1); }
+}
+
+.mask-glow-strong {
+  box-shadow:
+    0 0 12px rgba(255,255,255,0.7),
+    0 0 22px rgba(255,255,255,0.5),
+    0 0 32px rgba(255,255,255,0.3);
+  transition: box-shadow 0.2s ease-out;
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.6);
+  animation: pulse-ring 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.count-float {
+  animation: count-float 0.4s ease-out;
+}
+
+@keyframes count-float {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-10px); opacity: 0; }
+}
+
+/* === MASK BREATHING === */
+@keyframes mask-breathe {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.mask-breathe {
+  animation: mask-breathe 3.5s ease-in-out infinite;
+}
+
+/* === MASK BLINKING === */
+@keyframes mask-blink {
+  0% { transform: scaleY(1); }
+  48% { transform: scaleY(1); }
+  50% { transform: scaleY(0.1); }
+  52% { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
+}
+
+.mask-eyes {
+  transform-origin: center;
+  animation: mask-blink 4.5s ease-in-out infinite;
+  animation-delay: calc(0.5s + (var(--blink-offset, 0) * 1s));
+}
+
+/* === COLOR PULSE ON HOVER === */
+.mask-color-pulse:hover {
+  filter: brightness(1.25);
+  transition: filter 0.2s ease-out;
+}
+
+/* === ENERGY RIPPLE === */
+.energy-ripple {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  animation: energy-ripple 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes energy-ripple {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* === C1 EXPRESSION ENGINE (Mythic + Anime) === */
+
+.expression-shift {
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+
+.eyes-bright {
+  transform: scale(1.08) translateY(-1px);
+  opacity: 1;
+}
+
+.eyes-joyful {
+  transform: scale(1.04);
+  opacity: 0.95;
+}
+
+.eyes-neutral {
+  transform: scale(1);
+  opacity: 0.9;
+}
+
+.eyes-stern {
+  transform: scale(0.9) translateY(1px);
+  opacity: 0.8;
+}
+
+.eyes-dark {
+  transform: scale(0.88) translateY(2px);
+  opacity: 0.7;
+}
+
+.mask-mouth {
+  transition: d 0.18s ease-out, stroke 0.18s ease-out;
+}
+
+/* === MASK COLOR VARIABLES (CRITICAL) === */
+.mask-tier-1 { --aura-color: #0ea5e9; }
+.mask-tier-2 { --aura-color: #22c55e; }
+.mask-tier-3 { --aura-color: #eab308; }
+.mask-tier-4 { --aura-color: #f97316; }
+.mask-tier-5 { --aura-color: #ef4444; }
+
+/* === AURA APPLICATION === */
+.mask-aura {
+  animation: aura-breathe 3s ease-in-out infinite;
+}
+.mask-aura-strong {
+  animation: aura-pulse 2.2s ease-in-out infinite;
+}
+
+/* === C2 EMOTIONAL MODULATION === */
+.emotion-boost {
+  filter: brightness(1.25) saturate(1.3);
+}
+.emotion-calm {
+  filter: brightness(0.95) saturate(0.9);
+}
+.emotion-intense {
+  transform: scale(1.06);
+}
+.emotion-soft {
+  transform: scale(0.98);
+}
+
+/* === C3 EMOTIONAL BOUNCE === */
+.emotion-bounce {
+  animation: emotion-bounce 0.45s ease-out;
+}
+@keyframes emotion-bounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* === C4 EYE EXPRESSION STATES === */
+.eye-joy { opacity: 1; transform: scale(1.1); }
+.eye-happy { opacity: 0.95; transform: scale(1.05); }
+.eye-neutral { opacity: 0.9; transform: scale(1); }
+.eye-serious { opacity: 0.8; transform: scale(0.92); }
+.eye-dark { opacity: 0.7; transform: scale(0.88); }
+
+/* === C5 MOUTH MORPH STATES === */
+.mouth-smile { d: path("M2 8 Q8 14 14 8"); }
+.mouth-neutral { d: path("M2 10 Q8 10 14 10"); }
+.mouth-frown { d: path("M2 12 Q8 6 14 12"); }
+
+/* === C6 ASCENSION THRESHOLDS === */
+.ascend-tier-1 { opacity: 0.4; }
+.ascend-tier-2 { opacity: 0.6; }
+.ascend-tier-3 { opacity: 0.8; }
+.ascend-tier-4 { opacity: 1; }
+
+/* === C7 SURGE INTENSITY === */
+.surge-weak { opacity: 0.4; }
+.surge-medium { opacity: 0.7; }
+.surge-strong { opacity: 1; }
 
