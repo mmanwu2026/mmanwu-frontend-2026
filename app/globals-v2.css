@@ -1,7 +1,6 @@
-/* css-sync-verify-001 */
+/* css-sync-verify-002 */
 /* === PLAZA AURA & ASCENSION RESTORE === */
 
-/* Layout isolation so effects don’t get clipped */
 .isolate-layout {
   isolation: isolate;
   position: relative;
@@ -132,13 +131,11 @@
 
 /* === REACTION ENGINE ANIMATIONS === */
 
-/* Hover lift */
 .mask-hover:hover {
   transform: translateY(-4px) scale(1.08);
   transition: transform 0.15s ease-out;
 }
 
-/* Click pop */
 .mask-pop {
   animation: mask-pop 0.25s ease-out;
 }
@@ -149,7 +146,6 @@
   100% { transform: scale(1.1); }
 }
 
-/* Glow burst */
 .mask-glow-strong {
   box-shadow:
     0 0 12px rgba(255,255,255,0.7),
@@ -158,7 +154,6 @@
   transition: box-shadow 0.2s ease-out;
 }
 
-/* Pulse ring */
 .pulse-ring {
   position: absolute;
   width: 44px;
@@ -174,7 +169,6 @@
   100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* Reaction count float */
 .count-float {
   animation: count-float 0.4s ease-out;
 }
@@ -234,12 +228,10 @@
 
 /* === C1 EXPRESSION ENGINE (Mythic + Anime) === */
 
-/* Expression shift */
 .expression-shift {
   transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
 }
 
-/* Eye styles */
 .eyes-bright {
   transform: scale(1.08) translateY(-1px);
   opacity: 1;
@@ -265,17 +257,16 @@
   opacity: 0.7;
 }
 
-/* Mouth morphing */
 .mask-mouth {
   transition: d 0.18s ease-out, stroke 0.18s ease-out;
 }
 
 /* === MASK COLOR VARIABLES (CRITICAL) === */
-.mask-tier-1 { --aura-color: #0ea5e9; }   /* Blue */
-.mask-tier-2 { --aura-color: #22c55e; }   /* Green */
-.mask-tier-3 { --aura-color: #eab308; }   /* Gold */
-.mask-tier-4 { --aura-color: #f97316; }   /* Orange */
-.mask-tier-5 { --aura-color: #ef4444; }   /* Red */
+.mask-tier-1 { --aura-color: #0ea5e9; }
+.mask-tier-2 { --aura-color: #22c55e; }
+.mask-tier-3 { --aura-color: #eab308; }
+.mask-tier-4 { --aura-color: #f97316; }
+.mask-tier-5 { --aura-color: #ef4444; }
 
 /* === AURA APPLICATION === */
 .mask-aura {
