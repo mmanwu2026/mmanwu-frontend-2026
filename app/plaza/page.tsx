@@ -1,4 +1,3 @@
-// plaza-phase1-hybrid-FINAL
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -45,15 +44,16 @@ export default function PlazaPage() {
   async function fetchPosts() {
     try {
       const res = await fetch(
-        "https://mmanwu-clean-production-6465.up.railway.app/plaza",
+        "https://mmanwu-backend-2026-production.up.railway.app/plaza",
         { cache: "no-store" }
       );
       if (!res.ok) throw new Error("Failed to fetch posts");
 
-      const data: PlazaPost[] = await res.json();
+      const data = await res.json();
 
-      const patched = data.map((p) => ({
+      const patched = data.map((p: any) => ({
         ...p,
+        maskTier: p.mask, // ⭐ FIXED: backend returns mask, not maskTier
         spiritScore: p.spiritScore ?? 0,
         positivityRatio: p.positivityRatio ?? 0.5,
         reactions: p.reactions ?? {
@@ -83,14 +83,13 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  // OLD PALETTE — JS AURA ENGINE
   function auraColor(mask: number) {
     switch (mask) {
-      case 1: return "#7C3AED"; // violet
-      case 2: return "#DC2626"; // red
-      case 3: return "#22C55E"; // green
-      case 4: return "#FACC15"; // gold
-      case 5: return "#3B82F6"; // blue
+      case 1: return "#7C3AED";
+      case 2: return "#DC2626";
+      case 3: return "#22C55E";
+      case 4: return "#FACC15";
+      case 5: return "#3B82F6";
       default: return "#22C55E";
     }
   }
@@ -235,12 +234,10 @@ export default function PlazaPage() {
                 ${surgeClass}
                 ${emotionClass}
               `}
-              style={
-                {
-                  "--aura-color": auraColor(post.maskTier),
-                  ...auraStyle(score, post.maskTier, positivityRatio),
-                } as unknown as React.CSSProperties
-              }
+              style={{
+                "--aura-color": auraColor(post.maskTier),
+                ...auraStyle(score, post.maskTier, positivityRatio),
+              } as React.CSSProperties}
             >
               <div
                 className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
