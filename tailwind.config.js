@@ -5,7 +5,9 @@ module.exports = {
     "./components/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      dummy: {},   // tiny change to force Vercel + Tailwind to rebuild
+    },
   },
   variants: {
     extend: {
