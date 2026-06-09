@@ -1,19 +1,21 @@
-// vercel rebuild plaza 003
+// plaza-phase1-hybrid-001
 "use client";
 
-import React, { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import React, { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
 
-/* === Plaza Post Type === */
+/* === Plaza Post Type (new shape) === */
 interface PlazaPost {
   id: string;
   userId: string;
   content: string;
   createdAt: string;
   maskTier: number;
-  spiritScore: number;
-  positivityRatio: number;
-  reactions: {
+  spiritScore?: number;
+  positivityRatio?: number;
+  reactions?: {
     mask1: number;
     mask2: number;
     mask3: number;
@@ -24,91 +26,382 @@ interface PlazaPost {
 
 export default function PlazaPage() {
   const [posts, setPosts] = useState<PlazaPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [debugAscension, setDebugAscension] = useState(false);
 
+  const prevPositivityMap = useRef<Record<string, number>>({});
+  const prevPositiveReactionsMap = useRef<Record<string, number>>({});
+
+  // Toggle debug ascension with "D"
   useEffect(() => {
-    async function loadPosts() {
-      try {
-        const res = await fetch(
-          "https://mmanwu-clean-production-6465.up.railway.app/plaza"
-        );
-        const data = await res.json();
-        setPosts(data);
-      } catch (err) {
-        console.error("Plaza load error:", err);
+    function handleKey(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "d") {
+        setDebugAscension((prev) => !prev);
       }
     }
-
-    loadPosts();
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, []);
+
+  // Fetch posts
+  async function fetchPosts() {
+    try {
+      const res = await fetch(
+        "https://mmanwu-clean-production-6465.up.railway.app/plaza",
+        { cache: "no-store" }
+      );
+      if (!res.ok) throw new Error("Failed to fetch posts");
+
+      const data: PlazaPost[] = await res.json();
+
+      const patched = data.map((p) => ({
+        ...p,
+        spiritScore: p.spiritScore ?? 0,
+        positivityRatio: p.positivityRatio ?? 0.5,
+        reactions: p.reactions ?? {
+          mask1: 0,
+          mask2: 0,
+          mask3: 0,
+          mask4: 0,
+          mask5: 0,
+        },
+      }));
+
+      const sorted = patched.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
+
+      setPosts(sorted);
+    } catch (err) {
+      setError("Unable to load posts.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  // Aura color by maskTier
+  function auraColor(mask: number) {
+    switch (mask) {
+      case 1: return "#7C3AED";
+      case 2: return "#DC2626";
+      case 3: return "#22C55E";
+      case 4: return "#FACC15";
+      case 5: return "#3B82F6";
+      default: return "#22C55E";
+    }
+  }
+
+  // Aura intensity logic (C2)
+  function auraStyle(score = 0, mask: number, positivityRatio: number) {
+    const color = auraColor(mask);
+
+    let intensityLevel =
+      score < 6 ? 0 :
+      score < 16 ? 1 :
+      score < 31 ? 2 : 3;
+
+    const boost = positivityRatio > 0.6 ? 1 : 0;
+    const dampen = positivityRatio < 0.3 ? -1 : 0;
+
+    const finalLevel = Math.max(0, Math.min(3, intensityLevel + boost + dampen));
+
+    if (finalLevel === 0) return { borderColor: color };
+    if (finalLevel === 1) return {
+      borderColor: color,
+      boxShadow: `0 0 10px ${color}33`,
+      animation: "aura-breathe 3s ease-in-out infinite",
+    };
+    if (finalLevel === 2) return {
+      borderColor: color,
+      boxShadow: `0 0 15px ${color}55`,
+      animation: "aura-breathe 2s ease-in-out infinite",
+    };
+    return {
+      borderColor: color,
+      boxShadow: `0 0 20px ${color}77`,
+      animation: "aura-pulse 1.5s ease-in-out infinite",
+    };
+  }
 
   return (
     <div className="max-w-xl mx-auto mt-10 px-4">
-      <h1 className="text-2xl font-bold text-white mb-6">Mmanwu Plaza</h1>
+      <h1 className="text-2xl font-bold text-white mb-6 text-center">
+        Mmanwu Plaza
+      </h1>
 
-      {posts.map((post) => {
-        /* === C2–C8 CLASS LOGIC === */
-        const auraClass = "mask-aura";
+      {loading && <p className="text-gray-400">Loading posts…</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      {!loading && posts.length === 0 && (
+        <p className="text-gray-400">No posts yet…</p>
+      )}
 
-        const ascensionClass =
-          post.spiritScore > 200
-            ? "ascend-tier-4"
-            : post.spiritScore > 150
-            ? "ascend-tier-3"
-            : post.spiritScore > 100
-            ? "ascend-tier-2"
-            : "ascend-tier-1";
+      <div className="space-y-6">
+        {posts.map((post) => {
+          const score = post.spiritScore ?? 0;
 
-        const surgeClass =
-          post.spiritScore > 200
-            ? "surge-strong"
-            : post.spiritScore > 150
-            ? "surge-medium"
-            : "surge-weak";
+          const total =
+            (post.reactions?.mask1 ?? 0) +
+            (post.reactions?.mask2 ?? 0) +
+            (post.reactions?.mask3 ?? 0) +
+            (post.reactions?.mask4 ?? 0) +
+            (post.reactions?.mask5 ?? 0);
 
-        const emotionClass =
-          post.positivityRatio > 0.75
-            ? "emotion-boost"
-            : post.positivityRatio > 0.55
-            ? "emotion-intense"
-            : post.positivityRatio < 0.25
-            ? "emotion-soft"
-            : "emotion-calm";
+          const positive =
+            (post.reactions?.mask3 ?? 0) +
+            (post.reactions?.mask4 ?? 0) +
+            (post.reactions?.mask5 ?? 0);
 
-        return (
-          <div
-            key={post.id}
-            className={`
-              bg-[#111] p-4 rounded-xl mb-6
-              isolate-layout plaza-card-base
+          const positivityRatio =
+            total > 0 ? positive / total : post.positivityRatio ?? 0.5;
 
-              mask-tier-${post.maskTier}
-              ${auraClass}
-              ${ascensionClass}
-              ${surgeClass}
-              ${emotionClass}
-            `}
-          >
-            {/* === POST CONTENT === */}
-            <p className="text-gray-200 mb-3">{post.content}</p>
+          // Stage logic (C3–C4)
+          let baseStage =
+            score < 6 ? 1 :
+            score < 16 ? 2 :
+            score < 31 ? 3 :
+            score < 51 ? 4 : 5;
 
-            {/* === POST METADATA === */}
-            <div className="text-xs text-gray-500 mb-3">
-              <div>Spirit Score: {post.spiritScore}</div>
-              <div>Mask: {post.maskTier}</div>
-              <div>{new Date(post.createdAt).toLocaleString()}</div>
+          const stageBoost = positivityRatio > 0.7 ? 1 : 0;
+          const stageDampen = positivityRatio < 0.3 ? -1 : 0;
+
+          let stage = Math.max(1, Math.min(5, baseStage + stageBoost + stageDampen));
+
+          if (debugAscension) {
+            const numericId = parseInt(post.id, 10);
+            stage = isNaN(numericId) ? stage : (numericId % 5) + 1;
+          }
+
+          // Surge logic (C5)
+          const prevPos = prevPositivityMap.current[post.id] ?? positivityRatio;
+          const prevPosReacts = prevPositiveReactionsMap.current[post.id] ?? positive;
+
+          const positivitySpike = positivityRatio - prevPos > 0.25;
+          const newPositiveReaction = positive > prevPosReacts;
+
+          const surge = positivitySpike || newPositiveReaction;
+
+          prevPositivityMap.current[post.id] = positivityRatio;
+          prevPositiveReactionsMap.current[post.id] = positive;
+
+          // Class-based system (your new C2–C8 classes)
+          const auraClass = "mask-aura";
+
+          const ascensionClass =
+            score > 200
+              ? "ascend-tier-4"
+              : score > 150
+              ? "ascend-tier-3"
+              : score > 100
+              ? "ascend-tier-2"
+              : "ascend-tier-1";
+
+          const surgeClass =
+            score > 200
+              ? "surge-strong"
+              : score > 150
+              ? "surge-medium"
+              : "surge-weak";
+
+          const emotionClass =
+            positivityRatio > 0.75
+              ? "emotion-boost"
+              : positivityRatio > 0.55
+              ? "emotion-intense"
+              : positivityRatio < 0.25
+              ? "emotion-soft"
+              : "emotion-calm";
+
+          return (
+            <div
+              key={post.id}
+              className={`
+                relative
+                p-8
+                rounded-2xl
+                bg-white
+                transition-all
+                duration-500
+                border
+                overflow-visible
+                isolate-layout
+                min-h-[420px]
+                mb-10
+                shadow-[0_10px_30px_rgba(0,0,0,0.05)]
+                max-w-[300px]
+                mx-auto
+
+                plaza-card-base
+                bg-[#111]
+
+                mask-tier-${post.maskTier}
+                ${auraClass}
+                ${ascensionClass}
+                ${surgeClass}
+                ${emotionClass}
+              `}
+              style={
+                {
+                  "--aura-color": auraColor(post.maskTier),
+                  ...auraStyle(score, post.maskTier, positivityRatio),
+                } as React.CSSProperties
+              }
+            >
+              {/* Mask-colored vertical spine */}
+              <div
+                className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
+                style={{ background: auraColor(post.maskTier) }}
+              ></div>
+
+              {/* Floating mask glyph crest */}
+              <div
+                className="absolute -top-5 left-1/2 -translate-x-1/2 text-4xl drop-shadow-sm"
+                style={{ color: auraColor(post.maskTier) }}
+              >
+                {post.maskTier === 1 && "🜂"}
+                {post.maskTier === 2 && "🔥"}
+                {post.maskTier === 3 && "🜁"}
+                {post.maskTier === 4 && "✨"}
+                {post.maskTier === 5 && "🌿"}
+              </div>
+
+              {/* Soft inner glow */}
+              <div
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  boxShadow: `inset 0 0 40px ${auraColor(post.maskTier)}15`,
+                }}
+              ></div>
+
+              {/* Surge flash */}
+              {surge && (
+                <div className="surge-flash absolute inset-0 rounded-2xl"></div>
+              )}
+              {surge && <div className="surge-ripple"></div>}
+
+              {/* Debug ascension */}
+              {debugAscension && (
+                <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
+                  DEBUG S{stage}
+                </div>
+              )}
+
+              {/* Ascension rings */}
+              {stage >= 4 && <div className="ascension-ring" />}
+              {stage >= 5 && <div className="ascension-halo" />}
+
+              {/* Sparks */}
+              {stage >= 4 && positivityRatio > 0.4 && (
+                <>
+                  <div
+                    className="spirit-spark"
+                    style={{
+                      top: "20%",
+                      left: "40%",
+                      background: auraColor(post.maskTier),
+                    }}
+                  />
+                  {positivityRatio > 0.6 && (
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "60%",
+                        left: "55%",
+                        animationDelay: "0.2s",
+                        background: auraColor(post.maskTier),
+                      }}
+                    />
+                  )}
+                  {positivityRatio > 0.8 && (
+                    <div
+                      className="spirit-spark"
+                      style={{
+                        top: "35%",
+                        left: "70%",
+                        animationDelay: "0.4s",
+                        background: auraColor(post.maskTier),
+                      }}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Particles */}
+              {score >= 16 && (
+                <>
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "10%",
+                      left: "5%",
+                      background: auraColor(post.maskTier),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "50%",
+                      left: "90%",
+                      animationDelay: "1s",
+                      background: auraColor(post.maskTier),
+                    }}
+                  />
+                  <div
+                    className="spirit-particle"
+                    style={{
+                      top: "80%",
+                      left: "20%",
+                      animationDelay: "2s",
+                      background: auraColor(post.maskTier),
+                    }}
+                  />
+                </>
+              )}
+
+              {/* Spirit Score */}
+              <div
+                className="text-xs font-semibold mb-2 tracking-wide"
+                style={{ color: auraColor(post.maskTier) }}
+              >
+                Spirit Score: {score}
+              </div>
+
+              {/* Content */}
+              <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200">
+                {post.content}
+              </p>
+
+              {/* Footer */}
+              <div className="mt-6 flex justify-between text-sm text-gray-500">
+                <span>Mask: {post.maskTier}</span>
+                <span>{new Date(post.createdAt).toLocaleString()}</span>
+              </div>
+
+              {/* Reaction Bar — hybrid props */}
+              <ReactionBar
+                postId={post.id}
+                userId={post.userId ?? "demo-user-123"}
+                reactions={{
+                  mask1: post.reactions?.mask1 ?? 0,
+                  mask2: post.reactions?.mask2 ?? 0,
+                  mask3: post.reactions?.mask3 ?? 0,
+                  mask4: post.reactions?.mask4 ?? 0,
+                  mask5: post.reactions?.mask5 ?? 0,
+                }}
+                spiritScore={score}
+                positivityRatio={positivityRatio}
+                onReact={() => fetchPosts()}
+              />
             </div>
-
-            {/* === REACTION BAR WITH C2 === */}
-            <ReactionBar
-              postId={post.id}
-              userId={post.userId}
-              reactions={post.reactions}
-              spiritScore={post.spiritScore}
-              positivityRatio={post.positivityRatio}
-            />
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
