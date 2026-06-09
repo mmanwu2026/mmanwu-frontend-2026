@@ -26,15 +26,20 @@ export default function CreatePostPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(BACKEND_URL, {
+      // ⭐ Correct endpoint: POST /plaza
+      const res = await fetch(`${BACKEND_URL}/plaza`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, mask }),
       });
 
-      const data = await res.json();
+      if (!res.ok) {
+        setResponse("Backend returned an error.");
+        setLoading(false);
+        return;
+      }
 
-      // ⭐ Redirect IMMEDIATELY after success — no state updates before redirect
+      // ⭐ Redirect IMMEDIATELY after success
       router.push("/plaza");
       return;
 
