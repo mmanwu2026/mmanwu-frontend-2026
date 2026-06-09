@@ -250,7 +250,7 @@ export default function PlazaPage() {
                 {
                   "--aura-color": auraColor(post.maskTier),
                   ...auraStyle(score, post.maskTier, positivityRatio),
-                } as React.CSSProperties
+                } as unknown as React.CSSProperties
               }
             >
               {/* Mask-colored vertical spine */}
