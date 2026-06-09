@@ -1,4 +1,4 @@
-// plaza-phase1-hybrid-001
+// plaza-phase1-hybrid-FINAL
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
 
-/* === Plaza Post Type (new shape) === */
 interface PlazaPost {
   id: string;
   userId: string;
@@ -33,7 +32,6 @@ export default function PlazaPage() {
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
-  // Toggle debug ascension with "D"
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key.toLowerCase() === "d") {
@@ -44,7 +42,6 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Fetch posts
   async function fetchPosts() {
     try {
       const res = await fetch(
@@ -86,19 +83,18 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  // Aura color by maskTier
+  // OLD PALETTE — JS AURA ENGINE
   function auraColor(mask: number) {
     switch (mask) {
-      case 1: return "#7C3AED";
-      case 2: return "#DC2626";
-      case 3: return "#22C55E";
-      case 4: return "#FACC15";
-      case 5: return "#3B82F6";
+      case 1: return "#7C3AED"; // violet
+      case 2: return "#DC2626"; // red
+      case 3: return "#22C55E"; // green
+      case 4: return "#FACC15"; // gold
+      case 5: return "#3B82F6"; // blue
       default: return "#22C55E";
     }
   }
 
-  // Aura intensity logic (C2)
   function auraStyle(score = 0, mask: number, positivityRatio: number) {
     const color = auraColor(mask);
 
@@ -115,18 +111,15 @@ export default function PlazaPage() {
     if (finalLevel === 0) return { borderColor: color };
     if (finalLevel === 1) return {
       borderColor: color,
-      boxShadow: `0 0 10px ${color}33`,
       animation: "aura-breathe 3s ease-in-out infinite",
     };
     if (finalLevel === 2) return {
       borderColor: color,
-      boxShadow: `0 0 15px ${color}55`,
-      animation: "aura-breathe 2s ease-in-out infinite",
+      animation: "aura-breathe 2.4s ease-in-out infinite",
     };
     return {
       borderColor: color,
-      boxShadow: `0 0 20px ${color}77`,
-      animation: "aura-pulse 1.5s ease-in-out infinite",
+      animation: "aura-pulse 2s ease-in-out infinite",
     };
   }
 
@@ -161,7 +154,6 @@ export default function PlazaPage() {
           const positivityRatio =
             total > 0 ? positive / total : post.positivityRatio ?? 0.5;
 
-          // Stage logic (C3–C4)
           let baseStage =
             score < 6 ? 1 :
             score < 16 ? 2 :
@@ -178,7 +170,6 @@ export default function PlazaPage() {
             stage = isNaN(numericId) ? stage : (numericId % 5) + 1;
           }
 
-          // Surge logic (C5)
           const prevPos = prevPositivityMap.current[post.id] ?? positivityRatio;
           const prevPosReacts = prevPositiveReactionsMap.current[post.id] ?? positive;
 
@@ -190,7 +181,6 @@ export default function PlazaPage() {
           prevPositivityMap.current[post.id] = positivityRatio;
           prevPositiveReactionsMap.current[post.id] = positive;
 
-          // Class-based system (your new C2–C8 classes)
           const auraClass = "mask-aura";
 
           const ascensionClass =
@@ -225,7 +215,7 @@ export default function PlazaPage() {
                 relative
                 p-8
                 rounded-2xl
-                bg-white
+                bg-[#111]
                 transition-all
                 duration-500
                 border
@@ -238,7 +228,6 @@ export default function PlazaPage() {
                 mx-auto
 
                 plaza-card-base
-                bg-[#111]
 
                 mask-tier-${post.maskTier}
                 ${auraClass}
@@ -253,13 +242,11 @@ export default function PlazaPage() {
                 } as unknown as React.CSSProperties
               }
             >
-              {/* Mask-colored vertical spine */}
               <div
                 className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
                 style={{ background: auraColor(post.maskTier) }}
               ></div>
 
-              {/* Floating mask glyph crest */}
               <div
                 className="absolute -top-5 left-1/2 -translate-x-1/2 text-4xl drop-shadow-sm"
                 style={{ color: auraColor(post.maskTier) }}
@@ -271,7 +258,6 @@ export default function PlazaPage() {
                 {post.maskTier === 5 && "🌿"}
               </div>
 
-              {/* Soft inner glow */}
               <div
                 className="absolute inset-0 rounded-2xl pointer-events-none"
                 style={{
@@ -279,24 +265,20 @@ export default function PlazaPage() {
                 }}
               ></div>
 
-              {/* Surge flash */}
               {surge && (
                 <div className="surge-flash absolute inset-0 rounded-2xl"></div>
               )}
               {surge && <div className="surge-ripple"></div>}
 
-              {/* Debug ascension */}
               {debugAscension && (
                 <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
                   DEBUG S{stage}
                 </div>
               )}
 
-              {/* Ascension rings */}
               {stage >= 4 && <div className="ascension-ring" />}
               {stage >= 5 && <div className="ascension-halo" />}
 
-              {/* Sparks */}
               {stage >= 4 && positivityRatio > 0.4 && (
                 <>
                   <div
@@ -332,7 +314,6 @@ export default function PlazaPage() {
                 </>
               )}
 
-              {/* Particles */}
               {score >= 16 && (
                 <>
                   <div
@@ -364,7 +345,6 @@ export default function PlazaPage() {
                 </>
               )}
 
-              {/* Spirit Score */}
               <div
                 className="text-xs font-semibold mb-2 tracking-wide"
                 style={{ color: auraColor(post.maskTier) }}
@@ -372,18 +352,15 @@ export default function PlazaPage() {
                 Spirit Score: {score}
               </div>
 
-              {/* Content */}
               <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200">
                 {post.content}
               </p>
 
-              {/* Footer */}
               <div className="mt-6 flex justify-between text-sm text-gray-500">
                 <span>Mask: {post.maskTier}</span>
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
 
-              {/* Reaction Bar — hybrid props */}
               <ReactionBar
                 postId={post.id}
                 userId={post.userId ?? "demo-user-123"}
