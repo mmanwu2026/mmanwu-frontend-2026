@@ -1,75 +1,43 @@
 "use client";
 
-import React, { useState } from "react";
-import MaskSelector from "@/components/MaskSelector";
+import React from "react";
 
-export default function CreatePostPage() {
-  const [content, setContent] = useState("");
-  const [mask, setMask] = useState(3); // default mask
-  const [response, setResponse] = useState("");
-  const [loading, setLoading] = useState(false);
+interface MaskSelectorProps {
+  selectedMask: number;
+  onSelect: (mask: number) => void;
+}
 
-  async function submitPost() {
-    if (!content.trim()) {
-      setResponse("Post cannot be empty.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await fetch(
-        "https://mmanwu-clean-production-6465.up.railway.app/posts",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, mask }),
-        }
-      );
-
-      const data = await res.json();
-      setResponse(JSON.stringify(data, null, 2));
-      setContent("");
-      setMask(3);
-    } catch (err) {
-      setResponse("Network error — request blocked by browser.");
-    }
-
-    setLoading(false);
-  }
+export default function MaskSelector({ selectedMask, onSelect }: MaskSelectorProps) {
+  const masks = [
+    { id: 1, label: "Dark Whisper", emoji: "🜂", disabled: true },
+    { id: 2, label: "Fierce Awakener", emoji: "🔥", disabled: true },
+    { id: 3, label: "Neutral Mask", emoji: "🜁", disabled: false },
+    { id: 4, label: "Bright Mask", emoji: "✨", disabled: false },
+    { id: 5, label: "Radiant Mask", emoji: "🌿", disabled: false },
+  ];
 
   return (
-    <div className="p-10 max-w-xl mx-auto text-white">
-      <h1 className="text-3xl font-bold mb-6">Create Post</h1>
+    <div className="grid grid-cols-5 gap-3 mt-4">
+      {masks.map((m) => {
+        const isSelected = selectedMask === m.id;
 
-      <textarea
-        className="w-full border border-gray-700 bg-black p-3 rounded mb-4"
-        rows={6}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Type your post here..."
-      />
-
-      {/* MASK SELECTOR */}
-      <div className="mb-6">
-        <label className="font-semibold text-sm">Choose Your Mask</label>
-        <MaskSelector selectedMask={mask} onSelect={setMask} />
-      </div>
-
-      <button
-        onClick={submitPost}
-        disabled={loading}
-        className="bg-white text-black px-4 py-2 rounded font-semibold hover:bg-gray-200 transition"
-      >
-        {loading ? "Posting..." : "Submit"}
-      </button>
-
-      {response && (
-        <div className="mt-6 p-4 border border-gray-700 rounded bg-gray-900">
-          <h2 className="font-semibold mb-2">Backend Response:</h2>
-          <pre className="text-xs">{response}</pre>
-        </div>
-      )}
+        return (
+          <button
+            key={m.id}
+            disabled={m.disabled}
+            onClick={() => onSelect(m.id)}
+            className={`
+              flex flex-col items-center justify-center p-2 rounded-xl border
+              transition-all duration-200
+              ${isSelected ? "border-white scale-110" : "border-gray-700"}
+              ${m.disabled ? "opacity-40 cursor-not-allowed" : "hover:scale-105"}
+            `}
+          >
+            <div className="text-2xl">{m.emoji}</div>
+            <div className="text-[10px] text-gray-300 mt-1">{m.label}</div>
+          </button>
+        );
+      })}
     </div>
   );
 }
