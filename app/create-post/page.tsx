@@ -5,7 +5,7 @@ import MaskSelector from "@/components/MaskSelector";
 
 export default function CreatePostPage() {
   const [content, setContent] = useState("");
-  const [mask, setMask] = useState(3); // default mask
+  const [mask, setMask] = useState(3);
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +39,7 @@ export default function CreatePostPage() {
   }
 
   return (
-    <div className="p-10 max-w-xl mx-auto text-white">
+    <div className="isolate-layout p-10 max-w-xl mx-auto text-white">
       <h1 className="text-3xl font-bold mb-6">Create Post</h1>
 
       <textarea
@@ -50,7 +50,6 @@ export default function CreatePostPage() {
         placeholder="Type your post here..."
       />
 
-      {/* MASK SELECTOR */}
       <div className="mb-6">
         <label className="font-semibold text-sm">Choose Your Mask</label>
         <MaskSelector selectedMask={mask} onSelect={setMask} />
