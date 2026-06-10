@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import React, { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
+import FloatingComposer from "@/components/FloatingComposer";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
