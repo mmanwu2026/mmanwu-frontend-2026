@@ -198,7 +198,8 @@ export default function PlazaPage() {
         .emoji-react-pop { animation: emoji-pop 0.45s ease-out; }
       `}</style>
 
-      <div className="max-w-xl mx-auto mt-10 px-4">
+     {/* ⭐ FIXED: Dark Plaza background */}
+      <div className="bg-[#0a0a0a] min-h-screen max-w-xl mx-auto mt-10 px-4">
         <h1 className="text-2xl font-bold text-white mb-6 text-center">
           Mmanwu Plaza
         </h1>
@@ -209,7 +210,8 @@ export default function PlazaPage() {
           <p className="text-gray-400">No posts yet…</p>
         )}
 
-        <div className="space-y-6">
+        {/* ⭐ FIXED: Spacing between posts */}
+        <div className="space-y-12">
           {posts.map((post) => {
             const score = post.spiritScore ?? 0;
 
