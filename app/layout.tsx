@@ -32,7 +32,7 @@ export default function RootLayout({
     >
       {/* plaza-css-bust-10 */}
       <body className="min-h-screen flex flex-col items-center bg-white">
-        <div className="w-full max-w-[300px] px-4">
+        <div className="w-full max-w-xl px-4">
           {children}
         </div>
       </body>
