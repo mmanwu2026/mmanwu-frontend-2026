@@ -1,5 +1,7 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+// tailwind.config.js — Tailwind v4 format
+import { defineConfig } from "tailwindcss";
+
+export default defineConfig({
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
@@ -25,17 +27,4 @@ module.exports = {
       dummy: {},
     },
   },
-
-  variants: {
-    extend: {
-      opacity: ["disabled"],
-      cursor: ["disabled"],
-      backgroundColor: ["disabled"],
-    },
-  },
-
-  plugins: [
-    // === Adding a plugin forces a full Tailwind rebuild ===
-    require("@tailwindcss/forms"),
-  ],
-};
+});
