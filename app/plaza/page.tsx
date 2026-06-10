@@ -293,10 +293,12 @@ export default function PlazaPage() {
                     ${surgeClass}
                     ${emotionClass}
                   `}
-                  style={{
-                    "--aura-color": auraColor(post.maskTier),
-                    ...auraStyle(score, post.maskTier, positivityRatio),
-                  } as React.CSSProperties}
+                  style={
+                    ({
+                      "--aura-color": auraColor(post.maskTier),
+                      ...auraStyle(score, post.maskTier, positivityRatio),
+                    } as unknown as React.CSSProperties)
+                  }
                 >
                   {/* Left aura spine */}
                   <div
