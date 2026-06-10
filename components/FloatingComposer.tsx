@@ -10,6 +10,10 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
 
+  // ⭐ NEW — Gatekeeper state
+  const [gatekeeperOptions, setGatekeeperOptions] = useState<any[]>([]);
+  const [showGatekeeperModal, setShowGatekeeperModal] = useState(false);
+
   const lastScroll = useRef(0);
 
   useEffect(() => {
@@ -26,21 +30,55 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  /* ---------------------------------------------------------
+     ⭐ STEP 1 — Send raw text to Gatekeeper
+     --------------------------------------------------------- */
   async function submitPost() {
     if (!content.trim() || !mask) return;
 
     const creatorId = "demo-user-001";
 
-    await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
+    const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, mask, creatorId }),
+      body: JSON.stringify({ content }), // mask + creatorId NOT sent yet
     });
 
+    const data = await res.json();
+
+    // ⭐ If Gatekeeper intercepted the post
+    if (data.gatekeeper) {
+      setGatekeeperOptions(data.options);
+      setShowGatekeeperModal(true);
+      return;
+    }
+  }
+
+  /* ---------------------------------------------------------
+     ⭐ STEP 2 — User selects one of the refined options
+     --------------------------------------------------------- */
+  async function publishFinalVersion(finalText: string) {
+    const creatorId = "demo-user-001";
+
+    const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza/publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: finalText,
+        mask,
+        creatorId,
+      }),
+    });
+
+    await res.json();
+
+    // Reset UI
     setContent("");
     setMask(null);
     setExpanded(false);
-    onPost();
+    setShowGatekeeperModal(false);
+
+    onPost(); // refresh feed
   }
 
   return (
@@ -121,6 +159,38 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
           </div>
         )}
       </div>
+
+      {/* ⭐ Gatekeeper Modal (temporary simple version) */}
+      {showGatekeeperModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-4">
+            <h2 className="text-xl font-bold">Choose Your Voice</h2>
+
+            {gatekeeperOptions.map((opt) => (
+              <div
+                key={opt.id}
+                className="border p-3 rounded-lg shadow-sm space-y-2"
+              >
+                <h3 className="font-semibold">{opt.label}</h3>
+                <p className="text-gray-700">{opt.text}</p>
+                <button
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg"
+                  onClick={() => publishFinalVersion(opt.text)}
+                >
+                  Use this version
+                </button>
+              </div>
+            ))}
+
+            <button
+              className="w-full text-gray-600 underline"
+              onClick={() => setShowGatekeeperModal(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
