@@ -6,7 +6,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   const [content, setContent] = useState("");
-  ￼const [mask, setMask] = useState<number | null>(null);
+  const [mask, setMask] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
 
