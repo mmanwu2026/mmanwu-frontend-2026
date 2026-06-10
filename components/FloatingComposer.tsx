@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import GatekeeperModal from "./GatekeeperModal";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
