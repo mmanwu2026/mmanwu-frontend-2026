@@ -199,7 +199,7 @@ export default function PlazaPage() {
       `}</style>
 
      {/* ⭐ FIXED: Dark Plaza background */}
-      <div className="max-w-xl mx-auto mt-10 px-4">
+     <div className="w-full flex flex-col items-center mt-10 px-4">
         <h1 className="text-2xl font-bold text-white mb-6 text-center">
           Mmanwu Plaza
         </h1>
