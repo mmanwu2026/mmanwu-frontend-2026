@@ -37,17 +37,15 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   async function submitPost() {
     if (!content.trim() || !mask) return;
 
-    const creatorId = "demo-user-001";
-
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }), // mask + creatorId NOT sent yet
+      body: JSON.stringify({ content }), // raw text only
     });
 
     const data = await res.json();
 
-    // ⭐ If Gatekeeper intercepted the post
+    // ⭐ Gatekeeper intercepted the post
     if (data.gatekeeper) {
       setGatekeeperOptions(data.options);
       setShowGatekeeperModal(true);
@@ -56,7 +54,7 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   }
 
   /* ---------------------------------------------------------
-     ⭐ STEP 2 — User selects one of the refined options
+     ⭐ STEP 2 — Publish chosen refined version
      --------------------------------------------------------- */
   async function publishFinalVersion(finalText: string) {
     const creatorId = "demo-user-001";
@@ -161,36 +159,13 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
         )}
       </div>
 
-      {/* ⭐ Gatekeeper Modal (temporary simple version) */}
+      {/* ⭐ REAL Gatekeeper Modal */}
       {showGatekeeperModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-4">
-            <h2 className="text-xl font-bold">Choose Your Voice</h2>
-
-            {gatekeeperOptions.map((opt) => (
-              <div
-                key={opt.id}
-                className="border p-3 rounded-lg shadow-sm space-y-2"
-              >
-                <h3 className="font-semibold">{opt.label}</h3>
-                <p className="text-gray-700">{opt.text}</p>
-                <button
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg"
-                  onClick={() => publishFinalVersion(opt.text)}
-                >
-                  Use this version
-                </button>
-              </div>
-            ))}
-
-            <button
-              className="w-full text-gray-600 underline"
-              onClick={() => setShowGatekeeperModal(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <GatekeeperModal
+          options={gatekeeperOptions}
+          onSelect={(text) => publishFinalVersion(text)}
+          onClose={() => setShowGatekeeperModal(false)}
+        />
       )}
     </div>
   );
