@@ -27,11 +27,15 @@ export default function CreatePostPage() {
 
     try {
       // ⭐ Correct endpoint: POST /plaza
-      const res = await fetch(`${BACKEND_URL}/plaza`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, mask }),
-      });
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    content,
+    mask,
+    creatorId: "demo-user-001",
+  }),
+});
 
       if (!res.ok) {
         setResponse("Backend returned an error.");
