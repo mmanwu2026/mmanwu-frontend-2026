@@ -294,7 +294,6 @@ export default function PlazaPage() {
       const emotionClass = getEmotionClass(positivityRatio);
 
       return (
-  <>
         <div
           key={post.id}
           className={`
