@@ -280,177 +280,187 @@ export default function PlazaPage() {
 
               const emojiReactClass = surge ? "emoji-react-pop" : "";
               return (
-                <div
-                  key={post.id}
-                  className={`
-                    relative
-                    p-8
-                    rounded-2xl
-                    bg-white
-                    transition-all
-                    duration-500
-                    border
-                    overflow-visible
-                    isolate-layout
-                    min-h-[420px]
-                    shadow-[0_10px_30px_rgba(0,0,0,0.05)]
-                    max-w-[300px]
-                    mx-auto
-                    plaza-card-base
-                    ${auraClass}
-                    ${ascensionClass}
-                    ${surgeClass}
-                    ${emotionClass}
-                  `}
-                  style={
-                    ({
-                      "--aura-color": auraColor(post.maskTier),
-                      ...auraStyle(score, post.maskTier, positivityRatio),
-                    } as unknown as React.CSSProperties)
-                  }
-                >
-                  {/* Left aura spine */}
-                  <div
-                    className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
-                    style={{ background: auraColor(post.maskTier) }}
-                  ></div>
+  <>
+    {posts.map((post) => {
+      const score = post.spiritScore ?? 0;
+      const positivityRatio = post.positivityRatio ?? 0;
 
-                  {/* Emoji */}
-                  <div
-                    className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                    style={{ color: auraColor(post.maskTier) }}
-                  >
-                    {post.maskTier === 1 && "😶‍🌫️"}
-                    {post.maskTier === 2 && "😤"}
-                    {post.maskTier === 3 && "😊"}
-                    {post.maskTier === 4 && "🤩"}
-                    {post.maskTier === 5 && "😇"}
-                  </div>
+      const stage = getAscensionStage(score);
+      const surge = getSurgeState(score, positivityRatio);
 
-                  {/* Surge */}
-                  {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
-                  {surge && <div className="surge-ripple"></div>}
+      const auraClass = getAuraClass(score, post.maskTier, positivityRatio);
+      const ascensionClass = getAscensionClass(stage);
+      const surgeClass = getSurgeClass(surge);
+      const emotionClass = getEmotionClass(positivityRatio);
 
-                  {debugAscension && (
-                    <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
-                      DEBUG S{stage}
-                    </div>
-                  )}
+      return (
+        <div
+          key={post.id}
+          className={`
+            relative
+            p-8
+            rounded-2xl
+            bg-white
+            transition-all
+            duration-500
+            border
+            overflow-visible
+            isolate-layout
+            min-h-[420px]
+            shadow-[0_10px_30px_rgba(0,0,0,0.05)]
+            max-w-[300px]
+            mx-auto
+            plaza-card-base
+            ${auraClass}
+            ${ascensionClass}
+            ${surgeClass}
+            ${emotionClass}
+          `}
+          style={
+            ({
+              "--aura-color": auraColor(post.maskTier),
+              ...auraStyle(score, post.maskTier, positivityRatio),
+            } as unknown as React.CSSProperties)
+          }
+        >
+          {/* Left aura spine */}
+          <div
+            className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
+            style={{ background: auraColor(post.maskTier) }}
+          ></div>
 
-                  {stage >= 4 && <div className="ascension-ring" />}
-                  {stage >= 5 && <div className="ascension-halo" />}
-
-                  {/* Spirit particles */}
-                  {stage >= 4 && positivityRatio > 0.4 && (
-                    <>
-                      <div
-                        className="spirit-spark"
-                        style={{
-                          top: "20%",
-                          left: "40%",
-                          background: auraColor(post.maskTier),
-                        }}
-                      />
-                      {positivityRatio > 0.6 && (
-                        <div
-                          className="spirit-spark"
-                          style={{
-                            top: "60%",
-                            left: "55%",
-                            animationDelay: "0.2s",
-                            background: auraColor(post.maskTier),
-                          }}
-                        />
-                      )}
-                      {positivityRatio > 0.8 && (
-                        <div
-                          className="spirit-spark"
-                          style={{
-                            top: "35%",
-                            left: "70%",
-                            animationDelay: "0.4s",
-                            background: auraColor(post.maskTier),
-                          }}
-                        />
-                      )}
-                    </>
-                  )}
-
-                  {score >= 16 && (
-                    <>
-                      <div
-                        className="spirit-particle"
-                        style={{
-                          top: "10%",
-                          left: "5%",
-                          background: auraColor(post.maskTier),
-                        }}
-                      />
-                      <div
-                        className="spirit-particle"
-                        style={{
-                          top: "50%",
-                          left: "90%",
-                          animationDelay: "1s",
-                          background: auraColor(post.maskTier),
-                        }}
-                      />
-                      <div
-                        className="spirit-particle"
-                        style={{
-                          top: "80%",
-                          left: "20%",
-                          animationDelay: "2s",
-                          background: auraColor(post.maskTier),
-                        }}
-                      />
-                    </>
-                  )}
-
-                  {/* Spirit Score */}
-                  <div
-                    className="text-xs font-semibold mb-2 tracking-wide"
-                    style={{ color: auraColor(post.maskTier) }}
-                  >
-                    Spirit Score: {score}
-                  </div>
-
-                  {/* Content */}
-                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-800">
-                    {post.content}
-                  </p>
-
-                  <div className="mt-6 flex justify-between text-sm text-gray-500">
-                    <span>Mask: {post.maskTier}</span>
-                    <span>{new Date(post.createdAt).toLocaleString()}</span>
-                  </div>
-
-                  {/* ReactionBar */}
-                  <ReactionBar
-                    postId={String(post.id)}
-                    userId={"viewer-demo-001"}
-                    creatorId={post.userId}
-                    reactions={{
-                      mask1: post.reactions?.mask1 ?? 0,
-                      mask2: post.reactions?.mask2 ?? 0,
-                      mask3: post.reactions?.mask3 ?? 0,
-                      mask4: post.reactions?.mask4 ?? 0,
-                      mask5: post.reactions?.mask5 ?? 0,
-                    }}
-                    spiritScore={score}
-                    positivityRatio={positivityRatio}
-                    onReact={() => fetchPosts()}
-                  />
-                </div>
-              );
-            })}
-
+          {/* Emoji */}
+          <div
+            className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
+            style={{ color: auraColor(post.maskTier) }}
+          >
+            {post.maskTier === 1 && "😶‍🌫️"}
+            {post.maskTier === 2 && "😤"}
+            {post.maskTier === 3 && "😊"}
+            {post.maskTier === 4 && "🤩"}
+            {post.maskTier === 5 && "😇"}
           </div>
-        </div>
-      </div>
 
-      {/* Floating Composer */}
-      <FloatingComposer onPost={fetchPosts} />
-    </>
-  );
+          {/* Surge */}
+          {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
+          {surge && <div className="surge-ripple"></div>}
+
+          {debugAscension && (
+            <div className="absolute top-1 right-2 text-xs text-red-500 font-bold">
+              DEBUG S{stage}
+            </div>
+          )}
+
+          {stage >= 4 && <div className="ascension-ring" />}
+          {stage >= 5 && <div className="ascension-halo" />}
+
+          {/* Spirit particles */}
+          {stage >= 4 && positivityRatio > 0.4 && (
+            <>
+              <div
+                className="spirit-spark"
+                style={{
+                  top: "20%",
+                  left: "40%",
+                  background: auraColor(post.maskTier),
+                }}
+              />
+              {positivityRatio > 0.6 && (
+                <div
+                  className="spirit-spark"
+                  style={{
+                    top: "60%",
+                    left: "55%",
+                    animationDelay: "0.2s",
+                    background: auraColor(post.maskTier),
+                  }}
+                />
+              )}
+              {positivityRatio > 0.8 && (
+                <div
+                  className="spirit-spark"
+                  style={{
+                    top: "35%",
+                    left: "70%",
+                    animationDelay: "0.4s",
+                    background: auraColor(post.maskTier),
+                  }}
+                />
+              )}
+            </>
+          )}
+
+          {score >= 16 && (
+            <>
+              <div
+                className="spirit-particle"
+                style={{
+                  top: "10%",
+                  left: "5%",
+                  background: auraColor(post.maskTier),
+                }}
+              />
+              <div
+                className="spirit-particle"
+                style={{
+                  top: "50%",
+                  left: "90%",
+                  animationDelay: "1s",
+                  background: auraColor(post.maskTier),
+                }}
+              />
+              <div
+                className="spirit-particle"
+                style={{
+                  top: "80%",
+                  left: "20%",
+                  animationDelay: "2s",
+                  background: auraColor(post.maskTier),
+                }}
+              />
+            </>
+          )}
+
+          {/* Spirit Score */}
+          <div
+            className="text-xs font-semibold mb-2 tracking-wide"
+            style={{ color: auraColor(post.maskTier) }}
+          >
+            Spirit Score: {score}
+          </div>
+
+          {/* Content */}
+          <p className="whitespace-pre-line text-lg leading-relaxed text-gray-800">
+            {post.content}
+          </p>
+
+          <div className="mt-6 flex justify-between text-sm text-gray-500">
+            <span>Mask: {post.maskTier}</span>
+            <span>{new Date(post.createdAt).toLocaleString()}</span>
+          </div>
+
+          {/* ReactionBar */}
+          <ReactionBar
+            postId={String(post.id)}
+            userId={"viewer-demo-001"}
+            creatorId={post.userId}
+            reactions={{
+              mask1: post.reactions?.mask1 ?? 0,
+              mask2: post.reactions?.mask2 ?? 0,
+              mask3: post.reactions?.mask3 ?? 0,
+              mask4: post.reactions?.mask4 ?? 0,
+              mask5: post.reactions?.mask5 ?? 0,
+            }}
+            spiritScore={score}
+            positivityRatio={positivityRatio}
+            onReact={() => fetchPosts()}
+          />
+        </div>
+      );
+    })}
+
+    {/* Floating Composer */}
+    <FloatingComposer onPost={fetchPosts} />
+  </>
+);
 }
