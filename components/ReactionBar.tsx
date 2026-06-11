@@ -52,7 +52,6 @@ export default function ReactionBar({
     setLoading(false);
   };
 
-  // ⭐ New emoji set
   const maskData = [
     { tier: 1, emoji: "😶‍🌫️", count: reactions.mask1 },
     { tier: 2, emoji: "😤", count: reactions.mask2 },
@@ -64,7 +63,6 @@ export default function ReactionBar({
   return (
     <div className="flex items-center gap-4 mt-4">
       {maskData.map((mask) => {
-        // ⭐ Only creator can use masks 1 & 2
         const isDisabled = mask.tier <= 2 && userId !== creatorId;
 
         return (
@@ -85,8 +83,7 @@ export default function ReactionBar({
                 className={`
                   w-10 h-10 rounded-xl flex items-center justify-center text-xl
                   transition-all duration-200
-                  mask-tier-${mask.tier}
-                  mask-aura
+                  aura-tier-${mask.tier}
                   ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
                 `}
                 style={{
