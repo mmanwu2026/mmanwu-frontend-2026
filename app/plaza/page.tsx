@@ -431,7 +431,7 @@ export default function PlazaPage() {
                   <ReactionBar
                     postId={String(post.id)}
                     userId={"viewer-demo-001"}
-                    creatorId={post.creatorId}  {/* 🔧 was post.userId */}
+                    creatorId={post.creatorId}
                     reactions={{
                       mask1: post.reactions?.mask1 ?? 0,
                       mask2: post.reactions?.mask2 ?? 0,
