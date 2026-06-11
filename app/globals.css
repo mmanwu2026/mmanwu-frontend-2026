@@ -297,3 +297,25 @@
 .surge-weak { opacity: 1; }
 .surge-medium { opacity: 1; }
 .surge-strong { opacity: 1; }
+
+/* === REACTIONBAR AURA GLOW (MISSING) === */
+
+.aura-tier-1 {
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.55);
+}
+
+.aura-tier-2 {
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.55);
+}
+
+.aura-tier-3 {
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.55);
+}
+
+.aura-tier-4 {
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.55);
+}
+
+.aura-tier-5 {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.55);
+}
