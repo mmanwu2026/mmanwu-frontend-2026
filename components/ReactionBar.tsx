@@ -69,7 +69,7 @@ export default function ReactionBar({
           <button
             key={mask.tier}
             disabled={isDisabled}
-            onClick={() => handleReact(mask.tier)}
+            onClick={!isDisabled ? () => handleReact(mask.tier) : undefined}
             className={`
               flex flex-col items-center transition-all
               ${isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
