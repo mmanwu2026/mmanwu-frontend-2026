@@ -46,7 +46,7 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
     const data = await res.json();
 
     // ⭐ Gatekeeper intercepted the post
-    if (data.gatekeeper) {
+    if (data.options) {
       setGatekeeperOptions(data.options);
       setShowGatekeeperModal(true);
       return;
