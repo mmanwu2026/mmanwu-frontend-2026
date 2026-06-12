@@ -15,7 +15,8 @@ interface PlazaPost {
   creatorId: string;
   content: string;
   createdAt: string;
-  maskTier: number;
+  maskTier: number;     // original mask
+  autoMask: number;     // evolving mask from backend
   spiritScore: number;
   positivityRatio: number;
   reactions: {
@@ -84,6 +85,7 @@ export default function PlazaPage() {
           content: p.content,
           createdAt: p.createdAt,
           maskTier: p.mask,
+          autoMask: p.autoMask ?? p.mask,   // ⭐ NEW
           spiritScore: p.spiritScore ?? 0,
           positivityRatio,
           reactions: {
@@ -167,17 +169,6 @@ export default function PlazaPage() {
           font-size: 2.5rem;
           text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
         }
-        @keyframes emoji-pulse { 0%{transform:translateX(-50%)scale(1);}50%{transform:translateX(-50%)scale(1.08);}100%{transform:translateX(-50%)scale(1);} }
-        @keyframes emoji-bounce { 0%{transform:translateX(-50%)translateY(0);}30%{transform:translateX(-50%)translateY(-6px);}60%{transform:translateX(-50%)translateY(2px);}100%{transform:translateX(-50%)translateY(0);} }
-        @keyframes emoji-wiggle { 0%{transform:translateX(-50%)rotate(0);}25%{transform:translateX(-50%)rotate(-4deg);}50%{transform:translateX(-50%)rotate(4deg);}75%{transform:translateX(-50%)rotate(-2deg);}100%{transform:translateX(-50%)rotate(0);} }
-        @keyframes emoji-pop { 0%{transform:translateX(-50%)scale(1);}40%{transform:translateX(-50%)scale(1.12);}100%{transform:translateX(-50%)scale(1);} }
-        @keyframes emoji-shimmer { 0%{filter:drop-shadow(0 0 0 rgba(255,255,255,0));}50%{filter:drop-shadow(0 0 6px rgba(255,255,255,0.55));}100%{filter:drop-shadow(0 0 0 rgba(255,255,255,0));} }
-        .emoji-pulse{animation:emoji-pulse 3s ease-in-out infinite;}
-        .emoji-bounce{animation:emoji-bounce 2.4s ease-in-out infinite;}
-        .emoji-wiggle{animation:emoji-wiggle 3s ease-in-out infinite;}
-        .emoji-pop{animation:emoji-pop 2.2s ease-in-out infinite;}
-        .emoji-shimmer{animation:emoji-shimmer 3.2s ease-in-out infinite;}
-        .emoji-react-pop{animation:emoji-pop 0.45s ease-out;}
       `}</style>
 
       {/* WHITE PLAZA BACKGROUND */}
@@ -192,7 +183,6 @@ export default function PlazaPage() {
           <p className="text-gray-600">No posts yet…</p>
         )}
 
-        {/* FIXED SPACING */}
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
 
@@ -268,7 +258,7 @@ export default function PlazaPage() {
                   : "emotion-calm";
 
               let emojiAnimClass = "";
-              switch (post.maskTier) {
+              switch (post.autoMask) {
                 case 1: emojiAnimClass = "emoji-pulse"; break;
                 case 2: emojiAnimClass = "emoji-bounce"; break;
                 case 3: emojiAnimClass = "emoji-wiggle"; break;
@@ -301,29 +291,27 @@ export default function PlazaPage() {
                     ${surgeClass}
                     ${emotionClass}
                   `}
-                  style={
-                    {
-                      "--aura-color": auraColor(post.maskTier),
-                      ...auraStyle(score, post.maskTier, positivityRatio),
-                    } as unknown as React.CSSProperties
-                  }
+                  style={{
+                    "--aura-color": auraColor(post.autoMask),
+                    ...auraStyle(score, post.autoMask, positivityRatio),
+                  } as React.CSSProperties}
                 >
                   {/* Left aura spine */}
                   <div
                     className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
-                    style={{ background: auraColor(post.maskTier) }}
+                    style={{ background: auraColor(post.autoMask) }}
                   ></div>
 
                   {/* Emoji */}
                   <div
                     className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                    style={{ color: auraColor(post.maskTier) }}
+                    style={{ color: auraColor(post.autoMask) }}
                   >
-                    {post.maskTier === 1 && "😶‍🌫️"}
-                    {post.maskTier === 2 && "😤"}
-                    {post.maskTier === 3 && "😊"}
-                    {post.maskTier === 4 && "🤩"}
-                    {post.maskTier === 5 && "😇"}
+                    {post.autoMask === 1 && "😶‍🌫️"}
+                    {post.autoMask === 2 && "😤"}
+                    {post.autoMask === 3 && "😊"}
+                    {post.autoMask === 4 && "🤩"}
+                    {post.autoMask === 5 && "😇"}
                   </div>
 
                   {/* Surge */}
@@ -347,7 +335,7 @@ export default function PlazaPage() {
                         style={{
                           top: "20%",
                           left: "40%",
-                          background: auraColor(post.maskTier),
+                          background: auraColor(post.autoMask),
                         }}
                       />
                       {positivityRatio > 0.6 && (
@@ -357,7 +345,7 @@ export default function PlazaPage() {
                             top: "60%",
                             left: "55%",
                             animationDelay: "0.2s",
-                            background: auraColor(post.maskTier),
+                            background: auraColor(post.autoMask),
                           }}
                         />
                       )}
@@ -368,7 +356,7 @@ export default function PlazaPage() {
                             top: "35%",
                             left: "70%",
                             animationDelay: "0.4s",
-                            background: auraColor(post.maskTier),
+                            background: auraColor(post.autoMask),
                           }}
                         />
                       )}
@@ -382,7 +370,7 @@ export default function PlazaPage() {
                         style={{
                           top: "10%",
                           left: "5%",
-                          background: auraColor(post.maskTier),
+                          background: auraColor(post.autoMask),
                         }}
                       />
                       <div
@@ -391,7 +379,7 @@ export default function PlazaPage() {
                           top: "50%",
                           left: "90%",
                           animationDelay: "1s",
-                          background: auraColor(post.maskTier),
+                          background: auraColor(post.autoMask),
                         }}
                       />
                       <div
@@ -400,7 +388,7 @@ export default function PlazaPage() {
                           top: "80%",
                           left: "20%",
                           animationDelay: "2s",
-                          background: auraColor(post.maskTier),
+                          background: auraColor(post.autoMask),
                         }}
                       />
                     </>
@@ -409,7 +397,7 @@ export default function PlazaPage() {
                   {/* Spirit Score */}
                   <div
                     className="text-xs font-semibold mb-2 tracking-wide"
-                    style={{ color: auraColor(post.maskTier) }}
+                    style={{ color: auraColor(post.autoMask) }}
                   >
                     Spirit Score: {score}
                   </div>
@@ -420,7 +408,7 @@ export default function PlazaPage() {
                   </p>
 
                   <div className="mt-6 flex justify-between text-sm text-gray-500">
-                    <span>Mask: {post.maskTier}</span>
+                    <span>Mask: {post.autoMask}</span>
                     <span>{new Date(post.createdAt).toLocaleString()}</span>
                   </div>
 
@@ -445,6 +433,7 @@ export default function PlazaPage() {
                             ? {
                                 ...p,
                                 maskTier: updatedPost.mask ?? p.maskTier,
+                                autoMask: updatedPost.autoMask ?? p.autoMask,   // ⭐ NEW
                                 spiritScore: updatedPost.spiritScore ?? p.spiritScore,
                                 reactions: {
                                   mask1: updatedPost.reactions?.["1"] ?? 0,
