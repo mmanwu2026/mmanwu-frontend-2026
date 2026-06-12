@@ -47,7 +47,7 @@ export default function ReactionBar({
       const data = await res.json();
 
       if (onReact && data.post) {
-        onReact(data.post); // send updated post back to PlazaPage
+        onReact(data.post);
       }
     } catch (err) {
       console.error("Reaction error:", err);
@@ -66,50 +66,42 @@ export default function ReactionBar({
 
   return (
     <div className="flex items-center gap-4 mt-4">
-      {maskData.map((mask) => {
-        const isDisabled = mask.tier <= 2 && userId !== creatorId;
+      {maskData.map((mask) => (
+        <button
+          key={mask.tier}
+          onClick={() => handleReact(mask.tier)}
+          className="flex flex-col items-center cursor-pointer transition-all"
+        >
+          <div className="relative">
+            {selected === mask.tier && <div className="energy-ripple"></div>}
+            {selected === mask.tier && <div className="pulse-ring"></div>}
 
-        return (
-          <button
-            key={mask.tier}
-            disabled={isDisabled}
-            onClick={!isDisabled ? () => handleReact(mask.tier) : undefined}
+            <div
+              className={`
+                w-10 h-10 rounded-xl flex items-center justify-center text-xl
+                transition-all duration-200
+                aura-tier-${mask.tier}
+                ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
+              `}
+              style={{
+                "--spirit-score": spiritScore,
+                "--positivity-ratio": positivityRatio,
+              } as React.CSSProperties}
+            >
+              {mask.emoji}
+            </div>
+          </div>
+
+          <span
             className={`
-              flex flex-col items-center transition-all
-              ${isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+              text-xs text-gray-300 mt-1
+              ${selected === mask.tier ? "count-float" : ""}
             `}
           >
-            <div className="relative">
-              {selected === mask.tier && <div className="energy-ripple"></div>}
-              {selected === mask.tier && <div className="pulse-ring"></div>}
-
-              <div
-                className={`
-                  w-10 h-10 rounded-xl flex items-center justify-center text-xl
-                  transition-all duration-200
-                  aura-tier-${mask.tier}
-                  ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
-                `}
-                style={{
-                  "--spirit-score": spiritScore,
-                  "--positivity-ratio": positivityRatio,
-                } as React.CSSProperties}
-              >
-                {mask.emoji}
-              </div>
-            </div>
-
-            <span
-              className={`
-                text-xs text-gray-300 mt-1
-                ${selected === mask.tier ? "count-float" : ""}
-              `}
-            >
-              {mask.count}
-            </span>
-          </button>
-        );
-      })}
+            {mask.count}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
