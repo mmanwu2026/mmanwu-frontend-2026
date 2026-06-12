@@ -242,8 +242,6 @@ export default function PlazaPage() {
               prevPositivityMap.current[key] = positivityRatio;
               prevPositiveReactionsMap.current[key] = positive;
 
-              const auraClass = "mask-aura";
-
               const ascensionClass =
                 score > 200
                   ? "ascend-tier-4"
@@ -299,7 +297,6 @@ export default function PlazaPage() {
                     max-w-[300px]
                     mx-auto
                     plaza-card-base
-                    ${auraClass}
                     ${ascensionClass}
                     ${surgeClass}
                     ${emotionClass}
@@ -441,7 +438,26 @@ export default function PlazaPage() {
                     }}
                     spiritScore={score}
                     positivityRatio={positivityRatio}
-                    onReact={() => fetchPosts()}
+                    onReact={(updatedPost) => {
+                      setPosts((prev) =>
+                        prev.map((p) =>
+                          p.id === updatedPost.id
+                            ? {
+                                ...p,
+                                maskTier: updatedPost.autoMask ?? p.maskTier,
+                                spiritScore: updatedPost.spiritScore ?? p.spiritScore,
+                                reactions: {
+                                  mask1: updatedPost.reactions?.[1] ?? 0,
+                                  mask2: updatedPost.reactions?.[2] ?? 0,
+                                  mask3: updatedPost.reactions?.[3] ?? 0,
+                                  mask4: updatedPost.reactions?.[4] ?? 0,
+                                  mask5: updatedPost.reactions?.[5] ?? 0,
+                                },
+                              }
+                            : p
+                        )
+                      );
+                    }}
                   />
                 </div>
               );
