@@ -291,10 +291,12 @@ export default function PlazaPage() {
                     ${surgeClass}
                     ${emotionClass}
                   `}
-                  style={{
-                    "--aura-color": auraColor(post.autoMask),
-                    ...auraStyle(score, post.autoMask, positivityRatio),
-                  } as React.CSSProperties}
+                  style={
+                    {
+                      "--aura-color": auraColor(post.autoMask),
+                      ...auraStyle(score, post.autoMask, positivityRatio),
+                    } as unknown as React.CSSProperties
+                  }
                 >
                   {/* Left aura spine */}
                   <div
@@ -433,7 +435,7 @@ export default function PlazaPage() {
                             ? {
                                 ...p,
                                 maskTier: updatedPost.mask ?? p.maskTier,
-                                autoMask: updatedPost.autoMask ?? p.autoMask,   // ⭐ NEW
+                                autoMask: updatedPost.autoMask ?? p.autoMask,
                                 spiritScore: updatedPost.spiritScore ?? p.spiritScore,
                                 reactions: {
                                   mask1: updatedPost.reactions?.["1"] ?? 0,
