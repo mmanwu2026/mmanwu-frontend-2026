@@ -4,8 +4,8 @@ import React, { useState } from "react";
 
 interface ReactionBarProps {
   postId: string;
-  userId: string;        // viewer
-  creatorId: string;     // post owner
+  userId: string;
+  creatorId: string;
   reactions: {
     mask1: number;
     mask2: number;
@@ -15,7 +15,7 @@ interface ReactionBarProps {
   };
   spiritScore?: number;
   positivityRatio?: number;
-  onReact?: () => void;
+  onReact?: (updatedPost: any) => void;
 }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
@@ -38,13 +38,17 @@ export default function ReactionBar({
     setSelected(maskTier);
 
     try {
-      await fetch(`${BACKEND_URL.replace(/\/$/, "")}/reactions`, {
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/react`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId, maskTier }),
       });
 
-      if (onReact) onReact();
+      const data = await res.json();
+
+      if (onReact && data.post) {
+        onReact(data.post); // send updated post back to PlazaPage
+      }
     } catch (err) {
       console.error("Reaction error:", err);
     }
