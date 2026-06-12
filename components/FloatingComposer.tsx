@@ -60,7 +60,8 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   }
 
   /* ---------------------------------------------------------
-     STEP 2 — Publish chosen refined version (NO MASK REQUIRED)
+     STEP 2 — Publish chosen refined version
+     ALWAYS mask_tier = 0 (maskless posting)
      --------------------------------------------------------- */
   async function publishFinalVersion(finalText: string) {
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza/publish`, {
@@ -68,6 +69,7 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: finalText,
+        mask_tier: 0,                 // ⭐ ALWAYS 0 — maskless posting
         creator_id: "viewer-demo-001",
       }),
     });
