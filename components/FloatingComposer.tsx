@@ -7,7 +7,6 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   const [content, setContent] = useState("");
-  const [mask, setMask] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
 
@@ -28,17 +27,16 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
   }, []);
 
   /* ---------------------------------------------------------
-     STEP 1 — Send raw text to Gatekeeper
+     STEP 1 — Send raw text to Gatekeeper (NO MASK REQUIRED)
      --------------------------------------------------------- */
   async function submitPost() {
-    if (!content.trim() || !mask) return;
+    if (!content.trim()) return;
 
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content,
-        mask_tier: mask,          // ✅ FIXED
         creator_id: "viewer-demo-001",
       }),
     });
@@ -50,17 +48,19 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       return;
     }
 
+    // If Gatekeeper returns refined options
     if (data.options) {
       setGatekeeperOptions(data.options);
       setShowGatekeeperModal(true);
       return;
     }
 
+    // Otherwise publish raw content
     await publishFinalVersion(content);
   }
 
   /* ---------------------------------------------------------
-     STEP 2 — Publish chosen refined version
+     STEP 2 — Publish chosen refined version (NO MASK REQUIRED)
      --------------------------------------------------------- */
   async function publishFinalVersion(finalText: string) {
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza/publish`, {
@@ -68,7 +68,6 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: finalText,
-        mask_tier: mask,          // ✅ FIXED
         creator_id: "viewer-demo-001",
       }),
     });
@@ -80,8 +79,8 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       return;
     }
 
+    // Reset composer
     setContent("");
-    setMask(null);
     setExpanded(false);
     setShowGatekeeperModal(false);
 
@@ -122,33 +121,14 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
               onChange={(e) => setContent(e.target.value)}
             />
 
-            <div className="flex justify-between">
-              {[1, 2, 3, 4, 5].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMask(m)}
-                  className={`
-                    text-2xl transition-all
-                    ${mask === m ? "scale-125" : "opacity-60"}
-                  `}
-                >
-                  {m === 1 && "😶‍🌫️"}
-                  {m === 2 && "😤"}
-                  {m === 3 && "😊"}
-                  {m === 4 && "🤩"}
-                  {m === 5 && "😇"}
-                </button>
-              ))}
-            </div>
-
             <button
               onClick={submitPost}
-              disabled={!content.trim() || !mask}
+              disabled={!content.trim()}
               className={`
                 w-full py-2 rounded-xl text-white font-semibold
                 transition-all
                 ${
-                  content.trim() && mask
+                  content.trim()
                     ? "bg-blue-600 hover:bg-blue-700"
                     : "bg-gray-400"
                 }
