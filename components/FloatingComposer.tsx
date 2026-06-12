@@ -1,5 +1,3 @@
-// FloatingComposer.tsx (fixed)
-
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -40,8 +38,8 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content,
-        mask,
-        creator_id: "viewer-demo-001",   // FIXED
+        mask_tier: mask,          // ✅ FIXED
+        creator_id: "viewer-demo-001",
       }),
     });
 
@@ -70,8 +68,8 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: finalText,
-        mask,
-        creator_id: "viewer-demo-001",   // FIXED
+        mask_tier: mask,          // ✅ FIXED
+        creator_id: "viewer-demo-001",
       }),
     });
 
