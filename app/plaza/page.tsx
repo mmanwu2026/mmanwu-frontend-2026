@@ -25,7 +25,7 @@ interface PlazaPost {
     mask3: number;
     mask4: number;
     mask5: number;
-    mask6?: number;
+    mask6?: number; // stored but NOT passed to ReactionBar
   };
 }
 
@@ -105,7 +105,7 @@ export default function PlazaPage() {
             mask3: r[3] || 0,
             mask4: r[4] || 0,
             mask5: r[5] || 0,
-            mask6: r[6] || 0,
+            mask6: r[6] || 0, // stored but NOT passed to ReactionBar
           },
         };
       });
@@ -444,7 +444,7 @@ export default function PlazaPage() {
                       mask3: post.reactions?.mask3 ?? 0,
                       mask4: post.reactions?.mask4 ?? 0,
                       mask5: post.reactions?.mask5 ?? 0,
-                      mask6: post.reactions?.mask6 ?? 0,
+                      // ❗ mask6 intentionally NOT passed — hidden deity mask
                     }}
                     spiritScore={score}
                     positivityRatio={positivityRatio}
@@ -489,7 +489,7 @@ export default function PlazaPage() {
                                   mask3: r["3"] ?? 0,
                                   mask4: r["4"] ?? 0,
                                   mask5: r["5"] ?? 0,
-                                  mask6: r["6"] ?? 0,
+                                  // mask6 intentionally NOT passed to ReactionBar
                                 },
                               }
                             : p
