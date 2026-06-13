@@ -96,7 +96,10 @@ export default function PlazaPage() {
           content: p.content,
           createdAt: p.createdAt,
           maskTier: p.mask,
-          autoMask: p.autoMask ?? autoMask,
+
+          // ⭐ FIX: always use frontend evolution
+          autoMask,
+
           spiritScore,
           positivityRatio,
           reactions: {
@@ -105,7 +108,7 @@ export default function PlazaPage() {
             mask3: r[3] || 0,
             mask4: r[4] || 0,
             mask5: r[5] || 0,
-            mask6: r[6] || 0, // stored but NOT passed to ReactionBar
+            mask6: r[6] || 0,
           },
         };
       });
@@ -444,12 +447,13 @@ export default function PlazaPage() {
                       mask3: post.reactions?.mask3 ?? 0,
                       mask4: post.reactions?.mask4 ?? 0,
                       mask5: post.reactions?.mask5 ?? 0,
-                      // ❗ mask6 intentionally NOT passed — hidden deity mask
+                      // mask6 intentionally hidden — deity mask
                     }}
                     spiritScore={score}
                     positivityRatio={positivityRatio}
                     onReact={(updatedPost) => {
                       const r = updatedPost.reactions || {};
+
                       const total =
                         (r["1"] ?? 0) +
                         (r["2"] ?? 0) +
@@ -464,10 +468,12 @@ export default function PlazaPage() {
                         (r["5"] ?? 0) +
                         (r["6"] ?? 0);
 
-                      const newPositivityRatio = total > 0 ? positive / total : 0.5;
+                      const newPositivityRatio =
+                        total > 0 ? positive / total : 0.5;
+
+                      const newScore = updatedPost.spiritScore ?? score;
 
                       let newAutoMask = 2;
-                      const newScore = updatedPost.spiritScore ?? score;
                       if (newScore >= 0 && newScore <= 20) newAutoMask = 2;
                       else if (newScore >= 21 && newScore <= 100) newAutoMask = 3;
                       else if (newScore >= 101 && newScore <= 200) newAutoMask = 4;
@@ -480,7 +486,9 @@ export default function PlazaPage() {
                             ? {
                                 ...p,
                                 maskTier: updatedPost.mask ?? p.maskTier,
-                                autoMask: updatedPost.autoMask ?? newAutoMask,
+
+                                autoMask: newAutoMask,
+
                                 spiritScore: newScore,
                                 positivityRatio: newPositivityRatio,
                                 reactions: {
@@ -489,7 +497,7 @@ export default function PlazaPage() {
                                   mask3: r["3"] ?? 0,
                                   mask4: r["4"] ?? 0,
                                   mask5: r["5"] ?? 0,
-                                  // mask6 intentionally NOT passed to ReactionBar
+                                  // mask6 stored but intentionally hidden from ReactionBar
                                 },
                               }
                             : p
