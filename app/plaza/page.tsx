@@ -497,7 +497,7 @@ export default function PlazaPage() {
                                   mask3: r["3"] ?? 0,
                                   mask4: r["4"] ?? 0,
                                   mask5: r["5"] ?? 0,
-                                  // mask6 stored but intentionally hidden from ReactionBar
+                                  // mask6 stored but hidden
                                 },
                               }
                             : p
@@ -511,7 +511,7 @@ export default function PlazaPage() {
           </div>
         </div>
 
-        <FloatingComposer onPost={fetchPosts} />
+                <FloatingComposer onPost={fetchPosts} />
       </div>
     </>
   );
