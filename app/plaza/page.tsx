@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import React, { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
@@ -189,12 +190,14 @@ export default function PlazaPage() {
     let intensityLevel =
       score < 6 ? 0 :
       score < 16 ? 1 :
-      score < 31 ? 2 : 3;
+      score < 31 ? 2 :
+      score < 51 ? 3 :
+      4;
 
     const boost = positivityRatio > 0.6 ? 1 : 0;
     const dampen = positivityRatio < 0.3 ? -1 : 0;
 
-    const finalLevel = Math.max(0, Math.min(3, intensityLevel + boost + dampen));
+    const finalLevel = Math.max(0, Math.min(4, intensityLevel + boost + dampen));
 
     if (finalLevel === 0) return { borderColor: color };
     if (finalLevel === 1) return {
@@ -205,9 +208,13 @@ export default function PlazaPage() {
       borderColor: color,
       animation: "aura-breathe 2.4s ease-in-out infinite",
     };
-    return {
+    if (finalLevel === 3) return {
       borderColor: color,
       animation: "aura-pulse 2s ease-in-out infinite",
+    };
+    return {
+      borderColor: color,
+      animation: "aura-pulse 1.6s ease-in-out infinite",
     };
   }
 
@@ -269,7 +276,8 @@ export default function PlazaPage() {
                 score < 6 ? 1 :
                 score < 16 ? 2 :
                 score < 31 ? 3 :
-                score < 51 ? 4 : 5;
+                score < 51 ? 4 :
+                5;
 
               const stageBoost = positivityRatio > 0.7 ? 1 : 0;
               const stageDampen = positivityRatio < 0.3 ? -1 : 0;
@@ -363,8 +371,11 @@ export default function PlazaPage() {
                   }
                 >
 
-                  {/* ⭐ CREATOR IDENTITY BLOCK (Option C: Top-left overlay) */}
-                  <div className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3">
+                  {/* ⭐ CLICKABLE CREATOR IDENTITY BLOCK */}
+                  <Link
+                    href={`/creator/${post.creatorId}`}
+                    className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
+                  >
                     <img
                       src={creator?.avatar_url || "/default-avatar.png"}
                       alt="avatar"
@@ -381,7 +392,7 @@ export default function PlazaPage() {
                         Spirit Score: {creator?.spirit_score ?? 0}
                       </span>
                     </div>
-                  </div>
+                  </Link>
 
                   {/* EMOJI GLYPH */}
                   <div
