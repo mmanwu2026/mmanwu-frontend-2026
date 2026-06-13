@@ -33,7 +33,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       // If no user exists, create one
       if (!userId) {
-        const res = await fetch(`${BACKEND_URL}/users/create`, {
+        const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/users/create`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -45,11 +45,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         const data = await res.json();
         userId = data.user.id;
-        localStorage.setItem("mmanwu_user_id", userId);
+
+        // ⭐ FIX: assert non-null
+        localStorage.setItem("mmanwu_user_id", userId!);
       }
 
       // Fetch user profile
-      const profileRes = await fetch(`${BACKEND_URL}/users/${userId}`);
+      const profileRes = await fetch(
+        `${BACKEND_URL.replace(/\/$/, "")}/users/${userId}`
+      );
       const profileData = await profileRes.json();
 
       setUser(profileData.user);
