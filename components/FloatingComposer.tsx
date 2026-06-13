@@ -2,10 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import GatekeeperModal from "./GatekeeperModal";
+import { useUser } from "@/context/UserContext";   // ⭐ ADDED
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function FloatingComposer({ onPost }: { onPost: () => void }) {
+  const { user, loading } = useUser();             // ⭐ ADDED
+
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -31,13 +34,14 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
      --------------------------------------------------------- */
   async function submitPost() {
     if (!content.trim()) return;
+    if (loading || !user) return;                  // ⭐ Prevent posting before identity loads
 
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content,
-        creator_id: "viewer-demo-001",
+        creator_id: user.id,                       // ⭐ REPLACED
       }),
     });
 
@@ -64,13 +68,15 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
      ALWAYS mask_tier = 0 (maskless posting)
      --------------------------------------------------------- */
   async function publishFinalVersion(finalText: string) {
+    if (loading || !user) return;                  // ⭐ Prevent posting before identity loads
+
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza/publish`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: finalText,
         mask_tier: 0,                 // ⭐ ALWAYS 0 — maskless posting
-        creator_id: "viewer-demo-001",
+        creator_id: user.id,          // ⭐ REPLACED
       }),
     });
 
@@ -125,12 +131,12 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
 
             <button
               onClick={submitPost}
-              disabled={!content.trim()}
+              disabled={!content.trim() || loading || !user}   // ⭐ Disabled until user loads
               className={`
                 w-full py-2 rounded-xl text-white font-semibold
                 transition-all
                 ${
-                  content.trim()
+                  content.trim() && user
                     ? "bg-blue-600 hover:bg-blue-700"
                     : "bg-gray-400"
                 }
