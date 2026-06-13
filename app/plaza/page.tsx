@@ -15,8 +15,8 @@ interface PlazaPost {
   creatorId: string;
   content: string;
   createdAt: string;
-  maskTier: number;     // original mask
-  autoMask: number;     // evolving mask from backend
+  maskTier: number;
+  autoMask: number;
   spiritScore: number;
   positivityRatio: number;
   reactions: {
@@ -25,6 +25,7 @@ interface PlazaPost {
     mask3: number;
     mask4: number;
     mask5: number;
+    mask6?: number;
   };
 }
 
@@ -40,7 +41,6 @@ export default function PlazaPage() {
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
-  // Toggle debug ascension with "D"
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key.toLowerCase() === "d") {
@@ -51,7 +51,6 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Fetch posts
   async function fetchPosts() {
     try {
       const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
@@ -63,21 +62,33 @@ export default function PlazaPage() {
       const data = await res.json();
 
       const patched: PlazaPost[] = data.map((p: any) => {
-        const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
         const total =
           (r[1] || 0) +
           (r[2] || 0) +
           (r[3] || 0) +
           (r[4] || 0) +
-          (r[5] || 0);
+          (r[5] || 0) +
+          (r[6] || 0);
 
         const positive =
           (r[3] || 0) +
           (r[4] || 0) +
-          (r[5] || 0);
+          (r[5] || 0) +
+          (r[6] || 0);
 
         const positivityRatio = total > 0 ? positive / total : 0.5;
+
+        const spiritScore = p.spiritScore ?? 0;
+
+        // NEW: SpiritScore → autoMask evolution
+        let autoMask = 2;
+        if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
+        else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
+        else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
+        else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
+        else if (spiritScore > 500) autoMask = 6;
 
         return {
           id: p.id,
@@ -85,8 +96,8 @@ export default function PlazaPage() {
           content: p.content,
           createdAt: p.createdAt,
           maskTier: p.mask,
-          autoMask: p.autoMask ?? p.mask,   // ⭐ NEW
-          spiritScore: p.spiritScore ?? 0,
+          autoMask: p.autoMask ?? autoMask,
+          spiritScore,
           positivityRatio,
           reactions: {
             mask1: r[1] || 0,
@@ -94,6 +105,7 @@ export default function PlazaPage() {
             mask3: r[3] || 0,
             mask4: r[4] || 0,
             mask5: r[5] || 0,
+            mask6: r[6] || 0,
           },
         };
       });
@@ -116,7 +128,6 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  // Aura color mapping
   function auraColor(mask: number) {
     switch (mask) {
       case 1: return "#7C3AED";
@@ -124,11 +135,11 @@ export default function PlazaPage() {
       case 3: return "#22C55E";
       case 4: return "#FACC15";
       case 5: return "#3B82F6";
+      case 6: return "#F97316"; // deity form glow
       default: return "#22C55E";
     }
   }
 
-  // Aura style logic
   function auraStyle(score = 0, mask: number, positivityRatio: number) {
     const color = auraColor(mask);
 
@@ -159,7 +170,6 @@ export default function PlazaPage() {
 
   return (
     <>
-      {/* Emoji animation CSS */}
       <style>{`
         .emoji-glyph {
           position: absolute;
@@ -169,9 +179,14 @@ export default function PlazaPage() {
           font-size: 2.5rem;
           text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
         }
+
+        @keyframes levitate {
+          0%   { transform: translateX(-50%) translateY(var(--float-y)); }
+          50%  { transform: translateX(-50%) translateY(calc(var(--float-y) - 6px)); }
+          100% { transform: translateX(-50%) translateY(var(--float-y)); }
+        }
       `}</style>
 
-      {/* WHITE PLAZA BACKGROUND */}
       <div className="w-full flex flex-col items-center mt-10 px-4 bg-white">
         <h1 className="text-2xl font-bold text-black mb-6 text-center">
           Mmanwu Plaza
@@ -185,7 +200,6 @@ export default function PlazaPage() {
 
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
-
             {posts.map((post) => {
               const score = post.spiritScore ?? 0;
 
@@ -194,12 +208,14 @@ export default function PlazaPage() {
                 (post.reactions?.mask2 ?? 0) +
                 (post.reactions?.mask3 ?? 0) +
                 (post.reactions?.mask4 ?? 0) +
-                (post.reactions?.mask5 ?? 0);
+                (post.reactions?.mask5 ?? 0) +
+                (post.reactions?.mask6 ?? 0);
 
               const positive =
                 (post.reactions?.mask3 ?? 0) +
                 (post.reactions?.mask4 ?? 0) +
-                (post.reactions?.mask5 ?? 0);
+                (post.reactions?.mask5 ?? 0) +
+                (post.reactions?.mask6 ?? 0);
 
               const positivityRatio =
                 total > 0 ? positive / total : post.positivityRatio ?? 0.5;
@@ -264,10 +280,13 @@ export default function PlazaPage() {
                 case 3: emojiAnimClass = "emoji-wiggle"; break;
                 case 4: emojiAnimClass = "emoji-pop"; break;
                 case 5: emojiAnimClass = "emoji-shimmer"; break;
+                case 6: emojiAnimClass = "emoji-shimmer"; break;
                 default: emojiAnimClass = "emoji-pulse";
               }
 
               const emojiReactClass = surge ? "emoji-react-pop" : "";
+
+              const floatY = Math.max(-20 - score * 0.25, -90);
 
               return (
                 <div
@@ -298,25 +317,29 @@ export default function PlazaPage() {
                     } as unknown as React.CSSProperties
                   }
                 >
-                  {/* Left aura spine */}
                   <div
                     className="absolute left-0 top-0 h-full w-[6px] rounded-l-2xl"
                     style={{ background: auraColor(post.autoMask) }}
                   ></div>
 
-                  {/* Emoji */}
                   <div
                     className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                    style={{ color: auraColor(post.autoMask) }}
+                    style={
+                      {
+                        "--float-y": `${floatY}px`,
+                        color: auraColor(post.autoMask),
+                        animation: "levitate 2.4s ease-in-out infinite",
+                      } as unknown as React.CSSProperties
+                    }
                   >
                     {post.autoMask === 1 && "😶‍🌫️"}
                     {post.autoMask === 2 && "😤"}
                     {post.autoMask === 3 && "😊"}
                     {post.autoMask === 4 && "🤩"}
                     {post.autoMask === 5 && "😇"}
+                    {post.autoMask === 6 && "🔱"}
                   </div>
 
-                  {/* Surge */}
                   {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
                   {surge && <div className="surge-ripple"></div>}
 
@@ -329,7 +352,6 @@ export default function PlazaPage() {
                   {stage >= 4 && <div className="ascension-ring" />}
                   {stage >= 5 && <div className="ascension-halo" />}
 
-                  {/* Spirit particles */}
                   {stage >= 4 && positivityRatio > 0.4 && (
                     <>
                       <div
@@ -396,7 +418,6 @@ export default function PlazaPage() {
                     </>
                   )}
 
-                  {/* Spirit Score */}
                   <div
                     className="text-xs font-semibold mb-2 tracking-wide"
                     style={{ color: auraColor(post.autoMask) }}
@@ -404,7 +425,6 @@ export default function PlazaPage() {
                     Spirit Score: {score}
                   </div>
 
-                  {/* Content */}
                   <p className="whitespace-pre-line text-lg leading-relaxed text-gray-800">
                     {post.content}
                   </p>
@@ -414,7 +434,6 @@ export default function PlazaPage() {
                     <span>{new Date(post.createdAt).toLocaleString()}</span>
                   </div>
 
-                  {/* ReactionBar */}
                   <ReactionBar
                     postId={String(post.id)}
                     userId={"viewer-demo-001"}
@@ -425,24 +444,52 @@ export default function PlazaPage() {
                       mask3: post.reactions?.mask3 ?? 0,
                       mask4: post.reactions?.mask4 ?? 0,
                       mask5: post.reactions?.mask5 ?? 0,
+                      mask6: post.reactions?.mask6 ?? 0,
                     }}
                     spiritScore={score}
                     positivityRatio={positivityRatio}
                     onReact={(updatedPost) => {
+                      const r = updatedPost.reactions || {};
+                      const total =
+                        (r["1"] ?? 0) +
+                        (r["2"] ?? 0) +
+                        (r["3"] ?? 0) +
+                        (r["4"] ?? 0) +
+                        (r["5"] ?? 0) +
+                        (r["6"] ?? 0);
+
+                      const positive =
+                        (r["3"] ?? 0) +
+                        (r["4"] ?? 0) +
+                        (r["5"] ?? 0) +
+                        (r["6"] ?? 0);
+
+                      const newPositivityRatio = total > 0 ? positive / total : 0.5;
+
+                      let newAutoMask = 2;
+                      const newScore = updatedPost.spiritScore ?? score;
+                      if (newScore >= 0 && newScore <= 20) newAutoMask = 2;
+                      else if (newScore >= 21 && newScore <= 100) newAutoMask = 3;
+                      else if (newScore >= 101 && newScore <= 200) newAutoMask = 4;
+                      else if (newScore >= 201 && newScore <= 500) newAutoMask = 5;
+                      else if (newScore > 500) newAutoMask = 6;
+
                       setPosts((prev) =>
                         prev.map((p) =>
                           p.id === updatedPost.id
                             ? {
                                 ...p,
                                 maskTier: updatedPost.mask ?? p.maskTier,
-                                autoMask: updatedPost.autoMask ?? p.autoMask,
-                                spiritScore: updatedPost.spiritScore ?? p.spiritScore,
+                                autoMask: updatedPost.autoMask ?? newAutoMask,
+                                spiritScore: newScore,
+                                positivityRatio: newPositivityRatio,
                                 reactions: {
-                                  mask1: updatedPost.reactions?.["1"] ?? 0,
-                                  mask2: updatedPost.reactions?.["2"] ?? 0,
-                                  mask3: updatedPost.reactions?.["3"] ?? 0,
-                                  mask4: updatedPost.reactions?.["4"] ?? 0,
-                                  mask5: updatedPost.reactions?.["5"] ?? 0,
+                                  mask1: r["1"] ?? 0,
+                                  mask2: r["2"] ?? 0,
+                                  mask3: r["3"] ?? 0,
+                                  mask4: r["4"] ?? 0,
+                                  mask5: r["5"] ?? 0,
+                                  mask6: r["6"] ?? 0,
                                 },
                               }
                             : p
@@ -456,7 +503,6 @@ export default function PlazaPage() {
           </div>
         </div>
 
-        {/* Floating Composer */}
         <FloatingComposer onPost={fetchPosts} />
       </div>
     </>
