@@ -4,14 +4,13 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState, useRef } from "react";
 import ReactionBar from "@/components/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
-import { useUser } from "@/context/UserContext";   // ⭐ ADDED
+import { useUser } from "@/context/UserContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 // -----------------------------
 // Types
 // -----------------------------
-
 interface CreatorProfile {
   id: string;
   username: string | null;
@@ -44,10 +43,9 @@ interface PlazaPost {
 // Main Plaza Page
 // -----------------------------
 export default function PlazaPage() {
-  const { user, loading: userLoading } = useUser();   // ⭐ ADDED
+  const { user, loading: userLoading } = useUser();
 
   const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
-
   const [posts, setPosts] = useState<PlazaPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,88 +64,113 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-async function fetchPosts() {
-  try {
-    const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
-      cache: "no-store",
-    });
+  // -----------------------------
+  // Fetch Posts
+  // -----------------------------
+  async function fetchPosts() {
+    try {
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
+        cache: "no-store",
+      });
 
-    if (!res.ok) throw new Error("Failed to fetch posts");
+      if (!res.ok) throw new Error("Failed to fetch posts");
 
-    const data = await res.json();
+      const data = await res.json();
 
-    const patched: PlazaPost[] = data.map((p: any) => {
-      const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      const patched: PlazaPost[] = data.map((p: any) => {
+        const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
-      const total =
-        (r[1] || 0) +
-        (r[2] || 0) +
-        (r[3] || 0) +
-        (r[4] || 0) +
-        (r[5] || 0) +
-        (r[6] || 0);
+        const total =
+          (r[1] || 0) +
+          (r[2] || 0) +
+          (r[3] || 0) +
+          (r[4] || 0) +
+          (r[5] || 0) +
+          (r[6] || 0);
 
-      const positive =
-        (r[3] || 0) +
-        (r[4] || 0) +
-        (r[5] || 0) +
-        (r[6] || 0);
+        const positive =
+          (r[3] || 0) +
+          (r[4] || 0) +
+          (r[5] || 0) +
+          (r[6] || 0);
 
-      const positivityRatio = total > 0 ? positive / total : 0.5;
+        const positivityRatio = total > 0 ? positive / total : 0.5;
 
-      const spiritScore = p.spiritScore ?? 0;
+        const spiritScore = p.spiritScore ?? 0;
 
-      // ⭐ AutoMask evolution (unchanged)
-      let autoMask = 2;
-      if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
-      else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
-      else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
-      else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
-      else if (spiritScore > 500) autoMask = 6;
+        let autoMask = 2;
+        if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
+        else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
+        else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
+        else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
+        else if (spiritScore > 500) autoMask = 6;
 
-      // ⭐ NEW: Trigger creator profile fetch (cached)
-      fetchCreatorProfile(p.creatorId);
+        // ⭐ Fetch creator profile (cached)
+        fetchCreatorProfile(p.creatorId);
 
-      return {
-        id: p.id,
-        creatorId: p.creatorId ?? "unknown-creator",
-        content: p.content,
-        createdAt: p.createdAt,
-        maskTier: p.mask,
+        return {
+          id: p.id,
+          creatorId: p.creatorId ?? "unknown-creator",
+          content: p.content,
+          createdAt: p.createdAt,
+          maskTier: p.mask,
+          autoMask,
+          spiritScore,
+          positivityRatio,
+          reactions: {
+            mask1: r[1] || 0,
+            mask2: r[2] || 0,
+            mask3: r[3] || 0,
+            mask4: r[4] || 0,
+            mask5: r[5] || 0,
+            mask6: r[6] || 0,
+          },
+        };
+      });
 
-        autoMask,
-        spiritScore,
-        positivityRatio,
+      const sorted = patched.sort(
+        (a: PlazaPost, b: PlazaPost) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
 
-        reactions: {
-          mask1: r[1] || 0,
-          mask2: r[2] || 0,
-          mask3: r[3] || 0,
-          mask4: r[4] || 0,
-          mask5: r[5] || 0,
-          mask6: r[6] || 0,
-        },
-      };
-    });
-
-    const sorted = patched.sort(
-      (a: PlazaPost, b: PlazaPost) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
-    );
-
-    setPosts(sorted);
-  } catch (err) {
-    setError("Unable to load posts.");
-  } finally {
-    setLoading(false);
+      setPosts(sorted);
+    } catch (err) {
+      setError("Unable to load posts.");
+    } finally {
+      setLoading(false);
+    }
   }
-}
+
+  // -----------------------------
+  // Fetch Creator Profile
+  // -----------------------------
+  async function fetchCreatorProfile(id: string) {
+    if (creators[id]) return creators[id];
+
+    try {
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/users/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch creator profile");
+
+      const data = await res.json();
+      const profile = data.user;
+
+      setCreators((prev) => ({ ...prev, [id]: profile }));
+
+      return profile;
+    } catch (err) {
+      console.error("Creator profile fetch error:", err);
+      return null;
+    }
+  }
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
+  // -----------------------------
+  // Aura Color + Style
+  // -----------------------------
   function auraColor(mask: number) {
     switch (mask) {
       case 1: return "#7C3AED";
@@ -190,7 +213,22 @@ async function fetchPosts() {
 
   return (
     <>
-      {/* styles omitted for brevity — unchanged */}
+      <style>{`
+        .emoji-glyph {
+          position: absolute;
+          top: -1.25rem;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 2.5rem;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+        }
+
+        @keyframes levitate {
+          0%   { transform: translateX(-50%) translateY(var(--float-y)); }
+          50%  { transform: translateX(-50%) translateY(calc(var(--float-y) - 6px)); }
+          100% { transform: translateX(-50%) translateY(var(--float-y)); }
+        }
+      `}</style>
 
       <div className="w-full flex flex-col items-center mt-10 px-4 bg-white">
         <h1 className="text-2xl font-bold text-black mb-6 text-center">
@@ -206,6 +244,8 @@ async function fetchPosts() {
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
             {posts.map((post) => {
+              const creator = creators[post.creatorId];
+
               const score = post.spiritScore ?? 0;
 
               const total =
@@ -322,7 +362,64 @@ async function fetchPosts() {
                     } as unknown as React.CSSProperties
                   }
                 >
-                  {/* ... all your animations and visuals unchanged ... */}
+
+                  {/* ⭐ CREATOR IDENTITY BLOCK (Option C: Top-left overlay) */}
+                  <div className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3">
+                    <img
+                      src={creator?.avatar_url || "/default-avatar.png"}
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full border border-gray-300 object-cover"
+                    />
+                    <div className="flex flex-col leading-tight">
+                      <span className="font-semibold text-gray-800">
+                        {creator?.username || "Unknown User"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Mask Tier: {creator?.mask_tier ?? "?"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Spirit Score: {creator?.spirit_score ?? 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* EMOJI GLYPH */}
+                  <div
+                    className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
+                    style={
+                      {
+                        "--float-y": `${floatY}px`,
+                        color: auraColor(post.autoMask),
+                        animation: "levitate 2.4s ease-in-out infinite",
+                      } as unknown as React.CSSProperties
+                    }
+                  >
+                    {post.autoMask === 1 && "😶‍🌫️"}
+                    {post.autoMask === 2 && "😤"}
+                    {post.autoMask === 3 && "😊"}
+                    {post.autoMask === 4 && "🤩"}
+                    {post.autoMask === 5 && "😇"}
+                    {post.autoMask === 6 && "🔱"}
+                  </div>
+
+                  {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
+                  {surge && <div className="surge-ripple"></div>}
+
+                  <div
+                    className="text-xs font-semibold mb-2 tracking-wide mt-16"
+                    style={{ color: auraColor(post.autoMask) }}
+                  >
+                    Spirit Score: {score}
+                  </div>
+
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-800">
+                    {post.content}
+                  </p>
+
+                  <div className="mt-6 flex justify-between text-sm text-gray-500">
+                    <span>Mask: {post.autoMask}</span>
+                    <span>{new Date(post.createdAt).toLocaleString()}</span>
+                  </div>
 
                   <ReactionBar
                     postId={String(post.id)}
