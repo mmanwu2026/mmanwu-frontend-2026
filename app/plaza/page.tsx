@@ -66,77 +66,83 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  async function fetchPosts() {
-    try {
-      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
-        cache: "no-store",
-      });
+async function fetchPosts() {
+  try {
+    const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
+      cache: "no-store",
+    });
 
-      if (!res.ok) throw new Error("Failed to fetch posts");
+    if (!res.ok) throw new Error("Failed to fetch posts");
 
-      const data = await res.json();
+    const data = await res.json();
 
-      const patched: PlazaPost[] = data.map((p: any) => {
-        const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    const patched: PlazaPost[] = data.map((p: any) => {
+      const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
-        const total =
-          (r[1] || 0) +
-          (r[2] || 0) +
-          (r[3] || 0) +
-          (r[4] || 0) +
-          (r[5] || 0) +
-          (r[6] || 0);
+      const total =
+        (r[1] || 0) +
+        (r[2] || 0) +
+        (r[3] || 0) +
+        (r[4] || 0) +
+        (r[5] || 0) +
+        (r[6] || 0);
 
-        const positive =
-          (r[3] || 0) +
-          (r[4] || 0) +
-          (r[5] || 0) +
-          (r[6] || 0);
+      const positive =
+        (r[3] || 0) +
+        (r[4] || 0) +
+        (r[5] || 0) +
+        (r[6] || 0);
 
-        const positivityRatio = total > 0 ? positive / total : 0.5;
+      const positivityRatio = total > 0 ? positive / total : 0.5;
 
-        const spiritScore = p.spiritScore ?? 0;
+      const spiritScore = p.spiritScore ?? 0;
 
-        let autoMask = 2;
-        if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
-        else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
-        else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
-        else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
-        else if (spiritScore > 500) autoMask = 6;
+      // ⭐ AutoMask evolution (unchanged)
+      let autoMask = 2;
+      if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
+      else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
+      else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
+      else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
+      else if (spiritScore > 500) autoMask = 6;
 
-        return {
-          id: p.id,
-          creatorId: p.creatorId ?? "unknown-creator",
-          content: p.content,
-          createdAt: p.createdAt,
-          maskTier: p.mask,
-          autoMask,
-          spiritScore,
-          positivityRatio,
-          reactions: {
-            mask1: r[1] || 0,
-            mask2: r[2] || 0,
-            mask3: r[3] || 0,
-            mask4: r[4] || 0,
-            mask5: r[5] || 0,
-            mask6: r[6] || 0,
-          },
-        };
-      });
+      // ⭐ NEW: Trigger creator profile fetch (cached)
+      fetchCreatorProfile(p.creatorId);
 
-      const sorted = patched.sort(
-        (a: PlazaPost, b: PlazaPost) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
-      );
+      return {
+        id: p.id,
+        creatorId: p.creatorId ?? "unknown-creator",
+        content: p.content,
+        createdAt: p.createdAt,
+        maskTier: p.mask,
 
-      setPosts(sorted);
-    } catch (err) {
-      setError("Unable to load posts.");
-    } finally {
-      setLoading(false);
-    }
+        autoMask,
+        spiritScore,
+        positivityRatio,
+
+        reactions: {
+          mask1: r[1] || 0,
+          mask2: r[2] || 0,
+          mask3: r[3] || 0,
+          mask4: r[4] || 0,
+          mask5: r[5] || 0,
+          mask6: r[6] || 0,
+        },
+      };
+    });
+
+    const sorted = patched.sort(
+      (a: PlazaPost, b: PlazaPost) =>
+        new Date(b.createdAt).getTime() -
+        new Date(a.createdAt).getTime()
+    );
+
+    setPosts(sorted);
+  } catch (err) {
+    setError("Unable to load posts.");
+  } finally {
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     fetchPosts();
