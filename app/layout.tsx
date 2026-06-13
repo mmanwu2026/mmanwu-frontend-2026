@@ -5,8 +5,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 // ⭐ Cache‑bust CSS so Vercel + browser load the NEW styles
 import "./globals.css?v=10";
 
-import Link from "next/link";
-import { UserProvider, useUser } from "@/context/UserContext";  // ⭐ ADDED
+import { UserProvider } from "@/context/UserContext";  // ⭐ stays here
+import Header from "@/components/Header";              // ⭐ NEW: client header
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,28 +23,6 @@ export const metadata: Metadata = {
   description: "The official Mmanwu social square",
 };
 
-// ⭐ HEADER COMPONENT (added inside layout)
-function Header() {
-  const { user } = useUser();
-
-  return (
-    <header className="w-full flex justify-between items-center px-4 py-4 mb-6 bg-white shadow-sm">
-      <Link href="/" className="text-xl font-bold text-black">
-        Mmanwu Plaza
-      </Link>
-
-      {user && (
-        <Link
-          href={`/creator/${user.id}`}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          My Profile
-        </Link>
-      )}
-    </header>
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -60,7 +38,7 @@ export default function RootLayout({
         <UserProvider>
           <div className="w-full max-w-xl px-4">
 
-            {/* ⭐ NEW HEADER */}
+            {/* ⭐ CLIENT HEADER */}
             <Header />
 
             {children}
