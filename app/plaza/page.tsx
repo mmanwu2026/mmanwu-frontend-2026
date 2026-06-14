@@ -260,7 +260,7 @@ export default function PlazaPage() {
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
 
-            {posts.map((post) => {
+            {posts.map((post) => (
               const creator = creators[post.creatorId];
 
               const score = post.spiritScore ?? 0;
@@ -377,7 +377,7 @@ export default function PlazaPage() {
                   style={{
                     "--aura-color": auraColor(post.autoMask),
                     ...auraStyle(score, post.autoMask, positivityRatio),
-                  } as CSSProperties}
+                  } as unknown as React.CSSProperties}
                 >
 
                   {/* ASCENSION RING + HALO + SPIRIT PARTICLES */}
@@ -526,7 +526,6 @@ export default function PlazaPage() {
 }}
 />
 </div>  {/* closes card */}
-);
 })}
 
 </div> {/* closes posts wrapper */}
@@ -537,4 +536,3 @@ export default function PlazaPage() {
 </div> {/* closes plaza-background */}
 );
 }
-
