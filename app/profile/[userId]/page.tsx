@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useUser } from "@/context/UserContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function CreatorProfile({ params }: { params: { userId: string } }) {
   const { userId } = params;
 
+  const { user: currentUser } = useUser(); // Logged-in user
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -46,6 +48,16 @@ export default function CreatorProfile({ params }: { params: { userId: string } 
         <div>
           <h1 className="text-2xl font-bold">{user.username}</h1>
           <p className="text-gray-400">{user.bio}</p>
+
+          {/* Edit Profile Button — only for the owner */}
+          {currentUser?.id === userId && (
+            <button
+              onClick={() => (window.location.href = "/edit-profile")}
+              className="mt-3 px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Edit Profile
+            </button>
+          )}
         </div>
       </div>
 
