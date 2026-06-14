@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import React, { useEffect, useState, useRef } from "react";
+import type { CSSProperties } from "react";
 import ReactionBar from "@/components/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
 import { useUser } from "@/context/UserContext";
@@ -37,6 +38,67 @@ interface PlazaPost {
     mask4: number;
     mask5: number;
     mask6?: number;
+  };
+}
+
+// -----------------------------
+// Helpers
+// -----------------------------
+function auraColor(mask: number) {
+  switch (mask) {
+    case 1: return "#7C3AED"; // Dark Whisper
+    case 2: return "#DC2626"; // Fierce Awakener
+    case 3: return "#22C55E"; // Gentle Riser
+    case 4: return "#FACC15"; // Radiant Ascender
+    case 5: return "#3B82F6"; // Seraphic Uplifter
+    case 6: return "#F97316"; // Divine Apex
+    default: return "#22C55E";
+  }
+}
+
+function maskTitle(mask: number) {
+  switch (mask) {
+    case 1: return "Dark Whisper";
+    case 2: return "Fierce Awakener";
+    case 3: return "Gentle Riser";
+    case 4: return "Radiant Ascender";
+    case 5: return "Seraphic Uplifter";
+    case 6: return "Divine Apex";
+    default: return "Unknown Mask";
+  }
+}
+
+function auraStyle(score = 0, mask: number, positivityRatio: number) {
+  const color = auraColor(mask);
+
+  let intensityLevel =
+    score < 6 ? 0 :
+    score < 16 ? 1 :
+    score < 31 ? 2 :
+    score < 51 ? 3 :
+    4;
+
+  const boost = positivityRatio > 0.6 ? 1 : 0;
+  const dampen = positivityRatio < 0.3 ? -1 : 0;
+
+  const finalLevel = Math.max(0, Math.min(4, intensityLevel + boost + dampen));
+
+  if (finalLevel === 0) return { borderColor: color };
+  if (finalLevel === 1) return {
+    borderColor: color,
+    animation: "aura-breathe 3s ease-in-out infinite",
+  };
+  if (finalLevel === 2) return {
+    borderColor: color,
+    animation: "aura-breathe 2.4s ease-in-out infinite",
+  };
+  if (finalLevel === 3) return {
+    borderColor: color,
+    animation: "aura-pulse 2s ease-in-out infinite",
+  };
+  return {
+    borderColor: color,
+    animation: "aura-pulse 1.6s ease-in-out infinite",
   };
 }
 
@@ -168,55 +230,6 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  // -----------------------------
-  // Aura Color + Style
-  // -----------------------------
-  function auraColor(mask: number) {
-    switch (mask) {
-      case 1: return "#7C3AED";
-      case 2: return "#DC2626";
-      case 3: return "#22C55E";
-      case 4: return "#FACC15";
-      case 5: return "#3B82F6";
-      case 6: return "#F97316";
-      default: return "#22C55E";
-    }
-  }
-
-  function auraStyle(score = 0, mask: number, positivityRatio: number) {
-    const color = auraColor(mask);
-
-    let intensityLevel =
-      score < 6 ? 0 :
-      score < 16 ? 1 :
-      score < 31 ? 2 :
-      score < 51 ? 3 :
-      4;
-
-    const boost = positivityRatio > 0.6 ? 1 : 0;
-    const dampen = positivityRatio < 0.3 ? -1 : 0;
-
-    const finalLevel = Math.max(0, Math.min(4, intensityLevel + boost + dampen));
-
-    if (finalLevel === 0) return { borderColor: color };
-    if (finalLevel === 1) return {
-      borderColor: color,
-      animation: "aura-breathe 3s ease-in-out infinite",
-    };
-    if (finalLevel === 2) return {
-      borderColor: color,
-      animation: "aura-breathe 2.4s ease-in-out infinite",
-    };
-    if (finalLevel === 3) return {
-      borderColor: color,
-      animation: "aura-pulse 2s ease-in-out infinite",
-    };
-    return {
-      borderColor: color,
-      animation: "aura-pulse 1.6s ease-in-out infinite",
-    };
-  }
-
   return (
     <div className="plaza-background">
 
@@ -230,7 +243,7 @@ export default function PlazaPage() {
       <div className="temple-ember" style={{ left: "50%", top: "70%" }}></div>
       <div className="temple-ember" style={{ left: "85%", top: "55%" }}></div>
 
-      {/* ⭐ FIXED TOP NAVIGATION */}
+      {/* TOP NAV */}
       <div className="w-full flex justify-between items-center px-6 py-4 bg-white shadow-sm fixed top-0 left-0 z-50">
         <Link href="/plaza" className="text-purple-600 font-semibold">
           Mmanwu Plaza
@@ -255,7 +268,6 @@ export default function PlazaPage() {
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
 
-            {/* ⭐ POSTS LOOP STARTS HERE */}
             {posts.map((post) => {
               const creator = creators[post.creatorId];
 
@@ -292,7 +304,9 @@ export default function PlazaPage() {
               prevPositiveReactionsMap.current[key] = positive;
 
               const ascensionClass =
-                score > 200
+                score > 500
+                  ? "ascend-tier-5"
+                  : score > 200
                   ? "ascend-tier-4"
                   : score > 150
                   ? "ascend-tier-3"
@@ -301,11 +315,11 @@ export default function PlazaPage() {
                   : "ascend-tier-1";
 
               const surgeClass =
-                score > 200
+                surge && score > 200
                   ? "surge-strong"
-                  : score > 150
+                  : surge && score > 150
                   ? "surge-medium"
-                  : score > 100
+                  : surge && score > 100
                   ? "surge-weak"
                   : "";
 
@@ -333,7 +347,16 @@ export default function PlazaPage() {
 
               const floatY = Math.max(-20 - score * 0.25, -90);
 
-                           return (
+              const glyphEmoji =
+                post.autoMask === 1 ? "😶‍🌫️" :
+                post.autoMask === 2 ? "😤" :
+                post.autoMask === 3 ? "😊" :
+                post.autoMask === 4 ? "🤩" :
+                post.autoMask === 5 ? "😇" :
+                post.autoMask === 6 ? "🔱" :
+                "😤";
+
+              return (
                 <div
                   key={post.id}
                   className={`
@@ -346,7 +369,7 @@ export default function PlazaPage() {
                     overflow-visible
                     isolate-layout
                     min-h-[420px]
-                    max-w-[350px]
+                    max-w-[380px]
                     mx-auto
                     plaza-card-base
                     flex flex-col items-center
@@ -354,15 +377,15 @@ export default function PlazaPage() {
                     ${surgeClass}
                     ${emotionClass}
                   `}
-style={
-  {
-    "--aura-color": auraColor(post.autoMask),
-    ...auraStyle(score, post.autoMask, positivityRatio),
-  } as unknown as React.CSSProperties
-}
+                  style={
+                    {
+                      "--aura-color": auraColor(post.autoMask),
+                      ...auraStyle(score, post.autoMask, positivityRatio),
+                    } as CSSProperties
+                  }
                 >
 
-                  {/* ⭐ FLOATING CREATOR BADGE */}
+                  {/* CREATOR BADGE */}
                   <Link
                     href={`/profile/${post.creatorId}`}
                     className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
@@ -385,48 +408,51 @@ style={
                     </div>
                   </Link>
 
-                  {/* ⭐ CENTERED EMOJI GLYPH */}
-                  <div className="relative flex flex-col items-center justify-center mt-6">
-                    <div
-                      className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                      style={{
-                        "--float-y": `${floatY}px`,
-                        color: auraColor(post.autoMask),
-                      } as React.CSSProperties}
-                    >
-                      {post.autoMask === 1 && "😶‍🌫️"}
-                      {post.autoMask === 2 && "😤"}
-                      {post.autoMask === 3 && "😊"}
-                      {post.autoMask === 4 && "🤩"}
-                      {post.autoMask === 5 && "😇"}
-                      {post.autoMask === 6 && "🔱"}
+                  {/* GLYPH + FLAME RING */}
+                  <div className="ritual-glyph-container mt-10">
+                    <div className="ritual-glyph-levitate">
+                      <div className="ritual-flame-ring"></div>
+                      <div className="ritual-shadow-floor"></div>
+                      <div
+                        className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
+                        style={
+                          {
+                            "--float-y": `${floatY}px`,
+                            color: auraColor(post.autoMask),
+                          } as CSSProperties
+                        }
+                      >
+                        {glyphEmoji}
+                      </div>
                     </div>
                   </div>
 
-                  {/* ⭐ SURGE EFFECTS */}
+                  {/* SURGE EFFECTS */}
                   {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
                   {surge && <div className="surge-ripple"></div>}
 
-                  {/* ⭐ SPIRIT SCORE */}
-                  <div
-                    className="text-xs font-semibold mt-6 tracking-wide"
-                    style={{ color: auraColor(post.autoMask) }}
-                  >
-                    Spirit Score: {score}
+                  {/* MASK-TIER TITLE */}
+                  <div className="mt-6 text-center">
+                    <div
+                      className="text-sm font-semibold tracking-wide ritual-mask-title"
+                      style={{ color: auraColor(post.autoMask) }}
+                    >
+                      {maskTitle(post.autoMask)}
+                    </div>
                   </div>
 
-                  {/* ⭐ POST CONTENT */}
-                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200 text-center mt-3">
+                  {/* POST CONTENT */}
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200 text-center mt-3 px-4">
                     {post.content}
                   </p>
 
-                  {/* ⭐ FOOTER ROW */}
+                  {/* FOOTER ROW */}
                   <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
                     <span>Mask: {post.autoMask}</span>
                     <span>{new Date(post.createdAt).toLocaleString()}</span>
                   </div>
 
-                  {/* ⭐ VIEW PROFILE */}
+                  {/* VIEW PROFILE */}
                   <Link
                     href={`/profile/${post.creatorId}`}
                     className="text-xs text-blue-400 hover:underline mt-2"
@@ -434,7 +460,7 @@ style={
                     View Profile →
                   </Link>
 
-                  {/* ⭐ CENTERED REACTION BAR */}
+                  {/* REACTION BAR */}
                   <div className="mt-6 w-full flex justify-center">
                     <ReactionBar
                       postId={String(post.id)}
@@ -508,7 +534,6 @@ style={
           </div>
         </div>
 
-        {/* ⭐ FLOATING COMPOSER */}
         <FloatingComposer onPost={fetchPosts} />
       </div>
     </div>
