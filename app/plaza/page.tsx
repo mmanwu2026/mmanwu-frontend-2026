@@ -37,7 +37,7 @@ interface PlazaPost {
     mask3: number;
     mask4: number;
     mask5: number;
-    mask6?: number;
+    mask6: number;
   };
 }
 
@@ -396,12 +396,10 @@ export default function PlazaPage() {
                     <div className="ritual-shadow-floor"></div>
                     <div
                       className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                      style={
-                        {
-                          "--float-y": `${floatY}px`,
-                          color: auraColor(post.autoMask),
-                        } as unknown as CSSProperties
-                      }
+                      style={{
+                        "--float-y": `${floatY}px`,
+                        color: auraColor(post.autoMask),
+                      } as CSSProperties}
                     >
                       {glyphEmoji}
                     </div>
@@ -452,12 +450,12 @@ export default function PlazaPage() {
                       mask3: post.reactions?.mask3 ?? 0,
                       mask4: post.reactions?.mask4 ?? 0,
                       mask5: post.reactions?.mask5 ?? 0,
+                      mask6: post.reactions?.mask6 ?? 0,
                     }}
                     spiritScore={score}
                     positivityRatio={positivityRatio}
                     onReact={(updatedPost) => {
                       const r = updatedPost.reactions || {};
-
                       const total =
                         (r["1"] ?? 0) +
                         (r["2"] ?? 0) +
@@ -472,54 +470,57 @@ export default function PlazaPage() {
                         (r["5"] ?? 0) +
                         (r["6"] ?? 0);
 
-                    const newPositivityRatio =
-  total > 0 ? positive / total : 0.5;
+                      const newPositivityRatio =
+                        total > 0 ? positive / total : 0.5;
 
-const newScore = updatedPost.spiritScore ?? score;
+                      const newScore = updatedPost.spiritScore ?? score;
 
-let newAutoMask = 2;
-if (newScore <= 20) newAutoMask = 2;
-else if (newScore <= 100) newAutoMask = 3;
-else if (newScore <= 200) newAutoMask = 4;
-else if (newScore <= 500) newAutoMask = 5;
-else newAutoMask = 6;
+                      let newAutoMask = 2;
+                      if (newScore <= 20) newAutoMask = 2;
+                      else if (newScore <= 100) newAutoMask = 3;
+                      else if (newScore <= 200) newAutoMask = 4;
+                      else if (newScore <= 500) newAutoMask = 5;
+                      else newAutoMask = 6;
 
-setPosts((prev) =>
-  prev.map((p) =>
-    p.id === updatedPost.id
-      ? {
-          ...p,
-          maskTier: updatedPost.mask ?? p.maskTier,
-          autoMask: newAutoMask,
-          spiritScore: newScore,
-          positivityRatio: newPositivityRatio,
-          reactions: {
-            mask1: r["1"] ?? 0,
-            mask2: r["2"] ?? 0,
-            mask3: r["3"] ?? 0,
-            mask4: r["4"] ?? 0,
-            mask5: r["5"] ?? 0,
-          },
-        }
-      : p
-  )
-);
-}}
-/>
-</div>  {/* closes the Ritual Panel card */}
+                      setPosts((prev) =>
+                        prev.map((p) =>
+                          p.id === updatedPost.id
+                            ? {
+                                ...p,
+                                maskTier: updatedPost.mask ?? p.maskTier,
+                                autoMask: newAutoMask,
+                                spiritScore: newScore,
+                                positivityRatio: newPositivityRatio,
+                                reactions: {
+                                  mask1: r["1"] ?? 0,
+                                  mask2: r["2"] ?? 0,
+                                  mask3: r["3"] ?? 0,
+                                  mask4: r["4"] ?? 0,
+                                  mask5: r["5"] ?? 0,
+                                  mask6: r["6"] ?? 0,
+                                },
+                              }
+                            : p
+                        )
+                      );
+                    }}
+                  />
+                </div> 
+                {/* closes the Ritual Panel card */}
+              </div> 
+              {/* closes the return inside posts.map */}
+            );
+          })} 
+          {/* closes posts.map and JSX expression */}
+        </div> 
+        {/* closes the posts wrapper */}
 
-);      
-{/* closes the return inside posts.map */}
+        <FloatingComposer onPost={fetchPosts} />
 
-})}
-{/* closes posts.map and JSX expression */}
-
-</div>  {/* closes the posts wrapper */}
-
-<FloatingComposer onPost={fetchPosts} />
-
-</div>  {/* closes the D4 content wrapper */}
-</div>  {/* closes plaza-background */}
-);      {/* closes return */}
-}       {/* closes component */}
-
+      </div> 
+      {/* closes the D4 content wrapper */}
+    </div> 
+    {/* closes plaza-background */}
+  );
+} 
+// closes component
