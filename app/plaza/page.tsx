@@ -281,7 +281,7 @@ export default function PlazaPage() {
               post.autoMask === 6 ? "🔱" :
               "😤";
 
-            return (
+                        return (
               <div
                 key={post.id}
                 className={`
@@ -428,11 +428,11 @@ export default function PlazaPage() {
                     }}
                   />
                 </div>
+
                 {/* closes the Ritual Panel card */}
               </div>
             );
-          }))}
-
+          })}
         </div>
         {/* closes the posts wrapper */}
 
