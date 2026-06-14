@@ -508,8 +508,11 @@ setPosts((prev) =>
 />
 </div>  {/* closes the Ritual Panel card */}
 
-);      {/* closes the return inside posts.map */}
-})}     {/* closes posts.map and JSX expression */}
+);      
+{/* closes the return inside posts.map */}
+
+})}
+{/* closes posts.map and JSX expression */}
 
 </div>  {/* closes the posts wrapper */}
 
@@ -519,3 +522,4 @@ setPosts((prev) =>
 </div>  {/* closes plaza-background */}
 );      {/* closes return */}
 }       {/* closes component */}
+
