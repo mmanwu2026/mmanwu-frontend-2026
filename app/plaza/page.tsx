@@ -503,26 +503,26 @@ export default function PlazaPage() {
                             : p
                         )
                       );
-                    }}
+                                        }}
                   />
-                                </div> 
+                </div>
                 {/* closes the Ritual Panel card */}
 
-              ); 
+              );
               {/* closes the return inside posts.map */}
 
-            })} 
-            {/* closes posts.map and JSX expression */}
+          })} 
+          {/* closes posts.map and JSX expression */}
 
-        </div> 
+        </div>
         {/* closes the posts wrapper */}
 
         <FloatingComposer onPost={fetchPosts} />
 
-      </div> 
+      </div>
       {/* closes the D4 content wrapper */}
-    </div> 
+    </div>
     {/* closes plaza-background */}
   );
-} 
+}
 // closes component
