@@ -219,6 +219,17 @@ export default function PlazaPage() {
 
   return (
     <div className="plaza-background">
+      
+      {/* === D4 TEMPLE EMBERS === */}
+<div className="temple-ember" style={{ left: "12%", top: "20%" }}></div>
+<div className="temple-ember" style={{ left: "28%", top: "40%" }}></div>
+<div className="temple-ember" style={{ left: "45%", top: "10%" }}></div>
+<div className="temple-ember" style={{ left: "62%", top: "35%" }}></div>
+<div className="temple-ember" style={{ left: "78%", top: "25%" }}></div>
+<div className="temple-ember" style={{ left: "15%", top: "60%" }}></div>
+<div className="temple-ember" style={{ left: "50%", top: "70%" }}></div>
+<div className="temple-ember" style={{ left: "85%", top: "55%" }}></div>
+
       {/* ⭐ FIXED TOP NAVIGATION */}
       <div className="w-full flex justify-between items-center px-6 py-4 bg-white shadow-sm fixed top-0 left-0 z-50">
         <Link href="/plaza" className="text-purple-600 font-semibold">
@@ -322,33 +333,32 @@ export default function PlazaPage() {
 
               return (
                 <div
-                  key={post.id}
-                  className={`
-                    relative
-                    p-8
-                    rounded-2xl
-                    bg-white
-                    transition-all
-                    duration-500
-                    border
-                    overflow-visible
-                    isolate-layout
-                    min-h-[420px]
-                    shadow-[0_10px_30px_rgba(0,0,0,0.15)]
-                    max-w-[300px]
-                    mx-auto
-                    plaza-card-base
-                    ${ascensionClass}
-                    ${surgeClass}
-                    ${emotionClass}
-                  `}
-                  style={
-                    {
-                      "--aura-color": auraColor(post.autoMask),
-                      ...auraStyle(score, post.autoMask, positivityRatio),
-                    } as unknown as React.CSSProperties
-                  }
-                >
+  key={post.id}
+  className={`
+    relative
+    p-8
+    rounded-2xl
+    dark-temple-panel
+    transition-all
+    duration-500
+    overflow-visible
+    isolate-layout
+    min-h-[420px]
+    max-w-[350px]
+    mx-auto
+    plaza-card-base
+    ${ascensionClass}
+    ${surgeClass}
+    ${emotionClass}
+  `}
+  style={
+    {
+      "--aura-color": auraColor(post.autoMask),
+      ...auraStyle(score, post.autoMask, positivityRatio),
+    } as unknown as React.CSSProperties
+  }
+>
+
                   {/* ⭐ CLICKABLE CREATOR IDENTITY BLOCK */}
                   <Link
                     href={`/profile/${post.creatorId}`}
