@@ -260,280 +260,280 @@ export default function PlazaPage() {
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
 
-{posts.map((post) => {
-  const creator = creators[post.creatorId];
+            {posts.map((post) => {
+              const creator = creators[post.creatorId];
 
-  const score = post.spiritScore ?? 0;
+              const score = post.spiritScore ?? 0;
 
-  const total =
-    (post.reactions?.mask1 ?? 0) +
-    (post.reactions?.mask2 ?? 0) +
-    (post.reactions?.mask3 ?? 0) +
-    (post.reactions?.mask4 ?? 0) +
-    (post.reactions?.mask5 ?? 0) +
-    (post.reactions?.mask6 ?? 0);
+              const total =
+                (post.reactions?.mask1 ?? 0) +
+                (post.reactions?.mask2 ?? 0) +
+                (post.reactions?.mask3 ?? 0) +
+                (post.reactions?.mask4 ?? 0) +
+                (post.reactions?.mask5 ?? 0) +
+                (post.reactions?.mask6 ?? 0);
 
-  const positive =
-    (post.reactions?.mask3 ?? 0) +
-    (post.reactions?.mask4 ?? 0) +
-    (post.reactions?.mask5 ?? 0) +
-    (post.reactions?.mask6 ?? 0);
+              const positive =
+                (post.reactions?.mask3 ?? 0) +
+                (post.reactions?.mask4 ?? 0) +
+                (post.reactions?.mask5 ?? 0) +
+                (post.reactions?.mask6 ?? 0);
 
-  const positivityRatio =
-    total > 0 ? positive / total : post.positivityRatio ?? 0.5;
+              const positivityRatio =
+                total > 0 ? positive / total : post.positivityRatio ?? 0.5;
 
-  const key = String(post.id);
+              const key = String(post.id);
 
-  const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
-  const prevPosReacts = prevPositiveReactionsMap.current[key] ?? positive;
+              const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
+              const prevPosReacts = prevPositiveReactionsMap.current[key] ?? positive;
 
-  const positivitySpike = positivityRatio - prevPos > 0.25;
-  const newPositiveReaction = positive > prevPosReacts;
+              const positivitySpike = positivityRatio - prevPos > 0.25;
+              const newPositiveReaction = positive > prevPosReacts;
 
-  const surge = positivitySpike || newPositiveReaction;
+              const surge = positivitySpike || newPositiveReaction;
 
-  prevPositivityMap.current[key] = positivityRatio;
-  prevPositiveReactionsMap.current[key] = positive;
+              prevPositivityMap.current[key] = positivityRatio;
+              prevPositiveReactionsMap.current[key] = positive;
 
-  const ascensionClass =
-    score > 500
-      ? "ascend-tier-5"
-      : score > 200
-      ? "ascend-tier-4"
-      : score > 150
-      ? "ascend-tier-3"
-      : score > 100
-      ? "ascend-tier-2"
-      : "ascend-tier-1";
+              const ascensionClass =
+                score > 500
+                  ? "ascend-tier-5"
+                  : score > 200
+                  ? "ascend-tier-4"
+                  : score > 150
+                  ? "ascend-tier-3"
+                  : score > 100
+                  ? "ascend-tier-2"
+                  : "ascend-tier-1";
 
-  const surgeClass =
-    surge && score > 200
-      ? "surge-strong"
-      : surge && score > 150
-      ? "surge-medium"
-      : surge && score > 100
-      ? "surge-weak"
-      : "";
+              const surgeClass =
+                surge && score > 200
+                  ? "surge-strong"
+                  : surge && score > 150
+                  ? "surge-medium"
+                  : surge && score > 100
+                  ? "surge-weak"
+                  : "";
 
-  const emotionClass =
-    positivityRatio > 0.75
-      ? "emotion-boost"
-      : positivityRatio > 0.55
-      ? "emotion-intense"
-      : positivityRatio < 0.25
-      ? "emotion-soft"
-      : "emotion-calm";
+              const emotionClass =
+                positivityRatio > 0.75
+                  ? "emotion-boost"
+                  : positivityRatio > 0.55
+                  ? "emotion-intense"
+                  : positivityRatio < 0.25
+                  ? "emotion-soft"
+                  : "emotion-calm";
 
-  let emojiAnimClass = "";
-  switch (post.autoMask) {
-    case 1: emojiAnimClass = "emoji-pulse"; break;
-    case 2: emojiAnimClass = "emoji-bounce"; break;
-    case 3: emojiAnimClass = "emoji-wiggle"; break;
-    case 4: emojiAnimClass = "emoji-pop"; break;
-    case 5: emojiAnimClass = "emoji-shimmer"; break;
-    case 6: emojiAnimClass = "emoji-shimmer"; break;
-    default: emojiAnimClass = "emoji-pulse";
-  }
+              let emojiAnimClass = "";
+              switch (post.autoMask) {
+                case 1: emojiAnimClass = "emoji-pulse"; break;
+                case 2: emojiAnimClass = "emoji-bounce"; break;
+                case 3: emojiAnimClass = "emoji-wiggle"; break;
+                case 4: emojiAnimClass = "emoji-pop"; break;
+                case 5: emojiAnimClass = "emoji-shimmer"; break;
+                case 6: emojiAnimClass = "emoji-shimmer"; break;
+                default: emojiAnimClass = "emoji-pulse";
+              }
 
-  const emojiReactClass = surge ? "emoji-react-pop" : "";
+              const emojiReactClass = surge ? "emoji-react-pop" : "";
 
-  const floatY = Math.max(-20 - score * 0.25, -90);
+              const floatY = Math.max(-20 - score * 0.25, -90);
 
-  const glyphEmoji =
-    post.autoMask === 1 ? "😶‍🌫️" :
-    post.autoMask === 2 ? "😤" :
-    post.autoMask === 3 ? "😊" :
-    post.autoMask === 4 ? "🤩" :
-    post.autoMask === 5 ? "😇" :
-    post.autoMask === 6 ? "🔱" :
-    "😤";
+              const glyphEmoji =
+                post.autoMask === 1 ? "😶‍🌫️" :
+                post.autoMask === 2 ? "😤" :
+                post.autoMask === 3 ? "😊" :
+                post.autoMask === 4 ? "🤩" :
+                post.autoMask === 5 ? "😇" :
+                post.autoMask === 6 ? "🔱" :
+                "😤";
 
-  return (
-    <div
-      key={post.id}
-      className={`
-        relative
-        p-8
-        rounded-2xl
-        dark-temple-panel
-        mask-aura
-        transition-all
-        duration-500
-        overflow-visible
-        isolate-layout
-        min-h-[420px]
-        max-w-[380px]
-        mx-auto
-        plaza-card-base
-        flex flex-col items-center
-        ${ascensionClass}
-        ${surgeClass}
-        ${emotionClass}
-        aura-tier-${post.autoMask}
-      `}
-      style={{
-        "--aura-color": auraColor(post.autoMask),
-        ...auraStyle(score, post.autoMask, positivityRatio),
-      } as React.CSSProperties}
-    >
+              return (
+                <div
+                  key={post.id}
+                  className={`
+                    relative
+                    p-8
+                    rounded-2xl
+                    dark-temple-panel
+                    mask-aura
+                    transition-all
+                    duration-500
+                    overflow-visible
+                    isolate-layout
+                    min-h-[420px]
+                    max-w-[380px]
+                    mx-auto
+                    plaza-card-base
+                    flex flex-col items-center
+                    ${ascensionClass}
+                    ${surgeClass}
+                    ${emotionClass}
+                    aura-tier-${post.autoMask}
+                  `}
+                  style={{
+                    "--aura-color": auraColor(post.autoMask),
+                    ...auraStyle(score, post.autoMask, positivityRatio),
+                  } as React.CSSProperties}
+                >
 
-      {/* ASCENSION RING + HALO + SPIRIT PARTICLES */}
-      <div className="ascension-ring"></div>
-      <div className="ascension-halo"></div>
-      <div className="spirit-spark"></div>
-      <div className="spirit-particle"></div>
+                  {/* ASCENSION RING + HALO + SPIRIT PARTICLES */}
+                  <div className="ascension-ring"></div>
+                  <div className="ascension-halo"></div>
+                  <div className="spirit-spark"></div>
+                  <div className="spirit-particle"></div>
 
-      {/* CREATOR BADGE */}
-      <Link
-        href={`/profile/${post.creatorId}`}
-        className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
-      >
-        <img
-          src={creator?.avatar_url || "/default-avatar.png"}
-          alt="avatar"
-          className="w-10 h-10 rounded-full border border-gray-300 object-cover"
-        />
-        <div className="flex flex-col leading-tight">
-          <span className="font-semibold text-gray-800">
-            {creator?.username || "Unknown User"}
-          </span>
-          <span className="text-xs text-gray-500">
-            Mask Tier: {creator?.mask_tier ?? "?"}
-          </span>
-          <span className="text-xs text-gray-500">
-            Spirit Score: {creator?.spirit_score ?? 0}
-          </span>
-        </div>
-      </Link>
+                  {/* CREATOR BADGE */}
+                  <Link
+                    href={`/profile/${post.creatorId}`}
+                    className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
+                  >
+                    <img
+                      src={creator?.avatar_url || "/default-avatar.png"}
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full border border-gray-300 object-cover"
+                    />
+                    <div className="flex flex-col leading-tight">
+                      <span className="font-semibold text-gray-800">
+                        {creator?.username || "Unknown User"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Mask Tier: {creator?.mask_tier ?? "?"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Spirit Score: {creator?.spirit_score ?? 0}
+                      </span>
+                    </div>
+                  </Link>
 
-      {/* GLYPH + FLAME RING */}
-      <div className="ritual-glyph-container mt-10">
-        <div className="ritual-glyph-levitate">
-          <div className="ritual-flame-ring"></div>
-          <div className="ritual-shadow-floor"></div>
-          <div
-            className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-            style={{
-              "--float-y": `${floatY}px`,
-              color: auraColor(post.autoMask),
-            } as CSSProperties}
-          >
-            {glyphEmoji}
-          </div>
-        </div>
-      </div>
+                  {/* GLYPH + FLAME RING */}
+                  <div className="ritual-glyph-container mt-10">
+                    <div className="ritual-glyph-levitate">
+                      <div className="ritual-flame-ring"></div>
+                      <div className="ritual-shadow-floor"></div>
+                      <div
+                        className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
+                        style={{
+                          "--float-y": `${floatY}px`,
+                          color: auraColor(post.autoMask),
+                        } as CSSProperties}
+                      >
+                        {glyphEmoji}
+                      </div>
+                    </div>
+                  </div>
 
-      {/* SURGE EFFECTS */}
-      {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
-      {surge && <div className="surge-ripple"></div>}
+                  {/* SURGE EFFECTS */}
+                  {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
+                  {surge && <div className="surge-ripple"></div>}
 
-      {/* MASK-TIER TITLE */}
-      <div className="mt-6 text-center">
-        <div
-          className="text-sm font-semibold tracking-wide ritual-mask-title"
-          style={{ color: auraColor(post.autoMask) }}
-        >
-          {maskTitle(post.autoMask)}
-        </div>
-      </div>
+                  {/* MASK-TIER TITLE */}
+                  <div className="mt-6 text-center">
+                    <div
+                      className="text-sm font-semibold tracking-wide ritual-mask-title"
+                      style={{ color: auraColor(post.autoMask) }}
+                    >
+                      {maskTitle(post.autoMask)}
+                    </div>
+                  </div>
 
-      {/* POST CONTENT */}
-      <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200 text-center mt-3 px-4">
-        {post.content}
-      </p>
+                  {/* POST CONTENT */}
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200 text-center mt-3 px-4">
+                    {post.content}
+                  </p>
 
-      {/* FOOTER ROW */}
-      <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-        <span>Mask: {post.autoMask}</span>
-        <span>{new Date(post.createdAt).toLocaleString()}</span>
-      </div>
+                  {/* FOOTER ROW */}
+                  <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
+                    <span>Mask: {post.autoMask}</span>
+                    <span>{new Date(post.createdAt).toLocaleString()}</span>
+                  </div>
 
-      {/* VIEW PROFILE */}
-      <Link
-        href={`/profile/${post.creatorId}`}
-        className="text-xs text-blue-400 hover:underline mt-2"
-      >
-        View Profile →
-      </Link>
+                  {/* VIEW PROFILE */}
+                  <Link
+                    href={`/profile/${post.creatorId}`}
+                    className="text-xs text-blue-400 hover:underline mt-2"
+                  >
+                    View Profile →
+                  </Link>
 
-      {/* REACTION BAR */}
-      <div className="mt-6 w-full flex justify-center">
-        <ReactionBar
-          postId={String(post.id)}
-          creatorId={post.creatorId}
-          reactions={{
-            mask1: post.reactions?.mask1 ?? 0,
-            mask2: post.reactions?.mask2 ?? 0,
-            mask3: post.reactions?.mask3 ?? 0,
-            mask4: post.reactions?.mask4 ?? 0,
-            mask5: post.reactions?.mask5 ?? 0,
-          }}
-          spiritScore={score}
-          positivityRatio={positivityRatio}
-          onReact={(updatedPost) => {
-            const r = updatedPost.reactions || {};
+                  {/* REACTION BAR */}
+                  <div className="mt-6 w-full flex justify-center">
+                    <ReactionBar
+                      postId={String(post.id)}
+                      creatorId={post.creatorId}
+                      reactions={{
+                        mask1: post.reactions?.mask1 ?? 0,
+                        mask2: post.reactions?.mask2 ?? 0,
+                        mask3: post.reactions?.mask3 ?? 0,
+                        mask4: post.reactions?.mask4 ?? 0,
+                        mask5: post.reactions?.mask5 ?? 0,
+                      }}
+                      spiritScore={score}
+                      positivityRatio={positivityRatio}
+                      onReact={(updatedPost) => {
+                        const r = updatedPost.reactions || {};
 
-            const total =
-              (r["1"] ?? 0) +
-              (r["2"] ?? 0) +
-              (r["3"] ?? 0) +
-              (r["4"] ?? 0) +
-              (r["5"] ?? 0) +
-              (r["6"] ?? 0);
+                        const total =
+                          (r["1"] ?? 0) +
+                          (r["2"] ?? 0) +
+                          (r["3"] ?? 0) +
+                          (r["4"] ?? 0) +
+                          (r["5"] ?? 0) +
+                          (r["6"] ?? 0);
 
-            const positive =
-              (r["3"] ?? 0) +
-              (r["4"] ?? 0) +
-              (r["5"] ?? 0) +
-              (r["6"] ?? 0);
+                        const positive =
+                          (r["3"] ?? 0) +
+                          (r["4"] ?? 0) +
+                          (r["5"] ?? 0) +
+                          (r["6"] ?? 0);
 
-            const newPositivityRatio =
-              total > 0 ? positive / total : 0.5;
+                        const newPositivityRatio =
+                          total > 0 ? positive / total : 0.5;
 
-            const newScore = updatedPost.spiritScore ?? score;
+                        const newScore = updatedPost.spiritScore ?? score;
 
-            let newAutoMask = 2;
-            if (newScore <= 20) newAutoMask = 2;
-            else if (newScore <= 100) newAutoMask = 3;
-            else if (newScore <= 200) newAutoMask = 4;
-            else if (newScore <= 500) newAutoMask = 5;
-            else newAutoMask = 6;
+                        let newAutoMask = 2;
+                        if (newScore <= 20) newAutoMask = 2;
+                        else if (newScore <= 100) newAutoMask = 3;
+                        else if (newScore <= 200) newAutoMask = 4;
+                        else if (newScore <= 500) newAutoMask = 5;
+                        else newAutoMask = 6;
 
-            setPosts((prev) =>
-              prev.map((p) =>
-                p.id === updatedPost.id
-                  ? {
-                      ...p,
-                      maskTier: updatedPost.mask ?? p.maskTier,
-                      autoMask: newAutoMask,
-                      spiritScore: newScore,
-                      positivityRatio: newPositivityRatio,
-                      reactions: {
-                        mask1: r["1"] ?? 0,
-                        mask2: r["2"] ?? 0,
-                        mask3: r["3"] ?? 0,
-                        mask4: r["4"] ?? 0,
-                        mask5: r["5"] ?? 0,
-                        mask6: r["6"] ?? 0,
-                      },
-                    }
-                  : p
-              )
-            );
-          }}
-        />
-      </div>
+                        setPosts((prev) =>
+                          prev.map((p) =>
+                            p.id === updatedPost.id
+                              ? {
+                                  ...p,
+                                  maskTier: updatedPost.mask ?? p.maskTier,
+                                  autoMask: newAutoMask,
+                                  spiritScore: newScore,
+                                  positivityRatio: newPositivityRatio,
+                                  reactions: {
+                                    mask1: r["1"] ?? 0,
+                                    mask2: r["2"] ?? 0,
+                                    mask3: r["3"] ?? 0,
+                                    mask4: r["4"] ?? 0,
+                                    mask5: r["5"] ?? 0,
+                                    mask6: r["6"] ?? 0,
+                                  },
+                                }
+                              : p
+                          )
+                        );
+                      }}
+                    />
+                  </div>
 
-    </div>
+                </div>
+              );
+            })}
+
+          </div> {/* closes posts wrapper */}
+        </div> {/* closes center wrapper */}
+      </div> {/* closes mt-20 px-4 wrapper */}
+
+      <FloatingComposer onPost={fetchPosts} />
+
+    </div> {/* closes plaza-background */}
   );
-})}
-
-</div> {/* closes posts wrapper */}
-</div> {/* closes center wrapper */}
-</div> {/* closes mt-20 px-4 wrapper */}
-
-<FloatingComposer onPost={fetchPosts} />
-
-</div> {/* closes plaza-background */}
-);
 }
