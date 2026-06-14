@@ -1,13 +1,14 @@
-/* plaza-css-cache-bust-006 */
-/* --------------------------------------------- */
-/* TAILWIND ENGINE — REQUIRED                    */
-/* --------------------------------------------- */
+/* ------------------------------------------------------------ */
+/* 1. TAILWIND BASE                                             */
+/* ------------------------------------------------------------ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* === PLAZA CORE LAYOUT === */
+/* ------------------------------------------------------------ */
+/* 2. CORE LAYOUT                                               */
+/* ------------------------------------------------------------ */
 
 .isolate-layout {
   isolation: isolate;
@@ -15,7 +16,9 @@
   overflow: visible;
 }
 
-/* === AURA ANIMATIONS (FOG REMOVED) === */
+/* ------------------------------------------------------------ */
+/* 3. AURA ENGINE                                               */
+/* ------------------------------------------------------------ */
 
 @keyframes aura-breathe {
   0% { box-shadow: none; }
@@ -29,7 +32,17 @@
   100% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
 }
 
-/* === SURGE EFFECTS === */
+.mask-aura {
+  animation: aura-breathe 3s ease-in-out infinite;
+}
+
+.mask-aura-strong {
+  animation: aura-pulse 2.2s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------ */
+/* 4. SURGE ENGINE                                              */
+/* ------------------------------------------------------------ */
 
 .surge-flash {
   pointer-events: none;
@@ -57,7 +70,13 @@
   100% { transform: scale(1.15); opacity: 0; }
 }
 
-/* === ASCENSION RING + HALO === */
+.surge-weak { opacity: 1; }
+.surge-medium { opacity: 1; }
+.surge-strong { opacity: 1; }
+
+/* ------------------------------------------------------------ */
+/* 5. ASCENSION ENGINE                                          */
+/* ------------------------------------------------------------ */
 
 .ascension-ring {
   position: absolute;
@@ -95,7 +114,14 @@
   100% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
 }
 
-/* === SPIRIT SPARKS === */
+.ascend-tier-1 { box-shadow: 0 0 4px rgba(255,255,255,0.15); }
+.ascend-tier-2 { box-shadow: 0 0 6px rgba(255,255,255,0.25); }
+.ascend-tier-3 { box-shadow: 0 0 10px rgba(255,255,255,0.35); }
+.ascend-tier-4 { box-shadow: 0 0 14px rgba(255,255,255,0.45); }
+
+/* ------------------------------------------------------------ */
+/* 6. SPIRIT ENGINE                                             */
+/* ------------------------------------------------------------ */
 
 .spirit-spark {
   position: absolute;
@@ -115,8 +141,6 @@
   100% { transform: translateY(-14px) scale(0.8); opacity: 0; }
 }
 
-/* === SPIRIT PARTICLES === */
-
 .spirit-particle {
   position: absolute;
   width: 8px;
@@ -135,13 +159,9 @@
   100% { transform: translateY(-18px) scale(1); opacity: 0; }
 }
 
-/* === BASE CARD SHADOW === */
-
-.plaza-card-base {
-  box-shadow: 0 0 1px rgba(0,0,0,0.04);
-}
-
-/* === REACTION ENGINE === */
+/* ------------------------------------------------------------ */
+/* 7. REACTION ENGINE                                           */
+/* ------------------------------------------------------------ */
 
 .mask-hover:hover {
   transform: translateY(-4px) scale(1.08);
@@ -190,59 +210,9 @@
   100% { transform: translateY(-10px); opacity: 0; }
 }
 
-/* === MASK BREATHING === */
-
-@keyframes mask-breathe {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-  100% { transform: scale(1); }
-}
-
-.mask-breathe {
-  animation: mask-breathe 3.5s ease-in-out infinite;
-}
-
-/* === MASK BLINKING === */
-
-@keyframes mask-blink {
-  0% { transform: scaleY(1); }
-  48% { transform: scaleY(1); }
-  50% { transform: scaleY(0.1); }
-  52% { transform: scaleY(1); }
-  100% { transform: scaleY(1); }
-}
-
-.mask-eyes {
-  transform-origin: center;
-  animation: mask-blink 4.5s ease-in-out infinite;
-  animation-delay: calc(0.5s + (var(--blink-offset, 0) * 1s));
-}
-
-/* === COLOR PULSE === */
-
-.mask-color-pulse:hover {
-  filter: brightness(1.25);
-  transition: filter 0.2s ease-out;
-}
-
-/* === ENERGY RIPPLE === */
-
-.energy-ripple {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.4);
-  animation: energy-ripple 0.6s ease-out forwards;
-  pointer-events: none;
-}
-
-@keyframes energy-ripple {
-  0% { transform: scale(0.6); opacity: 0.8; }
-  100% { transform: scale(2.4); opacity: 0; }
-}
-
-/* === EXPRESSION ENGINE === */
+/* ------------------------------------------------------------ */
+/* 8. EXPRESSION ENGINE                                         */
+/* ------------------------------------------------------------ */
 
 .expression-shift {
   transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
@@ -258,7 +228,9 @@
   transition: d 0.18s ease-out, stroke 0.18s ease-out;
 }
 
-/* === MASK COLOR VARIABLES === */
+/* ------------------------------------------------------------ */
+/* 9. MASK TIER VARIABLES                                       */
+/* ------------------------------------------------------------ */
 
 .mask-tier-1 { --aura-color: #0ea5e9; }
 .mask-tier-2 { --aura-color: #22c55e; }
@@ -266,61 +238,28 @@
 .mask-tier-4 { --aura-color: #f97316; }
 .mask-tier-5 { --aura-color: #ef4444; }
 
-/* === AURA APPLICATION === */
-
-.mask-aura {
-  animation: aura-breathe 3s ease-in-out infinite;
-}
-
-.mask-aura-strong {
-  animation: aura-pulse 2.2s ease-in-out infinite;
-}
-
-/* === EMOTION ENGINE (BLACKOUT FIX) === */
+/* ------------------------------------------------------------ */
+/* 10. EMOTION ENGINE                                           */
+/* ------------------------------------------------------------ */
 
 .emotion-boost { filter: brightness(1.25) saturate(1.3); }
 .emotion-intense { transform: scale(1.06); }
 .emotion-soft { transform: scale(0.98); }
-
-/* ❗ FIXED: emotion-calm no longer applies ANY filter */
 .emotion-calm { }
 
-/* === ASCENSION GLOW (SAFE, NO FILTER) === */
+/* ------------------------------------------------------------ */
+/* 11. AURA GLOW TIERS                                          */
+/* ------------------------------------------------------------ */
 
-.ascend-tier-1 { box-shadow: 0 0 4px rgba(255,255,255,0.15); }
-.ascend-tier-2 { box-shadow: 0 0 6px rgba(255,255,255,0.25); }
-.ascend-tier-3 { box-shadow: 0 0 10px rgba(255,255,255,0.35); }
-.ascend-tier-4 { box-shadow: 0 0 14px rgba(255,255,255,0.45); }
+.aura-tier-1 { box-shadow: 0 0 12px rgba(124, 58, 237, 0.55); }
+.aura-tier-2 { box-shadow: 0 0 12px rgba(220, 38, 38, 0.55); }
+.aura-tier-3 { box-shadow: 0 0 12px rgba(34, 197, 94, 0.55); }
+.aura-tier-4 { box-shadow: 0 0 12px rgba(250, 204, 21, 0.55); }
+.aura-tier-5 { box-shadow: 0 0 12px rgba(59, 130, 246, 0.55); }
 
-/* === SURGE === */
-
-.surge-weak { opacity: 1; }
-.surge-medium { opacity: 1; }
-.surge-strong { opacity: 1; }
-
-/* === REACTIONBAR AURA GLOW (MISSING) === */
-
-.aura-tier-1 {
-  box-shadow: 0 0 12px rgba(124, 58, 237, 0.55);
-}
-
-.aura-tier-2 {
-  box-shadow: 0 0 12px rgba(220, 38, 38, 0.55);
-}
-
-.aura-tier-3 {
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.55);
-}
-
-.aura-tier-4 {
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.55);
-}
-
-.aura-tier-5 {
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.55);
-}
-
-/* === D4 DARK TEMPLE BACKGROUND === */
+/* ------------------------------------------------------------ */
+/* 12. D4 DARK TEMPLE BACKGROUND                                */
+/* ------------------------------------------------------------ */
 
 .plaza-background {
   background: radial-gradient(circle at center, #0a0a0f 0%, #0d0b1a 40%, #000000 100%);
@@ -329,7 +268,9 @@
   background-attachment: fixed;
 }
 
-/* === D4 OBSIDIAN RITUAL PANEL === */
+/* ------------------------------------------------------------ */
+/* 13. D4 OBSIDIAN RITUAL PANEL                                 */
+/* ------------------------------------------------------------ */
 
 .dark-temple-panel {
   background: rgba(10, 10, 15, 0.85);
@@ -364,7 +305,9 @@
   }
 }
 
-/* === D4 EMOJI FIRE AURA === */
+/* ------------------------------------------------------------ */
+/* 14. D4 EMOJI FIRE AURA + LEVITATION                          */
+/* ------------------------------------------------------------ */
 
 .emoji-glyph {
   position: relative;
@@ -382,7 +325,7 @@
   50% { transform: translateY(-12px); }
 }
 
-/* Optional: flame ring behind emoji */
+/* Flame aura ring behind emoji */
 .emoji-glyph::before {
   content: "";
   position: absolute;
@@ -405,7 +348,9 @@
   100% { opacity: 0.65; transform: scale(0.95); }
 }
 
-/* === D4 REACTION BAR — NEON RITUAL GLOW === */
+/* ------------------------------------------------------------ */
+/* 15. D4 REACTION BAR — NEON RITUAL GLOW                       */
+/* ------------------------------------------------------------ */
 
 .reaction-mask {
   position: relative;
@@ -423,7 +368,6 @@
     drop-shadow(0 0 18px rgba(140, 0, 255, 0.75));
 }
 
-/* Count glow */
 .reaction-count {
   color: #fff;
   font-weight: 600;
@@ -432,7 +376,6 @@
     0 0 12px rgba(140, 0, 255, 0.75);
 }
 
-/* Pulse ring when reacting */
 .reaction-pulse-ring {
   position: absolute;
   inset: -6px;
@@ -459,7 +402,9 @@
   }
 }
 
-/* === D4 TEMPLE EMBER PARTICLES === */
+/* ------------------------------------------------------------ */
+/* 16. D4 TEMPLE EMBER PARTICLES                                */
+/* ------------------------------------------------------------ */
 
 .temple-ember {
   position: absolute;
@@ -496,7 +441,6 @@
   }
 }
 
-/* Optional: random drift for more natural movement */
 .temple-ember:nth-child(odd) {
   animation-duration: 5.2s;
   animation-delay: 1.2s;
@@ -506,3 +450,9 @@
   animation-duration: 4.1s;
   animation-delay: 0.4s;
 }
+
+/* ------------------------------------------------------------ */
+/* 17. END OF D4 THEME — FINAL OVERRIDES                        */
+/* ------------------------------------------------------------ */
+
+/* (Reserved for future Plaza upgrades) */
