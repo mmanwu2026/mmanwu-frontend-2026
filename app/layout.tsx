@@ -34,7 +34,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       {/* plaza-css-bust-10 */}
-      <body className="min-h-screen flex flex-col items-center bg-white">
+      <body className="min-h-screen flex flex-col items-center">
         <UserProvider>
           <div className="w-full max-w-xl px-4">
 
