@@ -10,9 +10,9 @@ import { useUser } from "@/context/UserContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
-/* ------------------------------------------------------------
-   TYPES
------------------------------------------------------------- */
+// -----------------------------
+// Types
+// -----------------------------
 interface CreatorProfile {
   id: string;
   username: string | null;
@@ -41,17 +41,17 @@ interface PlazaPost {
   };
 }
 
-/* ------------------------------------------------------------
-   HELPERS
------------------------------------------------------------- */
+// -----------------------------
+// Helpers
+// -----------------------------
 function auraColor(mask: number) {
   switch (mask) {
-    case 1: return "#7C3AED";
-    case 2: return "#DC2626";
-    case 3: return "#22C55E";
-    case 4: return "#FACC15";
-    case 5: return "#3B82F6";
-    case 6: return "#F97316";
+    case 1: return "#7C3AED"; // Dark Whisper
+    case 2: return "#DC2626"; // Fierce Awakener
+    case 3: return "#22C55E"; // Gentle Riser
+    case 4: return "#FACC15"; // Radiant Ascender
+    case 5: return "#3B82F6"; // Seraphic Uplifter
+    case 6: return "#F97316"; // Divine Apex
     default: return "#22C55E";
   }
 }
@@ -84,16 +84,27 @@ function auraStyle(score = 0, mask: number, positivityRatio: number) {
   const finalLevel = Math.max(0, Math.min(4, intensityLevel + boost + dampen));
 
   if (finalLevel === 0) return { borderColor: color };
-  if (finalLevel === 1) return { borderColor: color, animation: "aura-breathe 3s ease-in-out infinite" };
-  if (finalLevel === 2) return { borderColor: color, animation: "aura-breathe 2.4s ease-in-out infinite" };
-  if (finalLevel === 3) return { borderColor: color, animation: "aura-pulse 2s ease-in-out infinite" };
-
-  return { borderColor: color, animation: "aura-pulse 1.6s ease-in-out infinite" };
+  if (finalLevel === 1) return {
+    borderColor: color,
+    animation: "aura-breathe 3s ease-in-out infinite",
+  };
+  if (finalLevel === 2) return {
+    borderColor: color,
+    animation: "aura-breathe 2.4s ease-in-out infinite",
+  };
+  if (finalLevel === 3) return {
+    borderColor: color,
+    animation: "aura-pulse 2s ease-in-out infinite",
+  };
+  return {
+    borderColor: color,
+    animation: "aura-pulse 1.6s ease-in-out infinite",
+  };
 }
 
-/* ------------------------------------------------------------
-   MAIN PLAZA PAGE
------------------------------------------------------------- */
+// -----------------------------
+// Main Plaza Page
+// -----------------------------
 export default function PlazaPage() {
   const { user, loading: userLoading } = useUser();
 
@@ -116,9 +127,9 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  /* ------------------------------------------------------------
-     FETCH POSTS
-  ------------------------------------------------------------ */
+  // -----------------------------
+  // Fetch Posts
+  // -----------------------------
   async function fetchPosts() {
     try {
       const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
@@ -193,9 +204,9 @@ export default function PlazaPage() {
     }
   }
 
-  /* ------------------------------------------------------------
-     FETCH CREATOR PROFILE
-  ------------------------------------------------------------ */
+  // -----------------------------
+  // Fetch Creator Profile
+  // -----------------------------
   async function fetchCreatorProfile(id: string) {
     if (creators[id]) return creators[id];
 
@@ -219,13 +230,10 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  /* ------------------------------------------------------------
-     RENDER
-  ------------------------------------------------------------ */
   return (
     <div className="plaza-background">
 
-      {/* TEMPLE EMBERS */}
+      {/* === D4 TEMPLE EMBERS === */}
       <div className="temple-ember" style={{ left: "12%", top: "20%" }}></div>
       <div className="temple-ember" style={{ left: "28%", top: "40%" }}></div>
       <div className="temple-ember" style={{ left: "45%", top: "10%" }}></div>
@@ -356,7 +364,6 @@ export default function PlazaPage() {
                     p-8
                     rounded-2xl
                     dark-temple-panel
-                    mask-aura
                     transition-all
                     duration-500
                     overflow-visible
@@ -369,19 +376,14 @@ export default function PlazaPage() {
                     ${ascensionClass}
                     ${surgeClass}
                     ${emotionClass}
-                    aura-tier-${post.autoMask}
                   `}
-                  style={{
-                    "--aura-color": auraColor(post.autoMask),
-                    ...auraStyle(score, post.autoMask, positivityRatio),
-                  } as React.CSSProperties}
+                  style={
+  {
+    "--aura-color": auraColor(post.autoMask),
+    ...auraStyle(score, post.autoMask, positivityRatio),
+  } as unknown as React.CSSProperties
+}
                 >
-
-                  {/* ASCENSION RING + HALO + SPIRIT PARTICLES */}
-                  <div className="ascension-ring"></div>
-                  <div className="ascension-halo"></div>
-                  <div className="spirit-spark"></div>
-                  <div className="spirit-particle"></div>
 
                   {/* CREATOR BADGE */}
                   <Link
@@ -413,10 +415,12 @@ export default function PlazaPage() {
                       <div className="ritual-shadow-floor"></div>
                       <div
                         className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                        style={{
-                          "--float-y": `${floatY}px`,
-                          color: auraColor(post.autoMask),
-                        } as CSSProperties}
+                        style={
+                          {
+                            "--float-y": `${floatY}px`,
+                            color: auraColor(post.autoMask),
+                          } as CSSProperties
+                        }
                       >
                         {glyphEmoji}
                       </div>
@@ -514,7 +518,6 @@ export default function PlazaPage() {
                                     mask3: r["3"] ?? 0,
                                     mask4: r["4"] ?? 0,
                                     mask5: r["5"] ?? 0,
-                                    mask6: r["6"] ?? 0,
                                   },
                                 }
                               : p
@@ -528,12 +531,11 @@ export default function PlazaPage() {
               );
             })}
 
-          </div> {/* closes posts wrapper */}
-        </div> {/* closes center wrapper */}
-      </div> {/* closes mt-20 px-4 wrapper */}
+          </div>
+        </div>
 
-      <FloatingComposer onPost={fetchPosts} />
-
-    </div> {/* closes plaza-background */}
+        <FloatingComposer onPost={fetchPosts} />
+      </div>
+    </div>
   );
 }
