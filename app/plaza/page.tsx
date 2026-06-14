@@ -352,7 +352,7 @@ export default function PlazaPage() {
                  FULLY PATCHED CARD JSX
               ------------------------------------------------------------ */
               return (
-                <div>
+                <div
                   key={post.id}
                   className={`
                     relative
@@ -377,7 +377,7 @@ export default function PlazaPage() {
                   style={{
                     "--aura-color": auraColor(post.autoMask),
                     ...auraStyle(score, post.autoMask, positivityRatio),
-                  } as unknown as React.CSSProperties}
+                  } as React.CSSProperties}
                 >
 
                   {/* ASCENSION RING + HALO + SPIRIT PARTICLES */}
