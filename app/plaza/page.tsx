@@ -183,7 +183,28 @@ export default function PlazaPage() {
 
   return (
     <div className="plaza-background">
-        {/* === POSTS === */}
+
+      {/* TOP NAV */}
+      <div className="w-full flex justify-between items-center px-6 py-4 bg-black/40 backdrop-blur-md fixed top-0 left-0 z-50 border-b border-purple-900/40">
+        <Link href="/plaza" className="text-purple-300 font-semibold">
+          Mmanwu Plaza
+        </Link>
+
+        <Link href="/profile/me" className="text-purple-300 font-semibold">
+          My Profile
+        </Link>
+      </div>
+
+      {/* CONTENT WRAPPER */}
+      <div className="pt-28 pb-20 flex flex-col items-center w-full">
+
+        {loading && <p className="text-gray-300">Loading posts…</p>}
+        {error && <p className="text-red-400">{error}</p>}
+        {!loading && posts.length === 0 && (
+          <p className="text-gray-300">No posts yet…</p>
+        )}
+
+        {/* POSTS */}
         <div className="flex flex-col items-center space-y-16 w-full max-w-[480px]">
 
           {posts.map((post) => {
@@ -378,46 +399,47 @@ export default function PlazaPage() {
                       const newScore = updatedPost.spiritScore ?? score;
 
                       let newAutoMask = 2;
-if (newScore > 500) newAutoMask = 6;
-else if (newScore > 200) newAutoMask = 5;
-else if (newScore > 100) newAutoMask = 4;
-else if (newScore > 20) newAutoMask = 3;
+                      if (newScore > 500) newAutoMask = 6;
+                      else if (newScore > 200) newAutoMask = 5;
+                      else if (newScore > 100) newAutoMask = 4;
+                      else if (newScore > 20) newAutoMask = 3;
 
-setPosts((prev) =>
-  prev.map((p) =>
-    p.id === updatedPost.id
-      ? {
-          ...p,
-          maskTier: updatedPost.mask ?? p.maskTier,
-          autoMask: newAutoMask,
-          spiritScore: newScore,
-          positivityRatio: newPositivityRatio,
-          reactions: {
-            mask1: r["1"] ?? 0,
-            mask2: r["2"] ?? 0,
-            mask3: r["3"] ?? 0,
-            mask4: r["4"] ?? 0,
-            mask5: r["5"] ?? 0,
-            mask6: r["6"] ?? 0,
-          },
-        }
-      : p
-  )
-);
+                      setPosts((prev) =>
+                        prev.map((p) =>
+                          p.id === updatedPost.id
+                            ? {
+                                ...p,
+                                maskTier: updatedPost.mask ?? p.maskTier,
+                                autoMask: newAutoMask,
+                                spiritScore: newScore,
+                                positivityRatio: newPositivityRatio,
+                                reactions: {
+                                  mask1: r["1"] ?? 0,
+                                  mask2: r["2"] ?? 0,
+                                  mask3: r["3"] ?? 0,
+                                  mask4: r["4"] ?? 0,
+                                  mask5: r["5"] ?? 0,
+                                  mask6: r["6"] ?? 0,
+                                },
+                              }
+                            : p
+                        )
+                      );
                     }}
                   />
                 </div>
                 {/* closes the Ritual Panel card */}
+              </div>
             );
           })}
 
-                </div>
+        </div>
         {/* closes the posts wrapper */}
 
         <FloatingComposer onPost={fetchPosts} />
 
       </div>
-      {/* closes the D4 content wrapper */}
+      {/* closes the content wrapper */}
     </div>
     {/* closes plaza-background */}
   );
