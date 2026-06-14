@@ -100,13 +100,12 @@ export default function PlazaPage() {
         const spiritScore = p.spiritScore ?? 0;
 
         let autoMask = 2;
-        if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
-        else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
-        else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
-        else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
-        else if (spiritScore > 500) autoMask = 6;
+        if (spiritScore <= 20) autoMask = 2;
+        else if (spiritScore <= 100) autoMask = 3;
+        else if (spiritScore <= 200) autoMask = 4;
+        else if (spiritScore <= 500) autoMask = 5;
+        else autoMask = 6;
 
-        // ⭐ Fetch creator profile (cached)
         fetchCreatorProfile(p.creatorId);
 
         return {
@@ -220,24 +219,18 @@ export default function PlazaPage() {
 
   return (
     <>
-      <style>{`
-        .emoji-glyph {
-          position: absolute;
-          top: -1.25rem;
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 2.5rem;
-          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
-        }
+      {/* ⭐ FIXED TOP NAVIGATION */}
+      <div className="w-full flex justify-between items-center px-6 py-4 bg-white shadow-sm fixed top-0 left-0 z-50">
+        <Link href="/plaza" className="text-purple-600 font-semibold">
+          Mmanwu Plaza
+        </Link>
 
-        @keyframes levitate {
-          0%   { transform: translateX(-50%) translateY(var(--float-y)); }
-          50%  { transform: translateX(-50%) translateY(calc(var(--float-y) - 6px)); }
-          100% { transform: translateX(-50%) translateY(var(--float-y)); }
-        }
-      `}</style>
+        <Link href="/profile/me" className="text-purple-600 font-semibold">
+          My Profile
+        </Link>
+      </div>
 
-      <div className="w-full flex flex-col items-center mt-10 px-4 bg-white">
+      <div className="w-full flex flex-col items-center mt-20 px-4 bg-white">
         <h1 className="text-2xl font-bold text-black mb-6 text-center">
           Mmanwu Plaza
         </h1>
@@ -272,22 +265,6 @@ export default function PlazaPage() {
               const positivityRatio =
                 total > 0 ? positive / total : post.positivityRatio ?? 0.5;
 
-              let baseStage =
-                score < 6 ? 1 :
-                score < 16 ? 2 :
-                score < 31 ? 3 :
-                score < 51 ? 4 :
-                5;
-
-              const stageBoost = positivityRatio > 0.7 ? 1 : 0;
-              const stageDampen = positivityRatio < 0.3 ? -1 : 0;
-
-              let stage = Math.max(1, Math.min(5, baseStage + stageBoost + stageDampen));
-
-              if (debugAscension) {
-                stage = (post.id % 5) + 1;
-              }
-
               const key = String(post.id);
 
               const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
@@ -315,7 +292,9 @@ export default function PlazaPage() {
                   ? "surge-strong"
                   : score > 150
                   ? "surge-medium"
-                  : "surge-weak";
+                  : score > 100
+                  ? "surge-weak"
+                  : "";
 
               const emotionClass =
                 positivityRatio > 0.75
@@ -373,7 +352,7 @@ export default function PlazaPage() {
 
                   {/* ⭐ CLICKABLE CREATOR IDENTITY BLOCK */}
                   <Link
-                    href={`/creator/${post.creatorId}`}
+                    href={`/profile/${post.creatorId}`}
                     className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
                   >
                     <img
@@ -434,12 +413,13 @@ export default function PlazaPage() {
 
                   {/* ⭐ VIEW PROFILE LINK */}
                   <Link
-                    href={`/creator/${post.creatorId}`}
+                    href={`/profile/${post.creatorId}`}
                     className="text-xs text-blue-600 hover:underline mt-3 mb-1 block"
                   >
                     View Profile →
                   </Link>
 
+                  {/* ⭐ REACTION BAR */}
                   <ReactionBar
                     postId={String(post.id)}
                     creatorId={post.creatorId}
@@ -475,11 +455,11 @@ export default function PlazaPage() {
                       const newScore = updatedPost.spiritScore ?? score;
 
                       let newAutoMask = 2;
-                      if (newScore >= 0 && newScore <= 20) newAutoMask = 2;
-                      else if (newScore >= 21 && newScore <= 100) newAutoMask = 3;
-                      else if (newScore >= 101 && newScore <= 200) newAutoMask = 4;
-                      else if (newScore >= 201 && newScore <= 500) newAutoMask = 5;
-                      else if (newScore > 500) newAutoMask = 6;
+                      if (newScore <= 20) newAutoMask = 2;
+                      else if (newScore <= 100) newAutoMask = 3;
+                      else if (newScore <= 200) newAutoMask = 4;
+                      else if (newScore <= 500) newAutoMask = 5;
+                      else newAutoMask = 6;
 
                       setPosts((prev) =>
                         prev.map((p) =>
@@ -509,6 +489,7 @@ export default function PlazaPage() {
           </div>
         </div>
 
+        {/* ⭐ FLOATING COMPOSER */}
         <FloatingComposer onPost={fetchPosts} />
       </div>
     </>
