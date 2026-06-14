@@ -530,6 +530,7 @@ export default function PlazaPage() {
 
 </div> {/* closes posts wrapper */}
 </div> {/* closes center wrapper */}
+</div> {/* closes mt-20 px-4 wrapper */}
 
 <FloatingComposer onPost={fetchPosts} />
 
