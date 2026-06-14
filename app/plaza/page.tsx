@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import React, { useEffect, useState, useRef } from "react";
-import type { CSSProperties } from "react";
 import ReactionBar from "@/components/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
 import { useUser } from "@/context/UserContext";
@@ -37,58 +36,8 @@ interface PlazaPost {
     mask3: number;
     mask4: number;
     mask5: number;
-    mask6: number;
+    mask6?: number;
   };
-}
-
-// -----------------------------
-// Helpers
-// -----------------------------
-function auraColor(mask: number) {
-  switch (mask) {
-    case 1: return "#7C3AED";
-    case 2: return "#DC2626";
-    case 3: return "#22C55E";
-    case 4: return "#FACC15";
-    case 5: return "#3B82F6";
-    case 6: return "#F97316";
-    default: return "#22C55E";
-  }
-}
-
-function maskTitle(mask: number) {
-  switch (mask) {
-    case 1: return "Dark Whisper";
-    case 2: return "Fierce Awakener";
-    case 3: return "Gentle Riser";
-    case 4: return "Radiant Ascender";
-    case 5: return "Seraphic Uplifter";
-    case 6: return "Divine Apex";
-    default: return "Unknown Mask";
-  }
-}
-
-function auraStyle(score = 0, mask: number, positivityRatio: number) {
-  const color = auraColor(mask);
-
-  let intensityLevel =
-    score < 6 ? 0 :
-    score < 16 ? 1 :
-    score < 31 ? 2 :
-    score < 51 ? 3 :
-    4;
-
-  const boost = positivityRatio > 0.6 ? 1 : 0;
-  const dampen = positivityRatio < 0.3 ? -1 : 0;
-
-  const finalLevel = Math.max(0, Math.min(4, intensityLevel + boost + dampen));
-
-  if (finalLevel === 0) return { borderColor: color };
-  if (finalLevel === 1) return { borderColor: color, animation: "aura-breathe 3s ease-in-out infinite" };
-  if (finalLevel === 2) return { borderColor: color, animation: "aura-breathe 2.4s ease-in-out infinite" };
-  if (finalLevel === 3) return { borderColor: color, animation: "aura-pulse 2s ease-in-out infinite" };
-
-  return { borderColor: color, animation: "aura-pulse 1.6s ease-in-out infinite" };
 }
 
 // -----------------------------
@@ -101,17 +50,30 @@ export default function PlazaPage() {
   const [posts, setPosts] = useState<PlazaPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [debugAscension, setDebugAscension] = useState(false);
 
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
   useEffect(() => {
-    fetchPosts();
+    function handleKey(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "d") {
+        setDebugAscension((prev) => !prev);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
+  // -----------------------------
+  // Fetch Posts
+  // -----------------------------
   async function fetchPosts() {
     try {
-      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, { cache: "no-store" });
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
+        cache: "no-store",
+      });
+
       if (!res.ok) throw new Error("Failed to fetch posts");
 
       const data = await res.json();
@@ -119,18 +81,32 @@ export default function PlazaPage() {
       const patched: PlazaPost[] = data.map((p: any) => {
         const r = p.reactions || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
-        const total = (r[1] || 0) + (r[2] || 0) + (r[3] || 0) + (r[4] || 0) + (r[5] || 0) + (r[6] || 0);
-        const positive = (r[3] || 0) + (r[4] || 0) + (r[5] || 0) + (r[6] || 0);
+        const total =
+          (r[1] || 0) +
+          (r[2] || 0) +
+          (r[3] || 0) +
+          (r[4] || 0) +
+          (r[5] || 0) +
+          (r[6] || 0);
+
+        const positive =
+          (r[3] || 0) +
+          (r[4] || 0) +
+          (r[5] || 0) +
+          (r[6] || 0);
 
         const positivityRatio = total > 0 ? positive / total : 0.5;
+
         const spiritScore = p.spiritScore ?? 0;
 
         let autoMask = 2;
-        if (spiritScore > 500) autoMask = 6;
-        else if (spiritScore > 200) autoMask = 5;
-        else if (spiritScore > 100) autoMask = 4;
-        else if (spiritScore > 20) autoMask = 3;
+        if (spiritScore >= 0 && spiritScore <= 20) autoMask = 2;
+        else if (spiritScore >= 21 && spiritScore <= 100) autoMask = 3;
+        else if (spiritScore >= 101 && spiritScore <= 200) autoMask = 4;
+        else if (spiritScore >= 201 && spiritScore <= 500) autoMask = 5;
+        else if (spiritScore > 500) autoMask = 6;
 
+        // ⭐ Fetch creator profile (cached)
         fetchCreatorProfile(p.creatorId);
 
         return {
@@ -153,9 +129,13 @@ export default function PlazaPage() {
         };
       });
 
-      setPosts(
-        patched.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      const sorted = patched.sort(
+        (a: PlazaPost, b: PlazaPost) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
       );
+
+      setPosts(sorted);
     } catch (err) {
       setError("Unable to load posts.");
     } finally {
@@ -163,6 +143,9 @@ export default function PlazaPage() {
     }
   }
 
+  // -----------------------------
+  // Fetch Creator Profile
+  // -----------------------------
   async function fetchCreatorProfile(id: string) {
     if (creators[id]) return creators[id];
 
@@ -174,6 +157,7 @@ export default function PlazaPage() {
       const profile = data.user;
 
       setCreators((prev) => ({ ...prev, [id]: profile }));
+
       return profile;
     } catch (err) {
       console.error("Creator profile fetch error:", err);
@@ -181,204 +165,296 @@ export default function PlazaPage() {
     }
   }
 
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  // -----------------------------
+  // Aura Color + Style
+  // -----------------------------
+  function auraColor(mask: number) {
+    switch (mask) {
+      case 1: return "#7C3AED";
+      case 2: return "#DC2626";
+      case 3: return "#22C55E";
+      case 4: return "#FACC15";
+      case 5: return "#3B82F6";
+      case 6: return "#F97316";
+      default: return "#22C55E";
+    }
+  }
+
+  function auraStyle(score = 0, mask: number, positivityRatio: number) {
+    const color = auraColor(mask);
+
+    let intensityLevel =
+      score < 6 ? 0 :
+      score < 16 ? 1 :
+      score < 31 ? 2 :
+      score < 51 ? 3 :
+      4;
+
+    const boost = positivityRatio > 0.6 ? 1 : 0;
+    const dampen = positivityRatio < 0.3 ? -1 : 0;
+
+    const finalLevel = Math.max(0, Math.min(4, intensityLevel + boost + dampen));
+
+    if (finalLevel === 0) return { borderColor: color };
+    if (finalLevel === 1) return {
+      borderColor: color,
+      animation: "aura-breathe 3s ease-in-out infinite",
+    };
+    if (finalLevel === 2) return {
+      borderColor: color,
+      animation: "aura-breathe 2.4s ease-in-out infinite",
+    };
+    if (finalLevel === 3) return {
+      borderColor: color,
+      animation: "aura-pulse 2s ease-in-out infinite",
+    };
+    return {
+      borderColor: color,
+      animation: "aura-pulse 1.6s ease-in-out infinite",
+    };
+  }
+
   return (
-    <div className="plaza-background">
+    <>
+      <style>{`
+        .emoji-glyph {
+          position: absolute;
+          top: -1.25rem;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 2.5rem;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+        }
 
-      {/* TOP NAV */}
-      <div className="w-full flex justify-between items-center px-6 py-4 bg-black/40 backdrop-blur-md fixed top-0 left-0 z-50 border-b border-purple-900/40">
-        <Link href="/plaza" className="text-purple-300 font-semibold">
+        @keyframes levitate {
+          0%   { transform: translateX(-50%) translateY(var(--float-y)); }
+          50%  { transform: translateX(-50%) translateY(calc(var(--float-y) - 6px)); }
+          100% { transform: translateX(-50%) translateY(var(--float-y)); }
+        }
+      `}</style>
+
+      <div className="w-full flex flex-col items-center mt-10 px-4 bg-white">
+        <h1 className="text-2xl font-bold text-black mb-6 text-center">
           Mmanwu Plaza
-        </Link>
+        </h1>
 
-        <Link href="/profile/me" className="text-purple-300 font-semibold">
-          My Profile
-        </Link>
-      </div>
-
-      {/* CONTENT WRAPPER */}
-      <div className="pt-28 pb-20 flex flex-col items-center w-full">
-
-        {loading && <p className="text-gray-300">Loading posts…</p>}
-        {error && <p className="text-red-400">{error}</p>}
+        {loading && <p className="text-gray-600">Loading posts…</p>}
+        {error && <p className="text-red-500">{error}</p>}
         {!loading && posts.length === 0 && (
-          <p className="text-gray-300">No posts yet…</p>
+          <p className="text-gray-600">No posts yet…</p>
         )}
 
-        {/* POSTS */}
-        <div className="flex flex-col items-center space-y-16 w-full max-w-[480px]">
+        <div className="w-full flex flex-col items-center">
+          <div className="space-y-12 w-full flex flex-col items-center">
+            {posts.map((post) => {
+              const creator = creators[post.creatorId];
 
-          {posts.map((post) => {
-            const creator = creators[post.creatorId];
-            const score = post.spiritScore ?? 0;
+              const score = post.spiritScore ?? 0;
 
-            const total =
-              (post.reactions?.mask1 ?? 0) +
-              (post.reactions?.mask2 ?? 0) +
-              (post.reactions?.mask3 ?? 0) +
-              (post.reactions?.mask4 ?? 0) +
-              (post.reactions?.mask5 ?? 0) +
-              (post.reactions?.mask6 ?? 0);
+              const total =
+                (post.reactions?.mask1 ?? 0) +
+                (post.reactions?.mask2 ?? 0) +
+                (post.reactions?.mask3 ?? 0) +
+                (post.reactions?.mask4 ?? 0) +
+                (post.reactions?.mask5 ?? 0) +
+                (post.reactions?.mask6 ?? 0);
 
-            const positive =
-              (post.reactions?.mask3 ?? 0) +
-              (post.reactions?.mask4 ?? 0) +
-              (post.reactions?.mask5 ?? 0) +
-              (post.reactions?.mask6 ?? 0);
+              const positive =
+                (post.reactions?.mask3 ?? 0) +
+                (post.reactions?.mask4 ?? 0) +
+                (post.reactions?.mask5 ?? 0) +
+                (post.reactions?.mask6 ?? 0);
 
-            const positivityRatio =
-              total > 0 ? positive / total : post.positivityRatio ?? 0.5;
+              const positivityRatio =
+                total > 0 ? positive / total : post.positivityRatio ?? 0.5;
 
-            const key = String(post.id);
-            const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
-            const prevPosReacts = prevPositiveReactionsMap.current[key] ?? positive;
+              let baseStage =
+                score < 6 ? 1 :
+                score < 16 ? 2 :
+                score < 31 ? 3 :
+                score < 51 ? 4 :
+                5;
 
-            const positivitySpike = positivityRatio - prevPos > 0.25;
-            const newPositiveReaction = positive > prevPosReacts;
-            const surge = positivitySpike || newPositiveReaction;
+              const stageBoost = positivityRatio > 0.7 ? 1 : 0;
+              const stageDampen = positivityRatio < 0.3 ? -1 : 0;
 
-            prevPositivityMap.current[key] = positivityRatio;
-            prevPositiveReactionsMap.current[key] = positive;
+              let stage = Math.max(1, Math.min(5, baseStage + stageBoost + stageDampen));
 
-            const ascensionClass =
-              score > 500 ? "ascend-tier-5" :
-              score > 200 ? "ascend-tier-4" :
-              score > 150 ? "ascend-tier-3" :
-              score > 100 ? "ascend-tier-2" :
-              "ascend-tier-1";
+              if (debugAscension) {
+                stage = (post.id % 5) + 1;
+              }
 
-            const surgeClass =
-              surge && score > 200 ? "surge-strong" :
-              surge && score > 150 ? "surge-medium" :
-              surge && score > 100 ? "surge-weak" :
-              "";
+              const key = String(post.id);
 
-            const emotionClass =
-              positivityRatio > 0.75 ? "emotion-boost" :
-              positivityRatio > 0.55 ? "emotion-intense" :
-              positivityRatio < 0.25 ? "emotion-soft" :
-              "emotion-calm";
+              const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
+              const prevPosReacts = prevPositiveReactionsMap.current[key] ?? positive;
 
-            let emojiAnimClass = "";
-            switch (post.autoMask) {
-              case 1: emojiAnimClass = "emoji-pulse"; break;
-              case 2: emojiAnimClass = "emoji-bounce"; break;
-              case 3: emojiAnimClass = "emoji-wiggle"; break;
-              case 4: emojiAnimClass = "emoji-pop"; break;
-              case 5: emojiAnimClass = "emoji-shimmer"; break;
-              case 6: emojiAnimClass = "emoji-shimmer"; break;
-              default: emojiAnimClass = "emoji-pulse";
-            }
+              const positivitySpike = positivityRatio - prevPos > 0.25;
+              const newPositiveReaction = positive > prevPosReacts;
 
-            const emojiReactClass = surge ? "emoji-react-pop" : "";
-            const floatY = Math.max(-20 - score * 0.25, -90);
+              const surge = positivitySpike || newPositiveReaction;
 
-            const glyphEmoji =
-              post.autoMask === 1 ? "😶‍🌫️" :
-              post.autoMask === 2 ? "😤" :
-              post.autoMask === 3 ? "😊" :
-              post.autoMask === 4 ? "🤩" :
-              post.autoMask === 5 ? "😇" :
-              post.autoMask === 6 ? "🔱" :
-              "😤";
+              prevPositivityMap.current[key] = positivityRatio;
+              prevPositiveReactionsMap.current[key] = positive;
 
-                        return (
-              <div
-                key={post.id}
-                className={`
-                  relative p-8 rounded-2xl dark-temple-panel transition-all duration-500
-                  overflow-visible isolate-layout min-h-[420px] max-w-[380px] mx-auto
-                  plaza-card-base flex flex-col items-center
-                  ${ascensionClass} ${surgeClass} ${emotionClass}
-                `}
-                style={{
-                  "--aura-color": auraColor(post.autoMask),
-                  ...auraStyle(score, post.autoMask, positivityRatio),
-                } as CSSProperties}
-              >
+              const ascensionClass =
+                score > 200
+                  ? "ascend-tier-4"
+                  : score > 150
+                  ? "ascend-tier-3"
+                  : score > 100
+                  ? "ascend-tier-2"
+                  : "ascend-tier-1";
 
-                {/* CREATOR BADGE */}
-                <Link
-                  href={`/profile/${post.creatorId}`}
-                  className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
+              const surgeClass =
+                score > 200
+                  ? "surge-strong"
+                  : score > 150
+                  ? "surge-medium"
+                  : "surge-weak";
+
+              const emotionClass =
+                positivityRatio > 0.75
+                  ? "emotion-boost"
+                  : positivityRatio > 0.55
+                  ? "emotion-intense"
+                  : positivityRatio < 0.25
+                  ? "emotion-soft"
+                  : "emotion-calm";
+
+              let emojiAnimClass = "";
+              switch (post.autoMask) {
+                case 1: emojiAnimClass = "emoji-pulse"; break;
+                case 2: emojiAnimClass = "emoji-bounce"; break;
+                case 3: emojiAnimClass = "emoji-wiggle"; break;
+                case 4: emojiAnimClass = "emoji-pop"; break;
+                case 5: emojiAnimClass = "emoji-shimmer"; break;
+                case 6: emojiAnimClass = "emoji-shimmer"; break;
+                default: emojiAnimClass = "emoji-pulse";
+              }
+
+              const emojiReactClass = surge ? "emoji-react-pop" : "";
+
+              const floatY = Math.max(-20 - score * 0.25, -90);
+
+              return (
+                <div
+                  key={post.id}
+                  className={`
+                    relative
+                    p-8
+                    rounded-2xl
+                    bg-white
+                    transition-all
+                    duration-500
+                    border
+                    overflow-visible
+                    isolate-layout
+                    min-h-[420px]
+                    shadow-[0_10px_30px_rgba(0,0,0,0.05)]
+                    max-w-[300px]
+                    mx-auto
+                    plaza-card-base
+                    ${ascensionClass}
+                    ${surgeClass}
+                    ${emotionClass}
+                  `}
+                  style={
+                    {
+                      "--aura-color": auraColor(post.autoMask),
+                      ...auraStyle(score, post.autoMask, positivityRatio),
+                    } as unknown as React.CSSProperties
+                  }
                 >
-                  <img
-                    src={creator?.avatar_url || "/default-avatar.png"}
-                    alt="avatar"
-                    className="w-10 h-10 rounded-full border border-gray-300 object-cover"
-                  />
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-semibold text-gray-800">
-                      {creator?.username || "Unknown User"}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Mask Tier: {creator?.mask_tier ?? "?"}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Spirit Score: {creator?.spirit_score ?? 0}
-                    </span>
-                  </div>
-                </Link>
 
-                {/* GLYPH + FLAME RING */}
-                <div className="ritual-glyph-container mt-10">
-                  <div className="ritual-glyph-levitate">
-                    <div className="ritual-flame-ring"></div>
-                    <div className="ritual-shadow-floor"></div>
-                    <div
-                      className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
-                      style={{
+                  {/* ⭐ CLICKABLE CREATOR IDENTITY BLOCK */}
+                  <Link
+                    href={`/creator/${post.creatorId}`}
+                    className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
+                  >
+                    <img
+                      src={creator?.avatar_url || "/default-avatar.png"}
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full border border-gray-300 object-cover"
+                    />
+                    <div className="flex flex-col leading-tight">
+                      <span className="font-semibold text-gray-800">
+                        {creator?.username || "Unknown User"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Mask Tier: {creator?.mask_tier ?? "?"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Spirit Score: {creator?.spirit_score ?? 0}
+                      </span>
+                    </div>
+                  </Link>
+
+                  {/* EMOJI GLYPH */}
+                  <div
+                    className={`emoji-glyph ${emojiAnimClass} ${emojiReactClass}`}
+                    style={
+                      {
                         "--float-y": `${floatY}px`,
                         color: auraColor(post.autoMask),
-                      } as CSSProperties}
-                    >
-                      {glyphEmoji}
-                    </div>
+                        animation: "levitate 2.4s ease-in-out infinite",
+                      } as unknown as React.CSSProperties
+                    }
+                  >
+                    {post.autoMask === 1 && "😶‍🌫️"}
+                    {post.autoMask === 2 && "😤"}
+                    {post.autoMask === 3 && "😊"}
+                    {post.autoMask === 4 && "🤩"}
+                    {post.autoMask === 5 && "😇"}
+                    {post.autoMask === 6 && "🔱"}
                   </div>
-                </div>
 
-                {/* SURGE EFFECTS */}
-                {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
-                {surge && <div className="surge-ripple"></div>}
+                  {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
+                  {surge && <div className="surge-ripple"></div>}
 
-                {/* MASK-TIER TITLE */}
-                <div className="mt-6 text-center">
                   <div
-                    className="text-sm font-semibold tracking-wide ritual-mask-title"
+                    className="text-xs font-semibold mb-2 tracking-wide mt-16"
                     style={{ color: auraColor(post.autoMask) }}
                   >
-                    {maskTitle(post.autoMask)}
+                    Spirit Score: {score}
                   </div>
-                </div>
 
-                {/* POST CONTENT */}
-                <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200 text-center mt-3 px-4">
-                  {post.content}
-                </p>
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-800">
+                    {post.content}
+                  </p>
 
-                {/* FOOTER ROW */}
-                <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-                  <span>Mask: {post.autoMask}</span>
-                  <span>{new Date(post.createdAt).toLocaleString()}</span>
-                </div>
+                  <div className="mt-6 flex justify-between text-sm text-gray-500">
+                    <span>Mask: {post.autoMask}</span>
+                    <span>{new Date(post.createdAt).toLocaleString()}</span>
+                  </div>
 
-                {/* VIEW PROFILE */}
-                <Link
-                  href={`/profile/${post.creatorId}`}
-                  className="text-xs text-blue-400 hover:underline mt-2"
-                >
-                  View Profile →
-                </Link>
+                  {/* ⭐ VIEW PROFILE LINK */}
+                  <Link
+                    href={`/creator/${post.creatorId}`}
+                    className="text-xs text-blue-600 hover:underline mt-3 mb-1 block"
+                  >
+                    View Profile →
+                  </Link>
 
-                {/* REACTION BAR */}
-                <div className="mt-6 w-full flex justify-center">
                   <ReactionBar
                     postId={String(post.id)}
                     creatorId={post.creatorId}
-                    reactions={post.reactions}
+                    reactions={{
+                      mask1: post.reactions?.mask1 ?? 0,
+                      mask2: post.reactions?.mask2 ?? 0,
+                      mask3: post.reactions?.mask3 ?? 0,
+                      mask4: post.reactions?.mask4 ?? 0,
+                      mask5: post.reactions?.mask5 ?? 0,
+                    }}
                     spiritScore={score}
                     positivityRatio={positivityRatio}
                     onReact={(updatedPost) => {
                       const r = updatedPost.reactions || {};
+
                       const total =
                         (r["1"] ?? 0) +
                         (r["2"] ?? 0) +
@@ -399,10 +475,11 @@ export default function PlazaPage() {
                       const newScore = updatedPost.spiritScore ?? score;
 
                       let newAutoMask = 2;
-                      if (newScore > 500) newAutoMask = 6;
-                      else if (newScore > 200) newAutoMask = 5;
-                      else if (newScore > 100) newAutoMask = 4;
-                      else if (newScore > 20) newAutoMask = 3;
+                      if (newScore >= 0 && newScore <= 20) newAutoMask = 2;
+                      else if (newScore >= 21 && newScore <= 100) newAutoMask = 3;
+                      else if (newScore >= 101 && newScore <= 200) newAutoMask = 4;
+                      else if (newScore >= 201 && newScore <= 500) newAutoMask = 5;
+                      else if (newScore > 500) newAutoMask = 6;
 
                       setPosts((prev) =>
                         prev.map((p) =>
@@ -419,7 +496,6 @@ export default function PlazaPage() {
                                   mask3: r["3"] ?? 0,
                                   mask4: r["4"] ?? 0,
                                   mask5: r["5"] ?? 0,
-                                  mask6: r["6"] ?? 0,
                                 },
                               }
                             : p
@@ -428,19 +504,13 @@ export default function PlazaPage() {
                     }}
                   />
                 </div>
-
-                {/* closes the Ritual Panel card */}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-        {/* closes the posts wrapper */}
 
         <FloatingComposer onPost={fetchPosts} />
-
       </div>
-      {/* closes the content wrapper */}
-    </div>
-    {/* closes plaza-background */}
+    </>
   );
 }
