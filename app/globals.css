@@ -319,3 +319,12 @@
 .aura-tier-5 {
   box-shadow: 0 0 12px rgba(59, 130, 246, 0.55);
 }
+
+/* === D4 DARK TEMPLE BACKGROUND === */
+
+.plaza-background {
+  background: radial-gradient(circle at center, #0a0a0f 0%, #0d0b1a 40%, #000000 100%);
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background-attachment: fixed;
+}
