@@ -75,40 +75,47 @@ export default function ReactionBar({
     <div className="flex items-center gap-4 mt-4">
       {maskData.map((mask) => (
         <button
-          key={mask.tier}
-          onClick={() => handleReact(mask.tier)}
-          disabled={loading || !user}              // ⭐ Disable until user loads
-          className="flex flex-col items-center cursor-pointer transition-all"
-        >
-          <div className="relative">
-            {selected === mask.tier && <div className="energy-ripple"></div>}
-            {selected === mask.tier && <div className="pulse-ring"></div>}
+  key={mask.tier}
+  onClick={() => handleReact(mask.tier)}
+  disabled={loading || !user}
+  className="flex flex-col items-center cursor-pointer transition-all"
+>
+  <div className="relative">
 
-            <div
-              className={`
-                w-10 h-10 rounded-xl flex items-center justify-center text-xl
-                transition-all duration-200
-                aura-tier-${mask.tier}
-                ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
-              `}
-              style={{
-                "--spirit-score": spiritScore,
-                "--positivity-ratio": positivityRatio,
-              } as React.CSSProperties}
-            >
-              {mask.emoji}
-            </div>
-          </div>
+    {/* 🔥 D4 PULSE RING */}
+    {selected === mask.tier && (
+      <div className="reaction-pulse-ring"></div>
+    )}
 
-          <span
-            className={`
-              text-xs text-gray-300 mt-1
-              ${selected === mask.tier ? "count-float" : ""}
-            `}
-          >
-            {mask.count}
-          </span>
-        </button>
+    {/* 🔥 D4 MASK ICON */}
+    <div
+      className={`
+        reaction-mask
+        w-10 h-10 rounded-xl flex items-center justify-center text-xl
+        transition-all duration-200
+        aura-tier-${mask.tier}
+        ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
+      `}
+      style={{
+        "--spirit-score": spiritScore,
+        "--positivity-ratio": positivityRatio,
+      } as React.CSSProperties}
+    >
+      {mask.emoji}
+    </div>
+  </div>
+
+  {/* 🔥 D4 COUNT GLOW */}
+  <span
+    className={`
+      reaction-count mt-1 text-xs
+      ${selected === mask.tier ? "count-float" : ""}
+    `}
+  >
+    {mask.count}
+  </span>
+</button>
+
       ))}
     </div>
   );
