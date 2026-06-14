@@ -378,11 +378,11 @@ export default function PlazaPage() {
                     ${emotionClass}
                   `}
                   style={
-                    {
-                      "--aura-color": auraColor(post.autoMask),
-                      ...auraStyle(score, post.autoMask, positivityRatio),
-                    } as CSSProperties
-                  }
+  {
+    "--aura-color": auraColor(post.autoMask),
+    ...auraStyle(score, post.autoMask, positivityRatio),
+  } as unknown as React.CSSProperties
+}
                 >
 
                   {/* CREATOR BADGE */}
