@@ -354,12 +354,12 @@ export default function PlazaPage() {
                     ${surgeClass}
                     ${emotionClass}
                   `}
-                  style={
-                    {
-                      "--aura-color": auraColor(post.autoMask),
-                      ...auraStyle(score, post.autoMask, positivityRatio),
-                    } as React.CSSProperties
-                  }
+style={
+  {
+    "--aura-color": auraColor(post.autoMask),
+    ...auraStyle(score, post.autoMask, positivityRatio),
+  } as unknown as React.CSSProperties
+}
                 >
 
                   {/* ⭐ FLOATING CREATOR BADGE */}
