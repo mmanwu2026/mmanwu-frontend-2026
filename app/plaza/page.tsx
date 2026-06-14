@@ -218,7 +218,7 @@ export default function PlazaPage() {
   }
 
   return (
-    <>
+    <div className="plaza-background">
       {/* ⭐ FIXED TOP NAVIGATION */}
       <div className="w-full flex justify-between items-center px-6 py-4 bg-white shadow-sm fixed top-0 left-0 z-50">
         <Link href="/plaza" className="text-purple-600 font-semibold">
@@ -230,15 +230,15 @@ export default function PlazaPage() {
         </Link>
       </div>
 
-      <div className="w-full flex flex-col items-center mt-20 px-4 bg-white">
-        <h1 className="text-2xl font-bold text-black mb-6 text-center">
+      <div className="w-full flex flex-col items-center mt-20 px-4">
+        <h1 className="text-2xl font-bold text-white mb-6 text-center">
           Mmanwu Plaza
         </h1>
 
-        {loading && <p className="text-gray-600">Loading posts…</p>}
-        {error && <p className="text-red-500">{error}</p>}
+        {loading && <p className="text-gray-200">Loading posts…</p>}
+        {error && <p className="text-red-400">{error}</p>}
         {!loading && posts.length === 0 && (
-          <p className="text-gray-600">No posts yet…</p>
+          <p className="text-gray-200">No posts yet…</p>
         )}
 
         <div className="w-full flex flex-col items-center">
@@ -334,7 +334,7 @@ export default function PlazaPage() {
                     overflow-visible
                     isolate-layout
                     min-h-[420px]
-                    shadow-[0_10px_30px_rgba(0,0,0,0.05)]
+                    shadow-[0_10px_30px_rgba(0,0,0,0.15)]
                     max-w-[300px]
                     mx-auto
                     plaza-card-base
@@ -349,7 +349,6 @@ export default function PlazaPage() {
                     } as unknown as React.CSSProperties
                   }
                 >
-
                   {/* ⭐ CLICKABLE CREATOR IDENTITY BLOCK */}
                   <Link
                     href={`/profile/${post.creatorId}`}
@@ -492,6 +491,6 @@ export default function PlazaPage() {
         {/* ⭐ FLOATING COMPOSER */}
         <FloatingComposer onPost={fetchPosts} />
       </div>
-    </>
+    </div>
   );
 }
