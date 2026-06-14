@@ -260,7 +260,7 @@ export default function PlazaPage() {
         <div className="w-full flex flex-col items-center">
           <div className="space-y-12 w-full flex flex-col items-center">
 
-            posts.map((post) => {
+             {posts.map((post) => {
               const creator = creators[post.creatorId];
 
               const score = post.spiritScore ?? 0;
@@ -352,7 +352,7 @@ export default function PlazaPage() {
                  FULLY PATCHED CARD JSX
               ------------------------------------------------------------ */
               return (
-                <div
+                <div>
                   key={post.id}
                   className={`
                     relative
