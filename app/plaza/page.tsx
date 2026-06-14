@@ -431,7 +431,7 @@ export default function PlazaPage() {
                 {/* closes the Ritual Panel card */}
               </div>
             );
-          })}
+          }))}
 
         </div>
         {/* closes the posts wrapper */}
