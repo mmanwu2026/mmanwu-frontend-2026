@@ -411,7 +411,7 @@ setPosts((prev) =>
             );
           })}
 
-        </div>
+                </div>
         {/* closes the posts wrapper */}
 
         <FloatingComposer onPost={fetchPosts} />
