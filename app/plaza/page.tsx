@@ -551,3 +551,4 @@ return (
     </div> {/* closes mt-20 px-4 wrapper */}
   </div> {/* closes plaza-background */}
 );
+}
