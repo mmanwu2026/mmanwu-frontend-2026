@@ -8,6 +8,8 @@ import ReactionBar from "@/components/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
 import { useUser } from "@/context/UserContext";
 
+console.log("force aura rebuild");
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 // -----------------------------
