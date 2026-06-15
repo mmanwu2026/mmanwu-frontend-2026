@@ -225,7 +225,7 @@ export default function PlazaPage() {
   }, []);
 
   return (
-    <div className="plaza-background min-h-[140vh] w-full pt-28 pb-32">
+    <div className="plaza-background min-h-[160vh] w-full pt-28 pb-32">
       {/* === D4 TEMPLE EMBERS === */}
       <div className="temple-ember" style={{ left: "12%", top: "20%" }}></div>
       <div className="temple-ember" style={{ left: "28%", top: "40%" }}></div>
