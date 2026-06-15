@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
 import { useUser } from "@/context/UserContext";
 import FloatingComposer from "@/components/FloatingComposer";
+import ReactionBar from "@/components/ReactionBar"; // ⭐ Make sure this path is correct
 
 type Post = {
   id: number;
@@ -46,6 +47,12 @@ export default function PlazaPage() {
 
   function handlePostCreated(newPost: Post) {
     setPosts((prev) => [newPost, ...prev]);
+  }
+
+  function handleReactionUpdated(updatedPost: Post) {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
   }
 
   return (
@@ -104,6 +111,16 @@ export default function PlazaPage() {
                 <p className="text-sm text-zinc-100 whitespace-pre-wrap">
                   {post.content}
                 </p>
+
+                {/* ⭐ ReactionBar FIXED — postId is now a number */}
+                <ReactionBar
+                  postId={post.id} // ⭐ FIXED
+                  creatorId={post.creator_id}
+                  reactions={{}} // Supabase version doesn't use reaction counts yet
+                  spiritScore={post.spirit_score ?? post.spiritscore ?? 0}
+                  positivityRatio={0.5}
+                  onReact={handleReactionUpdated}
+                />
 
                 <div className="mt-2 text-[11px] text-zinc-500 flex justify-between">
                   <span>Creator: {post.creator_id}</span>
