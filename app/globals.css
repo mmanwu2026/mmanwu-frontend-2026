@@ -128,11 +128,16 @@
 .aura-tier-5 { box-shadow: 0 0 12px rgba(59, 130, 246, 0.55); }
 
 /* ------------------------------------------------------------ */
-/* 11. PLAZA CARD BASE — FIXED                                  */
+/* PLAZA CARD BASE — BALANCED BORDER GLOW                       */
 /* ------------------------------------------------------------ */
 
 .plaza-card-base {
   border: 2px solid var(--aura-color, rgba(255,255,255,0.2));
+
+  /* ⭐ Balanced aura glow */
+  box-shadow:
+    0 0 14px var(--aura-color),
+    inset 0 0 6px rgba(255,255,255,0.08);
 }
 
 /* ------------------------------------------------------------ */
