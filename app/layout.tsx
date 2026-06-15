@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 // Cache‑bust CSS so Vercel + browser load the NEW styles
-import "./globals.css?v=14";
+import "./globals.css?v=20";
 
 import { UserProvider } from "@/context/UserContext";
 
