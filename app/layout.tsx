@@ -2,11 +2,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-// ⭐ Cache‑bust CSS so Vercel + browser load the NEW styles
+// Cache‑bust CSS so Vercel + browser load the NEW styles
 import "./globals.css?v=10";
 
-import { UserProvider } from "@/context/UserContext";  // ⭐ stays here
-import Header from "@/components/Header";              // ⭐ NEW: client header
+import { UserProvider } from "@/context/UserContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,15 +33,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       {/* plaza-css-bust-10 */}
-      <body className="min-h-screen flex flex-col items-center">
+      <body className="min-h-screen">
         <UserProvider>
-          <div className="w-full px-4">
-
-            {/* ⭐ CLIENT HEADER */}
-            <Header />
-
-            {children}
-          </div>
+          {children}
         </UserProvider>
       </body>
     </html>
