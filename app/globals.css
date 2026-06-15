@@ -1,13 +1,16 @@
-/* plaza-css-cache-bust-006 */
-/* --------------------------------------------- */
-/* TAILWIND ENGINE — REQUIRED                    */
-/* --------------------------------------------- */
+/* force-vercel-css-rebuild-005 */
+
+/* ------------------------------------------------------------ */
+/* 1. TAILWIND BASE                                             */
+/* ------------------------------------------------------------ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* === PLAZA CORE LAYOUT === */
+/* ------------------------------------------------------------ */
+/* 2. CORE LAYOUT                                               */
+/* ------------------------------------------------------------ */
 
 .isolate-layout {
   isolation: isolate;
@@ -15,250 +18,132 @@
   overflow: visible;
 }
 
-/* === AURA ANIMATIONS (FOG REMOVED) === */
+/* ------------------------------------------------------------ */
+/* 3. AURA ENGINE — FIXED (CLASS-BASED)                         */
+/* ------------------------------------------------------------ */
 
+/* AURA COLOR MAP */
+.aura-mask-1 { --aura-color: #7C3AED; }
+.aura-mask-2 { --aura-color: #DC2626; }
+.aura-mask-3 { --aura-color: #22C55E; }
+.aura-mask-4 { --aura-color: #FACC15; }
+.aura-mask-5 { --aura-color: #3B82F6; }
+.aura-mask-6 { --aura-color: #F97316; }
+
+/* AURA INTENSITY LEVELS */
+.aura-intensity-0 { animation: none; }
+.aura-intensity-1 { animation: aura-breathe 3s ease-in-out infinite; }
+.aura-intensity-2 { animation: aura-breathe 2.4s ease-in-out infinite; }
+.aura-intensity-3 { animation: aura-pulse 2s ease-in-out infinite; }
+.aura-intensity-4 { animation: aura-pulse 1.6s ease-in-out infinite; }
+
+/* ------------------------------------------------------------ */
+/* BORDER GLOW SCALES WITH AURA INTENSITY                       */
+/* ------------------------------------------------------------ */
+
+.aura-intensity-0 .plaza-card-base {
+  box-shadow:
+    0 0 6px var(--aura-color, rgba(255,255,255,0.15)),
+    inset 0 0 4px rgba(255,255,255,0.05);
+}
+
+.aura-intensity-1 .plaza-card-base {
+  box-shadow:
+    0 0 10px var(--aura-color),
+    inset 0 0 5px rgba(255,255,255,0.06);
+}
+
+.aura-intensity-2 .plaza-card-base {
+  box-shadow:
+    0 0 16px var(--aura-color),
+    inset 0 0 6px rgba(255,255,255,0.07);
+}
+
+.aura-intensity-3 .plaza-card-base {
+  box-shadow:
+    0 0 22px var(--aura-color),
+    inset 0 0 8px rgba(255,255,255,0.08);
+}
+
+.aura-intensity-4 .plaza-card-base {
+  box-shadow:
+    0 0 30px var(--aura-color),
+    inset 0 0 10px rgba(255,255,255,0.1);
+}
+
+/* KEYFRAMES */
 @keyframes aura-breathe {
-  0% { box-shadow: none; }
-  50% { box-shadow: none; }
-  100% { box-shadow: none; }
+  0%   { box-shadow: 0 0 8px var(--aura-color); }
+  50%  { box-shadow: 0 0 16px var(--aura-color); }
+  100% { box-shadow: 0 0 8px var(--aura-color); }
 }
 
 @keyframes aura-pulse {
-  0% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
-  50% { box-shadow: 0 0 22px var(--aura-color, rgba(59,130,246,0.8)); transform: scale(1.02); }
-  100% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
+  0%   { box-shadow: 0 0 10px var(--aura-color); transform: scale(1); }
+  50%  { box-shadow: 0 0 22px var(--aura-color); transform: scale(1.02); }
+  100% { box-shadow: 0 0 10px var(--aura-color); transform: scale(1); }
 }
 
-/* === SURGE EFFECTS === */
+/* ------------------------------------------------------------ */
+/* 4. SURGE ENGINE                                              */
+/* ------------------------------------------------------------ */
 
-.surge-flash {
-  pointer-events: none;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.7), rgba(255,255,255,0));
-  opacity: 0;
-  animation: surge-flash-anim 0.6s ease-out forwards;
+.surge-weak,
+.surge-medium,
+.surge-strong {
+  opacity: 1;
 }
 
-@keyframes surge-flash-anim {
-  0% { opacity: 0.9; }
-  100% { opacity: 0; }
-}
+/* ------------------------------------------------------------ */
+/* 5. ASCENSION ENGINE                                          */
+/* ------------------------------------------------------------ */
 
-.surge-ripple {
-  position: absolute;
-  inset: -8px;
-  border-radius: 9999px;
-  border: 2px solid rgba(255,255,255,0.7);
-  pointer-events: none;
-  animation: surge-ripple-anim 0.8s ease-out forwards;
-}
+.ascend-tier-1 { box-shadow: 0 0 4px rgba(255,255,255,0.15); }
+.ascend-tier-2 { box-shadow: 0 0 6px rgba(255,255,255,0.25); }
+.ascend-tier-3 { box-shadow: 0 0 10px rgba(255,255,255,0.35); }
+.ascend-tier-4 { box-shadow: 0 0 14px rgba(255,255,255,0.45); }
+.ascend-tier-5 { box-shadow: 0 0 20px rgba(255,255,255,0.55); }
 
-@keyframes surge-ripple-anim {
-  0% { transform: scale(0.9); opacity: 0.9; }
-  100% { transform: scale(1.15); opacity: 0; }
-}
+/* ------------------------------------------------------------ */
+/* 6. SPIRIT ENGINE                                             */
+/* ------------------------------------------------------------ */
 
-/* === ASCENSION RING + HALO === */
-
-.ascension-ring {
-  position: absolute;
-  inset: -14px;
-  border-radius: 9999px;
-  border: 2px solid rgba(255,255,255,0.8);
-  box-shadow: 0 0 18px rgba(255,255,255,0.7);
-  pointer-events: none;
-  animation: ascension-ring-anim 2.4s ease-in-out infinite;
-}
-
-@keyframes ascension-ring-anim {
-  0% { transform: scale(0.96); opacity: 0.7; }
-  50% { transform: scale(1.02); opacity: 1; }
-  100% { transform: scale(0.96); opacity: 0.7; }
-}
-
-.ascension-halo {
-  position: absolute;
-  top: -26px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120px;
-  height: 40px;
-  border-radius: 9999px;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.9), rgba(255,255,255,0));
-  filter: blur(4px);
-  pointer-events: none;
-  animation: ascension-halo-anim 3s ease-in-out infinite;
-}
-
-@keyframes ascension-halo-anim {
-  0% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
-  50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
-  100% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
-}
-
-/* === SPIRIT SPARKS === */
-
-.spirit-spark {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 9999px;
-  background: var(--aura-color, #3B82F6);
-  box-shadow: 0 0 12px rgba(255,255,255,0.9);
-  opacity: 0;
-  pointer-events: none;
-  animation: spirit-spark-anim 2.2s ease-out infinite;
-}
-
-@keyframes spirit-spark-anim {
-  0% { transform: translateY(6px) scale(0.7); opacity: 0; }
-  30% { transform: translateY(-4px) scale(1); opacity: 1; }
-  100% { transform: translateY(-14px) scale(0.8); opacity: 0; }
-}
-
-/* === SPIRIT PARTICLES === */
-
+.spirit-spark,
 .spirit-particle {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: var(--aura-color, #3B82F6);
-  opacity: 0;
-  filter: blur(1px);
-  pointer-events: none;
-  animation: spirit-particle-anim 3s linear infinite;
-}
-
-@keyframes spirit-particle-anim {
-  0% { transform: translateY(10px) scale(0.6); opacity: 0; }
-  20% { opacity: 0.8; }
-  100% { transform: translateY(-18px) scale(1); opacity: 0; }
-}
-
-/* === BASE CARD SHADOW === */
-
-.plaza-card-base {
-  box-shadow: 0 0 1px rgba(0,0,0,0.04);
-}
-
-/* === REACTION ENGINE === */
-
-.mask-hover:hover {
-  transform: translateY(-4px) scale(1.08);
-  transition: transform 0.15s ease-out;
-}
-
-.mask-pop {
-  animation: mask-pop 0.25s ease-out;
-}
-
-@keyframes mask-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.25); }
-  100% { transform: scale(1.1); }
-}
-
-.mask-glow-strong {
-  box-shadow:
-    0 0 12px rgba(255,255,255,0.7),
-    0 0 22px rgba(255,255,255,0.5),
-    0 0 32px rgba(255,255,255,0.3);
-  transition: box-shadow 0.2s ease-out;
-}
-
-.pulse-ring {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.6);
-  animation: pulse-ring 0.5s ease-out forwards;
   pointer-events: none;
 }
 
-@keyframes pulse-ring {
-  0% { transform: scale(0.5); opacity: 0.9; }
-  100% { transform: scale(2.2); opacity: 0; }
+/* ------------------------------------------------------------ */
+/* 7. REACTION ENGINE                                           */
+/* ------------------------------------------------------------ */
+
+.reaction-mask {
+  position: relative;
+  z-index: 20;
+  transition: transform 0.18s ease-out, filter 0.18s ease-out;
+  filter:
+    drop-shadow(0 0 6px rgba(255, 0, 80, 0.55))
+    drop-shadow(0 0 12px rgba(140, 0, 255, 0.45));
 }
 
-.count-float {
-  animation: count-float 0.4s ease-out;
+.reaction-mask:hover {
+  transform: translateY(-4px) scale(1.15);
+  filter:
+    drop-shadow(0 0 10px rgba(255, 0, 80, 0.85))
+    drop-shadow(0 0 18px rgba(140, 0, 255, 0.75));
 }
 
-@keyframes count-float {
-  0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(-10px); opacity: 0; }
-}
+/* ------------------------------------------------------------ */
+/* 8. EMOTION ENGINE                                            */
+/* ------------------------------------------------------------ */
 
-/* === MASK BREATHING === */
+.emotion-boost { filter: brightness(1.25) saturate(1.3); }
+.emotion-intense { transform: scale(1.06); }
+.emotion-soft { transform: scale(0.98); }
 
-@keyframes mask-breathe {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-  100% { transform: scale(1); }
-}
-
-.mask-breathe {
-  animation: mask-breathe 3.5s ease-in-out infinite;
-}
-
-/* === MASK BLINKING === */
-
-@keyframes mask-blink {
-  0% { transform: scaleY(1); }
-  48% { transform: scaleY(1); }
-  50% { transform: scaleY(0.1); }
-  52% { transform: scaleY(1); }
-  100% { transform: scaleY(1); }
-}
-
-.mask-eyes {
-  transform-origin: center;
-  animation: mask-blink 4.5s ease-in-out infinite;
-  animation-delay: calc(0.5s + (var(--blink-offset, 0) * 1s));
-}
-
-/* === COLOR PULSE === */
-
-.mask-color-pulse:hover {
-  filter: brightness(1.25);
-  transition: filter 0.2s ease-out;
-}
-
-/* === ENERGY RIPPLE === */
-
-.energy-ripple {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.4);
-  animation: energy-ripple 0.6s ease-out forwards;
-  pointer-events: none;
-}
-
-@keyframes energy-ripple {
-  0% { transform: scale(0.6); opacity: 0.8; }
-  100% { transform: scale(2.4); opacity: 0; }
-}
-
-/* === EXPRESSION ENGINE === */
-
-.expression-shift {
-  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
-}
-
-.eyes-bright { transform: scale(1.08) translateY(-1px); opacity: 1; }
-.eyes-joyful { transform: scale(1.04); opacity: 0.95; }
-.eyes-neutral { transform: scale(1); opacity: 0.9; }
-.eyes-stern { transform: scale(0.9) translateY(1px); opacity: 0.8; }
-.eyes-dark { transform: scale(0.88) translateY(2px); opacity: 0.7; }
-
-.mask-mouth {
-  transition: d 0.18s ease-out, stroke 0.18s ease-out;
-}
-
-/* === MASK COLOR VARIABLES === */
+/* ------------------------------------------------------------ */
+/* 9. MASK TIER VARIABLES                                       */
+/* ------------------------------------------------------------ */
 
 .mask-tier-1 { --aura-color: #0ea5e9; }
 .mask-tier-2 { --aura-color: #22c55e; }
@@ -266,56 +151,134 @@
 .mask-tier-4 { --aura-color: #f97316; }
 .mask-tier-5 { --aura-color: #ef4444; }
 
-/* === AURA APPLICATION === */
+/* ------------------------------------------------------------ */
+/* 10. AURA GLOW TIERS                                          */
+/* ------------------------------------------------------------ */
 
-.mask-aura {
-  animation: aura-breathe 3s ease-in-out infinite;
+.aura-tier-1 { box-shadow: 0 0 12px rgba(124, 58, 237, 0.55); }
+.aura-tier-2 { box-shadow: 0 0 12px rgba(220, 38, 38, 0.55); }
+.aura-tier-3 { box-shadow: 0 0 12px rgba(34, 197, 94, 0.55); }
+.aura-tier-4 { box-shadow: 0 0 12px rgba(250, 204, 21, 0.55); }
+.aura-tier-5 { box-shadow: 0 0 12px rgba(59, 130, 246, 0.55); }
+
+/* ------------------------------------------------------------ */
+/* PLAZA CARD BASE — BALANCED BORDER GLOW                       */
+/* ------------------------------------------------------------ */
+
+.plaza-card-base {
+  border: 2px solid var(--aura-color, rgba(255,255,255,0.2));
+
+  /* ⭐ Balanced aura glow */
+  box-shadow:
+    0 0 14px var(--aura-color),
+    inset 0 0 6px rgba(255,255,255,0.08);
 }
 
-.mask-aura-strong {
-  animation: aura-pulse 2.2s ease-in-out infinite;
+/* ------------------------------------------------------------ */
+/* 12. D4 DARK TEMPLE BACKGROUND                                */
+/* ------------------------------------------------------------ */
+
+.plaza-background {
+  background: radial-gradient(circle at center, #0a0a0f 0%, #0d0b1a 40%, #000000 100%);
+  padding: 2rem 1rem;
 }
 
-/* === EMOTION ENGINE (BLACKOUT FIX) === */
+/* ------------------------------------------------------------ */
+/* 13. DARK TEMPLE PANEL — FIXED (NEUTRALIZED)                  */
+/* ------------------------------------------------------------ */
 
-.emotion-boost { filter: brightness(1.25) saturate(1.3); }
-.emotion-intense { transform: scale(1.06); }
-.emotion-soft { transform: scale(0.98); }
-
-/* ❗ FIXED: emotion-calm no longer applies ANY filter */
-.emotion-calm { }
-
-/* === ASCENSION GLOW (SAFE, NO FILTER) === */
-
-.ascend-tier-1 { box-shadow: 0 0 4px rgba(255,255,255,0.15); }
-.ascend-tier-2 { box-shadow: 0 0 6px rgba(255,255,255,0.25); }
-.ascend-tier-3 { box-shadow: 0 0 10px rgba(255,255,255,0.35); }
-.ascend-tier-4 { box-shadow: 0 0 14px rgba(255,255,255,0.45); }
-
-/* === SURGE === */
-
-.surge-weak { opacity: 1; }
-.surge-medium { opacity: 1; }
-.surge-strong { opacity: 1; }
-
-/* === REACTIONBAR AURA GLOW (MISSING) === */
-
-.aura-tier-1 {
-  box-shadow: 0 0 12px rgba(124, 58, 237, 0.55);
+.dark-temple-panel {
+  background: rgba(10, 10, 15, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 0 10px rgba(255, 255, 255, 0.15),
+    inset 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
-.aura-tier-2 {
-  box-shadow: 0 0 12px rgba(220, 38, 38, 0.55);
+/* ------------------------------------------------------------ */
+/* 14. D4 EMOJI FIRE AURA + LEVITATION (BALANCED VERSION)       */
+/* ------------------------------------------------------------ */
+
+.emoji-glyph {
+  position: relative;
+  z-index: 30;
+  font-size: 3rem;
+
+  /* ⭐ Balanced glow — visible but not overpowering */
+  filter:
+    drop-shadow(0 0 10px rgba(255, 0, 80, 0.65))
+    drop-shadow(0 0 18px rgba(140, 0, 255, 0.55))
+    drop-shadow(0 0 26px rgba(255, 0, 80, 0.45));
+
+  animation: d4-levitate 2.6s ease-in-out infinite;
 }
 
-.aura-tier-3 {
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.55);
+/* ⭐ Balanced flame ring */
+.emoji-glyph::before {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: 9999px;
+
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 0, 80, 0.55),
+    rgba(140, 0, 255, 0.35),
+    rgba(0, 0, 0, 0)
+  );
+
+  filter: blur(10px);
+  z-index: -1;
+  animation: flame-ring-pulse 3.2s ease-in-out infinite;
 }
 
-.aura-tier-4 {
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.55);
+@keyframes flame-ring-pulse {
+  0% { opacity: 0.6; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.6; transform: scale(0.95); }
 }
 
-.aura-tier-5 {
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.55);
+/* Levitation stays the same */
+@keyframes d4-levitate {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+/* ------------------------------------------------------------ */
+/* 15. D4 TEMPLE EMBER PARTICLES                                */
+/* ------------------------------------------------------------ */
+
+.temple-ember {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: ember-rise 4.5s linear infinite;
+}
+
+/* ------------------------------------------------------------ */
+/* 16. END OF D4 THEME — FINAL OVERRIDES                        */
+/* ------------------------------------------------------------ */
+
+html, body {
+  background-color: #000 !important;
+  color: #e5e7eb !important;
+}
+
+* {
+  color-scheme: dark;
+}
+
+body::before {
+  content: "CSS LOADED";
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: red;
+  color: white;
+  padding: 4px 8px;
+  z-index: 999999;
 }

@@ -2,10 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import GatekeeperModal from "./GatekeeperModal";
+import { useUser } from "@/context/UserContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export default function FloatingComposer({ onPost }: { onPost: () => void }) {
+  const { user, loading } = useUser();
+
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -26,18 +29,16 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  /* ---------------------------------------------------------
-     STEP 1 — Send raw text to Gatekeeper (NO MASK REQUIRED)
-     --------------------------------------------------------- */
   async function submitPost() {
     if (!content.trim()) return;
+    if (loading || !user) return;
 
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content,
-        creator_id: "viewer-demo-001",
+        creator_id: user.id,
       }),
     });
 
@@ -48,29 +49,25 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       return;
     }
 
-    // If Gatekeeper returns refined options
     if (data.options) {
       setGatekeeperOptions(data.options);
       setShowGatekeeperModal(true);
       return;
     }
 
-    // Otherwise publish raw content
     await publishFinalVersion(content);
   }
 
-  /* ---------------------------------------------------------
-     STEP 2 — Publish chosen refined version
-     ALWAYS mask_tier = 0 (maskless posting)
-     --------------------------------------------------------- */
   async function publishFinalVersion(finalText: string) {
+    if (loading || !user) return;
+
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza/publish`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: finalText,
-        mask_tier: 0,                 // ⭐ ALWAYS 0 — maskless posting
-        creator_id: "viewer-demo-001",
+        mask_tier: 0,
+        creator_id: user.id,
       }),
     });
 
@@ -81,7 +78,6 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
       return;
     }
 
-    // Reset composer
     setContent("");
     setExpanded(false);
     setShowGatekeeperModal(false);
@@ -98,17 +94,17 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
     >
       <div
         className={`
-          bg-white shadow-xl rounded-2xl border border-gray-200
-          transition-all duration-300 mx-auto max-w-md
+          bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10
+          shadow-lg transition-all duration-300 mx-auto max-w-md
           ${expanded ? "p-4" : "p-3"}
         `}
       >
         {!expanded && (
           <div
-            className="flex items-center justify-between"
+            className="flex items-center justify-between text-gray-300"
             onClick={() => setExpanded(true)}
           >
-            <span className="text-gray-500">Write something…</span>
+            <span>Write something…</span>
             <span className="text-xl">✍🏽</span>
           </div>
         )}
@@ -116,7 +112,12 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
         {expanded && (
           <div className="flex flex-col space-y-3">
             <textarea
-              className="w-full border rounded-xl p-3 text-gray-800 resize-none"
+              className="
+                w-full rounded-xl p-3 resize-none
+                bg-black/30 text-gray-200 placeholder-gray-400
+                border border-white/10 focus:outline-none
+                focus:ring-2 focus:ring-purple-500/40
+              "
               rows={4}
               placeholder="Share your thoughts…"
               value={content}
@@ -125,14 +126,14 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
 
             <button
               onClick={submitPost}
-              disabled={!content.trim()}
+              disabled={!content.trim() || loading || !user}
               className={`
-                w-full py-2 rounded-xl text-white font-semibold
+                w-full py-2 rounded-xl font-semibold text-white
                 transition-all
                 ${
-                  content.trim()
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-400"
+                  content.trim() && user
+                    ? "bg-purple-600 hover:bg-purple-700"
+                    : "bg-purple-900/40 text-gray-400"
                 }
               `}
             >
@@ -140,7 +141,7 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
             </button>
 
             <button
-              className="text-sm text-gray-500 underline"
+              className="text-sm text-gray-400 hover:text-gray-300"
               onClick={() => setExpanded(false)}
             >
               Close
