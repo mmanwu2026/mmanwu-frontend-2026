@@ -35,9 +35,9 @@ export default function FloatingComposer({
 
   // ⭐ Step 1 — Call OpenAI Gatekeeper
   async function runGatekeeper(rawText: string) {
-    const apiKey = process.env.NEXT_PUBLIC_OPENAI_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // ⭐ FIXED HERE
     if (!apiKey) {
-      console.error("Missing NEXT_PUBLIC_OPENAI_KEY");
+      console.error("Missing NEXT_PUBLIC_OPENAI_API_KEY");
       return null;
     }
 
@@ -74,13 +74,13 @@ export default function FloatingComposer({
 
   // ⭐ Step 2 — Insert final text into Supabase
   async function publishToSupabase(finalText: string) {
-    if (!user) return; // ⭐ TypeScript-safe guard
+    if (!user) return;
 
     const { data, error } = await supabase
       .from("posts")
       .insert({
         content: finalText,
-        creator_id: user.id, // ⭐ Now safe
+        creator_id: user.id,
         mask: 0,
       })
       .select()
