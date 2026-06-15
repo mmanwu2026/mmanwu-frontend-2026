@@ -225,8 +225,7 @@ export default function PlazaPage() {
   }, []);
 
   return (
-    <div className="plaza-background min-h-screen w-full">
-
+    <div className="plaza-background min-h-screen w-full pb-32">
       {/* === D4 TEMPLE EMBERS === */}
       <div className="temple-ember" style={{ left: "12%", top: "20%" }}></div>
       <div className="temple-ember" style={{ left: "28%", top: "40%" }}></div>
@@ -367,7 +366,7 @@ export default function PlazaPage() {
                     overflow-visible
                     isolate-layout
                     min-h-[420px]
-                    max-w-[380px]
+                    w-[380px]
                     mx-auto
                     plaza-card-base
                     flex flex-col items-center
@@ -383,38 +382,8 @@ export default function PlazaPage() {
                   }
                 >
 
-                  {/* CREATOR BADGE — DARK THEME */}
-                  <Link
-                    href={`/profile/${post.creatorId}`}
-                    className="
-                      absolute top-3 left-3 z-20
-                      bg-black/40 backdrop-blur-md
-                      px-3 py-2 rounded-xl
-                      shadow-sm border border-white/10
-                      flex items-center gap-3
-                      hover:bg-black/50 transition
-                    "
-                  >
-                    <img
-                      src={creator?.avatar_url || "/default-avatar.png"}
-                      alt="avatar"
-                      className="w-10 h-10 rounded-full border border-white/20 object-cover"
-                    />
-                    <div className="flex flex-col leading-tight">
-                      <span className="font-semibold text-gray-200">
-                        {creator?.username || "Unknown User"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        Mask Tier: {creator?.mask_tier ?? "?"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        Spirit Score: {creator?.spirit_score ?? 0}
-                      </span>
-                    </div>
-                  </Link>
-
                   {/* GLYPH + FLAME RING */}
-                  <div className="ritual-glyph-container mt-10">
+                  <div className="ritual-glyph-container mt-6">
                     <div className="ritual-glyph-levitate">
                       <div className="ritual-flame-ring"></div>
                       <div className="ritual-shadow-floor"></div>
@@ -432,12 +401,26 @@ export default function PlazaPage() {
                     </div>
                   </div>
 
-                  {/* SURGE EFFECTS */}
-                  {surge && <div className="surge-flash absolute inset-0 rounded-2xl"></div>}
-                  {surge && <div className="surge-ripple"></div>}
+                  {/* CREATOR BADGE — CENTERED BELOW GLYPH */}
+                  <div className="mt-4 flex flex-col items-center text-gray-300">
+                    <img
+                      src={creator?.avatar_url || "/default-avatar.png"}
+                      alt="avatar"
+                      className="w-12 h-12 rounded-full border border-white/20 object-cover mb-2"
+                    />
+                    <span className="font-semibold text-gray-200">
+                      {creator?.username || "Unknown User"}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Mask Tier: {creator?.mask_tier ?? "?"}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Spirit Score: {post.spiritScore ?? 0}
+                    </span>
+                  </div>
 
                   {/* MASK-TIER TITLE */}
-                  <div className="mt-6 text-center">
+                  <div className="mt-4 text-center">
                     <div
                       className="text-sm font-semibold tracking-wide ritual-mask-title"
                       style={{ color: auraColor(post.autoMask) }}
@@ -447,7 +430,7 @@ export default function PlazaPage() {
                   </div>
 
                   {/* POST CONTENT */}
-                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-200 text-center mt-3 px-4">
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-3 px-4">
                     {post.content}
                   </p>
 
