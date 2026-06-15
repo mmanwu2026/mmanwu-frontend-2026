@@ -6,7 +6,7 @@ import { useUser } from "@/context/UserContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
-export default function FloatingComposer({ onPost }: { onPost: () => void }) {
+export default function FloatingComposer({ onPost }: { onPost: (post?: any) => void }) {
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
@@ -82,7 +82,12 @@ export default function FloatingComposer({ onPost }: { onPost: () => void }) {
     setExpanded(false);
     setShowGatekeeperModal(false);
 
-    onPost();
+    // ⭐ FIXED: Pass the new post back to Plaza if available
+    if (data.post) {
+      onPost(data.post);
+    } else {
+      onPost();
+    }
   }
 
   return (
