@@ -5,7 +5,11 @@ import { supabase } from "@/supabaseClient";
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 
-export default function FloatingComposer({ onPost }: { onPost: (post: any) => void }) {
+export default function FloatingComposer({
+  onPost,
+}: {
+  onPost: (post: any) => void;
+}) {
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
@@ -51,36 +55,32 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
             content:
               "You are the Mmanwu Gatekeeper. Rewrite the user's text into 3 stylistic options: 'Calm', 'Direct', and 'Elevated'. Keep meaning but improve clarity and emotional tone.",
           },
-          {
-            role: "user",
-            content: rawText,
-          },
+          { role: "user", content: rawText },
         ],
         temperature: 0.7,
       }),
     });
 
     const data = await res.json();
-
     const text = data?.choices?.[0]?.message?.content || "";
     const lines = text.split("\n").filter((l: string) => l.trim() !== "");
 
-    const options = [
+    return [
       { id: 1, label: "Calm", text: lines[0] || rawText },
       { id: 2, label: "Direct", text: lines[1] || rawText },
       { id: 3, label: "Elevated", text: lines[2] || rawText },
     ];
-
-    return options;
   }
 
   // ⭐ Step 2 — Insert final text into Supabase
   async function publishToSupabase(finalText: string) {
+    if (!user) return; // ⭐ TypeScript-safe guard
+
     const { data, error } = await supabase
       .from("posts")
       .insert({
         content: finalText,
-        creator_id: user!.id,
+        creator_id: user.id, // ⭐ Now safe
         mask: 0,
       })
       .select()
@@ -99,14 +99,12 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
     if (!content.trim()) return;
     if (loading || !user) return;
 
-    // Run Gatekeeper
     const options = await runGatekeeper(content);
 
     if (options) {
       setGatekeeperOptions(options);
       setShowGatekeeper(true);
     } else {
-      // Fallback: publish raw text
       publishToSupabase(content);
     }
   }
