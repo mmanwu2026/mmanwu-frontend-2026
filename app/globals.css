@@ -23,6 +23,26 @@
 /* 3. AURA ENGINE                                               */
 /* ------------------------------------------------------------ */
 
+/* ------------------------------------------------------------ */
+/* AURA ENGINE — CLASS-BASED VARIABLES (NEW)                    */
+/* ------------------------------------------------------------ */
+
+/* AURA COLOR MAP */
+.aura-mask-1 { --aura-color: #7C3AED; }
+.aura-mask-2 { --aura-color: #DC2626; }
+.aura-mask-3 { --aura-color: #22C55E; }
+.aura-mask-4 { --aura-color: #FACC15; }
+.aura-mask-5 { --aura-color: #3B82F6; }
+.aura-mask-6 { --aura-color: #F97316; }
+
+/* AURA INTENSITY LEVELS */
+.aura-intensity-0 { animation: none; }
+.aura-intensity-1 { animation: aura-breathe 3s ease-in-out infinite; }
+.aura-intensity-2 { animation: aura-breathe 2.4s ease-in-out infinite; }
+.aura-intensity-3 { animation: aura-pulse 2s ease-in-out infinite; }
+.aura-intensity-4 { animation: aura-pulse 1.6s ease-in-out infinite; }
+
+/* AURA KEYFRAMES */
 @keyframes aura-breathe {
   0% { box-shadow: 0 0 8px var(--aura-color); }
   50% { box-shadow: 0 0 16px var(--aura-color); }
@@ -35,6 +55,7 @@
   100% { box-shadow: 0 0 10px var(--aura-color, rgba(59,130,246,0.4)); transform: scale(1); }
 }
 
+/* (Optional legacy classes — safe to keep or delete) */
 .mask-aura {
   animation: aura-breathe 3s ease-in-out infinite;
 }
