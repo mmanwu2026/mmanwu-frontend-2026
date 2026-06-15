@@ -1,13 +1,33 @@
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+"use client";
 
-export default async function ProfileMeRedirect() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/supabaseClient";
 
-  if (!userId) {
-    redirect("/login");
-  }
+export default function ProfileMeRedirect() {
+  const router = useRouter();
 
-  redirect(`/profile/${userId}`);
+  useEffect(() => {
+    async function checkSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        router.replace("/login");
+        return;
+      }
+
+      const userId = session.user.id;
+      router.replace(`/profile/${userId}`);
+    }
+
+    checkSession();
+  }, [router]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <p className="text-zinc-400 text-sm">Loading your profile...</p>
+    </div>
+  );
 }
