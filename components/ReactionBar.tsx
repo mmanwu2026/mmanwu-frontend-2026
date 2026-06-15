@@ -5,7 +5,7 @@ import { supabase } from "@/supabaseClient";
 import { useUser } from "@/context/UserContext";
 
 interface ReactionBarProps {
-  postId: number;
+  postId: number; // ⭐ FIXED: must be number
   creatorId: string;
   reactions?: {
     mask1?: number;
@@ -39,12 +39,13 @@ export default function ReactionBar({
     setLoadingReaction(true);
     setSelected(maskTier);
 
-    // ⭐ Update reaction in Supabase
+    // ⭐ Supabase update
     const { data, error } = await supabase
       .from("posts")
       .update({
-        spirit_score: (spiritScore ?? 0) + (maskTier >= 3 ? 2 : -1),
         mask: maskTier,
+        spirit_score:
+          (spiritScore ?? 0) + (maskTier >= 3 ? 2 : -1), // simple spirit logic
       })
       .eq("id", postId)
       .select()
