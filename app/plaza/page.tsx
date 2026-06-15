@@ -46,12 +46,12 @@ interface PlazaPost {
 // -----------------------------
 function auraColor(mask: number) {
   switch (mask) {
-    case 1: return "#7C3AED"; // Dark Whisper
-    case 2: return "#DC2626"; // Fierce Awakener
-    case 3: return "#22C55E"; // Gentle Riser
-    case 4: return "#FACC15"; // Radiant Ascender
-    case 5: return "#3B82F6"; // Seraphic Uplifter
-    case 6: return "#F97316"; // Divine Apex
+    case 1: return "#7C3AED";
+    case 2: return "#DC2626";
+    case 3: return "#22C55E";
+    case 4: return "#FACC15";
+    case 5: return "#3B82F6";
+    case 6: return "#F97316";
     default: return "#22C55E";
   }
 }
@@ -127,9 +127,6 @@ export default function PlazaPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // -----------------------------
-  // Fetch Posts
-  // -----------------------------
   async function fetchPosts() {
     try {
       const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/plaza`, {
@@ -204,9 +201,6 @@ export default function PlazaPage() {
     }
   }
 
-  // -----------------------------
-  // Fetch Creator Profile
-  // -----------------------------
   async function fetchCreatorProfile(id: string) {
     if (creators[id]) return creators[id];
 
@@ -230,41 +224,43 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
- return (
-  <div className="plaza-background min-h-screen w-full">
+  return (
+    <div className="plaza-background min-h-screen w-full">
 
-    {/* === D4 TEMPLE EMBERS === */}
-    <div className="temple-ember" style={{ left: "12%", top: "20%" }}></div>
-    <div className="temple-ember" style={{ left: "28%", top: "40%" }}></div>
-    <div className="temple-ember" style={{ left: "45%", top: "10%" }}></div>
-    <div className="temple-ember" style={{ left: "62%", top: "35%" }}></div>
-    <div className="temple-ember" style={{ left: "78%", top: "25%" }}></div>
-    <div className="temple-ember" style={{ left: "15%", top: "60%" }}></div>
-    <div className="temple-ember" style={{ left: "50%", top: "70%" }}></div>
-    <div className="temple-ember" style={{ left: "85%", top: "55%" }}></div>
+      {/* === D4 TEMPLE EMBERS === */}
+      <div className="temple-ember" style={{ left: "12%", top: "20%" }}></div>
+      <div className="temple-ember" style={{ left: "28%", top: "40%" }}></div>
+      <div className="temple-ember" style={{ left: "45%", top: "10%" }}></div>
+      <div className="temple-ember" style={{ left: "62%", top: "35%" }}></div>
+      <div className="temple-ember" style={{ left: "78%", top: "25%" }}></div>
+      <div className="temple-ember" style={{ left: "15%", top: "60%" }}></div>
+      <div className="temple-ember" style={{ left: "50%", top: "70%" }}></div>
+      <div className="temple-ember" style={{ left: "85%", top: "55%" }}></div>
 
-    {/* TOP NAV — DARK THEME */}
-    <div className="w-full flex justify-between items-center px-6 py-4 
-                    bg-black/40 backdrop-blur-md border-b border-white/10
-                    fixed top-0 left-0 z-50">
-      <Link href="/plaza" className="text-purple-300 font-semibold">
-        Mmanwu Plaza
-      </Link>
+      {/* TOP NAV — DARK THEME */}
+      <div className="
+        w-full flex justify-between items-center px-6 py-4
+        bg-black/40 backdrop-blur-md border-b border-white/10
+        fixed top-0 left-0 z-50
+      ">
+        <Link href="/plaza" className="text-purple-300 font-semibold">
+          Mmanwu Plaza
+        </Link>
 
-      <Link href="/profile/me" className="text-purple-300 font-semibold">
-        My Profile
-      </Link>
-    </div>
+        <Link href="/profile/me" className="text-purple-300 font-semibold">
+          My Profile
+        </Link>
+      </div>
 
-    <div className="w-full flex flex-col items-center mt-20 px-4">
-      <h1 className="text-2xl font-bold text-white mb-6 text-center">
-        Mmanwu Plaza
-      </h1>
+      <div className="w-full flex flex-col items-center mt-20 px-4">
+        <h1 className="text-2xl font-bold text-white mb-6 text-center">
+          Mmanwu Plaza
+        </h1>
 
-        {loading && <p className="text-gray-200">Loading posts…</p>}
+        {loading && <p className="text-gray-300">Loading posts…</p>}
         {error && <p className="text-red-400">{error}</p>}
         {!loading && posts.length === 0 && (
-          <p className="text-gray-200">No posts yet…</p>
+          <p className="text-gray-300">No posts yet…</p>
         )}
 
         <div className="w-full flex flex-col items-center">
@@ -380,31 +376,38 @@ export default function PlazaPage() {
                     ${emotionClass}
                   `}
                   style={
-  {
-    "--aura-color": auraColor(post.autoMask),
-    ...auraStyle(score, post.autoMask, positivityRatio),
-  } as unknown as React.CSSProperties
-}
+                    {
+                      "--aura-color": auraColor(post.autoMask),
+                      ...auraStyle(score, post.autoMask, positivityRatio),
+                    } as unknown as React.CSSProperties
+                  }
                 >
 
-                  {/* CREATOR BADGE */}
+                  {/* CREATOR BADGE — DARK THEME */}
                   <Link
                     href={`/profile/${post.creatorId}`}
-                    className="absolute top-3 left-3 z-20 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-white transition"
+                    className="
+                      absolute top-3 left-3 z-20
+                      bg-black/40 backdrop-blur-md
+                      px-3 py-2 rounded-xl
+                      shadow-sm border border-white/10
+                      flex items-center gap-3
+                      hover:bg-black/50 transition
+                    "
                   >
                     <img
                       src={creator?.avatar_url || "/default-avatar.png"}
                       alt="avatar"
-                      className="w-10 h-10 rounded-full border border-gray-300 object-cover"
+                      className="w-10 h-10 rounded-full border border-white/20 object-cover"
                     />
                     <div className="flex flex-col leading-tight">
-                      <span className="font-semibold text-gray-800">
+                      <span className="font-semibold text-gray-200">
                         {creator?.username || "Unknown User"}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-400">
                         Mask Tier: {creator?.mask_tier ?? "?"}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-400">
                         Spirit Score: {creator?.spirit_score ?? 0}
                       </span>
                     </div>
@@ -457,7 +460,7 @@ export default function PlazaPage() {
                   {/* VIEW PROFILE */}
                   <Link
                     href={`/profile/${post.creatorId}`}
-                    className="text-xs text-blue-400 hover:underline mt-2"
+                    className="text-xs text-blue-300 hover:text-blue-200 hover:underline mt-2"
                   >
                     View Profile →
                   </Link>
