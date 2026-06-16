@@ -2,10 +2,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-// Cache‑bust CSS so Vercel + browser load the NEW styles
+// @ts-ignore  // TypeScript cannot parse CSS query params, but Next.js can
 import "./globals.css?v=21";
 
 import { UserProvider } from "@/context/UserContext";
+import AuthNav from "@/components/AuthNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      {/* plaza-css-bust-10 */}
-      <body className="min-h-screen">
+      {/* plaza-css-bust-21 */}
+      <body className="min-h-screen bg-black text-white">
         <UserProvider>
+          <AuthNav />
           {children}
         </UserProvider>
       </body>
