@@ -33,15 +33,16 @@ export default function FloatingComposer({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ⭐ Step 1 — Call OpenAI Gatekeeper
+  // ⭐ UPGRADED GATEKEEPER LOGIC
   async function runGatekeeper(rawText: string) {
-    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // ⭐ FIXED HERE
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
     if (!apiKey) {
       console.error("Missing NEXT_PUBLIC_OPENAI_API_KEY");
       return null;
     }
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    // 1️⃣ Emotion + toxicity + bullying analysis
+    const analysisRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -52,8 +53,79 @@ export default function FloatingComposer({
         messages: [
           {
             role: "system",
-            content:
-              "You are the Mmanwu Gatekeeper. Rewrite the user's text into 3 stylistic options: 'Calm', 'Direct', and 'Elevated'. Keep meaning but improve clarity and emotional tone.",
+            content: `
+You are the Mmanwu Emotional Classifier.
+
+Analyze the user's message and return a JSON object with:
+- emotion: one of ["joy","excitement","gratitude","pride","relief","celebration","anger","sadness","fear","anxiety","neutral"]
+- intensity: number 0–1
+- toxicity: number 0–1
+- bullying: number 0–1
+- clarity: number 0–1
+Return ONLY valid JSON.
+            `,
+          },
+          { role: "user", content: rawText },
+        ],
+        temperature: 0,
+      }),
+    });
+
+    const analysisText = await analysisRes.json();
+    let analysis;
+
+    try {
+      analysis = JSON.parse(
+        analysisText?.choices?.[0]?.message?.content || "{}"
+      );
+    } catch {
+      analysis = { emotion: "neutral", intensity: 0, toxicity: 0, bullying: 0, clarity: 1 };
+    }
+
+    const { emotion, intensity, toxicity, bullying, clarity } = analysis;
+
+    // 2️⃣ Auto-approve rule for positive posts
+    const positiveEmotions = ["joy", "excitement", "gratitude", "pride", "relief", "celebration"];
+
+    if (
+      positiveEmotions.includes(emotion) &&
+      toxicity < 0.1 &&
+      bullying < 0.1 &&
+      clarity >= 0.4
+    ) {
+      return { autoApprove: true };
+    }
+
+    // 3️⃣ Generate rewrites + explanations
+    const rewriteRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `
+You are the Mmanwu Gatekeeper.
+
+Rewrite the user's message into 3 versions:
+1. Calm
+2. Direct
+3. Elevated (if the message is positive, allow refined celebration with correct exclamation marks)
+
+For each rewrite, also provide:
+- explanation: why this rewrite is safer, clearer, or more expressive.
+
+Return the result as JSON:
+[
+  { "label": "Calm", "text": "...", "explanation": "..." },
+  { "label": "Direct", "text": "...", "explanation": "..." },
+  { "label": "Elevated", "text": "...", "explanation": "..." }
+]
+            `,
           },
           { role: "user", content: rawText },
         ],
@@ -61,15 +133,18 @@ export default function FloatingComposer({
       }),
     });
 
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content || "";
-    const lines = text.split("\n").filter((l: string) => l.trim() !== "");
+    const rewriteText = await rewriteRes.json();
+    let rewrites;
 
-    return [
-      { id: 1, label: "Calm", text: lines[0] || rawText },
-      { id: 2, label: "Direct", text: lines[1] || rawText },
-      { id: 3, label: "Elevated", text: lines[2] || rawText },
-    ];
+    try {
+      rewrites = JSON.parse(
+        rewriteText?.choices?.[0]?.message?.content || "[]"
+      );
+    } catch {
+      rewrites = [];
+    }
+
+    return { autoApprove: false, rewrites };
   }
 
   // ⭐ Step 2 — Insert final text into Supabase
@@ -99,13 +174,24 @@ export default function FloatingComposer({
     if (!content.trim()) return;
     if (loading || !user) return;
 
-    const options = await runGatekeeper(content);
+    const result = await runGatekeeper(content);
 
-    if (options) {
-      setGatekeeperOptions(options);
-      setShowGatekeeper(true);
-    } else {
+    // ⭐ Auto-approve positive posts
+    if (result?.autoApprove) {
       publishToSupabase(content);
+
+      // TODO: Toast will be added in Part 4
+      console.log("The spirits approve your message ✨");
+
+      setContent("");
+      setExpanded(false);
+      return;
+    }
+
+    // ⭐ Otherwise show rewrite modal
+    if (result?.rewrites) {
+      setGatekeeperOptions(result.rewrites);
+      setShowGatekeeper(true);
     }
   }
 
