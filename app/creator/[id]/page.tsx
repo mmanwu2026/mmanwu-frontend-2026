@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { supabase } from "@/supabaseClient";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/ReactionBar";
@@ -26,7 +26,6 @@ interface PlazaPost {
   spirit_score: number | null;
   reactions: any;
 
-  // ⭐ Computed fields added during mapping
   autoMask: number;
   positivityRatio: number;
 }
@@ -58,6 +57,8 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function CreatorProfilePage() {
+  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: CREATE CLIENT HERE
+
   const params = useParams();
   const creatorId = params?.id as string;
 

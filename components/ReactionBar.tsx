@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { supabase } from "@/supabaseClient";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
 import { useUser } from "@/context/UserContext";
 
 interface ReactionBarProps {
@@ -27,6 +27,7 @@ export default function ReactionBar({
   positivityRatio = 0.5,
   onReact,
 }: ReactionBarProps) {
+  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
   const { user, loading } = useUser();
 
   const [selected, setSelected] = useState<number | null>(null);

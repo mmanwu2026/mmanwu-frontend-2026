@@ -1,100 +1,111 @@
 "use client";
 
-import { useState } from "react";
-import { supabase } from "@/supabaseClient";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
+import Link from "next/link";
 
 export default function SignupPage() {
-  const router = useRouter();
+  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState("");
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     setLoading(true);
+    setErrorMsg("");
 
-    const { error } = await supabase.auth.signUp({
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
     });
 
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
+    if (authError) {
+      setErrorMsg(authError.message);
+      setLoading(false);
       return;
     }
 
-    setSuccess("Signup successful! Check your email to confirm your account.");
+    const userId = authData.user?.id;
+    if (!userId) {
+      setErrorMsg("Signup failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Create profile row
+    const { error: profileError } = await supabase.from("users").insert({
+      id: userId,
+      username,
+      bio: "",
+      avatar_url: null,
+      spirit_score: 0,
+      mask_tier: 1,
+    });
+
+    if (profileError) {
+      setErrorMsg(profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    window.location.href = "/plaza";
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-white">
-      <h1 className="text-3xl font-bold mb-6">Sign up</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-gray-200 px-6">
+      <h1 className="text-3xl font-bold mb-6">Create Account</h1>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      {success && <p className="text-green-500 mb-4">{success}</p>}
+      <form onSubmit={handleSignup} className="w-full max-w-sm space-y-4">
+        <input
+          type="text"
+          placeholder="Username"
+          className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+        />
 
-      <form onSubmit={handleSignup} className="flex flex-col gap-4 w-80">
-        <div>
-          <label className="block mb-1">Your Name</label>
-          <input
-            type="text"
-            className="w-full p-2 rounded text-black"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-          />
-        </div>
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
-        <div>
-          <label className="block mb-1">Email</label>
-          <input
-            type="email"
-            className="w-full p-2 rounded text-black"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-          />
-        </div>
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
-        <div>
-          <label className="block mb-1">Password</label>
-          <input
-            type="password"
-            className="w-full p-2 rounded text-black"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
-        </div>
+        {errorMsg && (
+          <p className="text-red-400 text-sm">{errorMsg}</p>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="bg-gray-700 hover:bg-gray-600 p-2 rounded"
+          className="w-full p-3 rounded bg-purple-600 hover:bg-purple-700 transition"
         >
-          {loading ? "Signing up..." : "Sign up"}
+          {loading ? "Creating account…" : "Sign Up"}
         </button>
       </form>
 
-      <p className="mt-4">
+      <p className="mt-4 text-sm">
         Already have an account?{" "}
-        <a href="/login" className="text-blue-400 underline">
+        <Link href="/login" className="text-purple-400 hover:text-purple-300">
           Log in
-        </a>
+        </Link>
       </p>
     </div>
   );

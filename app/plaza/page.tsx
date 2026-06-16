@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 import ReactionBar from "@/components/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
 import { useUser } from "@/context/UserContext";
-import { supabase } from "@/supabaseClient";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
 
 console.log("Supabase Plaza — D4 Theme Active");
 
@@ -56,9 +56,10 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  const { user } = useUser();
+  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
 
-console.log("REAL USER:", user);
+  const { user } = useUser();
+  console.log("REAL USER:", user);
 
   const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
   const [posts, setPosts] = useState<any[]>([]);
@@ -121,7 +122,6 @@ console.log("REAL USER:", user);
 
         const score = p.spirit_score ?? 0;
 
-        // ⭐ AutoMask logic (Option C)
         let autoMask = 2;
         if (score <= 20) autoMask = 2;
         else if (score <= 100) autoMask = 3;
@@ -307,7 +307,7 @@ console.log("REAL USER:", user);
                 {/* REACTION BAR */}
                 <div className="mt-6 w-full flex justify-center">
                   <ReactionBar
-                    postId={post.id}   // ⭐ FIXED — number, not string
+                    postId={post.id}
                     creatorId={post.creator_id}
                     reactions={post.reactions}
                     spiritScore={score}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { supabase } from "@/supabaseClient";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
@@ -11,6 +11,7 @@ export default function FloatingComposer({
 }: {
   onPost: (post: any) => void;
 }) {
+  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
@@ -181,12 +182,12 @@ Return the result as JSON:
 
     // ⭐ Auto-approve positive posts
     if (result?.autoApprove) {
-  publishToSupabase(content);
-  setToastMessage("The spirits approve your message ✨");
-  setContent("");
-  setExpanded(false);
-  return;
-}
+      publishToSupabase(content);
+      setToastMessage("The spirits approve your message ✨");
+      setContent("");
+      setExpanded(false);
+      return;
+    }
 
     // ⭐ Otherwise show rewrite modal
     if (result?.rewrites) {
@@ -213,12 +214,12 @@ Return the result as JSON:
         />
       )}
 
-{toastMessage && (
-  <SpiritToast
-    message={toastMessage}
-    onClose={() => setToastMessage(null)}
-  />
-)}
+      {toastMessage && (
+        <SpiritToast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
 
       <div
         className={`

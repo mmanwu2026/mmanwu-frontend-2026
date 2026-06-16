@@ -1,12 +1,14 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/supabaseClient";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
 import type { User } from "@supabase/supabase-js";
 
 const UserContext = createContext<any>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +57,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   return (
     <UserContext.Provider value={{ user, loading }}>
