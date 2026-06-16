@@ -36,8 +36,8 @@ export default function SignupPage() {
     const randomNumber = Math.floor(1000 + Math.random() * 90000);
     const username = `maskling_${randomNumber}`;
 
-    // 3️⃣ Create profile row in Supabase (correct table: profiles)
-    const { error: profileError } = await supabase.from("profiles").insert({
+    // 3️⃣ Create profile row in the correct table: users
+    const { error: profileError } = await supabase.from("users").insert({
       id: userId,
       name,
       username,
@@ -50,7 +50,7 @@ export default function SignupPage() {
       return;
     }
 
-    // 4️⃣ Redirect to Plaza (instant login)
+    // 4️⃣ Redirect to Plaza
     router.push("/plaza");
   }
 
