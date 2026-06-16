@@ -1,65 +1,30 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/supabaseClient";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
+const UserContext = createContext<any>(null);
 
-interface UserProfile {
-  id: string;
-  username: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  spirit_score: number;
-  mask_tier: number;
-}
-
-interface UserContextType {
-  user: UserProfile | null;
-  loading: boolean;
-}
-
-const UserContext = createContext<UserContextType>({
-  user: null,
-  loading: true,
-});
-
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+export function UserProvider({ children }) {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function init() {
-      let userId = localStorage.getItem("mmanwu_user_id");
-
-      // If no user exists, create one
-      if (!userId) {
-        const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: `user_${Math.floor(Math.random() * 100000)}`,
-            avatar_url: null,
-            bio: "",
-          }),
-        });
-
-        const data = await res.json();
-        userId = data.user.id;
-
-        localStorage.setItem("mmanwu_user_id", userId!);
-      }
-
-      // Fetch user profile
-      const profileRes = await fetch(
-        `${BACKEND_URL.replace(/\/$/, "")}/users/${userId}`
-      );
-      const profileData = await profileRes.json();
-
-      setUser(profileData.user);
+    async function loadUser() {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user || null);
       setLoading(false);
     }
 
-    init();
+    loadUser();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   return (
