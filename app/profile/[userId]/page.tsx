@@ -25,21 +25,29 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         return;
       }
 
-      // 2. Fetch profile
-      const { data: userData } = await supabase
+      // 2. Fetch profile (CORRECT COLUMN: id)
+      const { data: userData, error: profileError } = await supabase
         .from("users")
         .select("*")
         .eq("id", userId)
         .single();
 
+      if (profileError) {
+        console.error("Profile fetch error:", profileError);
+      }
+
       setProfile(userData);
 
-      // 3. Fetch posts
-      const { data: postsData } = await supabase
+      // 3. Fetch posts (CORRECT COLUMNS: creator_id, created_at)
+      const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select("*")
-        .eq("creatorId", userId)
-        .order("createdAt", { ascending: false });
+        .eq("creator_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (postsError) {
+        console.error("Posts fetch error:", postsError);
+      }
 
       setPosts(postsData || []);
       setLoading(false);
@@ -107,32 +115,28 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           <p className="text-zinc-500 text-center">No posts yet.</p>
         )}
 
-        {posts.length === 0 && (
-  <p className="text-zinc-500 text-center">No posts yet.</p>
-)}
+        {posts.map((post) => (
+          <div
+            key={post.id}
+            className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
+          >
+            <p className="text-sm mb-3">{post.content}</p>
 
-{posts.map((post) => (
-  <div
-    key={post.id}
-    className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
-  >
-    <p className="text-sm mb-3">{post.content}</p>
-
-    <ReactionBar
-      postId={post.id}
-      creatorId={post.creatorId}
-      reactions={{
-        mask1: post.mask1 ?? 0,
-        mask2: post.mask2 ?? 0,
-        mask3: post.mask3 ?? 0,
-        mask4: post.mask4 ?? 0,
-        mask5: post.mask5 ?? 0,
-      }}
-      spiritScore={post.spiritScore ?? 0}
-      positivityRatio={post.positivityRatio ?? 0.5}
-    />
-  </div>
-))}
+            <ReactionBar
+              postId={post.id}
+              creatorId={post.creator_id}   // FIXED
+              reactions={{
+                mask1: post.mask1 ?? 0,
+                mask2: post.mask2 ?? 0,
+                mask3: post.mask3 ?? 0,
+                mask4: post.mask4 ?? 0,
+                mask5: post.mask5 ?? 0,
+              }}
+              spiritScore={post.spirit_score ?? 0}
+              positivityRatio={post.positivity_ratio ?? 0.5}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
