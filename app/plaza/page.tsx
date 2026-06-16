@@ -58,6 +58,8 @@ function auraIntensity(score: number, positivity: number) {
 export default function PlazaPage() {
   const { user } = useUser();
 
+console.log("REAL USER:", user);
+
   const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
