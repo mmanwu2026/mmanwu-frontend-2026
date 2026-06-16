@@ -1,4 +1,3 @@
-// minor change to trigger deployment
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
@@ -12,21 +11,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadUser() {
+    let mounted = true;
+
+    async function hydrate() {
+      // 1️⃣ Wait for Supabase to hydrate the session
       const { data } = await supabase.auth.getSession();
       const sessionUser = data.session?.user || null;
 
-      setUser(sessionUser);
+      if (mounted) setUser(sessionUser);
 
+      // 2️⃣ If user exists, ensure profile exists
       if (sessionUser) {
-        // 1️⃣ Check if profile exists
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from("users")
           .select("*")
           .eq("id", sessionUser.id)
           .maybeSingle();
 
-        // 2️⃣ If no profile exists → create it
         if (!profile) {
           const randomNumber = Math.floor(1000 + Math.random() * 90000);
           const username = `maskling_${randomNumber}`;
@@ -40,15 +41,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      setLoading(false);
+      if (mounted) setLoading(false);
     }
 
-    loadUser();
+    hydrate();
 
+    // 3️⃣ Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const sessionUser = session?.user || null;
-        setUser(sessionUser);
+
+        if (mounted) setUser(sessionUser);
 
         if (sessionUser) {
           const { data: profile } = await supabase
@@ -72,7 +75,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   return (
