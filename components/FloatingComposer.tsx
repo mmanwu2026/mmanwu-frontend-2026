@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
+import SpiritToast from "@/components/SpiritToast";
 
 export default function FloatingComposer({
   onPost,
@@ -20,6 +21,8 @@ export default function FloatingComposer({
   const [showGatekeeper, setShowGatekeeper] = useState(false);
 
   const lastScroll = useRef(0);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Hide composer on scroll
   useEffect(() => {
@@ -178,15 +181,12 @@ Return the result as JSON:
 
     // ⭐ Auto-approve positive posts
     if (result?.autoApprove) {
-      publishToSupabase(content);
-
-      // TODO: Toast will be added in Part 4
-      console.log("The spirits approve your message ✨");
-
-      setContent("");
-      setExpanded(false);
-      return;
-    }
+  publishToSupabase(content);
+  setToastMessage("The spirits approve your message ✨");
+  setContent("");
+  setExpanded(false);
+  return;
+}
 
     // ⭐ Otherwise show rewrite modal
     if (result?.rewrites) {
@@ -212,6 +212,13 @@ Return the result as JSON:
           onClose={() => setShowGatekeeper(false)}
         />
       )}
+
+{toastMessage && (
+  <SpiritToast
+    message={toastMessage}
+    onClose={() => setToastMessage(null)}
+  />
+)}
 
       <div
         className={`
