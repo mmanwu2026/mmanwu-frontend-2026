@@ -6,6 +6,8 @@ import { supabase } from "@/supabaseClient";
 
 export default function SignupPage() {
   const router = useRouter();
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,7 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    // 1. Create Supabase Auth user
+    // 1️⃣ Create Supabase Auth user
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -30,19 +32,16 @@ export default function SignupPage() {
 
     const userId = data.user.id;
 
-    // 2. Auto-generate username
+    // 2️⃣ Auto-generate username
     const randomNumber = Math.floor(1000 + Math.random() * 90000);
-    const username = `user_${randomNumber}`;
+    const username = `maskling_${randomNumber}`;
 
-    // 3. Create profile row in Supabase
-    const { error: profileError } = await supabase.from("users").insert({
+    // 3️⃣ Create profile row in Supabase (correct table: profiles)
+    const { error: profileError } = await supabase.from("profiles").insert({
       id: userId,
+      name,
       username,
-      avatar_url: null,
-      bio: null,
-      spirit_score: 0,
-      mask_tier: 0,
-      last_active: new Date().toISOString(),
+      display_name_enabled: false,
     });
 
     if (profileError) {
@@ -51,8 +50,8 @@ export default function SignupPage() {
       return;
     }
 
-    // 4. Redirect to login
-    router.push("/login");
+    // 4️⃣ Redirect to Plaza (instant login)
+    router.push("/plaza");
   }
 
   return (
@@ -66,6 +65,18 @@ export default function SignupPage() {
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
         <div>
+          <label className="block text-sm mb-1">Your Name</label>
+          <input
+            type="text"
+            className="w-full rounded-md bg-zinc-800 border border-zinc-700 px-3 py-2 text-sm"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="Chukwudi Nwawka"
+          />
+        </div>
+
+        <div>
           <label className="block text-sm mb-1">Email</label>
           <input
             type="email"
@@ -73,6 +84,7 @@ export default function SignupPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            placeholder="you@example.com"
           />
         </div>
 
@@ -84,6 +96,7 @@ export default function SignupPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            placeholder="••••••••"
           />
         </div>
 
