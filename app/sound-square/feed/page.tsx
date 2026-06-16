@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
 
 type SoundPost = {
   id: string;
@@ -15,7 +15,11 @@ export default function SoundSquareFeed() {
   const [posts, setPosts] = useState<SoundPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClientComponentClient();
+  // Correct initialization for your version of auth-helpers
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
     async function loadPosts() {
@@ -59,12 +63,10 @@ function SoundPostCard({ post }: { post: SoundPost }) {
         Uploaded by {post.creator_name} • {post.created_at}
       </p>
 
-      {/* Waveform placeholder */}
       <div className="w-full h-24 bg-gray-700 rounded mb-4 flex items-center justify-center text-gray-400">
         Waveform preview
       </div>
 
-      {/* Audio controls */}
       <div className="flex gap-4 mb-4">
         <button className="bg-green-600 px-4 py-2 rounded hover:bg-green-500">
           Play
@@ -74,7 +76,6 @@ function SoundPostCard({ post }: { post: SoundPost }) {
         </button>
       </div>
 
-      {/* Reaction masks */}
       <div className="flex gap-6">
         <ReactionMask emoji="😶‍🌫️" />
         <ReactionMask emoji="🔥" />
