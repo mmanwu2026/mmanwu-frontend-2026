@@ -20,11 +20,11 @@ export default function SpiritToast({
   return (
     <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
       <div
-        className="
+        className={`
           bg-black/80 text-white px-4 py-2 rounded-xl
           border border-white/10 shadow-lg
           animate-fade-in-up
-        "
+        `}
       >
         {message}
       </div>
