@@ -8,6 +8,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing API key" }, { status: 500 });
   }
 
+  // 1️⃣ Emotion analysis
   const analysisRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -22,13 +23,14 @@ export async function POST(req: Request) {
           content: `
 You are the Mmanwu Emotional Classifier.
 
-Analyze the user's message and return a JSON object with:
-- emotion: one of ["joy","excitement","gratitude","pride","relief","celebration","anger","sadness","fear","anxiety","neutral"]
-- intensity: number 0–1
-- toxicity: number 0–1
-- bullying: number 0–1
-- clarity: number 0–1
-Return ONLY valid JSON.
+Analyze the user's message and return ONLY JSON:
+{
+  "emotion": "...",
+  "intensity": 0-1,
+  "toxicity": 0-1,
+  "bullying": 0-1,
+  "clarity": 0-1
+}
           `,
         },
         { role: "user", content: text },
@@ -47,13 +49,13 @@ Return ONLY valid JSON.
   }
 
   const { emotion, toxicity, bullying, clarity } = analysis;
-
   const positive = ["joy", "excitement", "gratitude", "pride", "relief", "celebration"];
 
   if (positive.includes(emotion) && toxicity < 0.1 && bullying < 0.1 && clarity >= 0.4) {
     return NextResponse.json({ autoApprove: true });
   }
 
+  // 2️⃣ Generate rewrites
   const rewriteRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -66,17 +68,15 @@ Return ONLY valid JSON.
         {
           role: "system",
           content: `
-Rewrite the user's message into 3 versions:
-1. Calm
-2. Direct
-3. Elevated
+Rewrite the user's message into EXACTLY this JSON array:
 
-Return JSON:
 [
   { "label": "Calm", "text": "...", "explanation": "..." },
   { "label": "Direct", "text": "...", "explanation": "..." },
   { "label": "Elevated", "text": "...", "explanation": "..." }
 ]
+
+Return ONLY valid JSON. No commentary. No introduction. No explanation outside the JSON.
           `,
         },
         { role: "user", content: text },
