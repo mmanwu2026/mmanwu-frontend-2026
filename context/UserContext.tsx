@@ -13,15 +13,61 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadUser() {
       const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user || null);
+      const sessionUser = data.session?.user || null;
+
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        // 1️⃣ Check if profile exists
+        const { data: profile, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", sessionUser.id)
+          .maybeSingle();
+
+        // 2️⃣ If no profile exists → create it
+        if (!profile) {
+          const randomNumber = Math.floor(1000 + Math.random() * 90000);
+          const username = `maskling_${randomNumber}`;
+
+          await supabase.from("users").insert({
+            id: sessionUser.id,
+            name: sessionUser.user_metadata?.name || "",
+            username,
+            display_name_enabled: false,
+          });
+        }
+      }
+
       setLoading(false);
     }
 
     loadUser();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
+      async (_event, session) => {
+        const sessionUser = session?.user || null;
+        setUser(sessionUser);
+
+        if (sessionUser) {
+          const { data: profile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", sessionUser.id)
+            .maybeSingle();
+
+          if (!profile) {
+            const randomNumber = Math.floor(1000 + Math.random() * 90000);
+            const username = `maskling_${randomNumber}`;
+
+            await supabase.from("users").insert({
+              id: sessionUser.id,
+              name: sessionUser.user_metadata?.name || "",
+              username,
+              display_name_enabled: false,
+            });
+          }
+        }
       }
     );
 
