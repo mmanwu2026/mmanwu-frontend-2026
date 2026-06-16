@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
+import type { User } from "@supabase/supabase-js";
 
 const UserContext = createContext<any>(null);
 
-export function UserProvider({ children }) {
-  const [user, setUser] = useState(null);
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
