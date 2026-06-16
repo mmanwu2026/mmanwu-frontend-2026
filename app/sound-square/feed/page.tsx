@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 type SoundPost = {
   id: string;
@@ -14,33 +15,26 @@ export default function SoundSquareFeed() {
   const [posts, setPosts] = useState<SoundPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Placeholder fetch — will connect to Supabase later
+  const supabase = createClientComponentClient();
+
   useEffect(() => {
     async function loadPosts() {
-      // For now, fake data so UI works
-      const fakePosts: SoundPost[] = [
-        {
-          id: "1",
-          title: "Spirit Drums",
-          audio_url: "",
-          creator_name: "Maskling_001",
-          created_at: "2026-06-16",
-        },
-        {
-          id: "2",
-          title: "Moonlight Chant",
-          audio_url: "",
-          creator_name: "Maskling_002",
-          created_at: "2026-06-15",
-        },
-      ];
+      const { data, error } = await supabase
+        .from("sound_posts")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      setPosts(fakePosts);
+      if (error) {
+        console.error("Error loading sound posts:", error);
+        return;
+      }
+
+      setPosts(data || []);
       setLoading(false);
     }
 
     loadPosts();
-  }, []);
+  }, [supabase]);
 
   return (
     <div className="min-h-screen text-white p-6">
