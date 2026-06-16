@@ -1,13 +1,13 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
-import type { User } from "@supabase/supabase-js";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import type { User, Session } from "@supabase/supabase-js";
 
 const UserContext = createContext<any>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
+  const supabase = createSupabaseBrowserClient();
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,23 +15,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // 1️⃣ First: wait for Supabase to hydrate the session
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setUser(data.session?.user || null);
-      setLoading(false);
-    });
-
-    // 2️⃣ Listen for auth changes (this is the REAL source of truth)
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (_event: string, session: Session | null) => {
         if (!mounted) return;
 
         const sessionUser = session?.user || null;
         setUser(sessionUser);
+        setLoading(false);
 
         if (sessionUser) {
-          // Ensure profile exists
           const { data: profile } = await supabase
             .from("users")
             .select("*")
