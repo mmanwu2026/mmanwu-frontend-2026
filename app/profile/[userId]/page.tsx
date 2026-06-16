@@ -15,7 +15,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   useEffect(() => {
     async function loadProfile() {
-      // 1. Check session
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -25,29 +24,21 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         return;
       }
 
-      // 2. Fetch profile (CORRECT COLUMN: id)
-      const { data: userData, error: profileError } = await supabase
+      // Fetch profile safely
+      const { data: userData } = await supabase
         .from("users")
         .select("*")
         .eq("id", userId)
-        .single();
+        .maybeSingle(); // <-- IMPORTANT: never throws
 
-      if (profileError) {
-        console.error("Profile fetch error:", profileError);
-      }
+      setProfile(userData || {}); // <-- never null
 
-      setProfile(userData);
-
-      // 3. Fetch posts (CORRECT COLUMNS: creator_id, created_at)
-      const { data: postsData, error: postsError } = await supabase
+      // Fetch posts safely
+      const { data: postsData } = await supabase
         .from("posts")
         .select("*")
         .eq("creator_id", userId)
         .order("created_at", { ascending: false });
-
-      if (postsError) {
-        console.error("Posts fetch error:", postsError);
-      }
 
       setPosts(postsData || []);
       setLoading(false);
@@ -64,7 +55,8 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  if (!profile) {
+  // If the row truly does not exist
+  if (!profile?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-red-400">Profile not found.</p>
@@ -72,38 +64,42 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
+  // Null-safe fallbacks
+  const username = profile.username || "Unknown";
+  const avatarLetter = username.charAt(0).toUpperCase();
+  const bio = profile.bio || "No bio yet.";
+  const spiritScore = profile.spirit_score ?? 0;
+  const maskTier = profile.mask_tier ?? 0;
+  const positivity = Math.round((profile.positivity_ratio ?? 0.5) * 100);
+
   return (
     <div className="min-h-screen bg-black text-white p-6">
       {/* Profile Header */}
       <div className="max-w-2xl mx-auto mb-8 border-b border-zinc-800 pb-6">
         <div className="flex items-center gap-4">
-          {/* Avatar */}
           <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-2xl">
-            {profile.username?.charAt(0).toUpperCase()}
+            {avatarLetter}
           </div>
 
           <div>
-            <h1 className="text-2xl font-semibold">{profile.username}</h1>
-            <p className="text-zinc-400 text-sm">{profile.bio || "No bio yet."}</p>
+            <h1 className="text-2xl font-semibold">{username}</h1>
+            <p className="text-zinc-400 text-sm">{bio}</p>
           </div>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-6 mt-4 text-sm">
           <div>
-            <span className="font-semibold">{profile.spirit_score}</span>{" "}
+            <span className="font-semibold">{spiritScore}</span>{" "}
             <span className="text-zinc-400">Spirit Score</span>
           </div>
 
           <div>
-            <span className="font-semibold">{profile.mask_tier}</span>{" "}
+            <span className="font-semibold">{maskTier}</span>{" "}
             <span className="text-zinc-400">Mask Tier</span>
           </div>
 
           <div>
-            <span className="font-semibold">
-              {Math.round((profile.positivity_ratio || 0) * 100)}%
-            </span>{" "}
+            <span className="font-semibold">{positivity}%</span>{" "}
             <span className="text-zinc-400">Positivity</span>
           </div>
         </div>
@@ -124,7 +120,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
             <ReactionBar
               postId={post.id}
-              creatorId={post.creator_id}   // FIXED
+              creatorId={post.creator_id}
               reactions={{
                 mask1: post.mask1 ?? 0,
                 mask2: post.mask2 ?? 0,
