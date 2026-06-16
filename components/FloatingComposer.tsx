@@ -79,12 +79,14 @@ export default function FloatingComposer({
     if (data) onPost(data);
   }
 
-  // ⭐ Main submit handler
+  // ⭐ Main submit handler (your updated version)
   async function handleSubmit() {
     if (!content.trim()) return;
     if (loading || !user) return;
 
     const result = await runGatekeeper(content);
+
+    console.log("GATEKEEPER RESULT:", result);
 
     // ⭐ Auto-approve positive posts
     if (result?.autoApprove) {
@@ -97,6 +99,7 @@ export default function FloatingComposer({
 
     // ⭐ Otherwise show rewrite modal
     if (result?.rewrites) {
+      console.log("REWRITES PASSED TO MODAL:", result.rewrites);
       setGatekeeperOptions(result.rewrites);
       setShowGatekeeper(true);
     }
