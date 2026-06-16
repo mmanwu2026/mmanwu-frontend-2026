@@ -21,8 +21,6 @@ export async function POST(req: Request) {
         {
           role: "system",
           content: `
-You are the Mmanwu Emotional Classifier.
-
 Analyze the user's message and return ONLY JSON:
 {
   "emotion": "...",
@@ -55,7 +53,7 @@ Analyze the user's message and return ONLY JSON:
     return NextResponse.json({ autoApprove: true });
   }
 
-  // 2️⃣ Generate rewrites
+  // 2️⃣ Generate rewrites (bulletproof JSON-only prompt)
   const rewriteRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -68,15 +66,27 @@ Analyze the user's message and return ONLY JSON:
         {
           role: "system",
           content: `
+You are the Mmanwu Gatekeeper.
+
 Rewrite the user's message into EXACTLY this JSON array:
 
 [
-  { "label": "Calm", "text": "...", "explanation": "..." },
-  { "label": "Direct", "text": "...", "explanation": "..." },
-  { "label": "Elevated", "text": "...", "explanation": "..." }
+  { "label": "Calm", "text": "rewritten text", "explanation": "why this rewrite is calmer" },
+  { "label": "Direct", "text": "rewritten text", "explanation": "why this rewrite is more direct" },
+  { "label": "Elevated", "text": "rewritten text", "explanation": "why this rewrite is more expressive" }
 ]
 
-Return ONLY valid JSON. No commentary. No introduction. No explanation outside the JSON.
+CRITICAL RULES:
+- Return ONLY valid JSON.
+- No commentary.
+- No markdown.
+- No backticks.
+- No code blocks.
+- No text before or after the JSON.
+- No wrapping the JSON in quotes.
+- No trailing commas.
+- No extra fields.
+- No explanations outside the JSON.
           `,
         },
         { role: "user", content: text },
@@ -89,9 +99,49 @@ Return ONLY valid JSON. No commentary. No introduction. No explanation outside t
   let rewrites;
 
   try {
-    rewrites = JSON.parse(rewriteJson?.choices?.[0]?.message?.content || "[]");
+    const raw = rewriteJson?.choices?.[0]?.message?.content || "[]";
+
+    // Remove markdown fences if present
+    const cleaned = raw
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+
+    rewrites = JSON.parse(cleaned);
   } catch {
     rewrites = [];
+  }
+
+  // 3️⃣ Final safety filter — ensure valid objects
+  if (!Array.isArray(rewrites)) rewrites = [];
+
+  rewrites = rewrites.filter(
+    (r) =>
+      r &&
+      typeof r.label === "string" &&
+      typeof r.text === "string" &&
+      r.text.trim().length > 0
+  );
+
+  // 4️⃣ If still empty, generate fallback rewrites
+  if (rewrites.length === 0) {
+    rewrites = [
+      {
+        label: "Calm",
+        text: text,
+        explanation: "A softened, steady version of your message.",
+      },
+      {
+        label: "Direct",
+        text: text,
+        explanation: "A clear, straightforward version of your message.",
+      },
+      {
+        label: "Elevated",
+        text: text,
+        explanation: "A more expressive, refined version of your message.",
+      },
+    ];
   }
 
   return NextResponse.json({ autoApprove: false, rewrites });
