@@ -9,31 +9,37 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const router = useRouter();
   const userId = params.userId;
 
+  const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Wait for session hydration
   useEffect(() => {
-    async function loadProfile() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         router.replace("/login");
-        return;
+      } else {
+        setSessionReady(true);
       }
+    });
 
-      // Fetch profile safely
+    return () => listener.subscription.unsubscribe();
+  }, [router]);
+
+  // Load profile AFTER session is ready
+  useEffect(() => {
+    if (!sessionReady) return;
+
+    async function loadProfile() {
       const { data: userData } = await supabase
         .from("users")
         .select("*")
         .eq("id", userId)
-        .maybeSingle(); // <-- IMPORTANT: never throws
+        .maybeSingle();
 
-      setProfile(userData || {}); // <-- never null
+      setProfile(userData || {});
 
-      // Fetch posts safely
       const { data: postsData } = await supabase
         .from("posts")
         .select("*")
@@ -45,9 +51,9 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     }
 
     loadProfile();
-  }, [userId, router]);
+  }, [sessionReady, userId]);
 
-  if (loading) {
+  if (loading || !sessionReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile...</p>
@@ -55,7 +61,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // If the row truly does not exist
   if (!profile?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -64,7 +69,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // Null-safe fallbacks
   const username = profile.username || "Unknown";
   const avatarLetter = username.charAt(0).toUpperCase();
   const bio = profile.bio || "No bio yet.";
