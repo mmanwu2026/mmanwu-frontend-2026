@@ -53,7 +53,7 @@ Analyze the user's message and return ONLY JSON:
     return NextResponse.json({ autoApprove: true });
   }
 
-  // 2️⃣ Generate rewrites (bulletproof JSON-only prompt)
+  // 2️⃣ Generate rewrites — NEW PROMPT INSERTED HERE
   const rewriteRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -68,30 +68,33 @@ Analyze the user's message and return ONLY JSON:
           content: `
 You are the Mmanwu Gatekeeper.
 
-Rewrite the user's message into EXACTLY this JSON array:
+Your job is to transform the user's message into three DISTINCT emotional tones.
+
+You MUST rewrite the message — do NOT repeat the original wording.
+
+Produce EXACTLY this JSON array:
 
 [
-  { "label": "Calm", "text": "rewritten text", "explanation": "why this rewrite is calmer" },
-  { "label": "Direct", "text": "rewritten text", "explanation": "why this rewrite is more direct" },
-  { "label": "Elevated", "text": "rewritten text", "explanation": "why this rewrite is more expressive" }
+  { "label": "Calm", "text": "a calmer, softened rewrite", "explanation": "why this version is calmer" },
+  { "label": "Direct", "text": "a clearer, more concise rewrite", "explanation": "why this version is more direct" },
+  { "label": "Elevated", "text": "a more expressive, refined rewrite", "explanation": "why this version is elevated" }
 ]
 
 CRITICAL RULES:
 - Return ONLY valid JSON.
-- No commentary.
 - No markdown.
 - No backticks.
-- No code blocks.
-- No text before or after the JSON.
-- No wrapping the JSON in quotes.
-- No trailing commas.
-- No extra fields.
-- No explanations outside the JSON.
+- No commentary outside the JSON.
+- The rewrites MUST differ from each other.
+- The rewrites MUST differ from the original text.
+- The rewrites MUST preserve the user's emotional truth.
+- The rewrites MUST NOT be identical.
+- The rewrites MUST NOT copy the original text.
           `,
         },
         { role: "user", content: text },
       ],
-      temperature: 0.7,
+      temperature: 0.9, // ⭐ More creativity
     }),
   });
 
@@ -101,7 +104,6 @@ CRITICAL RULES:
   try {
     const raw = rewriteJson?.choices?.[0]?.message?.content || "[]";
 
-    // Remove markdown fences if present
     const cleaned = raw
       .replace(/```json/gi, "")
       .replace(/```/g, "")
@@ -128,17 +130,17 @@ CRITICAL RULES:
     rewrites = [
       {
         label: "Calm",
-        text: text,
+        text: `I’m taking a moment to express this more gently: ${text}`,
         explanation: "A softened, steady version of your message.",
       },
       {
         label: "Direct",
-        text: text,
+        text: `Here’s the clear, distilled version: ${text}`,
         explanation: "A clear, straightforward version of your message.",
       },
       {
         label: "Elevated",
-        text: text,
+        text: `Allow me to refine and elevate your message: ${text}`,
         explanation: "A more expressive, refined version of your message.",
       },
     ];
