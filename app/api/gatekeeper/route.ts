@@ -104,6 +104,9 @@ CRITICAL RULES:
 
   try {
     const raw = rewriteJson?.choices?.[0]?.message?.content || "[]";
+    
+    console.log("RAW REWRITE OUTPUT:", raw);
+
     const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
     rewrites = JSON.parse(cleaned);
   } catch {
