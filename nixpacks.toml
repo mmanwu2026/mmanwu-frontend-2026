@@ -1,0 +1,11 @@
+[phases.setup]
+nodejs_version = "20"
+
+[phases.build]
+cmds = ["npm install", "npm run build"]
+
+[phases.start]
+cmd = "npm run start"
+
+[build]
+dir = "gatekeeper-worker"
