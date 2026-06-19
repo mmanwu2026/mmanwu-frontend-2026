@@ -152,7 +152,7 @@ const key = `mask${r.maskTier}`;
 
       const positivityRatio = total > 0 ? positive / total : 0.5;
 
-      const score = p.spirit_score ?? 0;
+      const score = p.spirit_score; // always use DB value
 
       let autoMask = 2;
       if (score <= 20) autoMask = 2;
@@ -267,7 +267,7 @@ const key = `mask${r.maskTier}`;
 
             return (
               <div
-                key={post.id}
+    key={`${post.id}-${post.spirit_score}-${post.reactions.mask1}-${post.reactions.mask2}-${post.reactions.mask3}-${post.reactions.mask4}-${post.reactions.mask5}`}
                 className={`
                   relative p-8 rounded-2xl transition-all duration-500
                   overflow-visible min-h-[420px] w-[380px] mx-auto flex flex-col items-center
