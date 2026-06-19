@@ -81,29 +81,43 @@ export default function FloatingComposer({
 
   // ⭐ Main submit handler (your updated version)
   async function handleSubmit() {
-    if (!content.trim()) return;
-    if (loading || !user) return;
+  if (!content.trim()) return;
+  if (loading || !user) return;
 
-    const result = await runGatekeeper(content);
+  const result = await runGatekeeper(content);
 
-    console.log("GATEKEEPER RESULT:", result);
+  console.log("GATEKEEPER RESULT:", result);
 
-    // ⭐ Auto-approve positive posts
-    if (result?.autoApprove) {
-      publishToSupabase(content);
-      setToastMessage("The spirits approve your message ✨");
-      setContent("");
-      setExpanded(false);
-      return;
-    }
-
-    // ⭐ Otherwise show rewrite modal
-    if (result?.rewrites) {
-      console.log("REWRITES PASSED TO MODAL:", result.rewrites);
-      setGatekeeperOptions(result.rewrites);
-      setShowGatekeeper(true);
-    }
+  // ⭐ Auto-approve positive posts
+  if (result?.autoApprove) {
+    publishToSupabase(content);
+    setToastMessage("The spirits approve your message ✨");
+    setContent("");
+    setExpanded(false);
+    return;
   }
+
+  // ⭐ Otherwise show rewrite modal
+  if (result?.rewrites) {
+    console.log("REWRITES PASSED TO MODAL:", result.rewrites);
+
+   const toneLabels = ["Calm", "Direct", "Elevated"];
+const toneExplanations = [
+  "Softens the tone while keeping your message intact.",
+  "Keeps your message firm and straightforward.",
+  "Elevates the language for a more refined delivery."
+];
+
+const formatted = result.rewrites.map((text: string, i: number) => ({
+  label: toneLabels[i],
+  text,
+  explanation: toneExplanations[i],
+}));
+
+    setGatekeeperOptions(formatted);
+    setShowGatekeeper(true);
+  }
+}
 
   // ⭐ User selects a rewrite
   function handleGatekeeperSelect(finalText: string) {

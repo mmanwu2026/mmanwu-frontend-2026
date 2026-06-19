@@ -1,59 +1,115 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
 
 export async function POST(req: Request) {
   try {
-    const { user_id, content } = await req.json();
+    const { text } = await req.json();
 
-    if (!user_id || !content) {
+    if (!text || text.trim().length === 0) {
       return NextResponse.json(
-        { error: "Missing user_id or content" },
+        { error: "Missing text" },
         { status: 400 }
       );
     }
 
-    // 1️⃣ Save raw post immediately
-    const { data: post, error: postError } = await supabase
-      .from("posts")
-      .insert([{ user_id, content, status: "raw" }])
-      .select()
-      .single();
-
-    if (postError) {
-      console.error("Post creation error:", postError);
-      return NextResponse.json(
-        { error: "Failed to create post" },
-        { status: 500 }
-      );
-    }
-
-    // 2️⃣ Insert job into Gatekeeper queue
-    const { error: jobError } = await supabase
-      .from("gatekeeper_jobs")
-      .insert([{ post_id: post.id, status: "pending" }]);
-
-    if (jobError) {
-      console.error("Queue insert error:", jobError);
-      return NextResponse.json(
-        { error: "Failed to enqueue Gatekeeper job" },
-        { status: 500 }
-      );
-    }
-
-    // 3️⃣ Return success immediately — NO AI CALL HERE
-    return NextResponse.json({
-      message: "Post created and queued for Gatekeeper processing",
-      post_id: post.id,
+    // 1️⃣ Detect celebratory / positive posts
+    const detect = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a classifier. Determine if the text is celebratory, grateful, proud, joyful, or uplifting. Respond ONLY with 'YES' or 'NO'.",
+        },
+        { role: "user", content: text },
+      ],
+      max_tokens: 2,
     });
+
+    const isPositive =
+      detect.choices[0].message.content?.trim().toUpperCase() === "YES";
+
+    if (isPositive) {
+      return NextResponse.json({
+        autoApprove: true,
+        reason: "Celebratory or positive content",
+      });
+    }
+
+    // 2️⃣ Generate rewrite suggestions (STRICT JSON SCHEMA)
+const rewrite = await client.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "system",
+      content:
+        "Rewrite the user's text in 3 different creative ways. Return ONLY valid JSON.",
+    },
+    { role: "user", content: text },
+  ],
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "rewrites_schema",
+      schema: {
+        type: "object",
+        properties: {
+          rewrites: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 3,
+            maxItems: 3,
+          },
+        },
+        required: ["rewrites"],
+        additionalProperties: false,
+      },
+    },
+  },
+  max_tokens: 300,
+});
+
+// ⭐ TEMPORARY DEBUG LOG
+console.log("RAW_MODEL_OUTPUT:", rewrite);
+console.log("RAW CONTENT:", rewrite.choices[0].message.content);
+
+// ⭐ Chat Completions API returns JSON as a string in message.content
+const raw = rewrite.choices?.[0]?.message?.content ?? "{}";
+
+let parsed: any = {};
+try {
+  parsed = JSON.parse(raw);
+} catch (e) {
+  console.error("JSON parse error:", e, "RAW:", raw);
+  parsed = { rewrites: [] };
+}
+
+// Safety fallback
+if (!parsed.rewrites || parsed.rewrites.length !== 3) {
+  console.error("Gatekeeper rewrite schema mismatch:", parsed);
+  return NextResponse.json({
+    autoApprove: false,
+    rewrites: [
+      "Rewrite unavailable (1)",
+      "Rewrite unavailable (2)",
+      "Rewrite unavailable (3)",
+    ],
+  });
+}
+
+    return NextResponse.json({
+      autoApprove: false,
+      rewrites: parsed.rewrites,
+    });
+
   } catch (err) {
-    console.error("Unexpected error:", err);
+    console.error("Gatekeeper error:", err);
     return NextResponse.json(
-      { error: "Unexpected server error" },
+      { error: "Gatekeeper processing failed" },
       { status: 500 }
     );
   }
