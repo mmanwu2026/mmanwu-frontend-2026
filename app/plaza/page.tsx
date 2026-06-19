@@ -86,70 +86,93 @@ export default function PlazaPage() {
     return data;
   }
 
-  async function fetchPosts() {
-    setLoading(true);
+async function fetchPosts() {
+  setLoading(true);
 
-    const { data, error } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false });
+  // 1️⃣ Fetch posts
+  const { data: postsData, error: postsError } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Post fetch error:", error);
-      setLoading(false);
-      return;
+  if (postsError) {
+    console.error("Post fetch error:", postsError);
+    setLoading(false);
+    return;
+  }
+
+  // 2️⃣ Fetch reactions grouped by post_id
+  const { data: reactionsData, error: reactionsError } = await supabase
+    .from("reactions")
+    .select("post_id, maskTier");
+
+  if (reactionsError) {
+    console.error("Reactions fetch error:", reactionsError);
+    setLoading(false);
+    return;
+  }
+
+  // 3️⃣ Build reaction counts per post
+  const reactionMap: Record<number, any> = {};
+
+  reactionsData.forEach((r) => {
+    if (!reactionMap[r.post_id]) {
+      reactionMap[r.post_id] = {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+      };
     }
 
-    const patched = await Promise.all(
-      data.map(async (p: PlazaPost) => {
-        const r = p.reactions || {};
+    const key = `mask${r.maskTier}`;
+    if (reactionMap[r.post_id][key] !== undefined) {
+      reactionMap[r.post_id][key] += 1;
+    }
+  });
 
-        const total =
-          (r["1"] ?? 0) +
-          (r["2"] ?? 0) +
-          (r["3"] ?? 0) +
-          (r["4"] ?? 0) +
-          (r["5"] ?? 0) +
-          (r["6"] ?? 0);
+  // 4️⃣ Merge posts + reaction counts + positivity + autoMask
+  const patched = await Promise.all(
+    postsData.map(async (p) => {
+      const r = reactionMap[p.id] || {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+      };
 
-        const positive =
-          (r["3"] ?? 0) +
-          (r["4"] ?? 0) +
-          (r["5"] ?? 0) +
-          (r["6"] ?? 0);
+      const total =
+        r.mask1 + r.mask2 + r.mask3 + r.mask4 + r.mask5;
 
-        const positivityRatio = total > 0 ? positive / total : 0.5;
+      const positive = r.mask3 + r.mask4 + r.mask5;
 
-        const score = p.spirit_score ?? 0;
+      const positivityRatio = total > 0 ? positive / total : 0.5;
 
-        let autoMask = 2;
-        if (score <= 20) autoMask = 2;
-        else if (score <= 100) autoMask = 3;
-        else if (score <= 200) autoMask = 4;
-        else if (score <= 500) autoMask = 5;
-        else autoMask = 6;
+      const score = p.spirit_score ?? 0;
 
-        await fetchCreatorProfile(p.creator_id);
+      let autoMask = 2;
+      if (score <= 20) autoMask = 2;
+      else if (score <= 100) autoMask = 3;
+      else if (score <= 200) autoMask = 4;
+      else if (score <= 500) autoMask = 5;
+      else autoMask = 6;
 
-        return {
-          ...p,
-          autoMask,
-          positivityRatio,
-          reactions: {
-            mask1: r["1"] ?? 0,
-            mask2: r["2"] ?? 0,
-            mask3: r["3"] ?? 0,
-            mask4: r["4"] ?? 0,
-            mask5: r["5"] ?? 0,
-            mask6: r["6"] ?? 0,
-          },
-        };
-      })
-    );
+      await fetchCreatorProfile(p.creator_id);
 
-    setPosts(patched);
-    setLoading(false);
-  }
+      return {
+        ...p,
+        autoMask,
+        positivityRatio,
+        reactions: r,
+      };
+    })
+  );
+
+  setPosts(patched);
+  setLoading(false);
+}
 
   useEffect(() => {
     fetchPosts();
