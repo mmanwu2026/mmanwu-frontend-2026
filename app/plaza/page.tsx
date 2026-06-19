@@ -105,7 +105,8 @@ async function fetchPosts() {
   const { data: reactionsData, error: reactionsError } = await supabase
   .from("reactions")
   .select("post_id, maskTier")
-  .order("created_at", { ascending: true });   // ⭐ guaranteed fresh
+  .order("id", { ascending: true })
+  .neq("maskTier", -1); // ⭐ forces Supabase to bypass cache
 
   if (reactionsError) {
     console.error("Reactions fetch error:", reactionsError);
