@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useUser } from "@/context/UserContext";
 
 interface ReactionBarProps {
-  postId: number; // ⭐ FIXED: must be number
+  postId: number;
   creatorId: string;
   reactions?: {
     mask1?: number;
@@ -16,7 +16,7 @@ interface ReactionBarProps {
   };
   spiritScore?: number;
   positivityRatio?: number;
-  onReact?: (updatedPost: any) => void;
+  onReact?: () => void;
 }
 
 export default function ReactionBar({
@@ -27,7 +27,7 @@ export default function ReactionBar({
   positivityRatio = 0.5,
   onReact,
 }: ReactionBarProps) {
-  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
+  const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
   const [selected, setSelected] = useState<number | null>(null);
@@ -40,23 +40,53 @@ export default function ReactionBar({
     setLoadingReaction(true);
     setSelected(maskTier);
 
-    // ⭐ Supabase update
-    const { data, error } = await supabase
+    // ⭐ 1. Insert reaction row (UNLIMITED reactions allowed)
+    const { error: insertError } = await supabase
+      .from("reactions")
+      .insert({
+        post_id: postId,
+        user_id: user.id,
+        maskTier: maskTier,
+      });
+
+    if (insertError) {
+      console.error("Insert reaction error:", insertError);
+      setLoadingReaction(false);
+      return;
+    }
+
+    // ⭐ 2. Recalculate reaction counts
+    const { data: counts, error: countError } = await supabase
+      .from("reactions")
+      .select("maskTier")
+      .eq("post_id", postId);
+
+    if (countError) {
+      console.error("Count error:", countError);
+      setLoadingReaction(false);
+      return;
+    }
+
+    const newCounts = {
+      mask1: counts.filter((r) => r.maskTier === 1).length,
+      mask2: counts.filter((r) => r.maskTier === 2).length,
+      mask3: counts.filter((r) => r.maskTier === 3).length,
+      mask4: counts.filter((r) => r.maskTier === 4).length,
+      mask5: counts.filter((r) => r.maskTier === 5).length,
+    };
+
+    // ⭐ 3. Update spirit score in posts table
+    const spiritDelta = maskTier >= 3 ? 2 : -1;
+
+    await supabase
       .from("posts")
       .update({
-        mask: maskTier,
-        spirit_score:
-          (spiritScore ?? 0) + (maskTier >= 3 ? 2 : -1), // simple spirit logic
+        spirit_score: (spiritScore ?? 0) + spiritDelta,
       })
-      .eq("id", postId)
-      .select()
-      .single();
+      .eq("id", postId);
 
-    if (error) {
-      console.error("Reaction error:", error);
-    } else if (onReact && data) {
-      onReact(data);
-    }
+    // ⭐ 4. Trigger PlazaPage refresh
+    if (onReact) onReact();
 
     setLoadingReaction(false);
   };
@@ -91,10 +121,6 @@ export default function ReactionBar({
                 aura-tier-${mask.tier}
                 ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
               `}
-              style={{
-                "--spirit-score": spiritScore,
-                "--positivity-ratio": positivityRatio,
-              } as React.CSSProperties}
             >
               {mask.emoji}
             </div>
