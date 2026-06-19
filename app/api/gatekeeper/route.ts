@@ -40,30 +40,72 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2️⃣ Generate rewrite suggestions
-    const rewrite = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Rewrite the user's text in 3 different emotional tones: Calm, Confident, and Playful. Keep meaning intact. Return ONLY the rewrites.",
+    // 2️⃣ Generate rewrite suggestions (STRICT JSON SCHEMA)
+const rewrite = await client.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "system",
+      content:
+        "Rewrite the user's text in 3 different creative ways. Return ONLY valid JSON.",
+    },
+    { role: "user", content: text },
+  ],
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "rewrites_schema",
+      schema: {
+        type: "object",
+        properties: {
+          rewrites: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 3,
+            maxItems: 3,
+          },
         },
-        { role: "user", content: text },
-      ],
-      max_tokens: 200,
-    });
+        required: ["rewrites"],
+        additionalProperties: false,
+      },
+    },
+  },
+  max_tokens: 300,
+});
 
-    const raw = rewrite.choices[0].message.content || "";
-    const options = raw
-  .split("\n")
-  .map((line: string) => line.trim())
-  .filter((line: string) => line.length > 0);
+// ⭐ TEMPORARY DEBUG LOG
+console.log("RAW_MODEL_OUTPUT:", rewrite);
+console.log("RAW CONTENT:", rewrite.choices[0].message.content);
+
+// ⭐ Chat Completions API returns JSON as a string in message.content
+const raw = rewrite.choices?.[0]?.message?.content ?? "{}";
+
+let parsed: any = {};
+try {
+  parsed = JSON.parse(raw);
+} catch (e) {
+  console.error("JSON parse error:", e, "RAW:", raw);
+  parsed = { rewrites: [] };
+}
+
+// Safety fallback
+if (!parsed.rewrites || parsed.rewrites.length !== 3) {
+  console.error("Gatekeeper rewrite schema mismatch:", parsed);
+  return NextResponse.json({
+    autoApprove: false,
+    rewrites: [
+      "Rewrite unavailable (1)",
+      "Rewrite unavailable (2)",
+      "Rewrite unavailable (3)",
+    ],
+  });
+}
 
     return NextResponse.json({
       autoApprove: false,
-      rewrites: options,
+      rewrites: parsed.rewrites,
     });
+
   } catch (err) {
     console.error("Gatekeeper error:", err);
     return NextResponse.json(
