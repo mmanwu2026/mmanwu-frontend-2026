@@ -104,7 +104,7 @@ async function fetchPosts() {
   // 2️⃣ Fetch reactions grouped by post_id
   const { data: reactionsData, error: reactionsError } = await supabase
   .from("reactions")
-  .select("id, post_id, maskTier")   // ⭐ include id to force fresh fetch
+  .select("id, post_id, maskTier, created_at, user_id")   // ⭐ include id to force fresh fetch
   .order("id", { ascending: true });
 
   if (reactionsError) {
@@ -127,7 +127,8 @@ async function fetchPosts() {
       };
     }
 
-    const key = `mask${r.maskTier}`;
+    
+const key = `mask${r.maskTier}`;
     if (reactionMap[r.post_id][key] !== undefined) {
       reactionMap[r.post_id][key] += 1;
     }

@@ -44,33 +44,11 @@ export default function ReactionBar({
       maskTier,
     });
 
-    const { data: counts } = await supabase
-      .from("reactions")
-      .select("maskTier")
-      .eq("post_id", postId);
-
-    const safeCounts = counts ?? [];
-
-    const newCounts = {
-      mask1: safeCounts.filter((r) => r.maskTier === 1).length,
-      mask2: safeCounts.filter((r) => r.maskTier === 2).length,
-      mask3: safeCounts.filter((r) => r.maskTier === 3).length,
-      mask4: safeCounts.filter((r) => r.maskTier === 4).length,
-      mask5: safeCounts.filter((r) => r.maskTier === 5).length,
-    };
-
-    const delta = maskTier >= 3 ? 2 : -1;
-
-    await supabase
-      .from("posts")
-      .update({
-        spirit_score: (spiritScore ?? 0) + delta,
-      })
-      .eq("id", postId);
-
-    if (onReact) onReact();
-
-    setLoadingReaction(false);
+    // ⭐ wait for Supabase commit before fetching posts
+    setTimeout(() => {
+      if (onReact) onReact();
+      setLoadingReaction(false);
+    }, 150);
   };
 
   const maskData = [
