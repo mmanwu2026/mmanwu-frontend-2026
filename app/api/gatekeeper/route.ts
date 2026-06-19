@@ -1,59 +1,73 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
 
 export async function POST(req: Request) {
   try {
-    const { user_id, content } = await req.json();
+    const { text } = await req.json();
 
-    if (!user_id || !content) {
+    if (!text || text.trim().length === 0) {
       return NextResponse.json(
-        { error: "Missing user_id or content" },
+        { error: "Missing text" },
         { status: 400 }
       );
     }
 
-    // 1️⃣ Save raw post immediately
-    const { data: post, error: postError } = await supabase
-      .from("posts")
-      .insert([{ user_id, content, status: "raw" }])
-      .select()
-      .single();
+    // 1️⃣ Detect celebratory / positive posts
+    const detect = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a classifier. Determine if the text is celebratory, grateful, proud, joyful, or uplifting. Respond ONLY with 'YES' or 'NO'.",
+        },
+        { role: "user", content: text },
+      ],
+      max_tokens: 2,
+    });
 
-    if (postError) {
-      console.error("Post creation error:", postError);
-      return NextResponse.json(
-        { error: "Failed to create post" },
-        { status: 500 }
-      );
+    const isPositive =
+      detect.choices[0].message.content?.trim().toUpperCase() === "YES";
+
+    if (isPositive) {
+      return NextResponse.json({
+        autoApprove: true,
+        reason: "Celebratory or positive content",
+      });
     }
 
-    // 2️⃣ Insert job into Gatekeeper queue
-    const { error: jobError } = await supabase
-      .from("gatekeeper_jobs")
-      .insert([{ post_id: post.id, status: "pending" }]);
+    // 2️⃣ Generate rewrite suggestions
+    const rewrite = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Rewrite the user's text in 3 different emotional tones: Calm, Confident, and Playful. Keep meaning intact. Return ONLY the rewrites.",
+        },
+        { role: "user", content: text },
+      ],
+      max_tokens: 200,
+    });
 
-    if (jobError) {
-      console.error("Queue insert error:", jobError);
-      return NextResponse.json(
-        { error: "Failed to enqueue Gatekeeper job" },
-        { status: 500 }
-      );
-    }
+    const raw = rewrite.choices[0].message.content || "";
+    const options = raw
+  .split("\n")
+  .map((line: string) => line.trim())
+  .filter((line: string) => line.length > 0);
 
-    // 3️⃣ Return success immediately — NO AI CALL HERE
     return NextResponse.json({
-      message: "Post created and queued for Gatekeeper processing",
-      post_id: post.id,
+      autoApprove: false,
+      rewrites: options,
     });
   } catch (err) {
-    console.error("Unexpected error:", err);
+    console.error("Gatekeeper error:", err);
     return NextResponse.json(
-      { error: "Unexpected server error" },
+      { error: "Gatekeeper processing failed" },
       { status: 500 }
     );
   }
