@@ -38,13 +38,40 @@ export default function ReactionBar({
 
     setLoadingReaction(true);
 
+    // 1️⃣ Insert reaction
     await supabase.from("reactions").insert({
       post_id: postId,
       user_id: user.id,
       maskTier,
     });
 
-    // ⭐ wait for Supabase commit before fetching posts
+    // 2️⃣ Recalculate reaction counts
+    const { data: counts } = await supabase
+      .from("reactions")
+      .select("maskTier")
+      .eq("post_id", postId);
+
+    const safeCounts = counts ?? [];
+
+    const newCounts = {
+      mask1: safeCounts.filter((r) => r.maskTier === 1).length,
+      mask2: safeCounts.filter((r) => r.maskTier === 2).length,
+      mask3: safeCounts.filter((r) => r.maskTier === 3).length,
+      mask4: safeCounts.filter((r) => r.maskTier === 4).length,
+      mask5: safeCounts.filter((r) => r.maskTier === 5).length,
+    };
+
+    // 3️⃣ Update Spirit Score
+    const delta = maskTier >= 3 ? 2 : -1;
+
+    await supabase
+      .from("posts")
+      .update({
+        spirit_score: (spiritScore ?? 0) + delta,
+      })
+      .eq("id", postId);
+
+    // 4️⃣ Wait for commit → then refresh posts
     setTimeout(() => {
       if (onReact) onReact();
       setLoadingReaction(false);
