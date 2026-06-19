@@ -328,16 +328,17 @@ async function fetchPosts() {
                 </Link>
 
                 {/* REACTION BAR */}
-                <div className="mt-6 w-full flex justify-center">
-                  <ReactionBar
-                    postId={post.id}
-                    creatorId={post.creator_id}
-                    reactions={post.reactions}
-                    spiritScore={score}
-                    positivityRatio={positivityRatio}
-                    onReact={fetchPosts}
-                  />
-                </div>
+<div className="mt-6 w-full flex justify-center" key={post.id}>
+  <ReactionBar
+    postId={post.id}
+    creatorId={post.creator_id}
+    reactions={post.reactions}
+    spiritScore={score}
+    positivityRatio={positivityRatio}
+    onReact={fetchPosts}
+  />
+</div>
+
               </div>
             );
           })}
