@@ -38,30 +38,27 @@ export default function ReactionBar({
 
     setLoadingReaction(true);
 
-    // 1️⃣ Insert reaction (UNLIMITED)
     await supabase.from("reactions").insert({
       post_id: postId,
       user_id: user.id,
       maskTier,
     });
 
-    // 2️⃣ Recalculate counts
     const { data: counts } = await supabase
-  .from("reactions")
-  .select("maskTier")
-  .eq("post_id", postId);
+      .from("reactions")
+      .select("maskTier")
+      .eq("post_id", postId);
 
-const safeCounts = counts ?? [];
+    const safeCounts = counts ?? [];
 
-const newCounts = {
-  mask1: safeCounts.filter((r) => r.maskTier === 1).length,
-  mask2: safeCounts.filter((r) => r.maskTier === 2).length,
-  mask3: safeCounts.filter((r) => r.maskTier === 3).length,
-  mask4: safeCounts.filter((r) => r.maskTier === 4).length,
-  mask5: safeCounts.filter((r) => r.maskTier === 5).length,
-};
+    const newCounts = {
+      mask1: safeCounts.filter((r) => r.maskTier === 1).length,
+      mask2: safeCounts.filter((r) => r.maskTier === 2).length,
+      mask3: safeCounts.filter((r) => r.maskTier === 3).length,
+      mask4: safeCounts.filter((r) => r.maskTier === 4).length,
+      mask5: safeCounts.filter((r) => r.maskTier === 5).length,
+    };
 
-    // 3️⃣ Update spirit score
     const delta = maskTier >= 3 ? 2 : -1;
 
     await supabase
@@ -71,7 +68,6 @@ const newCounts = {
       })
       .eq("id", postId);
 
-    // 4️⃣ Refresh Plaza
     if (onReact) onReact();
 
     setLoadingReaction(false);
