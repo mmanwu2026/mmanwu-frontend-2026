@@ -328,8 +328,10 @@ async function fetchPosts() {
                 </Link>
 
                 {/* REACTION BAR */}
-<div className="mt-6 w-full flex justify-center" key={post.id}>
+{/* REACTION BAR */}
+<div className="mt-6 w-full flex justify-center">
   <ReactionBar
+    key={post.id}   // ⭐ THIS is the fix that forces re-render
     postId={post.id}
     creatorId={post.creator_id}
     reactions={post.reactions}
