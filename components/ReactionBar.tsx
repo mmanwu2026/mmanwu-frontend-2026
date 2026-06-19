@@ -30,7 +30,6 @@ export default function ReactionBar({
   const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
-  const [selected, setSelected] = useState<number | null>(null);
   const [loadingReaction, setLoadingReaction] = useState(false);
 
   const handleReact = async (maskTier: number) => {
@@ -38,54 +37,41 @@ export default function ReactionBar({
     if (loading || !user) return;
 
     setLoadingReaction(true);
-    setSelected(maskTier);
 
-    // ⭐ 1. Insert reaction row (UNLIMITED reactions allowed)
-    const { error: insertError } = await supabase
-      .from("reactions")
-      .insert({
-        post_id: postId,
-        user_id: user.id,
-        maskTier: maskTier,
-      });
+    // 1️⃣ Insert reaction (UNLIMITED)
+    await supabase.from("reactions").insert({
+      post_id: postId,
+      user_id: user.id,
+      maskTier,
+    });
 
-    if (insertError) {
-      console.error("Insert reaction error:", insertError);
-      setLoadingReaction(false);
-      return;
-    }
+    // 2️⃣ Recalculate counts
+    const { data: counts } = await supabase
+  .from("reactions")
+  .select("maskTier")
+  .eq("post_id", postId);
 
-    // ⭐ 2. Recalculate reaction counts
-    const { data: counts, error: countError } = await supabase
-      .from("reactions")
-      .select("maskTier")
-      .eq("post_id", postId);
+const safeCounts = counts ?? [];
 
-    if (countError) {
-      console.error("Count error:", countError);
-      setLoadingReaction(false);
-      return;
-    }
+const newCounts = {
+  mask1: safeCounts.filter((r) => r.maskTier === 1).length,
+  mask2: safeCounts.filter((r) => r.maskTier === 2).length,
+  mask3: safeCounts.filter((r) => r.maskTier === 3).length,
+  mask4: safeCounts.filter((r) => r.maskTier === 4).length,
+  mask5: safeCounts.filter((r) => r.maskTier === 5).length,
+};
 
-    const newCounts = {
-      mask1: counts.filter((r) => r.maskTier === 1).length,
-      mask2: counts.filter((r) => r.maskTier === 2).length,
-      mask3: counts.filter((r) => r.maskTier === 3).length,
-      mask4: counts.filter((r) => r.maskTier === 4).length,
-      mask5: counts.filter((r) => r.maskTier === 5).length,
-    };
-
-    // ⭐ 3. Update spirit score in posts table
-    const spiritDelta = maskTier >= 3 ? 2 : -1;
+    // 3️⃣ Update spirit score
+    const delta = maskTier >= 3 ? 2 : -1;
 
     await supabase
       .from("posts")
       .update({
-        spirit_score: (spiritScore ?? 0) + spiritDelta,
+        spirit_score: (spiritScore ?? 0) + delta,
       })
       .eq("id", postId);
 
-    // ⭐ 4. Trigger PlazaPage refresh
+    // 4️⃣ Refresh Plaza
     if (onReact) onReact();
 
     setLoadingReaction(false);
@@ -109,29 +95,20 @@ export default function ReactionBar({
           className="flex flex-col items-center cursor-pointer transition-all"
         >
           <div className="relative">
-            {selected === mask.tier && (
-              <div className="reaction-pulse-ring"></div>
-            )}
-
             <div
               className={`
                 reaction-mask
                 w-10 h-10 rounded-xl flex items-center justify-center text-xl
                 transition-all duration-200
                 aura-tier-${mask.tier}
-                ${selected === mask.tier ? "mask-pop mask-glow-strong" : ""}
+                mask-pop
               `}
             >
               {mask.emoji}
             </div>
           </div>
 
-          <span
-            className={`
-              reaction-count mt-1 text-xs
-              ${selected === mask.tier ? "count-float" : ""}
-            `}
-          >
+          <span className="reaction-count mt-1 text-xs">
             {mask.count}
           </span>
         </button>
