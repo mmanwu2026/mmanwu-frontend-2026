@@ -103,8 +103,9 @@ async function fetchPosts() {
 
   // 2️⃣ Fetch reactions grouped by post_id
   const { data: reactionsData, error: reactionsError } = await supabase
-    .from("reactions")
-    .select("post_id, maskTier");
+  .from("reactions")
+  .select("post_id, maskTier")
+  .order("created_at", { ascending: true });   // ⭐ guaranteed fresh
 
   if (reactionsError) {
     console.error("Reactions fetch error:", reactionsError);
