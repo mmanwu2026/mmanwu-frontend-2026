@@ -5,7 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";
-import FloatingComposer from "@/components/FloatingComposer";
+import FloatingComposer from "@/components/plaza/FloatingComposer";
 import type { CSSProperties } from "react";
 
 interface CreatorProfile {
