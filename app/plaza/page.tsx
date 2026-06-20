@@ -127,21 +127,34 @@ export default function PlazaPage() {
   return (
     <div className="plaza-background min-h-screen w-full pt-24 pb-40 relative">
 
-      {/* CLEAN D4 HEADER */}
-      <div className="w-full flex flex-col items-center mb-10">
-        <h1 className="text-3xl font-bold text-purple-200 tracking-wide drop-shadow-lg">
+      {/* CLEAN D4 HEADER WITH LINKS */}
+      <div className="w-full flex justify-between items-center mb-10 px-6">
+        <Link
+          href="/profile"
+          className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
+        >
+          My Profile
+        </Link>
+
+        <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
           Mmanwu Plaza
         </h1>
-        <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
+
+        <Link
+          href="/plaza"
+          className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
+        >
+          Plaza Home
+        </Link>
       </div>
 
-      {/* SUBTLE EMBERS (E3) */}
+      {/* SUBTLE EMBERS */}
       <div className="temple-ember subtle" style={{ left: "18%", top: "22%" }}></div>
       <div className="temple-ember subtle" style={{ left: "42%", top: "12%" }}></div>
       <div className="temple-ember subtle" style={{ left: "63%", top: "38%" }}></div>
       <div className="temple-ember subtle" style={{ left: "78%", top: "18%" }}></div>
 
-      {/* CENTERED COLUMN (L1) */}
+      {/* CENTER COLUMN */}
       <div className="w-full flex flex-col items-center px-4 space-y-12">
 
         {loading && <p className="text-gray-300">Loading posts…</p>}
@@ -217,7 +230,7 @@ export default function PlazaPage() {
                 overflow-visible
                 w-[360px]
                 min-h-[360px]
-                flex flex-col items-center
+                flex flex-col
 
                 plaza-card-base
                 aura-mask-${post.autoMask}
@@ -229,8 +242,8 @@ export default function PlazaPage() {
               `}
             >
 
-              {/* CLEAN GLYPH */}
-              <div className="ritual-glyph-container mt-4">
+              {/* GLYPH */}
+              <div className="ritual-glyph-container mt-4 flex justify-center">
                 <div className="ritual-glyph-levitate">
                   <div className="ritual-flame-ring clean"></div>
                   <div className="ritual-shadow-floor clean"></div>
@@ -248,30 +261,43 @@ export default function PlazaPage() {
                 {post.content}
               </p>
 
-              {/* FOOTER */}
-              <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-                <span>Mask: {post.autoMask}</span>
-                <span>{new Date(post.created_at).toLocaleString()}</span>
-              </div>
+              {/* SPIRIT SCORE */}
+              <p className="mt-2 text-sm text-gray-400 text-center">
+                Spirit: {post.spiritScore}
+              </p>
 
-              {/* REACTION BAR */}
-              <div className="mt-6 w-full flex justify-center">
-                <ReactionBar
-                  postId={post.id}
-                  creatorId={post.creator_id}
-                  reactions={post.reactions}
-                  spiritScore={post.spiritScore}
-                  positivityRatio={post.positivityRatio}
-                  onReact={fetchPosts}
-                />
+              {/* FOOTER + REACTION BAR AT BOTTOM */}
+              <div className="mt-auto w-full">
+
+                <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
+                  <span>Mask: {post.autoMask}</span>
+                  <span>{new Date(post.created_at).toLocaleString()}</span>
+                </div>
+
+                <div className="mt-4 w-full flex justify-center">
+                  <ReactionBar
+                    postId={post.id}
+                    creatorId={post.creator_id}
+                    reactions={post.reactions}
+                    spiritScore={post.spiritScore}
+                    positivityRatio={post.positivityRatio}
+                    onReact={fetchPosts}
+                  />
+                </div>
+
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* FLOATING COMPOSER */}
-      <FloatingComposer onPost={fetchPosts} />
+      {/* FLOATING COMPOSER — RAISED FOR VISIBILITY */}
+      <div className="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none">
+        <div className="pointer-events-auto">
+          <FloatingComposer onPost={fetchPosts} />
+        </div>
+      </div>
+
     </div>
   );
 }
