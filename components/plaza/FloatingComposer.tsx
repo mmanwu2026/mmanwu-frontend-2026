@@ -6,11 +6,7 @@ import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
 
-export default function FloatingComposer({
-  onPost,
-}: {
-  onPost: (post: any) => void;
-}) {
+export default function FloatingComposer({ onPost }: { onPost: (post: any) => void }) {
   const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
@@ -22,7 +18,7 @@ export default function FloatingComposer({
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ⭐ Composer is ALWAYS visible now — no scroll hide logic
+  // ⭐ Composer is ALWAYS visible now
   const hidden = false;
 
   async function runGatekeeper(rawText: string) {
@@ -33,14 +29,9 @@ export default function FloatingComposer({
         body: JSON.stringify({ text: rawText }),
       });
 
-      if (!res.ok) {
-        console.error("Gatekeeper API error:", await res.text());
-        return null;
-      }
-
+      if (!res.ok) return null;
       return await res.json();
-    } catch (err) {
-      console.error("Gatekeeper fetch failed:", err);
+    } catch {
       return null;
     }
   }
@@ -48,7 +39,7 @@ export default function FloatingComposer({
   async function publishToSupabase(finalText: string) {
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("posts")
       .insert({
         content: finalText,
@@ -58,17 +49,11 @@ export default function FloatingComposer({
       .select()
       .single();
 
-    if (error) {
-      console.error("Supabase insert error:", error);
-      return;
-    }
-
     if (data) onPost(data);
   }
 
   async function handleSubmit() {
-    if (!content.trim()) return;
-    if (loading || !user) return;
+    if (!content.trim() || loading || !user) return;
 
     const result = await runGatekeeper(content);
 
@@ -117,16 +102,13 @@ export default function FloatingComposer({
       )}
 
       {toastMessage && (
-        <SpiritToast
-          message={toastMessage}
-          onClose={() => setToastMessage(null)}
-        />
+        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* ⭐ Composer raised higher and always visible */}
+      {/* ⭐ NO FIXED POSITION HERE — wrapper controls placement */}
       <div
         className={`
-          fixed bottom-24 left-0 w-full px-4 z-[999] transition-all duration-300
+          w-full px-4 pb-4 transition-all duration-300
           ${hidden ? "opacity-0" : "opacity-100"}
         `}
       >
