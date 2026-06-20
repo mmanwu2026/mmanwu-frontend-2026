@@ -33,50 +33,62 @@ export default function ReactionBar({
   const [loadingReaction, setLoadingReaction] = useState(false);
 
   const handleReact = async (maskTier: number) => {
-    if (loadingReaction) return;
-    if (loading || !user) return;
+  if (loadingReaction) return;
+  if (loading || !user) return;
 
-    setLoadingReaction(true);
+  setLoadingReaction(true);
 
-    // 1️⃣ Insert reaction
-    await supabase.from("reactions").insert({
-      post_id: postId,
-      user_id: user.id,
-      maskTier,
-    });
+  // 1️⃣ Insert reaction
+  await supabase.from("reactions").insert({
+    post_id: postId,
+    user_id: user.id,
+    maskTier,
+  });
 
-    // 2️⃣ Recalculate reaction counts
-    const { data: counts } = await supabase
-      .from("reactions")
-      .select("maskTier")
-      .eq("post_id", postId);
+  // 2️⃣ Recalculate reaction counts
+  const { data: counts } = await supabase
+    .from("reactions")
+    .select("maskTier")
+    .eq("post_id", postId);
 
-    const safeCounts = counts ?? [];
+  const safeCounts = counts ?? [];
 
-    const newCounts = {
-      mask1: safeCounts.filter((r) => r.maskTier === 1).length,
-      mask2: safeCounts.filter((r) => r.maskTier === 2).length,
-      mask3: safeCounts.filter((r) => r.maskTier === 3).length,
-      mask4: safeCounts.filter((r) => r.maskTier === 4).length,
-      mask5: safeCounts.filter((r) => r.maskTier === 5).length,
-    };
-
-    // 3️⃣ Update Spirit Score
-    const delta = maskTier >= 3 ? 2 : -1;
-
-    await supabase
-      .from("posts")
-      .update({
-        spirit_score: (spiritScore ?? 0) + delta,
-      })
-      .eq("id", postId);
-
-    // 4️⃣ Wait for commit → then refresh posts
-    setTimeout(() => {
-      if (onReact) onReact();
-      setLoadingReaction(false);
-    }, 150);
+  const newCounts = {
+    mask1: safeCounts.filter((r) => r.maskTier === 1).length,
+    mask2: safeCounts.filter((r) => r.maskTier === 2).length,
+    mask3: safeCounts.filter((r) => r.maskTier === 3).length,
+    mask4: safeCounts.filter((r) => r.maskTier === 4).length,
+    mask5: safeCounts.filter((r) => r.maskTier === 5).length,
   };
+
+  // 3️⃣ Compute new Spirit Score
+  const oldScore = spiritScore ?? 0;
+  const delta = maskTier >= 3 ? 2 : -1;
+  const newScore = oldScore + delta;
+
+  // 4️⃣ Compute new autoMask based on newScore
+  let newMask = 2;
+  if (newScore <= 20) newMask = 2;
+  else if (newScore <= 100) newMask = 3;
+  else if (newScore <= 200) newMask = 4;
+  else if (newScore <= 500) newMask = 5;
+  else newMask = 6;
+
+  // 5️⃣ Update post with BOTH spirit_score and automask
+  await supabase
+    .from("posts")
+    .update({
+      spirit_score: newScore,
+      automask: newMask,
+    })
+    .eq("id", postId);
+
+  // 6️⃣ Wait for commit → then refresh posts
+  setTimeout(() => {
+    if (onReact) onReact();
+    setLoadingReaction(false);
+  }, 150);
+};
 
   const maskData = [
     { tier: 1, emoji: "😶‍🌫️", count: reactions.mask1 ?? 0 },

@@ -154,12 +154,7 @@ const key = `mask${r.maskTier}`;
 
       const score = p.spirit_score; // always use DB value
 
-      let autoMask = 2;
-      if (score <= 20) autoMask = 2;
-      else if (score <= 100) autoMask = 3;
-      else if (score <= 200) autoMask = 4;
-      else if (score <= 500) autoMask = 5;
-      else autoMask = 6;
+      const autoMask = p.automask;   // use DB value
 
       await fetchCreatorProfile(p.creator_id);
 
