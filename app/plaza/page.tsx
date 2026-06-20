@@ -253,7 +253,7 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
                     duration-500
                     overflow-visible
                     w-[360px]
-                    min-h-[360px]
+                    h-[420px]
                     flex flex-col
 
                     plaza-card-base
