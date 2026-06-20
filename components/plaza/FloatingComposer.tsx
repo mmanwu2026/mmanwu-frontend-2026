@@ -18,9 +18,6 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Slight dimming layer when expanded
-  const dimOpacity = expanded ? "bg-black/20 backdrop-blur-[1px]" : "bg-transparent";
-
   async function runGatekeeper(rawText: string) {
     try {
       const res = await fetch("/api/gatekeeper", {
@@ -107,38 +104,36 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* DIM BACKDROP WHEN EXPANDED */}
+      {/* DIM BACKDROP */}
       {expanded && (
         <div
-          className={`
+          className="
             fixed inset-0 z-[9000]
+            bg-black/20 backdrop-blur-[1px]
             transition-all duration-300
-            ${dimOpacity}
-          `}
+          "
           onClick={() => setExpanded(false)}
         />
       )}
 
-      {/* COMPOSER CONTAINER */}
+      {/* COMPOSER */}
       <div
         className={`
           transition-all duration-300
-          ${expanded ? "fixed right-0 top-32 z-[9999]" : "relative"}
-          ${expanded ? "w-[360px]" : "w-full"}
+          ${expanded
+            ? "fixed right-6 top-1/2 -translate-y-1/2 z-[9999]"
+            : "relative"
+          }
         `}
-        style={{
-          width: expanded ? "360px" : "100%",
-        }}
       >
         <div
           className={`
             floating-composer-container
             rounded-2xl transition-all duration-300
-            ${expanded ? "p-4 shadow-xl bg-purple-900/40 backdrop-blur-xl" : "p-3"}
-            ${expanded ? "w-[360px]" : "max-w-[180px]"}
+            ${expanded ? "p-4 shadow-xl bg-purple-900/40 backdrop-blur-xl w-[360px]" : "p-3 w-[180px]"}
           `}
         >
-          {/* COLLAPSED MODE */}
+          {/* COLLAPSED */}
           {!expanded && (
             <div
               className="flex items-center justify-between text-gray-300 cursor-pointer"
@@ -149,12 +144,11 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
             </div>
           )}
 
-          {/* EXPANDED MODE */}
+          {/* EXPANDED */}
           {expanded && (
             <div className="flex flex-col space-y-3">
               <textarea
                 className="
-                  floating-composer-textarea
                   w-full rounded-xl p-3 resize-none
                   placeholder-gray-400
                   focus:outline-none
@@ -171,7 +165,6 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
                 onClick={handleSubmit}
                 disabled={!content.trim() || loading || !user}
                 className="
-                  floating-composer-button
                   w-full py-2 rounded-xl font-semibold transition-all
                 "
               >

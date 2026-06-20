@@ -462,6 +462,11 @@ body::before {
   backdrop-filter: blur(1px);
 }
 
+/* Ensures floating composer never anchors to left sidebar */
+.floating-composer-container {
+  position: relative;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEAN D4 PATCH                                           */
 /* ------------------------------------------------------------ */

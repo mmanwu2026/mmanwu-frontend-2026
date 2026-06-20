@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import Link from "next/link";
 import type { CSSProperties } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
@@ -132,28 +131,27 @@ export default function PlazaPage() {
       {/* LEFT SIDEBAR */}
       <Sidebar />
 
-      {/* MAIN GRID */}
-      <div className="plaza-grid-container flex">
+      {/* FLOATING COMPOSER — MID RIGHT */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[9999]">
+        <FloatingComposer onPost={fetchPosts} />
+      </div>
 
-        {/* LEFT SPACER (180px) */}
+      {/* MAIN FEED */}
+      <div className="flex">
+
+        {/* LEFT SPACER */}
         <div className="w-[180px] shrink-0" />
 
         {/* CENTER FEED */}
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
 
-          {/* PLAZA HEADER */}
+          {/* HEADER */}
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
               Mmanwu Plaza
             </h1>
             <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
           </div>
-
-          {/* SUBTLE EMBERS */}
-          <div className="temple-ember subtle" style={{ left: "18%", top: "22%" }}></div>
-          <div className="temple-ember subtle" style={{ left: "42%", top: "12%" }}></div>
-          <div className="temple-ember subtle" style={{ left: "63%", top: "38%" }}></div>
-          <div className="temple-ember subtle" style={{ left: "78%", top: "18%" }}></div>
 
           {/* POSTS */}
           {loading && <p className="text-gray-300">Loading posts…</p>}
@@ -266,7 +264,7 @@ export default function PlazaPage() {
                     SpiritScore: {post.spiritScore}
                   </p>
 
-                  {/* FOOTER + REACTION BAR */}
+                  {/* FOOTER */}
                   <div className="mt-auto w-full">
 
                     <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
@@ -291,12 +289,6 @@ export default function PlazaPage() {
             })}
           </div>
         </div>
-
-        {/* RIGHT SIDEBAR (Composer lives here) */}
-        <div className="w-[180px] shrink-0 fixed right-0 top-0 h-full pt-32 px-4">
-          <FloatingComposer onPost={fetchPosts} />
-        </div>
-
       </div>
     </div>
   );
