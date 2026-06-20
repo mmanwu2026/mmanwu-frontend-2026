@@ -127,21 +127,14 @@ export default function PlazaPage() {
   return (
     <div className="plaza-background min-h-screen w-full pt-24 pb-40 relative">
 
-     {/* CLEAN MINIMAL HEADER — NO DUPLICATES */}
-<div className="absolute top-4 left-4 z-[999]">
+     {/* SINGLE HOME LINK — aligned with global header */}
+<div className="absolute top-4 right-6 z-[2000]">
   <Link
     href="/"
     className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
   >
-    ← Home
+    Home
   </Link>
-</div>
-
-<div className="w-full flex flex-col items-center mb-10">
-  <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-    Mmanwu Plaza
-  </h1>
-  <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
 </div>
 
       {/* SUBTLE EMBERS */}
@@ -288,7 +281,7 @@ export default function PlazaPage() {
       </div>
 
       {/* FLOATING COMPOSER — ALWAYS VISIBLE, ABOVE CARDS */}
-<div className="fixed bottom-32 left-0 w-full flex justify-center z-[999] pointer-events-none">
+<div className="fixed bottom-32 left-0 w-full flex justify-center z-[5000] pointer-events-none">
   <div className="pointer-events-auto">
     <FloatingComposer onPost={fetchPosts} />
   </div>
