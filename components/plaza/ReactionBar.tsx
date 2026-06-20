@@ -47,6 +47,19 @@ await supabase.rpc("react_to_post", {
   p_mask_tier: maskTier,
 });
 
+console.log("postId:", postId);
+console.log("userId:", user?.id);
+console.log("maskTier:", maskTier);
+
+const { data, error } = await supabase.rpc("react_to_post", {
+  p_post_id: postId,
+  p_user_id: user!.id,
+  p_mask_tier: maskTier,
+});
+
+console.log("RPC data:", data);
+console.log("RPC error:", error);
+
 setLoading(false);
 onReact();
   };
