@@ -8,6 +8,17 @@ import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
 import type { CSSProperties } from "react";
 
+// ⭐ ReactionCounts interface (missing before)
+interface ReactionCounts {
+  mask1: number;
+  mask2: number;
+  mask3: number;
+  mask4: number;
+  mask5: number;
+  mask6: number;
+}
+
+// ⭐ Creator profile interface
 interface CreatorProfile {
   id: string;
   username: string | null;
@@ -17,17 +28,19 @@ interface CreatorProfile {
   mask_tier: number;
 }
 
-interface PlazaPost {
-  id: number;
+// ⭐ CreatorPost interface (UUID + aggregates)
+interface CreatorPost {
+  id: string;               // UUID
   creator_id: string;
   content: string;
   created_at: string;
-  mask: number | null;
-  spirit_score: number | null;
-  reactions: any;
+  mask: number;
 
-  autoMask: number;
+  // Aggregates
+  reactions: ReactionCounts;
+  spirit_score: number;
   positivityRatio: number;
+  autoMask: number;
 }
 
 function maskTitle(mask: number) {
@@ -62,7 +75,9 @@ export default function CreatorProfilePage() {
   const creatorId = params?.id as string;
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
-  const [posts, setPosts] = useState<PlazaPost[]>([]);
+
+  // ⭐ FIX: posts must be CreatorPost[], not PlazaPost[]
+  const [posts, setPosts] = useState<CreatorPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function fetchCreator() {
@@ -83,7 +98,7 @@ export default function CreatorProfilePage() {
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      const patched = data.map((p) => {
+      const patched: CreatorPost[] = data.map((p) => {
         const r = p.reactions || {};
 
         const total =
@@ -113,7 +128,7 @@ export default function CreatorProfilePage() {
 
         return {
           ...p,
-          spirit_score: score,          // ⭐ ENSURE spiritScore EXISTS
+          spirit_score: score,
           autoMask,
           positivityRatio,
           reactions: {
@@ -165,7 +180,7 @@ export default function CreatorProfilePage() {
 
         <div className="space-y-12 w-full flex flex-col items-center">
           {posts.map((post) => {
-            const score = post.spirit_score ?? 0;
+            const score = post.spirit_score;
             const positivityRatio = post.positivityRatio;
 
             const glyphEmoji =
@@ -215,10 +230,10 @@ export default function CreatorProfilePage() {
 
                 <div className="mt-6 w-full flex justify-center">
                   <ReactionBar
-                    postId={post.id}
+                    postId={post.id}              // UUID — now correct
                     creatorId={post.creator_id}
                     reactions={post.reactions}
-                    spiritScore={score}              // ⭐ REQUIRED FIX
+                    spiritScore={score}
                     positivityRatio={positivityRatio}
                     onReact={fetchPosts}
                   />

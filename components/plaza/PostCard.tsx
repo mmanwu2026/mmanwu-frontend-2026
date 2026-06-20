@@ -4,7 +4,7 @@ import ReactionBar from "./ReactionBar";
 
 interface PostCardProps {
   post: {
-    id: number;
+    id: string;              // ✅ FIXED — UUID
     creator_id: string;
     content: string;
     created_at: string;
@@ -66,7 +66,7 @@ export default function PostCard({
       </p>
 
       <ReactionBar
-        postId={post.id}
+        postId={post.id}              // ✅ UUID now correct
         creatorId={post.creator_id}
         reactions={{
           mask1: reactions.mask1,
