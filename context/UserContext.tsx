@@ -12,44 +12,52 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
+ useEffect(() => {
+  let mounted = true;
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event: string, session: Session | null) => {
-        if (!mounted) return;
+  // 1️⃣ Load initial session
+  supabase.auth.getSession().then(({ data }) => {
+    if (!mounted) return;
+    setUser(data.session?.user || null);
+    setLoading(false);
+  });
 
-        const sessionUser = session?.user || null;
-        setUser(sessionUser);
-        setLoading(false);
+  // 2️⃣ Listen for auth changes
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      if (!mounted) return;
 
-        if (sessionUser) {
-          const { data: profile } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", sessionUser.id)
-            .maybeSingle();
+      const sessionUser = session?.user || null;
+      setUser(sessionUser);
+      setLoading(false);
 
-          if (!profile) {
-            const randomNumber = Math.floor(1000 + Math.random() * 90000);
-            const username = `maskling_${randomNumber}`;
+      if (sessionUser) {
+        const { data: profile } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", sessionUser.id)
+          .maybeSingle();
 
-            await supabase.from("users").insert({
-              id: sessionUser.id,
-              name: sessionUser.user_metadata?.name || "",
-              username,
-              display_name_enabled: false,
-            });
-          }
+        if (!profile) {
+          const randomNumber = Math.floor(1000 + Math.random() * 90000);
+          const username = `maskling_${randomNumber}`;
+
+          await supabase.from("users").insert({
+            id: sessionUser.id,
+            name: sessionUser.user_metadata?.name || "",
+            username,
+            display_name_enabled: false,
+          });
         }
       }
-    );
+    }
+  );
 
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [supabase]);
+  return () => {
+    mounted = false;
+    listener.subscription.unsubscribe();
+  };
+}, [supabase]);
 
   return (
     <UserContext.Provider value={{ user, loading }}>
