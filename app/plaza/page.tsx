@@ -131,8 +131,8 @@ return (
     {/* LEFT SIDEBAR */}
     <Sidebar />
 
-    {/* FLOATING COMPOSER — MID RIGHT */}
-    <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[9999]">
+    {/* COMPOSER AT TOP OF LEFT SIDEBAR */}
+    <div className="absolute left-0 top-20 w-[180px] px-4 z-[5000]">
       <FloatingComposer onPost={fetchPosts} />
     </div>
 
