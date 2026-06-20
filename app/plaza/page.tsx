@@ -209,18 +209,7 @@ const key = `mask${r.maskTier}`;
             const score = post.spirit_score ?? 0;
             const positivityRatio = post.positivityRatio;
 
-            const key = String(post.id);
-
-            const prevPos = prevPositivityMap.current[key] ?? positivityRatio;
-            const prevPosReacts = prevPositiveReactionsMap.current[key] ?? 0;
-
-            const positivitySpike = positivityRatio - prevPos > 0.25;
-            const newPositiveReaction = prevPosReacts < positivityRatio;
-
-            const surge = positivitySpike || newPositiveReaction;
-
-            prevPositivityMap.current[key] = positivityRatio;
-            prevPositiveReactionsMap.current[key] = positivityRatio;
+           const surge = positivityRatio > 0.6; // simple version
 
             const ascensionClass =
               score > 500
