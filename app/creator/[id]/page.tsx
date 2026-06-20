@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import ReactionBar from "@/components/ReactionBar";
+import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/FloatingComposer";
 import type { CSSProperties } from "react";
 
@@ -218,7 +218,6 @@ export default function CreatorProfilePage() {
                     postId={post.id}
                     creatorId={post.creator_id}
                     reactions={post.reactions}
-                    spiritScore={score}
                     positivityRatio={positivityRatio}
                     onReact={fetchPosts}
                   />

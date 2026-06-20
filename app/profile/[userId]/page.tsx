@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
-import ReactionBar from "@/components/ReactionBar";
+import ReactionBar from "@/components/plaza/ReactionBar";
 
 export default function UserProfilePage({ params }: { params: { userId: string } }) {
-  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
-
+  const supabase = createSupabaseBrowserClient();
   const router = useRouter();
   const userId = params.userId;
 
@@ -15,6 +14,26 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ⭐ FIX: loadProfile MUST be inside the component, after state and supabase
+  async function loadProfile() {
+    const { data: userData } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    setProfile(userData || {});
+
+    const { data: postsData } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("creator_id", userId)
+      .order("created_at", { ascending: false });
+
+    setPosts(postsData || []);
+    setLoading(false);
+  }
 
   // Wait for session hydration
   useEffect(() => {
@@ -32,28 +51,9 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   // Load profile AFTER session is ready
   useEffect(() => {
     if (!sessionReady) return;
-
-    async function loadProfile() {
-      const { data: userData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
-
-      setProfile(userData || {});
-
-      const { data: postsData } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("creator_id", userId)
-        .order("created_at", { ascending: false });
-
-      setPosts(postsData || []);
-      setLoading(false);
-    }
-
     loadProfile();
   }, [sessionReady, userId, supabase]);
+
 
   if (loading || !sessionReady) {
     return (
@@ -125,18 +125,18 @@ export default function UserProfilePage({ params }: { params: { userId: string }
             <p className="text-sm mb-3">{post.content}</p>
 
             <ReactionBar
-              postId={post.id}
-              creatorId={post.creator_id}
-              reactions={{
-                mask1: post.mask1 ?? 0,
-                mask2: post.mask2 ?? 0,
-                mask3: post.mask3 ?? 0,
-                mask4: post.mask4 ?? 0,
-                mask5: post.mask5 ?? 0,
-              }}
-              spiritScore={post.spirit_score ?? 0}
-              positivityRatio={post.positivity_ratio ?? 0.5}
-            />
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={{
+    mask1: post.mask1,
+    mask2: post.mask2,
+    mask3: post.mask3,
+    mask4: post.mask4,
+    mask5: post.mask5,
+  }}
+  positivityRatio={post.positivityRatio}
+  onReact={loadProfile}
+/>
           </div>
         ))}
       </div>
