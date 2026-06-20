@@ -5,7 +5,7 @@ import { useUser } from "@/context/UserContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 interface ReactionBarProps {
-  postId: number;
+  postId: string;   // FIXED: UUID string
   creatorId: string;
   reactions: {
     mask1: number;
@@ -37,31 +37,22 @@ export default function ReactionBar({
     if (loading || loggedOut) return;
     setLoading(true);
 
-   console.log("postId:", postId);
-console.log("userId:", user?.id);
-console.log("maskTier:", maskTier);
+    console.log("postId:", postId);
+    console.log("userId:", user?.id);
+    console.log("maskTier:", maskTier);
 
-await supabase.rpc("react_to_post", {
-  p_post_id: postId,
-  p_user_id: user!.id,
-  p_mask_tier: maskTier,
-});
+    const { data, error } = await supabase.rpc("react_to_post", {
+      p_post_id: postId,       // FIXED: UUID string
+      p_post_type: "plaza",    // REQUIRED for multi‑feed engine
+      p_maskTier: maskTier,    // FIXED: correct param name
+      p_user_id: user!.id,     // FIXED: reacting user, not creator
+    });
 
-console.log("postId:", postId);
-console.log("userId:", user?.id);
-console.log("maskTier:", maskTier);
+    console.log("RPC data:", data);
+    console.log("RPC error:", error);
 
-const { data, error } = await supabase.rpc("react_to_post", {
-  p_post_id: postId,
-  p_user_id: user!.id,
-  p_mask_tier: maskTier,
-});
-
-console.log("RPC data:", data);
-console.log("RPC error:", error);
-
-setLoading(false);
-onReact();
+    setLoading(false);
+    onReact();
   };
 
   return (

@@ -9,7 +9,7 @@ import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
 
 interface PlazaPost {
-  id: number;
+  id: string;                // UUID FIX
   creator_id: string;
   content: string;
   created_at: string;
@@ -17,8 +17,9 @@ interface PlazaPost {
 }
 
 interface ReactionRow {
-  post_id: number;
+  post_id: string;           // UUID FIX
   maskTier: number;
+  value: number | null;
 }
 
 interface ReactionCounts {
@@ -76,70 +77,66 @@ export default function PlazaPage() {
       return;
     }
 
-    const postIds = postsData.map((p) => p.id);
+    const postIds = postsData.map((p) => p.id as string);
+
     if (postIds.length === 0) {
       setPosts([]);
       setLoading(false);
       return;
     }
 
-    // 2) Fetch reactions only for these posts
-const { data: reactionsData, error: reactionsError } = await supabase
-  .from("reactions")
-  .select("post_id, maskTier, value")
-  .in("post_id", postIds);
+    // 2) Fetch reactions for these posts
+    const { data: reactionsData, error: reactionsError } = await supabase
+      .from("reactions")
+      .select("post_id, maskTier, value")
+      .in("post_id", postIds);
 
-if (reactionsError) {
-  console.error("Error fetching reactions:", reactionsError);
-}
+    if (reactionsError) {
+      console.error("Error fetching reactions:", reactionsError);
+    }
 
-const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
-  const postReactions = (reactionsData ?? []).filter(
-    (r) => r.post_id === post.id
-  );
+    const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
+      const postReactions = (reactionsData ?? []).filter(
+        (r: ReactionRow) => r.post_id === post.id
+      );
 
-  // Count masks (for UI display only)
-  const counts: ReactionCounts = {
-    mask1: postReactions.filter((r) => r.maskTier === 1).length,
-    mask2: postReactions.filter((r) => r.maskTier === 2).length,
-    mask3: postReactions.filter((r) => r.maskTier === 3).length,
-    mask4: postReactions.filter((r) => r.maskTier === 4).length,
-    mask5: postReactions.filter((r) => r.maskTier === 5).length,
-    mask6: postReactions.filter((r) => r.maskTier === 6).length,
-  };
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
 
-  // ⭐ Weighted SpiritScore (REAL scoring)
-  const spiritScore = postReactions.reduce(
-    (sum, r) => sum + (r.value ?? 0),
-    0
-  );
+      const spiritScore = postReactions.reduce(
+        (sum, r) => sum + (r.value ?? 0),
+        0
+      );
 
-  // ⭐ Weighted positivity (only positive mask values)
-  const weightedPositive = postReactions
-    .filter((r) => (r.value ?? 0) > 0)
-    .reduce((sum, r) => sum + (r.value ?? 0), 0);
+      const weightedPositive = postReactions
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-  const weightedTotal = Math.abs(spiritScore);
+      const weightedTotal = Math.abs(spiritScore);
+      const positivityRatio =
+        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-  const positivityRatio =
-    weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      let autoMask = 2;
+      if (spiritScore <= 20) autoMask = 2;
+      else if (spiritScore <= 100) autoMask = 3;
+      else if (spiritScore <= 200) autoMask = 4;
+      else if (spiritScore <= 500) autoMask = 5;
+      else autoMask = 6;
 
-  // ⭐ AutoMask based on weighted SpiritScore
-  let autoMask = 2;
-  if (spiritScore <= 20) autoMask = 2;
-  else if (spiritScore <= 100) autoMask = 3;
-  else if (spiritScore <= 200) autoMask = 4;
-  else if (spiritScore <= 500) autoMask = 5;
-  else autoMask = 6;
-
-  return {
-    ...post,
-    reactions: counts,
-    spiritScore,
-    positivityRatio,
-    autoMask,
-  };
-});
+      return {
+        ...post,
+        reactions: counts,
+        spiritScore,
+        positivityRatio,
+        autoMask,
+      };
+    });
 
     setPosts(merged);
     setLoading(false);
@@ -151,22 +148,16 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
 
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
-      {/* LEFT SIDEBAR */}
       <Sidebar />
 
-      {/* COMPOSER AT TOP OF LEFT SIDEBAR */}
       <div className="absolute left-0 top-20 w-[180px] px-4 z-[5000]">
         <FloatingComposer onPost={fetchPosts} />
       </div>
 
-      {/* MAIN FEED */}
       <div className="flex">
-        {/* LEFT SPACER */}
         <div className="w-[180px] shrink-0" />
 
-        {/* CENTER FEED */}
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
-          {/* HEADER */}
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
               Mmanwu Plaza (TEST)
@@ -174,7 +165,6 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
             <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
           </div>
 
-          {/* POSTS */}
           {loading && <p className="text-gray-300">Loading posts…</p>}
           {!loading && posts.length === 0 && (
             <p className="text-gray-300">No posts yet…</p>
@@ -182,7 +172,7 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
 
           <div className="space-y-12 w-full flex flex-col items-center">
             {posts.map((post) => {
-              const key = String(post.id);
+              const key = post.id;
 
               const prevPos =
                 prevPositivityMap.current[key] ?? post.positivityRatio;
@@ -265,7 +255,6 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
                     ${emotionClass}
                   `}
                 >
-                  {/* GLYPH */}
                   <div className="ritual-glyph-container mt-4 flex justify-center">
                     <div className="ritual-glyph-levitate">
                       <div className="ritual-flame-ring clean"></div>
@@ -279,17 +268,14 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
                     </div>
                   </div>
 
-                  {/* CONTENT */}
                   <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4">
                     {post.content}
                   </p>
 
-                  {/* SPIRIT SCORE */}
                   <p className="mt-2 text-sm text-gray-400 text-center">
                     SpiritScore: {post.spiritScore}
                   </p>
 
-                  {/* FOOTER */}
                   <div className="mt-auto w-full">
                     <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
                       <span>Mask: {post.autoMask}</span>
@@ -298,7 +284,7 @@ const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
 
                     <div className="mt-4 w-full flex justify-center">
                       <ReactionBar
-                        postId={post.id}
+                        postId={post.id}              // UUID FIX
                         creatorId={post.creator_id}
                         reactions={post.reactions}
                         spiritScore={post.spiritScore}
