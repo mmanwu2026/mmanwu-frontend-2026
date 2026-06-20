@@ -24,7 +24,6 @@ export default function FloatingComposer({
   const lastScroll = useRef(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Hide composer on scroll
   useEffect(() => {
     function handleScroll() {
       const current = window.scrollY;
@@ -36,7 +35,6 @@ export default function FloatingComposer({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ⭐ NEW SERVER-POWERED GATEKEEPER LOGIC
   async function runGatekeeper(rawText: string) {
     try {
       const res = await fetch("/api/gatekeeper", {
@@ -57,7 +55,6 @@ export default function FloatingComposer({
     }
   }
 
-  // ⭐ Insert final text into Supabase
   async function publishToSupabase(finalText: string) {
     if (!user) return;
 
@@ -79,47 +76,41 @@ export default function FloatingComposer({
     if (data) onPost(data);
   }
 
-  // ⭐ Main submit handler (your updated version)
   async function handleSubmit() {
-  if (!content.trim()) return;
-  if (loading || !user) return;
+    if (!content.trim()) return;
+    if (loading || !user) return;
 
-  const result = await runGatekeeper(content);
+    const result = await runGatekeeper(content);
 
-  console.log("GATEKEEPER RESULT:", result);
+    console.log("GATEKEEPER RESULT:", result);
 
-  // ⭐ Auto-approve positive posts
-  if (result?.autoApprove) {
-    publishToSupabase(content);
-    setToastMessage("The spirits approve your message ✨");
-    setContent("");
-    setExpanded(false);
-    return;
+    if (result?.autoApprove) {
+      publishToSupabase(content);
+      setToastMessage("The spirits approve your message ✨");
+      setContent("");
+      setExpanded(false);
+      return;
+    }
+
+    if (result?.rewrites) {
+      const toneLabels = ["Calm", "Direct", "Elevated"];
+      const toneExplanations = [
+        "Softens the tone while keeping your message intact.",
+        "Keeps your message firm and straightforward.",
+        "Elevates the language for a more refined delivery.",
+      ];
+
+      const formatted = result.rewrites.map((text: string, i: number) => ({
+        label: toneLabels[i],
+        text,
+        explanation: toneExplanations[i],
+      }));
+
+      setGatekeeperOptions(formatted);
+      setShowGatekeeper(true);
+    }
   }
 
-  // ⭐ Otherwise show rewrite modal
-  if (result?.rewrites) {
-    console.log("REWRITES PASSED TO MODAL:", result.rewrites);
-
-   const toneLabels = ["Calm", "Direct", "Elevated"];
-const toneExplanations = [
-  "Softens the tone while keeping your message intact.",
-  "Keeps your message firm and straightforward.",
-  "Elevates the language for a more refined delivery."
-];
-
-const formatted = result.rewrites.map((text: string, i: number) => ({
-  label: toneLabels[i],
-  text,
-  explanation: toneExplanations[i],
-}));
-
-    setGatekeeperOptions(formatted);
-    setShowGatekeeper(true);
-  }
-}
-
-  // ⭐ User selects a rewrite
   function handleGatekeeperSelect(finalText: string) {
     setShowGatekeeper(false);
     publishToSupabase(finalText);
@@ -152,8 +143,8 @@ const formatted = result.rewrites.map((text: string, i: number) => ({
       >
         <div
           className={`
-            bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10
-            shadow-lg transition-all duration-300 mx-auto max-w-md
+            floating-composer-container
+            rounded-2xl transition-all duration-300 mx-auto max-w-md
             ${expanded ? "p-4" : "p-3"}
           `}
         >
@@ -171,9 +162,10 @@ const formatted = result.rewrites.map((text: string, i: number) => ({
             <div className="flex flex-col space-y-3">
               <textarea
                 className="
+                  floating-composer-textarea
                   w-full rounded-xl p-3 resize-none
-                  bg-black/30 text-gray-200 placeholder-gray-400
-                  border border-white/10 focus:outline-none
+                  placeholder-gray-400
+                  focus:outline-none
                   focus:ring-2 focus:ring-purple-500/40
                 "
                 rows={4}
@@ -185,17 +177,12 @@ const formatted = result.rewrites.map((text: string, i: number) => ({
               <button
                 onClick={handleSubmit}
                 disabled={!content.trim() || loading || !user}
-                className={`
-                  w-full py-2 rounded-xl font-semibold text-white
-                  transition-all
-                  ${
-                    content.trim() && user
-                      ? "bg-purple-600 hover:bg-purple-700"
-                      : "bg-purple-900/40 text-gray-400"
-                  }
-                `}
+                className="
+                  floating-composer-button
+                  w-full py-2 rounded-xl font-semibold transition-all
+                "
               >
-                Post
+                {loading ? "Posting..." : "Post"}
               </button>
 
               <button

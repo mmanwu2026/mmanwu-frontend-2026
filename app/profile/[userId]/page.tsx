@@ -133,6 +133,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     mask3: post.mask3,
     mask4: post.mask4,
     mask5: post.mask5,
+    mask6: post.mask6,
   }}
   spiritScore={post.spirit_score ?? post.spiritScore ?? 0}   /* ⭐ REQUIRED */
   positivityRatio={post.positivityRatio}

@@ -17,7 +17,7 @@ interface PostCardProps {
     mask3: number;
     mask4: number;
     mask5: number;
-    mask6: number;   // ⭐ REQUIRED
+    mask6: number;
   };
   positivityRatio: number;
   onReact: () => void;
@@ -29,16 +29,19 @@ export default function PostCard({
   positivityRatio,
   onReact,
 }: PostCardProps) {
+  const intensity =
+    positivityRatio > 0.7 ? "high" : positivityRatio < 0.4 ? "low" : "mid";
+
   return (
     <div
       className={`
-        w-full rounded-2xl p-5 shadow-md transition-all duration-300
+        relative
+        w-full rounded-2xl p-5 shadow-md transition-all duration-500
         border border-white/10 bg-white/5 backdrop-blur
-        ${positivityRatio > 0.6 ? "ring-2 ring-green-400/40" : ""}
-        ${positivityRatio < 0.4 ? "ring-2 ring-red-400/40" : ""}
+        aura-mask-${post.automask}
+        aura-intensity-${intensity}
       `}
     >
-      {/* Creator */}
       <div className="flex items-center gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">
           {post.automask === 2 && "😤"}
@@ -58,16 +61,21 @@ export default function PostCard({
         </div>
       </div>
 
-      {/* Content */}
       <p className="text-white/90 whitespace-pre-wrap mb-4">
         {post.content}
       </p>
 
-      {/* Reaction Bar */}
       <ReactionBar
         postId={post.id}
         creatorId={post.creator_id}
-        reactions={reactions}            // ⭐ Now includes mask6
+        reactions={{
+          mask1: reactions.mask1,
+          mask2: reactions.mask2,
+          mask3: reactions.mask3,
+          mask4: reactions.mask4,
+          mask5: reactions.mask5,
+          mask6: reactions.mask6,
+        }}
         spiritScore={post.spirit_score}
         positivityRatio={positivityRatio}
         onReact={onReact}
