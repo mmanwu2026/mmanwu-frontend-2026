@@ -37,14 +37,18 @@ export default function ReactionBar({
     if (loading || loggedOut) return;
     setLoading(true);
 
-    await supabase.rpc("react_to_post", {
-      p_post_id: postId,
-      p_user_id: user!.id,
-      p_mask_tier: maskTier,
-    });
+   console.log("postId:", postId);
+console.log("userId:", user?.id);
+console.log("maskTier:", maskTier);
 
-    setLoading(false);
-    onReact();
+await supabase.rpc("react_to_post", {
+  p_post_id: postId,
+  p_user_id: user!.id,
+  p_mask_tier: maskTier,
+});
+
+setLoading(false);
+onReact();
   };
 
   return (
