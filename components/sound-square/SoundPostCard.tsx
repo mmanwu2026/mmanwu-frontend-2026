@@ -17,8 +17,9 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
   const supabase = createSupabaseBrowserClient();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>({
     mask1: 0,
     mask2: 0,
@@ -26,10 +27,9 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
     mask4: 0,
     mask5: 0,
   });
-
   const [intensity, setIntensity] = useState(0);
 
-  // Beat‑reactive analyser
+  // Beat‑reactive analyser (intensity for masks)
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -67,6 +67,83 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
       analyser.disconnect();
       src.disconnect();
       ctx.close();
+    };
+  }, []);
+
+  // Waveform canvas resize
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+
+    const resize = () => {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  // Waveform visualizer
+  useEffect(() => {
+    if (!audioRef.current || !canvasRef.current) return;
+
+    const audio = audioRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const audioCtx = new AudioContext();
+    const src = audioCtx.createMediaElementSource(audio);
+    const analyser = audioCtx.createAnalyser();
+
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+
+    src.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    const draw = () => {
+      requestAnimationFrame(draw);
+
+      analyser.getByteTimeDomainData(dataArray);
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#9b5cf6";
+
+      ctx.beginPath();
+
+      const sliceWidth = width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    };
+
+    draw();
+
+    return () => {
+      audioCtx.close();
     };
   }, []);
 
@@ -157,9 +234,10 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
 
       <audio ref={audioRef} src={post.audio_url} preload="metadata" />
 
-      <div className="w-full h-24 bg-gray-700 rounded mb-4 flex items-center justify-center text-gray-400">
-        Waveform preview
-      </div>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-24 bg-gray-700 rounded mb-4"
+      />
 
       <div className="flex gap-4 mb-4">
         {!isPlaying ? (
