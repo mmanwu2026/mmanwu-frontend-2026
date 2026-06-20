@@ -451,6 +451,16 @@ body::before {
   opacity: 0.85;
 }
 
+.plaza-grid-container {
+  display: flex;
+  width: 100%;
+}
+
+/* Optional: smooth dimming layer */
+.dim-overlay {
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(1px);
+}
 
 /* ------------------------------------------------------------ */
 /* END CLEAN D4 PATCH                                           */

@@ -18,8 +18,8 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ⭐ Composer is ALWAYS visible now
-  const hidden = false;
+  // Slight dimming layer when expanded
+  const dimOpacity = expanded ? "bg-black/20 backdrop-blur-[1px]" : "bg-transparent";
 
   async function runGatekeeper(rawText: string) {
     try {
@@ -93,6 +93,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
 
   return (
     <>
+      {/* Gatekeeper Modal */}
       {showGatekeeper && gatekeeperOptions && (
         <GatekeeperModal
           options={gatekeeperOptions}
@@ -101,24 +102,43 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
         />
       )}
 
+      {/* Toast */}
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* ⭐ NO FIXED POSITION HERE — wrapper controls placement */}
+      {/* DIM BACKDROP WHEN EXPANDED */}
+      {expanded && (
+        <div
+          className={`
+            fixed inset-0 z-[9000]
+            transition-all duration-300
+            ${dimOpacity}
+          `}
+          onClick={() => setExpanded(false)}
+        />
+      )}
+
+      {/* COMPOSER CONTAINER */}
       <div
         className={`
-          w-full px-4 pb-4 transition-all duration-300
-          ${hidden ? "opacity-0" : "opacity-100"}
+          transition-all duration-300
+          ${expanded ? "fixed right-0 top-32 z-[9999]" : "relative"}
+          ${expanded ? "w-[360px]" : "w-full"}
         `}
+        style={{
+          width: expanded ? "360px" : "100%",
+        }}
       >
         <div
           className={`
             floating-composer-container
-            rounded-2xl transition-all duration-300 mx-auto max-w-md
-            ${expanded ? "p-4" : "p-3"}
+            rounded-2xl transition-all duration-300
+            ${expanded ? "p-4 shadow-xl bg-purple-900/40 backdrop-blur-xl" : "p-3"}
+            ${expanded ? "w-[360px]" : "max-w-[180px]"}
           `}
         >
+          {/* COLLAPSED MODE */}
           {!expanded && (
             <div
               className="flex items-center justify-between text-gray-300 cursor-pointer"
@@ -129,6 +149,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
             </div>
           )}
 
+          {/* EXPANDED MODE */}
           {expanded && (
             <div className="flex flex-col space-y-3">
               <textarea
@@ -138,8 +159,9 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
                   placeholder-gray-400
                   focus:outline-none
                   focus:ring-2 focus:ring-purple-500/40
+                  bg-purple-950/40
                 "
-                rows={4}
+                rows={5}
                 placeholder="Share your thoughts…"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
