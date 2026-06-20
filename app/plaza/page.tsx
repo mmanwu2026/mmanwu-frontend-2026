@@ -125,166 +125,168 @@ export default function PlazaPage() {
   }, []);
 
   return (
-    <div className="plaza-background min-h-screen w-full pt-36 pb-40 relative">
-     {/* TRUE CENTERED PLAZA HEADER */}
-<div className="w-full flex flex-col items-center mt-6 mb-10">
-  <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-    Mmanwu Plaza
-  </h1>
-  <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
-</div>
+    <>
+      {/* PLAZA CONTAINER */}
+      <div className="plaza-background min-h-screen w-full pt-36 pb-40 relative">
 
-      {/* SUBTLE EMBERS */}
-      <div className="temple-ember subtle" style={{ left: "18%", top: "22%" }}></div>
-      <div className="temple-ember subtle" style={{ left: "42%", top: "12%" }}></div>
-      <div className="temple-ember subtle" style={{ left: "63%", top: "38%" }}></div>
-      <div className="temple-ember subtle" style={{ left: "78%", top: "18%" }}></div>
+        {/* TRUE CENTERED HEADER */}
+        <div className="w-full flex flex-col items-center mb-10">
+          <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
+            Mmanwu Plaza
+          </h1>
+          <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
+        </div>
 
-      {/* CENTER COLUMN */}
-      <div className="w-full flex flex-col items-center px-4 space-y-12">
+        {/* SUBTLE EMBERS */}
+        <div className="temple-ember subtle" style={{ left: "18%", top: "22%" }}></div>
+        <div className="temple-ember subtle" style={{ left: "42%", top: "12%" }}></div>
+        <div className="temple-ember subtle" style={{ left: "63%", top: "38%" }}></div>
+        <div className="temple-ember subtle" style={{ left: "78%", top: "18%" }}></div>
 
-        {loading && <p className="text-gray-300">Loading posts…</p>}
-        {!loading && posts.length === 0 && (
-          <p className="text-gray-300">No posts yet…</p>
-        )}
+        {/* CENTER COLUMN */}
+        <div className="w-full flex flex-col items-center px-4 space-y-12">
 
-        {posts.map((post) => {
-          const key = String(post.id);
+          {loading && <p className="text-gray-300">Loading posts…</p>}
+          {!loading && posts.length === 0 && (
+            <p className="text-gray-300">No posts yet…</p>
+          )}
 
-          const prevPos = prevPositivityMap.current[key] ?? post.positivityRatio;
-          const prevPosReacts = prevPositiveReactionsMap.current[key] ?? post.reactions.mask3;
+          {posts.map((post) => {
+            const key = String(post.id);
 
-          const positivitySpike = post.positivityRatio - prevPos > 0.25;
-          const newPositiveReaction = post.reactions.mask3 > prevPosReacts;
+            const prevPos = prevPositivityMap.current[key] ?? post.positivityRatio;
+            const prevPosReacts = prevPositiveReactionsMap.current[key] ?? post.reactions.mask3;
 
-          const surge = positivitySpike || newPositiveReaction;
+            const positivitySpike = post.positivityRatio - prevPos > 0.25;
+            const newPositiveReaction = post.reactions.mask3 > prevPosReacts;
 
-          prevPositivityMap.current[key] = post.positivityRatio;
-          prevPositiveReactionsMap.current[key] = post.reactions.mask3;
+            const surge = positivitySpike || newPositiveReaction;
 
-          const ascensionClass =
-            post.spiritScore > 500
-              ? "ascend-tier-5"
-              : post.spiritScore > 200
-              ? "ascend-tier-4"
-              : post.spiritScore > 150
-              ? "ascend-tier-3"
-              : post.spiritScore > 100
-              ? "ascend-tier-2"
-              : "ascend-tier-1";
+            prevPositivityMap.current[key] = post.positivityRatio;
+            prevPositiveReactionsMap.current[key] = post.reactions.mask3;
 
-          const surgeClass =
-            surge && post.spiritScore > 200
-              ? "surge-strong"
-              : surge && post.spiritScore > 150
-              ? "surge-medium"
-              : surge && post.spiritScore > 100
-              ? "surge-weak"
-              : "";
+            const ascensionClass =
+              post.spiritScore > 500
+                ? "ascend-tier-5"
+                : post.spiritScore > 200
+                ? "ascend-tier-4"
+                : post.spiritScore > 150
+                ? "ascend-tier-3"
+                : post.spiritScore > 100
+                ? "ascend-tier-2"
+                : "ascend-tier-1";
 
-          const emotionClass =
-            post.positivityRatio > 0.75
-              ? "emotion-boost"
-              : post.positivityRatio > 0.55
-              ? "emotion-intense"
-              : post.positivityRatio < 0.25
-              ? "emotion-soft"
-              : "emotion-calm";
+            const surgeClass =
+              surge && post.spiritScore > 200
+                ? "surge-strong"
+                : surge && post.spiritScore > 150
+                ? "surge-medium"
+                : surge && post.spiritScore > 100
+                ? "surge-weak"
+                : "";
 
-          const floatY = Math.max(-20 - post.spiritScore * 0.25, -90);
+            const emotionClass =
+              post.positivityRatio > 0.75
+                ? "emotion-boost"
+                : post.positivityRatio > 0.55
+                ? "emotion-intense"
+                : post.positivityRatio < 0.25
+                ? "emotion-soft"
+                : "emotion-calm";
 
-          const glyphEmoji =
-            post.autoMask === 1 ? "😶‍🌫️" :
-            post.autoMask === 2 ? "😤" :
-            post.autoMask === 3 ? "😊" :
-            post.autoMask === 4 ? "🤩" :
-            post.autoMask === 5 ? "😇" :
-            post.autoMask === 6 ? "🔱" :
-            "😤";
+            const floatY = Math.max(-20 - post.spiritScore * 0.25, -90);
 
-          const intensity = auraIntensity(post.spiritScore, post.positivityRatio);
+            const glyphEmoji =
+              post.autoMask === 1 ? "😶‍🌫️" :
+              post.autoMask === 2 ? "😤" :
+              post.autoMask === 3 ? "😊" :
+              post.autoMask === 4 ? "🤩" :
+              post.autoMask === 5 ? "😇" :
+              post.autoMask === 6 ? "🔱" :
+              "😤";
 
-          return (
-            <div
-              key={post.id}
-              className={`
-                relative
-                p-8
-                rounded-2xl
-                transition-all
-                duration-500
-                overflow-visible
-                w-[360px]
-                min-h-[360px]
-                flex flex-col
+            const intensity = auraIntensity(post.spiritScore, post.positivityRatio);
 
-                plaza-card-base
-                aura-mask-${post.autoMask}
-                aura-intensity-${intensity}
+            return (
+              <div
+                key={post.id}
+                className={`
+                  relative
+                  p-8
+                  rounded-2xl
+                  transition-all
+                  duration-500
+                  overflow-visible
+                  w-[360px]
+                  min-h-[360px]
+                  flex flex-col
 
-                ${ascensionClass}
-                ${surgeClass}
-                ${emotionClass}
-              `}
-            >
+                  plaza-card-base
+                  aura-mask-${post.autoMask}
+                  aura-intensity-${intensity}
 
-              {/* GLYPH */}
-              <div className="ritual-glyph-container mt-4 flex justify-center">
-                <div className="ritual-glyph-levitate">
-                  <div className="ritual-flame-ring clean"></div>
-                  <div className="ritual-shadow-floor clean"></div>
-                  <div
-                    className="emoji-glyph clean"
-                    style={{ "--float-y": `${floatY}px` } as CSSProperties}
-                  >
-                    {glyphEmoji}
+                  ${ascensionClass}
+                  ${surgeClass}
+                  ${emotionClass}
+                `}
+              >
+
+                {/* GLYPH */}
+                <div className="ritual-glyph-container mt-4 flex justify-center">
+                  <div className="ritual-glyph-levitate">
+                    <div className="ritual-flame-ring clean"></div>
+                    <div className="ritual-shadow-floor clean"></div>
+                    <div
+                      className="emoji-glyph clean"
+                      style={{ "--float-y": `${floatY}px` } as CSSProperties}
+                    >
+                      {glyphEmoji}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* CONTENT */}
-              <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4">
-                {post.content}
-              </p>
+                {/* CONTENT */}
+                <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4">
+                  {post.content}
+                </p>
 
-              {/* SPIRIT SCORE */}
-              <p className="mt-2 text-sm text-gray-400 text-center">
-  SpiritScore: {post.spiritScore}
-</p>
+                {/* SPIRIT SCORE */}
+                <p className="mt-2 text-sm text-gray-400 text-center">
+                  SpiritScore: {post.spiritScore}
+                </p>
 
-              {/* FOOTER + REACTION BAR AT BOTTOM */}
-              <div className="mt-auto w-full">
+                {/* FOOTER + REACTION BAR */}
+                <div className="mt-auto w-full">
 
-                <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-                  <span>Mask: {post.autoMask}</span>
-                  <span>{new Date(post.created_at).toLocaleString()}</span>
+                  <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
+                    <span>Mask: {post.autoMask}</span>
+                    <span>{new Date(post.created_at).toLocaleString()}</span>
+                  </div>
+
+                  <div className="mt-4 w-full flex justify-center">
+                    <ReactionBar
+                      postId={post.id}
+                      creatorId={post.creator_id}
+                      reactions={post.reactions}
+                      spiritScore={post.spiritScore}
+                      positivityRatio={post.positivityRatio}
+                      onReact={fetchPosts}
+                    />
+                  </div>
+
                 </div>
-
-                <div className="mt-4 w-full flex justify-center">
-                  <ReactionBar
-                    postId={post.id}
-                    creatorId={post.creator_id}
-                    reactions={post.reactions}
-                    spiritScore={post.spiritScore}
-                    positivityRatio={post.positivityRatio}
-                    onReact={fetchPosts}
-                  />
-                </div>
-
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* FLOATING COMPOSER — ALWAYS VISIBLE, ABOVE CARDS */}
-{/* FLOATING COMPOSER — ALWAYS VISIBLE, ABOVE CARDS */}
-<div className="fixed bottom-48 left-0 w-full flex justify-center z-[9999] pointer-events-none">
-  <div className="pointer-events-auto">
-    <FloatingComposer onPost={fetchPosts} />
-  </div>
-</div>
-
-    </div>
+      {/* FLOATING COMPOSER — OUTSIDE PLAZA CONTAINER */}
+      <div className="fixed bottom-48 left-0 w-full flex justify-center z-[9999] pointer-events-none">
+        <div className="pointer-events-auto">
+          <FloatingComposer onPost={fetchPosts} />
+        </div>
+      </div>
+    </>
   );
 }
