@@ -319,7 +319,7 @@ const key = `mask${r.maskTier}`;
 {/* REACTION BAR */}
 <div className="mt-6 w-full flex justify-center">
   <ReactionBar
-    key={`${post.id}-${post.spirit_score}-${post.reactions.mask1}-${post.reactions.mask2}-${post.reactions.mask3}-${post.reactions.mask4}-${post.reactions.mask5}`}
+    key={`rb-${post.id}-${post.spirit_score}-${post.automask}`}
     postId={post.id}
     creatorId={post.creator_id}
     reactions={post.reactions}
