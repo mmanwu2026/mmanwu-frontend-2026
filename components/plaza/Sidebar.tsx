@@ -7,13 +7,13 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   const navItems = [
-    { label: "SoundSquare", href: "/sound" },
-    { label: "VisionSquare", href: "/vision" },
-    { label: "SpiritSquare", href: "/spirit" },
-    { label: "Shrine", href: "/shrine" },
-    { label: "Profile", href: "/profile/me" },
-    { label: "Settings", href: "/settings" },
-  ];
+  { label: "SoundSquare", href: "/sound-square/feed" },
+  { label: "VisionSquare", href: "/vision" },
+  { label: "SpiritSquare", href: "/spirit" },
+  { label: "Shrine", href: "/shrine" },
+  { label: "Profile", href: "/profile/me" },
+  { label: "Settings", href: "/settings" },
+];
 
   return (
     <div

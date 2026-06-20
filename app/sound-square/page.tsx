@@ -1,89 +1,56 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import SoundPostCard from "@/components/sound-square/SoundPostCard";
 
-export default function SoundSquare() {
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioURL, setAudioURL] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+type SoundPost = {
+  id: string;
+  title: string;
+  audio_url: string;
+  creator_name: string;
+  created_at: string;
+};
 
-  const masks = [
-    { id: 1, label: "Dark Whisper", emoji: "😶‍🌫️" },
-    { id: 2, label: "Fierce Awakener", emoji: "🔥" },
-    { id: 3, label: "Joyful Spirit", emoji: "😄" },
-    { id: 4, label: "Cosmic Dancer", emoji: "🌌" },
-    { id: 5, label: "Eternal Radiance", emoji: "✨" },
-  ];
+export default function SoundSquareFeed() {
+  const [posts, setPosts] = useState<SoundPost[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  function handleAudioUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const supabase = createSupabaseBrowserClient();
 
-    setAudioFile(file);
-    setAudioURL(URL.createObjectURL(file));
-  }
+  useEffect(() => {
+    async function loadPosts() {
+      const { data, error } = await supabase
+        .from("sound_posts")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-  function playAudio() {
-    audioRef.current?.play();
-  }
+      if (error) {
+        console.error("Error loading sound posts:", error);
+        return;
+      }
 
-  function pauseAudio() {
-    audioRef.current?.pause();
-  }
+      setPosts(data || []);
+      setLoading(false);
+    }
+
+    loadPosts();
+  }, [supabase]);
 
   return (
-    <div className="min-h-screen text-white flex flex-col items-center p-8">
-      <h1 className="text-4xl font-bold mb-6">Sound Square</h1>
+    <div className="min-h-screen text-white p-6">
+      <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
 
-      {/* Upload Section */}
-      <div className="bg-gray-800 p-6 rounded-lg w-full max-w-xl mb-8">
-        <label className="block mb-2 text-lg font-semibold">
-          Upload your sound
-        </label>
-        <input
-          type="file"
-          accept="audio/*"
-          onChange={handleAudioUpload}
-          className="w-full p-2 rounded bg-gray-700"
-        />
+      {loading && <p>Loading sounds...</p>}
 
-        {audioURL && (
-          <audio ref={audioRef} src={audioURL} className="mt-4 w-full" controls />
-        )}
-      </div>
+      {!loading && posts.length === 0 && (
+        <p className="text-gray-400">No sound posts yet. Be the first to upload.</p>
+      )}
 
-      {/* Waveform Placeholder */}
-      <div className="w-full max-w-2xl h-32 bg-gray-700 rounded-lg mb-8 flex items-center justify-center text-gray-400">
-        Waveform will appear here
-      </div>
-
-      {/* Masks Row */}
-      <div className="flex gap-6 mb-8">
-        {masks.map((mask) => (
-          <div
-            key={mask.id}
-            className="flex flex-col items-center cursor-pointer hover:scale-110 transition"
-          >
-            <div className="text-5xl">{mask.emoji}</div>
-            <p className="mt-2 text-sm text-gray-300">{mask.label}</p>
-          </div>
+      <div className="flex flex-col gap-6">
+        {posts.map((post) => (
+          <SoundPostCard key={post.id} post={post} />
         ))}
-      </div>
-
-      {/* Audio Controls */}
-      <div className="flex gap-4">
-        <button
-          onClick={playAudio}
-          className="bg-green-600 px-4 py-2 rounded hover:bg-green-500"
-        >
-          Play
-        </button>
-        <button
-          onClick={pauseAudio}
-          className="bg-red-600 px-4 py-2 rounded hover:bg-red-500"
-        >
-          Pause
-        </button>
       </div>
     </div>
   );
