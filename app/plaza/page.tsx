@@ -125,11 +125,14 @@ export default function PlazaPage() {
   }, []);
 
   return (
-    <div className="plaza-background min-h-screen w-full pt-24 pb-40 relative">
-
-     <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-  Mmanwu Plaza
-</h1>
+    <div className="plaza-background min-h-screen w-full pt-36 pb-40 relative">
+     {/* TRUE CENTERED PLAZA HEADER */}
+<div className="w-full flex flex-col items-center mt-6 mb-10">
+  <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
+    Mmanwu Plaza
+  </h1>
+  <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
+</div>
 
       {/* SUBTLE EMBERS */}
       <div className="temple-ember subtle" style={{ left: "18%", top: "22%" }}></div>
@@ -275,7 +278,8 @@ export default function PlazaPage() {
       </div>
 
       {/* FLOATING COMPOSER — ALWAYS VISIBLE, ABOVE CARDS */}
-<div className="fixed bottom-40 left-0 w-full flex justify-center z-[5000] pointer-events-none">
+{/* FLOATING COMPOSER — ALWAYS VISIBLE, ABOVE CARDS */}
+<div className="fixed bottom-48 left-0 w-full flex justify-center z-[9999] pointer-events-none">
   <div className="pointer-events-auto">
     <FloatingComposer onPost={fetchPosts} />
   </div>
