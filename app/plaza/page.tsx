@@ -59,67 +59,66 @@ export default function PlazaPage() {
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
   async function fetchPosts() {
-    setLoading(true);
+  setLoading(true);
 
-    const { data: postsData } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const { data: postsData } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    const { data: aggData } = await supabase
-      .from("reaction_aggregates_mv")
-      .select("*");
+  const { data: aggData } = await supabase
+    .from("reaction_aggregates_mv")
+    .select("*");
 
-    const merged: PlazaPostWithAggregates[] = postsData!.map((post) => {
-      const agg = aggData!.find((a) => a.post_id === post.id);
+  const merged: PlazaPostWithAggregates[] = postsData!.map((post) => {
+    const agg = aggData!.find((a) => a.post_id === post.id);
 
-      const reactions = {
-        mask1: agg?.mask1 ?? 0,
-        mask2: agg?.mask2 ?? 0,
-        mask3: agg?.mask3 ?? 0,
-        mask4: agg?.mask4 ?? 0,
-        mask5: agg?.mask5 ?? 0,
-        mask6: agg?.mask6 ?? 0,
-      };
+    const reactions = {
+      mask1: agg?.mask1 ?? 0,
+      mask2: agg?.mask2 ?? 0,
+      mask3: agg?.mask3 ?? 0,
+      mask4: agg?.mask4 ?? 0,
+      mask5: agg?.mask5 ?? 0,
+    };
 
-      const total =
-        reactions.mask1 +
-        reactions.mask2 +
-        reactions.mask3 +
-        reactions.mask4 +
-        reactions.mask5 +
-        reactions.mask6;
+    const total =
+      reactions.mask1 +
+      reactions.mask2 +
+      reactions.mask3 +
+      reactions.mask4 +
+      reactions.mask5;
 
-      const positive =
-        reactions.mask3 +
-        reactions.mask4 +
-        reactions.mask5 +
-        reactions.mask6;
+    const positive =
+      reactions.mask3 +
+      reactions.mask4 +
+      reactions.mask5;
 
-      const positivityRatio =
-        total > 0 ? positive / total : agg?.positivity_ratio ?? 0.5;
+    const positivityRatio =
+      agg?.positivity_ratio ??
+      (total > 0 ? positive / total : 0.5);
 
-      const spiritScore = agg?.spirit_score ?? 0;
+    // TEMPORARY: spiritScore = total reactions (until you add a real formula)
+    const spiritScore = total;
 
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
+    let autoMask = 2;
+    if (spiritScore <= 20) autoMask = 2;
+    else if (spiritScore <= 100) autoMask = 3;
+    else if (spiritScore <= 200) autoMask = 4;
+    else if (spiritScore <= 500) autoMask = 5;
+    else autoMask = 6;
 
-      return {
-        ...post,
-        reactions,
-        spiritScore,
-        positivityRatio,
-        autoMask,
-      };
-    });
+    return {
+      ...post,
+      reactions,
+      spiritScore,
+      positivityRatio,
+      autoMask,
+    };
+  });
 
-    setPosts(merged);
-    setLoading(false);
-  }
+  setPosts(merged);
+  setLoading(false);
+}
 
   useEffect(() => {
     fetchPosts();
