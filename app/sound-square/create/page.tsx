@@ -1,105 +1,206 @@
 "use client";
 
-import { useState } from "react";
-import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
-import { useRouter } from "next/navigation";
+import { useState, useRef } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-export default function CreateSoundPost() {
-  const router = useRouter();
+export default function SoundSquareUpload() {
+  const supabase = createSupabaseBrowserClient();
 
- const supabase = createSupabaseBrowserClient();
-
+  const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [creatorName, setCreatorName] = useState("");
-  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const dropRef = useRef<HTMLDivElement | null>(null);
+
+  // -------------------------------
+  // Drag & Drop
+  // -------------------------------
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
-    if (!audioFile) return alert("Please upload an audio file.");
-
-    setUploading(true);
-
-    // 1. Upload audio to Supabase Storage
-    const fileExt = audioFile.name.split(".").pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `sounds/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("sound_files")
-      .upload(filePath, audioFile);
-
-    if (uploadError) {
-      console.error(uploadError);
-      alert("Audio upload failed.");
-      setUploading(false);
-      return;
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from("sound_files")
-      .getPublicUrl(filePath);
-
-    const audioUrl = publicUrlData.publicUrl;
-
-    // 2. Insert post into database
-    const { error: insertError } = await supabase.from("sound_posts").insert({
-      title,
-      creator_name: creatorName,
-      audio_url: audioUrl,
-    });
-
-    if (insertError) {
-      console.error(insertError);
-      alert("Failed to save post.");
-      setUploading(false);
-      return;
-    }
-
-    // 3. Redirect to feed
-    router.push("/sound-square/feed");
+    const f = e.dataTransfer.files[0];
+    validateFile(f);
   }
 
+  function validateFile(f: File | null) {
+    setError("");
+
+    if (!f) return;
+
+    const allowed = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/x-m4a"];
+    if (!allowed.includes(f.type)) {
+      setError("Unsupported audio format.");
+      return;
+    }
+
+    if (f.size > 20 * 1024 * 1024) {
+      setError("File too large. Max 20MB.");
+      return;
+    }
+
+    setFile(f);
+  }
+
+  // -------------------------------
+  // Upload with Progress (XHR)
+  // -------------------------------
+  async function uploadWithProgress(file: File, path: string) {
+    return new Promise<{ publicUrl: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open(
+        "POST",
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/sound-audio/${path}`
+      );
+
+      xhr.setRequestHeader(
+        "Authorization",
+        `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+      );
+
+      xhr.upload.onprogress = (e: ProgressEvent) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setProgress(pct);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status < 300) {
+          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound-audio/${path}`;
+          resolve({ publicUrl });
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(file);
+    });
+  }
+
+  // -------------------------------
+  // Upload Handler
+  // -------------------------------
+  async function handleUpload() {
+    if (!file) {
+      setError("No file selected.");
+      return;
+    }
+
+    if (!title.trim()) {
+      setError("Please enter a title.");
+      return;
+    }
+
+    setUploading(true);
+    setProgress(0);
+    setError("");
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `sounds/${crypto.randomUUID()}.${fileExt}`;
+
+    let publicUrl: string;
+
+    try {
+      const result = await uploadWithProgress(file, filePath);
+      publicUrl = result.publicUrl;
+    } catch (err: any) {
+      setError(err.message);
+      setUploading(false);
+      return;
+    }
+
+    // Extract duration
+    const audio = document.createElement("audio");
+    audio.src = publicUrl;
+
+    await new Promise((resolve) => {
+      audio.onloadedmetadata = resolve;
+    });
+
+    const duration = audio.duration;
+
+    // Insert into DB
+    const { error: dbError } = await supabase.from("sound_posts").insert({
+      title,
+      audio_url: publicUrl,
+      duration,
+    });
+
+    if (dbError) {
+      setError(dbError.message);
+      setUploading(false);
+      return;
+    }
+
+    setSuccess(true);
+    setUploading(false);
+    setFile(null);
+    setTitle("");
+  }
+
+  // -------------------------------
+  // UI
+  // -------------------------------
   return (
-    <div className="min-h-screen text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">Create Sound Post</h1>
+    <div className="max-w-xl mx-auto p-6 text-white">
+      <h1 className="text-3xl font-bold mb-6">Upload to SoundSquare</h1>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-w-lg">
-        <input
-          type="text"
-          placeholder="Title"
-          className="p-3 rounded bg-gray-800"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
+      <input
+        type="text"
+        placeholder="Title"
+        className="w-full p-2 rounded bg-gray-700 mb-4"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
 
-        <input
-          type="text"
-          placeholder="Creator Name"
-          className="p-3 rounded bg-gray-800"
-          value={creatorName}
-          onChange={(e) => setCreatorName(e.target.value)}
-          required
-        />
+      <div
+        ref={dropRef}
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+        className="w-full h-32 border-2 border-dashed border-gray-500 rounded flex items-center justify-center mb-4 cursor-pointer"
+        onClick={() => document.getElementById("fileInput")?.click()}
+      >
+        {file ? (
+          <p>{file.name}</p>
+        ) : (
+          <p className="text-gray-400">Drag & drop audio here or click to select</p>
+        )}
+      </div>
 
-        <input
-          type="file"
-          accept="audio/*"
-          className="p-3 rounded bg-gray-800"
-          onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
-          required
-        />
+      <input
+        id="fileInput"
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={(e) => validateFile(e.target.files?.[0] || null)}
+      />
 
-        <button
-          type="submit"
-          disabled={uploading}
-          className="bg-green-600 px-4 py-3 rounded hover:bg-green-500 disabled:bg-gray-600"
-        >
-          {uploading ? "Uploading..." : "Upload Sound"}
-        </button>
-      </form>
+      {error && <p className="text-red-400 mb-2">{error}</p>}
+
+      {uploading && (
+        <div className="w-full bg-gray-700 rounded h-3 mb-4">
+          <div
+            className="bg-purple-500 h-3 rounded"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
+      {success && (
+        <p className="text-green-400 mb-4">Upload successful!</p>
+      )}
+
+      <button
+        onClick={handleUpload}
+        disabled={uploading}
+        className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 disabled:opacity-50"
+      >
+        {uploading ? "Uploading..." : "Upload"}
+      </button>
     </div>
   );
 }

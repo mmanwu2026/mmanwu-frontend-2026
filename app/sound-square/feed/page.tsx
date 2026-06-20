@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import SoundPostCard from "@/components/sound-square/SoundPostCard";
 
 type SoundPost = {
   id: string;
@@ -11,34 +12,101 @@ type SoundPost = {
   created_at: string;
 };
 
+const PAGE_SIZE = 20;
+
 export default function SoundSquareFeed() {
+  const supabase = createSupabaseBrowserClient();
+
   const [posts, setPosts] = useState<SoundPost[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  // Correct initialization for your version of auth-helpers
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
+  // Load initial page
   useEffect(() => {
-    async function loadPosts() {
-      const { data, error } = await supabase
-        .from("sound_posts")
-        .select("*")
-        .order("created_at", { ascending: false });
+    loadInitial();
+  }, []);
 
-      if (error) {
-        console.error("Error loading sound posts:", error);
-        return;
-      }
+  async function loadInitial() {
+    setLoading(true);
 
-      setPosts(data || []);
-      setLoading(false);
+    const { data, error } = await supabase
+      .from("sound_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(PAGE_SIZE);
+
+    if (error) {
+      console.error(error);
+      return;
     }
 
-    loadPosts();
-  }, [supabase]);
+    setPosts(data);
+    if (data.length > 0) {
+      setCursor(data[data.length - 1].created_at);
+    }
+    if (data.length < PAGE_SIZE) {
+      setHasMore(false);
+    }
+
+    setLoading(false);
+  }
+
+  // Load next page using cursor
+  const loadMore = useCallback(async () => {
+    if (!cursor || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+
+    const { data, error } = await supabase
+      .from("sound_posts")
+      .select("*")
+      .lt("created_at", cursor)
+      .order("created_at", { ascending: false })
+      .limit(PAGE_SIZE);
+
+    if (error) {
+      console.error(error);
+      setLoadingMore(false);
+      return;
+    }
+
+    if (data.length === 0) {
+      setHasMore(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    setPosts((prev) => [...prev, ...data]);
+    setCursor(data[data.length - 1].created_at);
+
+    if (data.length < PAGE_SIZE) {
+      setHasMore(false);
+    }
+
+    setLoadingMore(false);
+  }, [cursor, loadingMore, hasMore, supabase]);
+
+  // IntersectionObserver to auto-load more
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <div className="min-h-screen text-white p-6">
@@ -46,52 +114,23 @@ export default function SoundSquareFeed() {
 
       {loading && <p>Loading sounds...</p>}
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 mb-6">
         {posts.map((post) => (
           <SoundPostCard key={post.id} post={post} />
         ))}
       </div>
-    </div>
-  );
-}
 
-function SoundPostCard({ post }: { post: SoundPost }) {
-  return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-semibold">{post.title}</h2>
-      <p className="text-gray-400 text-sm mb-4">
-        Uploaded by {post.creator_name} • {post.created_at}
-      </p>
+      {hasMore && (
+        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
+          {loadingMore && <p className="text-gray-400">Loading more...</p>}
+        </div>
+      )}
 
-      <div className="w-full h-24 bg-gray-700 rounded mb-4 flex items-center justify-center text-gray-400">
-        Waveform preview
-      </div>
-
-      <div className="flex gap-4 mb-4">
-        <button className="bg-green-600 px-4 py-2 rounded hover:bg-green-500">
-          Play
-        </button>
-        <button className="bg-red-600 px-4 py-2 rounded hover:bg-red-500">
-          Pause
-        </button>
-      </div>
-
-      <div className="flex gap-6">
-        <ReactionMask emoji="😶‍🌫️" />
-        <ReactionMask emoji="🔥" />
-        <ReactionMask emoji="😄" />
-        <ReactionMask emoji="🌌" />
-        <ReactionMask emoji="✨" />
-      </div>
-    </div>
-  );
-}
-
-function ReactionMask({ emoji }: { emoji: string }) {
-  return (
-    <div className="flex flex-col items-center cursor-pointer hover:scale-110 transition">
-      <div className="text-4xl">{emoji}</div>
-      <p className="text-gray-400 text-xs mt-1">0</p>
+      {!hasMore && (
+        <p className="text-gray-500 text-sm mt-4 text-center">
+          You’ve reached the end of the feed.
+        </p>
+      )}
     </div>
   );
 }
