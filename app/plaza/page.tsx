@@ -125,7 +125,7 @@ export default function PlazaPage() {
     fetchPosts();
   }, []);
 
-  return (
+return (
   <div className="min-h-screen w-full bg-black text-gray-100">
 
     {/* LEFT SIDEBAR */}
@@ -145,22 +145,22 @@ export default function PlazaPage() {
       {/* CENTER FEED */}
       <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
 
-          {/* HEADER */}
-          <div className="w-full flex flex-col items-center mb-10">
-            <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-  Mmanwu Plaza (TEST)
-</h1>
-            <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
-          </div>
+        {/* HEADER */}
+        <div className="w-full flex flex-col items-center mb-10">
+          <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
+            Mmanwu Plaza (TEST)
+          </h1>
+          <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
+        </div>
 
-          {/* POSTS */}
-          {loading && <p className="text-gray-300">Loading posts…</p>}
-          {!loading && posts.length === 0 && (
-            <p className="text-gray-300">No posts yet…</p>
-          )}
+        {/* POSTS */}
+        {loading && <p className="text-gray-300">Loading posts…</p>}
+        {!loading && posts.length === 0 && (
+          <p className="text-gray-300">No posts yet…</p>
+        )}
 
-          <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post) => {
+        <div className="space-y-12 w-full flex flex-col items-center">
+          {posts.map((post) => {
               const key = String(post.id);
 
               const prevPos = prevPositivityMap.current[key] ?? post.positivityRatio;
