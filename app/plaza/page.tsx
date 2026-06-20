@@ -105,7 +105,8 @@ async function fetchPosts() {
   // 2️⃣ Fetch reactions grouped by post_id
   const { data: reactionsData, error: reactionsError } = await supabase
   .from("reactions")
-  .select("id, post_id, maskTier, created_at, user_id")   // ⭐ include id to force fresh fetch
+  .select("id, post_id, maskTier, created_at, user_id", { head: false })
+  .neq("id", -1)
   .order("id", { ascending: true });
 
   if (reactionsError) {
