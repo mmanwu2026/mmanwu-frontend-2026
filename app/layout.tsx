@@ -1,5 +1,3 @@
-"use client";
-
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
 import dynamic from "next/dynamic";
