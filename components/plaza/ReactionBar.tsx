@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUser } from "@/context/UserContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 interface ReactionBarProps {
@@ -12,6 +13,7 @@ interface ReactionBarProps {
     mask3: number;
     mask4: number;
     mask5: number;
+    mask6: number;
   };
   spiritScore: number;
   positivityRatio: number;
@@ -27,7 +29,12 @@ export default function ReactionBar({
   onReact,
 }: ReactionBarProps) {
   const supabase = createSupabaseBrowserClient();
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
+
+  if (!user) return null;
+
+  const isCreator = user.id === creatorId;
 
   const handleReact = async (maskTier: number) => {
     if (loading) return;
@@ -35,7 +42,7 @@ export default function ReactionBar({
 
     await supabase.rpc("react_to_post", {
       p_post_id: postId,
-      p_user_id: creatorId,
+      p_user_id: user.id,   // ⭐ CORRECT: reacting user is the logged‑in user
       p_mask_tier: maskTier,
     });
 
@@ -44,10 +51,62 @@ export default function ReactionBar({
   };
 
   return (
-    <div className="flex items-center justify-between mt-4">
-      <button onClick={() => handleReact(3)} className="text-2xl">😊</button>
-      <button onClick={() => handleReact(4)} className="text-2xl">🤩</button>
-      <button onClick={() => handleReact(5)} className="text-2xl">😇</button>
+    <div className="flex items-center justify-center gap-6 mt-4">
+
+      {/* ⭐ Mask 1 — Creator Only */}
+      {isCreator && (
+        <button
+          onClick={() => handleReact(1)}
+          className="reaction-mask text-3xl"
+        >
+          😶‍🌫️
+          <span className="text-xs block text-gray-400">{reactions.mask1}</span>
+        </button>
+      )}
+
+      {/* ⭐ Mask 2 — Creator Only */}
+      {isCreator && (
+        <button
+          onClick={() => handleReact(2)}
+          className="reaction-mask text-3xl"
+        >
+          😤
+          <span className="text-xs block text-gray-400">{reactions.mask2}</span>
+        </button>
+      )}
+
+      {/* ⭐ Mask 3 — Everyone */}
+      <button
+        onClick={() => handleReact(3)}
+        className="reaction-mask text-3xl"
+      >
+        😊
+        <span className="text-xs block text-gray-400">{reactions.mask3}</span>
+      </button>
+
+      {/* ⭐ Mask 4 — Everyone */}
+      <button
+        onClick={() => handleReact(4)}
+        className="reaction-mask text-3xl"
+      >
+        🤩
+        <span className="text-xs block text-gray-400">{reactions.mask4}</span>
+      </button>
+
+      {/* ⭐ Mask 5 — Everyone */}
+      <button
+        onClick={() => handleReact(5)}
+        className="reaction-mask text-3xl"
+      >
+        😇
+        <span className="text-xs block text-gray-400">{reactions.mask5}</span>
+      </button>
+
+      {/* ⭐ Mask 6 — System / AutoMask (display only) */}
+      <div className="reaction-mask text-3xl opacity-70 cursor-default">
+        🔱
+        <span className="text-xs block text-gray-400">{reactions.mask6}</span>
+      </div>
     </div>
   );
 }

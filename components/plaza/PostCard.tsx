@@ -17,6 +17,7 @@ interface PostCardProps {
     mask3: number;
     mask4: number;
     mask5: number;
+    mask6: number;   // ⭐ REQUIRED
   };
   positivityRatio: number;
   onReact: () => void;
@@ -66,8 +67,8 @@ export default function PostCard({
       <ReactionBar
         postId={post.id}
         creatorId={post.creator_id}
-        reactions={reactions}
-        spiritScore={post.spirit_score ?? 0}   // ⭐ FIXED
+        reactions={reactions}            // ⭐ Now includes mask6
+        spiritScore={post.spirit_score}
         positivityRatio={positivityRatio}
         onReact={onReact}
       />
