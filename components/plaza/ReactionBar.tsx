@@ -13,6 +13,7 @@ interface ReactionBarProps {
     mask4: number;
     mask5: number;
   };
+  spiritScore: number;
   positivityRatio: number;
   onReact: () => void;
 }
@@ -21,6 +22,7 @@ export default function ReactionBar({
   postId,
   creatorId,
   reactions,
+  spiritScore,
   positivityRatio,
   onReact,
 }: ReactionBarProps) {

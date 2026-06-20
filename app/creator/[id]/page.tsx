@@ -57,8 +57,7 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function CreatorProfilePage() {
-  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: CREATE CLIENT HERE
-
+  const supabase = createSupabaseBrowserClient();
   const params = useParams();
   const creatorId = params?.id as string;
 
@@ -114,6 +113,7 @@ export default function CreatorProfilePage() {
 
         return {
           ...p,
+          spirit_score: score,          // ⭐ ENSURE spiritScore EXISTS
           autoMask,
           positivityRatio,
           reactions: {
@@ -218,6 +218,7 @@ export default function CreatorProfilePage() {
                     postId={post.id}
                     creatorId={post.creator_id}
                     reactions={post.reactions}
+                    spiritScore={score}              // ⭐ REQUIRED FIX
                     positivityRatio={positivityRatio}
                     onReact={fetchPosts}
                   />

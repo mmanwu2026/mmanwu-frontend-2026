@@ -282,3 +282,114 @@ body::before {
   padding: 4px 8px;
   z-index: 999999;
 }
+/* ------------------------------------------------------------ */
+/* CLEAN D4 UPGRADE PATCH — HYBRID (B3)                         */
+/* ------------------------------------------------------------ */
+
+/* ------------------------------------------------------------ */
+/* 1. CLEAN GLYPH VARIANT                                       */
+/* ------------------------------------------------------------ */
+
+.emoji-glyph.clean {
+  font-size: 3.2rem;
+  filter:
+    drop-shadow(0 0 8px rgba(255, 0, 80, 0.45))
+    drop-shadow(0 0 14px rgba(140, 0, 255, 0.35))
+    drop-shadow(0 0 20px rgba(255, 0, 80, 0.25));
+  animation: d4-levitate 2.8s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------ */
+/* 2. CLEAN FLAME RING                                          */
+/* ------------------------------------------------------------ */
+
+.ritual-flame-ring.clean {
+  position: absolute;
+  inset: -14px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 0, 80, 0.35),
+    rgba(140, 0, 255, 0.25),
+    rgba(0, 0, 0, 0)
+  );
+  filter: blur(8px);
+  z-index: -1;
+  animation: flame-ring-clean 3.6s ease-in-out infinite;
+}
+
+@keyframes flame-ring-clean {
+  0% { opacity: 0.45; transform: scale(0.92); }
+  50% { opacity: 0.85; transform: scale(1.04); }
+  100% { opacity: 0.45; transform: scale(0.92); }
+}
+
+/* ------------------------------------------------------------ */
+/* 3. CLEAN SHADOW FLOOR                                        */
+/* ------------------------------------------------------------ */
+
+.ritual-shadow-floor.clean {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 70%;
+  height: 14px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.55),
+    rgba(0, 0, 0, 0)
+  );
+  filter: blur(6px);
+  z-index: -2;
+}
+
+/* ------------------------------------------------------------ */
+/* 4. SUBTLE EMBERS (E3)                                        */
+/* ------------------------------------------------------------ */
+
+.temple-ember.subtle {
+  width: 4px;
+  height: 4px;
+  opacity: 0.25;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0)
+  );
+  animation: ember-rise-subtle 6.5s linear infinite;
+}
+
+@keyframes ember-rise-subtle {
+  0% { transform: translateY(0) scale(0.9); opacity: 0.25; }
+  50% { transform: translateY(-18px) scale(1); opacity: 0.35; }
+  100% { transform: translateY(-36px) scale(0.9); opacity: 0.25; }
+}
+
+/* ------------------------------------------------------------ */
+/* 5. CLEAN PLAZA CARD POLISH                                   */
+/* ------------------------------------------------------------ */
+
+.plaza-card-base.clean {
+  border: 1.5px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(6px);
+  background: rgba(10, 10, 15, 0.55);
+  box-shadow:
+    0 0 10px var(--aura-color, rgba(255,255,255,0.15)),
+    inset 0 0 4px rgba(255,255,255,0.05);
+}
+
+/* ------------------------------------------------------------ */
+/* 6. CLEAN HEADER POLISH                                       */
+/* ------------------------------------------------------------ */
+
+.clean-plaza-header {
+  text-shadow:
+    0 0 6px rgba(140, 0, 255, 0.35),
+    0 0 12px rgba(255, 0, 80, 0.25);
+  letter-spacing: 0.04em;
+}
+
+/* ------------------------------------------------------------ */
+/* END CLEAN D4 PATCH                                           */
+/* ------------------------------------------------------------ */
