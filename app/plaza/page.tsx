@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import PostCard from "@/components/plaza/PostCard";
-import FloatingComposer from "@/components/FloatingComposer";
+import FloatingComposer from "@/components/plaza/FloatingComposer";
 
 type PlazaPost = {
   id: number;
@@ -46,46 +46,50 @@ export default function PlazaPage() {
   const fetchPlaza = async () => {
     setLoading(true);
 
-    // 1️⃣ Fetch posts
-    const { data: postsData, error: postsError } = await supabase
+    // 1️⃣ Fetch posts (non-nullable)
+    const { data: postsData = [], error: postsError } = await supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (postsError || !postsData) {
+    if (postsError) {
       console.error("Posts fetch error:", postsError);
       setLoading(false);
       return;
     }
 
-    // 2️⃣ Fetch aggregated reactions from MATERIALIZED VIEW
-    const { data: aggData, error: aggError } = await supabase
+    // 2️⃣ Fetch aggregated reactions (non-nullable)
+    const { data: aggData = [], error: aggError } = await supabase
       .from("reaction_aggregates_mv")
       .select("*");
 
-    if (aggError || !aggData) {
+    if (aggError) {
       console.error("Aggregates fetch error:", aggError);
       setLoading(false);
       return;
     }
 
-    // 3️⃣ Merge posts + aggregates
-    const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
-      const agg = aggData.find((a) => a.post_id === post.id);
+   // Merge posts + aggregates
+    const merged: PlazaPostWithAggregates[] = postsData!.map(
+      (post: PlazaPost) => {
+        const agg = aggData!.find(
+          (a: ReactionAggregates) => a.post_id === post.id
+        );
 
-      return {
-        ...post,
-        reactions: {
-          mask1: agg?.mask1 ?? 0,
-          mask2: agg?.mask2 ?? 0,
-          mask3: agg?.mask3 ?? 0,
-          mask4: agg?.mask4 ?? 0,
-          mask5: agg?.mask5 ?? 0,
-        },
-        positivityRatio: agg?.positivity_ratio ?? 0.5,
-        totalReactions: agg?.total_reactions ?? 0,
-      };
-    });
+        return {
+          ...post,
+          reactions: {
+            mask1: agg?.mask1 ?? 0,
+            mask2: agg?.mask2 ?? 0,
+            mask3: agg?.mask3 ?? 0,
+            mask4: agg?.mask4 ?? 0,
+            mask5: agg?.mask5 ?? 0,
+          },
+          positivityRatio: agg?.positivity_ratio ?? 0.5,
+          totalReactions: agg?.total_reactions ?? 0,
+        };
+      }
+    );
 
     setPosts(merged);
     setLoading(false);
@@ -104,16 +108,18 @@ export default function PlazaPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 space-y-6 pb-40">
-      {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          reactions={post.reactions}
-          positivityRatio={post.positivityRatio}
-          onReact={fetchPlaza}
-        />
-      ))}
+    <div className="plaza-background isolate-layout min-h-screen pb-40">
+      <div className="max-w-2xl mx-auto space-y-8">
+        {posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            reactions={post.reactions}
+            positivityRatio={post.positivityRatio}
+            onReact={fetchPlaza}
+          />
+        ))}
+      </div>
 
       <FloatingComposer onPost={fetchPlaza} />
     </div>
