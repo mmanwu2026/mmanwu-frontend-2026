@@ -84,79 +84,62 @@ export default function PlazaPage() {
     }
 
     // 2) Fetch reactions only for these posts
-    const { data: reactionsData, error: reactionsError } = await supabase
-      .from("reactions")
-      .select("post_id, maskTier")
-      .in("post_id", postIds);
+const { data: reactionsData, error: reactionsError } = await supabase
+  .from("reactions")
+  .select("post_id, maskTier, value")
+  .in("post_id", postIds);
 
-    if (reactionsError) {
-      console.error("Error fetching reactions:", reactionsError);
-    }
+if (reactionsError) {
+  console.error("Error fetching reactions:", reactionsError);
+}
 
-    const reactionsByPost: Record<number, ReactionCounts> = {};
+const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
+  const postReactions = (reactionsData ?? []).filter(
+    (r) => r.post_id === post.id
+  );
 
-    for (const postId of postIds) {
-      reactionsByPost[postId] = {
-        mask1: 0,
-        mask2: 0,
-        mask3: 0,
-        mask4: 0,
-        mask5: 0,
-        mask6: 0,
-      };
-    }
+  // Count masks (for UI display only)
+  const counts: ReactionCounts = {
+    mask1: postReactions.filter((r) => r.maskTier === 1).length,
+    mask2: postReactions.filter((r) => r.maskTier === 2).length,
+    mask3: postReactions.filter((r) => r.maskTier === 3).length,
+    mask4: postReactions.filter((r) => r.maskTier === 4).length,
+    mask5: postReactions.filter((r) => r.maskTier === 5).length,
+    mask6: postReactions.filter((r) => r.maskTier === 6).length,
+  };
 
-    (reactionsData ?? []).forEach((r: ReactionRow) => {
-      const bucket = reactionsByPost[r.post_id];
-      if (!bucket) return;
-      const key = `mask${r.maskTier}` as keyof ReactionCounts;
-      if (bucket[key] !== undefined) {
-        bucket[key] += 1;
-      }
-    });
+  // ⭐ Weighted SpiritScore (REAL scoring)
+  const spiritScore = postReactions.reduce(
+    (sum, r) => sum + (r.value ?? 0),
+    0
+  );
 
-    const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
-      const reactions = reactionsByPost[post.id] ?? {
-        mask1: 0,
-        mask2: 0,
-        mask3: 0,
-        mask4: 0,
-        mask5: 0,
-        mask6: 0,
-      };
+  // ⭐ Weighted positivity (only positive mask values)
+  const weightedPositive = postReactions
+    .filter((r) => (r.value ?? 0) > 0)
+    .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-      const total =
-        reactions.mask1 +
-        reactions.mask2 +
-        reactions.mask3 +
-        reactions.mask4 +
-        reactions.mask5 +
-        reactions.mask6;
+  const weightedTotal = Math.abs(spiritScore);
 
-      const positive =
-        reactions.mask3 +
-        reactions.mask4 +
-        reactions.mask5;
+  const positivityRatio =
+    weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-      const positivityRatio = total > 0 ? positive / total : 0.5;
+  // ⭐ AutoMask based on weighted SpiritScore
+  let autoMask = 2;
+  if (spiritScore <= 20) autoMask = 2;
+  else if (spiritScore <= 100) autoMask = 3;
+  else if (spiritScore <= 200) autoMask = 4;
+  else if (spiritScore <= 500) autoMask = 5;
+  else autoMask = 6;
 
-      const spiritScore = total;
-
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
-
-      return {
-        ...post,
-        reactions,
-        spiritScore,
-        positivityRatio,
-        autoMask,
-      };
-    });
+  return {
+    ...post,
+    reactions: counts,
+    spiritScore,
+    positivityRatio,
+    autoMask,
+  };
+});
 
     setPosts(merged);
     setLoading(false);
