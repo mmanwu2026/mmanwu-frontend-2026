@@ -42,11 +42,13 @@ export default function ReactionBar({
     console.log("maskTier:", maskTier);
 
     const { data, error } = await supabase.rpc("react_to_post", {
-      p_post_id: postId,       // FIXED: UUID string
-      p_post_type: "plaza",    // REQUIRED for multi‑feed engine
-      p_maskTier: maskTier,    // FIXED: correct param name
-      p_user_id: user!.id,     // FIXED: reacting user, not creator
-    });
+  args: [
+    postId,        // p_post_id
+    "plaza",       // p_post_type
+    maskTier,      // p_maskTier
+    user!.id       // p_user_id
+  ]
+});
 
     console.log("RPC data:", data);
     console.log("RPC error:", error);
