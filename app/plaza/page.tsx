@@ -127,39 +127,21 @@ export default function PlazaPage() {
   return (
     <div className="plaza-background min-h-screen w-full pt-24 pb-40 relative">
 
-      {/* CLEAN D4 HEADER WITH LINKS */}
-<div className="w-full flex justify-between items-center mb-10 px-6">
-
-  {/* LEFT — My Profile */}
+     {/* CLEAN MINIMAL HEADER — NO DUPLICATES */}
+<div className="absolute top-4 left-4 z-[999]">
   <Link
-    href="/profile"
+    href="/"
     className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
   >
-    My Profile
+    ← Home
   </Link>
+</div>
 
-  {/* CENTER — Plaza Title */}
+<div className="w-full flex flex-col items-center mb-10">
   <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
     Mmanwu Plaza
   </h1>
-
-  {/* RIGHT — Logout + Home */}
-  <div className="flex items-center gap-4">
-    <Link
-      href="/logout"
-      className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
-    >
-      Logout
-    </Link>
-
-    <Link
-      href="/"
-      className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
-    >
-      Home
-    </Link>
-  </div>
-
+  <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
 </div>
 
       {/* SUBTLE EMBERS */}
@@ -277,8 +259,8 @@ export default function PlazaPage() {
 
               {/* SPIRIT SCORE */}
               <p className="mt-2 text-sm text-gray-400 text-center">
-                Spirit: {post.spiritScore}
-              </p>
+  SpiritScore: {post.spiritScore}
+</p>
 
               {/* FOOTER + REACTION BAR AT BOTTOM */}
               <div className="mt-auto w-full">
@@ -305,8 +287,8 @@ export default function PlazaPage() {
         })}
       </div>
 
-      {/* FLOATING COMPOSER — RAISED FOR VISIBILITY */}
-      <div className="fixed bottom-20 left-0 w-full flex justify-center pointer-events-none">
+      {/* FLOATING COMPOSER — ALWAYS VISIBLE, ABOVE CARDS */}
+<div className="fixed bottom-32 left-0 w-full flex justify-center z-[999] pointer-events-none">
   <div className="pointer-events-auto">
     <FloatingComposer onPost={fetchPosts} />
   </div>
