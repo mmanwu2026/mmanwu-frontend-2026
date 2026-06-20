@@ -16,20 +16,22 @@ interface PlazaPost {
   mask: number;
 }
 
-interface ReactionAggregates {
+interface ReactionRow {
   post_id: number;
+  maskTier: number;
+}
+
+interface ReactionCounts {
   mask1: number;
   mask2: number;
   mask3: number;
   mask4: number;
   mask5: number;
   mask6: number;
-  spirit_score: number;
-  positivity_ratio: number;
 }
 
 interface PlazaPostWithAggregates extends PlazaPost {
-  reactions: ReactionAggregates;
+  reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
   autoMask: number;
@@ -59,111 +61,150 @@ export default function PlazaPage() {
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
   async function fetchPosts() {
-  setLoading(true);
+    setLoading(true);
 
-  const { data: postsData } = await supabase
-    .from("posts")
-    .select("*")
-    .order("created_at", { ascending: false });
+    // 1) Fetch posts
+    const { data: postsData, error: postsError } = await supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  const { data: aggData } = await supabase
-    .from("reaction_aggregates_mv")
-    .select("*");
+    if (postsError || !postsData) {
+      console.error("Error fetching posts:", postsError);
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
 
-  const merged: PlazaPostWithAggregates[] = postsData!.map((post) => {
-    const agg = aggData!.find((a) => a.post_id === post.id);
+    const postIds = postsData.map((p) => p.id);
+    if (postIds.length === 0) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
 
-    const reactions = {
-      mask1: agg?.mask1 ?? 0,
-      mask2: agg?.mask2 ?? 0,
-      mask3: agg?.mask3 ?? 0,
-      mask4: agg?.mask4 ?? 0,
-      mask5: agg?.mask5 ?? 0,
-    };
+    // 2) Fetch reactions only for these posts
+    const { data: reactionsData, error: reactionsError } = await supabase
+      .from("reactions")
+      .select("post_id, maskTier")
+      .in("post_id", postIds);
 
-    const total =
-      reactions.mask1 +
-      reactions.mask2 +
-      reactions.mask3 +
-      reactions.mask4 +
-      reactions.mask5;
+    if (reactionsError) {
+      console.error("Error fetching reactions:", reactionsError);
+    }
 
-    const positive =
-      reactions.mask3 +
-      reactions.mask4 +
-      reactions.mask5;
+    const reactionsByPost: Record<number, ReactionCounts> = {};
 
-    const positivityRatio =
-      agg?.positivity_ratio ??
-      (total > 0 ? positive / total : 0.5);
+    for (const postId of postIds) {
+      reactionsByPost[postId] = {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+        mask6: 0,
+      };
+    }
 
-    // TEMPORARY: spiritScore = total reactions (until you add a real formula)
-    const spiritScore = total;
+    (reactionsData ?? []).forEach((r: ReactionRow) => {
+      const bucket = reactionsByPost[r.post_id];
+      if (!bucket) return;
+      const key = `mask${r.maskTier}` as keyof ReactionCounts;
+      if (bucket[key] !== undefined) {
+        bucket[key] += 1;
+      }
+    });
 
-    let autoMask = 2;
-    if (spiritScore <= 20) autoMask = 2;
-    else if (spiritScore <= 100) autoMask = 3;
-    else if (spiritScore <= 200) autoMask = 4;
-    else if (spiritScore <= 500) autoMask = 5;
-    else autoMask = 6;
+    const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
+      const reactions = reactionsByPost[post.id] ?? {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+        mask6: 0,
+      };
 
-    return {
-      ...post,
-      reactions,
-      spiritScore,
-      positivityRatio,
-      autoMask,
-    };
-  });
+      const total =
+        reactions.mask1 +
+        reactions.mask2 +
+        reactions.mask3 +
+        reactions.mask4 +
+        reactions.mask5 +
+        reactions.mask6;
 
-  setPosts(merged);
-  setLoading(false);
-}
+      const positive =
+        reactions.mask3 +
+        reactions.mask4 +
+        reactions.mask5;
+
+      const positivityRatio = total > 0 ? positive / total : 0.5;
+
+      const spiritScore = total;
+
+      let autoMask = 2;
+      if (spiritScore <= 20) autoMask = 2;
+      else if (spiritScore <= 100) autoMask = 3;
+      else if (spiritScore <= 200) autoMask = 4;
+      else if (spiritScore <= 500) autoMask = 5;
+      else autoMask = 6;
+
+      return {
+        ...post,
+        reactions,
+        spiritScore,
+        positivityRatio,
+        autoMask,
+      };
+    });
+
+    setPosts(merged);
+    setLoading(false);
+  }
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
-return (
-  <div className="min-h-screen w-full bg-black text-gray-100">
+  return (
+    <div className="min-h-screen w-full bg-black text-gray-100">
+      {/* LEFT SIDEBAR */}
+      <Sidebar />
 
-    {/* LEFT SIDEBAR */}
-    <Sidebar />
+      {/* COMPOSER AT TOP OF LEFT SIDEBAR */}
+      <div className="absolute left-0 top-20 w-[180px] px-4 z-[5000]">
+        <FloatingComposer onPost={fetchPosts} />
+      </div>
 
-    {/* COMPOSER AT TOP OF LEFT SIDEBAR */}
-    <div className="absolute left-0 top-20 w-[180px] px-4 z-[5000]">
-      <FloatingComposer onPost={fetchPosts} />
-    </div>
+      {/* MAIN FEED */}
+      <div className="flex">
+        {/* LEFT SPACER */}
+        <div className="w-[180px] shrink-0" />
 
-    {/* MAIN FEED */}
-    <div className="flex">
+        {/* CENTER FEED */}
+        <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
+          {/* HEADER */}
+          <div className="w-full flex flex-col items-center mb-10">
+            <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
+              Mmanwu Plaza (TEST)
+            </h1>
+            <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
+          </div>
 
-      {/* LEFT SPACER */}
-      <div className="w-[180px] shrink-0" />
+          {/* POSTS */}
+          {loading && <p className="text-gray-300">Loading posts…</p>}
+          {!loading && posts.length === 0 && (
+            <p className="text-gray-300">No posts yet…</p>
+          )}
 
-      {/* CENTER FEED */}
-      <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
-
-        {/* HEADER */}
-        <div className="w-full flex flex-col items-center mb-10">
-          <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-            Mmanwu Plaza (TEST)
-          </h1>
-          <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
-        </div>
-
-        {/* POSTS */}
-        {loading && <p className="text-gray-300">Loading posts…</p>}
-        {!loading && posts.length === 0 && (
-          <p className="text-gray-300">No posts yet…</p>
-        )}
-
-        <div className="space-y-12 w-full flex flex-col items-center">
-          {posts.map((post) => {
+          <div className="space-y-12 w-full flex flex-col items-center">
+            {posts.map((post) => {
               const key = String(post.id);
 
-              const prevPos = prevPositivityMap.current[key] ?? post.positivityRatio;
-              const prevPosReacts = prevPositiveReactionsMap.current[key] ?? post.reactions.mask3;
+              const prevPos =
+                prevPositivityMap.current[key] ?? post.positivityRatio;
+              const prevPosReacts =
+                prevPositiveReactionsMap.current[key] ?? post.reactions.mask3;
 
               const positivitySpike = post.positivityRatio - prevPos > 0.25;
               const newPositiveReaction = post.reactions.mask3 > prevPosReacts;
@@ -213,7 +254,10 @@ return (
                 post.autoMask === 6 ? "🔱" :
                 "😤";
 
-              const intensity = auraIntensity(post.spiritScore, post.positivityRatio);
+              const intensity = auraIntensity(
+                post.spiritScore,
+                post.positivityRatio
+              );
 
               return (
                 <div
@@ -238,7 +282,6 @@ return (
                     ${emotionClass}
                   `}
                 >
-
                   {/* GLYPH */}
                   <div className="ritual-glyph-container mt-4 flex justify-center">
                     <div className="ritual-glyph-levitate">
@@ -265,7 +308,6 @@ return (
 
                   {/* FOOTER */}
                   <div className="mt-auto w-full">
-
                     <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
                       <span>Mask: {post.autoMask}</span>
                       <span>{new Date(post.created_at).toLocaleString()}</span>
@@ -281,7 +323,6 @@ return (
                         onReact={fetchPosts}
                       />
                     </div>
-
                   </div>
                 </div>
               );
