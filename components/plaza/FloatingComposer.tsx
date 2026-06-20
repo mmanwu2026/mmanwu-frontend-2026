@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
@@ -16,24 +16,14 @@ export default function FloatingComposer({
 
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const [hidden, setHidden] = useState(false);
 
   const [gatekeeperOptions, setGatekeeperOptions] = useState<any[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
 
-  const lastScroll = useRef(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    function handleScroll() {
-      const current = window.scrollY;
-      if (current > lastScroll.current + 10) setHidden(true);
-      else if (current < lastScroll.current - 10) setHidden(false);
-      lastScroll.current = current;
-    }
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  // ⭐ Composer is ALWAYS visible now — no scroll hide logic
+  const hidden = false;
 
   async function runGatekeeper(rawText: string) {
     try {
@@ -81,8 +71,6 @@ export default function FloatingComposer({
     if (loading || !user) return;
 
     const result = await runGatekeeper(content);
-
-    console.log("GATEKEEPER RESULT:", result);
 
     if (result?.autoApprove) {
       publishToSupabase(content);
@@ -135,10 +123,11 @@ export default function FloatingComposer({
         />
       )}
 
+      {/* ⭐ Composer raised higher and always visible */}
       <div
         className={`
-          fixed bottom-0 left-0 w-full px-4 pb-4 z-50 transition-all duration-300
-          ${hidden ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}
+          fixed bottom-24 left-0 w-full px-4 z-[999] transition-all duration-300
+          ${hidden ? "opacity-0" : "opacity-100"}
         `}
       >
         <div
@@ -150,7 +139,7 @@ export default function FloatingComposer({
         >
           {!expanded && (
             <div
-              className="flex items-center justify-between text-gray-300"
+              className="flex items-center justify-between text-gray-300 cursor-pointer"
               onClick={() => setExpanded(true)}
             >
               <span>Write something…</span>

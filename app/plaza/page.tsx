@@ -128,25 +128,39 @@ export default function PlazaPage() {
     <div className="plaza-background min-h-screen w-full pt-24 pb-40 relative">
 
       {/* CLEAN D4 HEADER WITH LINKS */}
-      <div className="w-full flex justify-between items-center mb-10 px-6">
-        <Link
-          href="/profile"
-          className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
-        >
-          My Profile
-        </Link>
+<div className="w-full flex justify-between items-center mb-10 px-6">
 
-        <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-          Mmanwu Plaza
-        </h1>
+  {/* LEFT — My Profile */}
+  <Link
+    href="/profile"
+    className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
+  >
+    My Profile
+  </Link>
 
-        <Link
-          href="/plaza"
-          className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
-        >
-          Plaza Home
-        </Link>
-      </div>
+  {/* CENTER — Plaza Title */}
+  <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
+    Mmanwu Plaza
+  </h1>
+
+  {/* RIGHT — Logout + Home */}
+  <div className="flex items-center gap-4">
+    <Link
+      href="/logout"
+      className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
+    >
+      Logout
+    </Link>
+
+    <Link
+      href="/"
+      className="text-sm font-semibold text-purple-200 hover:text-white transition-all clean-plaza-header"
+    >
+      Home
+    </Link>
+  </div>
+
+</div>
 
       {/* SUBTLE EMBERS */}
       <div className="temple-ember subtle" style={{ left: "18%", top: "22%" }}></div>
@@ -292,11 +306,11 @@ export default function PlazaPage() {
       </div>
 
       {/* FLOATING COMPOSER — RAISED FOR VISIBILITY */}
-      <div className="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none">
-        <div className="pointer-events-auto">
-          <FloatingComposer onPost={fetchPosts} />
-        </div>
-      </div>
+      <div className="fixed bottom-20 left-0 w-full flex justify-center pointer-events-none">
+  <div className="pointer-events-auto">
+    <FloatingComposer onPost={fetchPosts} />
+  </div>
+</div>
 
     </div>
   );

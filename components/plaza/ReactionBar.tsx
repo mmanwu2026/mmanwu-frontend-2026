@@ -24,8 +24,6 @@ export default function ReactionBar({
   postId,
   creatorId,
   reactions,
-  spiritScore,
-  positivityRatio,
   onReact,
 }: ReactionBarProps) {
   const supabase = createSupabaseBrowserClient();
@@ -40,11 +38,15 @@ export default function ReactionBar({
     if (loading) return;
     setLoading(true);
 
+    // ⭐ React to post
     await supabase.rpc("react_to_post", {
       p_post_id: postId,
-      p_user_id: user.id,   // ⭐ CORRECT: reacting user is the logged‑in user
+      p_user_id: user.id,
       p_mask_tier: maskTier,
     });
+
+    // ⭐ OPTIONAL: Refresh MV so SpiritScore updates instantly
+    // await supabase.rpc("refresh_reaction_aggregates");
 
     setLoading(false);
     onReact();
@@ -57,6 +59,7 @@ export default function ReactionBar({
       {isCreator && (
         <button
           onClick={() => handleReact(1)}
+          disabled={loading}
           className="reaction-mask text-3xl"
         >
           😶‍🌫️
@@ -68,6 +71,7 @@ export default function ReactionBar({
       {isCreator && (
         <button
           onClick={() => handleReact(2)}
+          disabled={loading}
           className="reaction-mask text-3xl"
         >
           😤
@@ -78,6 +82,7 @@ export default function ReactionBar({
       {/* ⭐ Mask 3 — Everyone */}
       <button
         onClick={() => handleReact(3)}
+        disabled={loading}
         className="reaction-mask text-3xl"
       >
         😊
@@ -87,6 +92,7 @@ export default function ReactionBar({
       {/* ⭐ Mask 4 — Everyone */}
       <button
         onClick={() => handleReact(4)}
+        disabled={loading}
         className="reaction-mask text-3xl"
       >
         🤩
@@ -96,6 +102,7 @@ export default function ReactionBar({
       {/* ⭐ Mask 5 — Everyone */}
       <button
         onClick={() => handleReact(5)}
+        disabled={loading}
         className="reaction-mask text-3xl"
       >
         😇
