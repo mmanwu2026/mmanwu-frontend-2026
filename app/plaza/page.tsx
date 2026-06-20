@@ -126,24 +126,24 @@ export default function PlazaPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-black text-gray-100">
+  <div className="min-h-screen w-full bg-black text-gray-100">
 
-      {/* LEFT SIDEBAR */}
-      <Sidebar />
+    {/* LEFT SIDEBAR */}
+    <Sidebar />
 
-      {/* FLOATING COMPOSER — MID RIGHT */}
-      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[9999]">
-        <FloatingComposer onPost={fetchPosts} />
-      </div>
+    {/* FLOATING COMPOSER — MID RIGHT */}
+    <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[9999]">
+      <FloatingComposer onPost={fetchPosts} />
+    </div>
 
-      {/* MAIN FEED */}
-      <div className="flex">
+    {/* MAIN FEED */}
+    <div className="flex">
 
-        {/* LEFT SPACER */}
-        <div className="w-[180px] shrink-0" />
+      {/* LEFT SPACER */}
+      <div className="w-[180px] shrink-0" />
 
-        {/* CENTER FEED */}
-        <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
+      {/* CENTER FEED */}
+      <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
 
           {/* HEADER */}
           <div className="w-full flex flex-col items-center mb-10">
