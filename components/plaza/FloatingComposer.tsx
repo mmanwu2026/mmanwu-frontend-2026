@@ -11,6 +11,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   const [gatekeeperOptions, setGatekeeperOptions] = useState<any[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
@@ -57,6 +58,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
       publishToSupabase(content);
       setToastMessage("The spirits approve your message ✨");
       setContent("");
+      setExpanded(false);
       return;
     }
 
@@ -83,6 +85,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
     setShowGatekeeper(false);
     publishToSupabase(finalText);
     setContent("");
+    setExpanded(false);
   }
 
   return (
@@ -101,34 +104,53 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* ALWAYS-OPEN COMPOSER */}
-      <div className="w-full p-3 rounded-2xl bg-purple-900/40 backdrop-blur-xl shadow-xl">
-
-        <textarea
-          className="
-            w-full rounded-xl p-3 resize-none
-            placeholder-gray-400
-            focus:outline-none
-            focus:ring-2 focus:ring-purple-500/40
-            bg-purple-950/40
-          "
-          rows={5}
-          placeholder="Share your thoughts…"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-
-        <button
-          onClick={handleSubmit}
-          disabled={!content.trim() || loading || !user}
-          className="
-            w-full mt-3 py-2 rounded-xl font-semibold transition-all
-          "
+      {/* COLLAPSED BUTTON */}
+      {!expanded && (
+        <div
+          className="w-full p-3 rounded-xl bg-purple-900/40 text-gray-300 cursor-pointer hover:bg-purple-800/40 transition-all"
+          onClick={() => setExpanded(true)}
         >
-          {loading ? "Posting..." : "Post"}
-        </button>
+          <div className="flex items-center justify-between">
+            <span>Write something…</span>
+            <span className="text-xl">✍🏽</span>
+          </div>
+        </div>
+      )}
 
-      </div>
+      {/* EXPANDED PANEL (opens to the right) */}
+      {expanded && (
+        <div className="absolute left-[180px] top-20 w-[360px] p-4 rounded-2xl bg-purple-900/40 backdrop-blur-xl shadow-xl z-[6000]">
+
+          <textarea
+            className="
+              w-full rounded-xl p-3 resize-none
+              placeholder-gray-400
+              focus:outline-none
+              focus:ring-2 focus:ring-purple-500/40
+              bg-purple-950/40
+            "
+            rows={5}
+            placeholder="Share your thoughts…"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+
+          <button
+            onClick={handleSubmit}
+            disabled={!content.trim() || loading || !user}
+            className="w-full mt-3 py-2 rounded-xl font-semibold transition-all"
+          >
+            {loading ? "Posting..." : "Post"}
+          </button>
+
+          <button
+            className="text-sm text-gray-400 hover:text-gray-300 mt-2"
+            onClick={() => setExpanded(false)}
+          >
+            Close
+          </button>
+        </div>
+      )}
     </>
   );
 }
