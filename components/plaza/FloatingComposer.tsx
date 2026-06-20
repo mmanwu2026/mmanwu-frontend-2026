@@ -11,7 +11,6 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
-  const [expanded, setExpanded] = useState(false);
 
   const [gatekeeperOptions, setGatekeeperOptions] = useState<any[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
@@ -58,7 +57,6 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
       publishToSupabase(content);
       setToastMessage("The spirits approve your message ✨");
       setContent("");
-      setExpanded(false);
       return;
     }
 
@@ -85,7 +83,6 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
     setShowGatekeeper(false);
     publishToSupabase(finalText);
     setContent("");
-    setExpanded(false);
   }
 
   return (
@@ -104,82 +101,33 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* DIM BACKDROP */}
-      {expanded && (
-        <div
+      {/* ALWAYS-OPEN COMPOSER */}
+      <div className="w-full p-3 rounded-2xl bg-purple-900/40 backdrop-blur-xl shadow-xl">
+
+        <textarea
           className="
-            fixed inset-0 z-[9000]
-            bg-black/20 backdrop-blur-[1px]
-            transition-all duration-300
+            w-full rounded-xl p-3 resize-none
+            placeholder-gray-400
+            focus:outline-none
+            focus:ring-2 focus:ring-purple-500/40
+            bg-purple-950/40
           "
-          onClick={() => setExpanded(false)}
+          rows={5}
+          placeholder="Share your thoughts…"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
         />
-      )}
 
-      {/* COMPOSER */}
-      <div
-        className={`
-          transition-all duration-300
-          ${expanded
-            ? "fixed right-6 top-1/2 -translate-y-1/2 z-[9999]"
-            : "relative"
-          }
-        `}
-      >
-        <div
-          className={`
-            floating-composer-container
-            rounded-2xl transition-all duration-300
-            ${expanded ? "p-4 shadow-xl bg-purple-900/40 backdrop-blur-xl w-[360px]" : "p-3 w-[180px]"}
-          `}
+        <button
+          onClick={handleSubmit}
+          disabled={!content.trim() || loading || !user}
+          className="
+            w-full mt-3 py-2 rounded-xl font-semibold transition-all
+          "
         >
-          {/* COLLAPSED */}
-          {!expanded && (
-            <div
-              className="flex items-center justify-between text-gray-300 cursor-pointer"
-              onClick={() => setExpanded(true)}
-            >
-              <span>Write something…</span>
-              <span className="text-xl">✍🏽</span>
-            </div>
-          )}
+          {loading ? "Posting..." : "Post"}
+        </button>
 
-          {/* EXPANDED */}
-          {expanded && (
-            <div className="flex flex-col space-y-3">
-              <textarea
-                className="
-                  w-full rounded-xl p-3 resize-none
-                  placeholder-gray-400
-                  focus:outline-none
-                  focus:ring-2 focus:ring-purple-500/40
-                  bg-purple-950/40
-                "
-                rows={5}
-                placeholder="Share your thoughts…"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
-
-              <button
-                onClick={handleSubmit}
-                disabled={!content.trim() || loading || !user}
-                className="
-                  w-full py-2 rounded-xl font-semibold transition-all
-                "
-              >
-                {loading ? "Posting..." : "Post"}
-              </button>
-
-              <button
-                className="text-sm text-gray-400 hover:text-gray-300"
-                onClick={() => setExpanded(false)}
-              >
-                Close
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </>
   );
