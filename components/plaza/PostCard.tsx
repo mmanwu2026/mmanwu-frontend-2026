@@ -67,6 +67,7 @@ export default function PostCard({
         postId={post.id}
         creatorId={post.creator_id}
         reactions={reactions}
+        spiritScore={post.spirit_score ?? 0}   // ⭐ FIXED
         positivityRatio={positivityRatio}
         onReact={onReact}
       />

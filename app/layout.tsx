@@ -1,40 +1,18 @@
-// force rebuild
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+"use client";
 
-// @ts-ignore  // TypeScript cannot parse CSS query params, but Next.js can
-import "./globals.css?v=21";
-
+import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
-import AuthNav from "@/components/AuthNav";
+import dynamic from "next/dynamic";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// ⭐ AuthNav must be client-only — disable SSR
+const AuthNav = dynamic(() => import("@/components/AuthNav"), {
+  ssr: false,
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Mmanwu Plaza",
-  description: "The official Mmanwu social square",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-    >
-      {/* plaza-css-bust-21 */}
-      <body className="min-h-screen bg-black text-white">
+    <html lang="en">
+      <body className="bg-black text-white">
         <UserProvider>
           <AuthNav />
           {children}

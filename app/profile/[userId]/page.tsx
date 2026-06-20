@@ -124,7 +124,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           >
             <p className="text-sm mb-3">{post.content}</p>
 
-            <ReactionBar
+<ReactionBar
   postId={post.id}
   creatorId={post.creator_id}
   reactions={{
@@ -134,6 +134,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     mask4: post.mask4,
     mask5: post.mask5,
   }}
+  spiritScore={post.spirit_score ?? post.spiritScore ?? 0}   /* ⭐ REQUIRED */
   positivityRatio={post.positivityRatio}
   onReact={loadProfile}
 />
