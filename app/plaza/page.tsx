@@ -91,9 +91,10 @@ async function fetchPosts() {
 
   // 1️⃣ Fetch posts
   const { data: postsData, error: postsError } = await supabase
-    .from("posts")
-    .select("*")
-    .order("created_at", { ascending: false });
+  .from("posts")
+  .select("*", { head: false })   // ensures full rows, disables head caching
+  .neq("id", -1)                  // forces Supabase to bypass cache
+  .order("created_at", { ascending: false });
 
   if (postsError) {
     console.error("Post fetch error:", postsError);
