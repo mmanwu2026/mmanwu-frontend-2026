@@ -148,8 +148,8 @@ export default function PlazaPage() {
           {/* HEADER */}
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-              Mmanwu Plaza
-            </h1>
+  Mmanwu Plaza (TEST)
+</h1>
             <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
           </div>
 
