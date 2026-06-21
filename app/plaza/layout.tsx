@@ -1,20 +1,17 @@
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+"use client";
 
-export default async function PlazaLayout({
+import { useUser } from "@/context/UserContext";
+import { redirect } from "next/navigation";
+
+export default function PlazaLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
+  const { user, loading } = useUser();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  if (loading) return null;
+  if (!user) redirect("/login");
 
   return <>{children}</>;
 }

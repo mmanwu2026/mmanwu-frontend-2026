@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import type { CSSProperties } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  type CSSProperties,
+} from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 import Sidebar from "@/components/plaza/Sidebar";
@@ -132,40 +137,38 @@ export default function PlazaPage() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    const merged: PlazaPostWithAggregates[] = typedPosts.map(
-      (post: PlazaPost) => {
-        const postReactions = typedReactions.filter(
-          (r: ReactionRow) => r.post_id === post.id
-        );
+    const merged: PlazaPostWithAggregates[] = typedPosts.map((post) => {
+      const postReactions = typedReactions.filter(
+        (r: ReactionRow) => r.post_id === post.id
+      );
 
-        const counts: ReactionCounts = {
-          mask1: postReactions.filter((r: ReactionRow) => r.maskTier === 1).length,
-          mask2: postReactions.filter((r: ReactionRow) => r.maskTier === 2).length,
-          mask3: postReactions.filter((r: ReactionRow) => r.maskTier === 3).length,
-          mask4: postReactions.filter((r: ReactionRow) => r.maskTier === 4).length,
-          mask5: postReactions.filter((r: ReactionRow) => r.maskTier === 5).length,
-          mask6: postReactions.filter((r: ReactionRow) => r.maskTier === 6).length,
-        };
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
 
-        const spiritScore = post.spirit_score ?? 0;
-        const positivityRatio = 0.5; // placeholder
+      const spiritScore = post.spirit_score ?? 0;
+      const positivityRatio = 0.5; // placeholder
 
-        let autoMask = 2;
-        if (spiritScore <= 20) autoMask = 2;
-        else if (spiritScore <= 100) autoMask = 3;
-        else if (spiritScore <= 200) autoMask = 4;
-        else if (spiritScore <= 500) autoMask = 5;
-        else autoMask = 6;
+      let autoMask = 2;
+      if (spiritScore <= 20) autoMask = 2;
+      else if (spiritScore <= 100) autoMask = 3;
+      else if (spiritScore <= 200) autoMask = 4;
+      else if (spiritScore <= 500) autoMask = 5;
+      else autoMask = 6;
 
-        return {
-          ...post,
-          reactions: counts,
-          spiritScore,
-          positivityRatio,
-          autoMask,
-        };
-      }
-    );
+      return {
+        ...post,
+        reactions: counts,
+        spiritScore,
+        positivityRatio,
+        autoMask,
+      };
+    });
 
     setPosts((prev) => (append ? [...prev, ...merged] : merged));
 
@@ -223,8 +226,8 @@ export default function PlazaPage() {
 
   useEffect(() => {
     const missingCreatorIds = posts
-      .map((p: PlazaPostWithAggregates) => p.creator_id)
-      .filter((id: string) => !creators[id]);
+      .map((p) => p.creator_id)
+      .filter((id) => !creators[id]);
 
     if (missingCreatorIds.length === 0) return;
 
@@ -250,7 +253,7 @@ export default function PlazaPage() {
     await supabase.from("posts").delete().eq("id", postId);
 
     setDeletingId(null);
-    setPosts((prev) => prev.filter((p: PlazaPostWithAggregates) => p.id !== postId));
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   }
 
   return (
@@ -279,7 +282,7 @@ export default function PlazaPage() {
           )}
 
           <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post: PlazaPostWithAggregates) => {
+            {posts.map((post) => {
               const key = post.id;
 
               const creator: CreatorProfile | undefined =
@@ -407,7 +410,9 @@ export default function PlazaPage() {
                       <div className="ritual-shadow-floor clean"></div>
                       <div
                         className="emoji-glyph clean"
-                        style={{ "--float-y": `${floatY}px` } as CSSProperties}
+                        style={
+                          { "--float-y": `${floatY}px` } as CSSProperties
+                        }
                       >
                         {glyphEmoji}
                       </div>
