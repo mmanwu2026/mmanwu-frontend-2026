@@ -15,17 +15,32 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ⭐ Hydration-safe profile loader
   async function loadProfile() {
-    // Load user profile
+    // 1. Ensure auth is hydrated
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData?.user) {
+      console.log("Auth not ready yet, retrying...");
+      setTimeout(loadProfile, 200);
+      return;
+    }
+
+    // 2. Load profile row
     const { data: userData } = await supabase
       .from("users")
       .select("*")
       .eq("id", userId)
       .maybeSingle();
 
-    setProfile(userData || {});
+    if (!userData) {
+      console.log("Profile row not ready yet, retrying...");
+      setTimeout(loadProfile, 200);
+      return;
+    }
 
-    // Load posts
+    setProfile(userData);
+
+    // 3. Load posts
     const { data: postsData } = await supabase
       .from("posts")
       .select("*")
@@ -40,13 +55,13 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     const postIds = postsData.map((p) => p.id);
 
-    // Load reactions for these posts
+    // 4. Load reactions
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    // Merge posts + reaction aggregates
+    // 5. Merge aggregates
     const merged = postsData.map((post) => {
       const postReactions = (reactionsData ?? []).filter(
         (r) => r.post_id === post.id
@@ -83,7 +98,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setLoading(false);
   }
 
-  // Wait for session hydration
+  // ⭐ Wait for session hydration
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
@@ -96,13 +111,14 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     return () => listener.subscription.unsubscribe();
   }, [router, supabase]);
 
-  // Load profile AFTER session is ready
+  // ⭐ Load profile AFTER session is ready
   useEffect(() => {
     if (!sessionReady) return;
     loadProfile();
   }, [sessionReady, userId, supabase]);
 
 
+  // ⭐ Loading state
   if (loading || !sessionReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -111,6 +127,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
+  // ⭐ Profile not found (only fires if truly missing)
   if (!profile?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -119,6 +136,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
+  // ⭐ Safe profile fields
   const username = profile.username || "Unknown";
   const avatarLetter = username.charAt(0).toUpperCase();
   const bio = profile.bio || "No bio yet.";
@@ -128,36 +146,79 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      {/* Profile Header */}
-      <div className="max-w-2xl mx-auto mb-8 border-b border-zinc-800 pb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-2xl">
-            {avatarLetter}
-          </div>
+  {/* Profile Header */}
+<div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
 
-          <div>
-            <h1 className="text-2xl font-semibold">{username}</h1>
-            <p className="text-zinc-400 text-sm">{bio}</p>
-          </div>
-        </div>
+  <div className="flex items-center gap-8">
 
-        <div className="flex gap-6 mt-4 text-sm">
-          <div>
-            <span className="font-semibold">{spiritScore}</span>{" "}
-            <span className="text-zinc-400">Spirit Score</span>
-          </div>
+    {/* Avatar Container */}
+    <div className="relative group cursor-pointer"
+         onClick={() => router.push(`/profile/${userId}/edit`)}>
 
-          <div>
-            <span className="font-semibold">{maskTier}</span>{" "}
-            <span className="text-zinc-400">Mask Tier</span>
-          </div>
+      {/* 🔥 SpiritScore Aura */}
+      <div
+        className={`
+          absolute inset-0 rounded-full blur-xl transition-all duration-700
+          ${spiritScore > 500 ? "bg-purple-500/40" :
+            spiritScore > 200 ? "bg-purple-500/30" :
+            spiritScore > 100 ? "bg-purple-500/20" :
+            spiritScore > 50  ? "bg-purple-500/10" :
+                                "bg-transparent"}
+        `}
+      />
 
-          <div>
-            <span className="font-semibold">{positivity}%</span>{" "}
-            <span className="text-zinc-400">Positivity</span>
-          </div>
-        </div>
-      </div>
+      {/* 🌀 Animated Ring for High-Tier Users */}
+      {maskTier >= 5 && (
+        <div
+          className="
+            absolute inset-0 rounded-full border-2 border-purple-400/60
+            animate-spin-slow pointer-events-none
+          "
+        />
+      )}
+
+      {/* Avatar Image */}
+      <img
+        src={profile.avatar_url || "/default-avatar.png"}
+        alt="avatar"
+        className="
+          relative z-10 w-32 h-32 rounded-full object-cover
+          border border-zinc-700 shadow-xl bg-zinc-900
+          transition-transform duration-300 group-hover:scale-105
+        "
+      />
+    </div>
+
+    {/* Username + Bio */}
+    <div className="flex flex-col">
+      <h1 className="text-3xl font-semibold tracking-wide">
+        {username}
+      </h1>
+
+      <p className="text-zinc-400 text-sm mt-1">
+        {bio}
+      </p>
+    </div>
+  </div>
+
+  {/* Stats Row */}
+  <div className="flex gap-10 mt-8 text-sm">
+    <div>
+      <span className="font-semibold text-lg">{spiritScore}</span>{" "}
+      <span className="text-zinc-400">Spirit Score</span>
+    </div>
+
+    <div>
+      <span className="font-semibold text-lg">{maskTier}</span>{" "}
+      <span className="text-zinc-400">Mask Tier</span>
+    </div>
+
+    <div>
+      <span className="font-semibold text-lg">{positivity}%</span>{" "}
+      <span className="text-zinc-400">Positivity</span>
+    </div>
+  </div>
+</div>
 
       {/* Posts */}
       <div className="max-w-2xl mx-auto space-y-6">
@@ -170,7 +231,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
             key={post.id}
             className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
           >
-            <p className="text-sm mb-3">{post.content}</p>
+            <p className="text-sm mb-3 whitespace-pre-line">{post.content}</p>
 
             <ReactionBar
               postId={post.id}
