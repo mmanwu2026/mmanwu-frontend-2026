@@ -24,8 +24,8 @@ type RawSoundPost = {
   users?: { username: string | null } | null;
 };
 
-// ⭐ Final enriched post (what SoundPostCard expects)
-type SoundPost = RawSoundPost & {
+// ⭐ FINAL unified type (renamed to avoid collision)
+type SoundPostFull = RawSoundPost & {
   creator_name: string;
   reactions: ReactionCounts;
   spiritScore: number;
@@ -38,7 +38,7 @@ const PAGE_SIZE = 20;
 export default function SoundSquareFeed() {
   const supabase = createSupabaseBrowserClient();
 
-  const [posts, setPosts] = useState<SoundPost[]>([]);
+  const [posts, setPosts] = useState<SoundPostFull[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -127,7 +127,7 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<SoundPost[]> {
+  async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<SoundPostFull[]> {
     const postIds = rawPosts.map((p) => p.id);
 
     const { data: reactionsData } = await supabase
