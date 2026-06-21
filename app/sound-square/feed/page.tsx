@@ -13,7 +13,6 @@ type ReactionCounts = {
   mask6: number;
 };
 
-// ⭐ FINAL unified type — EXACTLY what SoundPostCard expects
 type SoundPost = {
   id: string;
   title: string;
@@ -42,9 +41,6 @@ export default function SoundSquareFeed() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // -----------------------------
-  // Load initial page
-  // -----------------------------
   useEffect(() => {
     loadInitial();
   }, []);
@@ -69,7 +65,7 @@ export default function SoundSquareFeed() {
 
     const merged = await mergeWithReactions(data);
 
-    setPosts(merged);
+    setPosts(merged as SoundPost[]);   // ⭐ FIX
 
     if (data.length > 0) {
       setCursor(data[data.length - 1].created_at);
@@ -81,9 +77,6 @@ export default function SoundSquareFeed() {
     setLoading(false);
   }
 
-  // -----------------------------
-  // Load next page
-  // -----------------------------
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore || !hasMore) return;
 
@@ -113,7 +106,7 @@ export default function SoundSquareFeed() {
 
     const merged = await mergeWithReactions(data);
 
-    setPosts((prev) => [...prev, ...merged]);
+    setPosts((prev) => [...prev, ...merged] as SoundPost[]);   // ⭐ FIX
     setCursor(data[data.length - 1].created_at);
 
     if (data.length < PAGE_SIZE) {
@@ -123,9 +116,6 @@ export default function SoundSquareFeed() {
     setLoadingMore(false);
   }, [cursor, loadingMore, hasMore, supabase]);
 
-  // -----------------------------
-  // IntersectionObserver
-  // -----------------------------
   useEffect(() => {
     if (!loadMoreRef.current) return;
 
@@ -140,9 +130,6 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  // -----------------------------
-  // Merge posts with reactions
-  // -----------------------------
   async function mergeWithReactions(rawPosts: any[]) {
     const postIds = rawPosts.map((p) => p.id);
 
@@ -189,13 +176,10 @@ export default function SoundSquareFeed() {
         spiritScore,
         positivityRatio,
         autoMask,
-      } as SoundPost;
+      };
     });
   }
 
-  // -----------------------------
-  // UI
-  // -----------------------------
   return (
     <div className="min-h-screen text-white p-6">
       <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
