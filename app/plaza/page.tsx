@@ -120,7 +120,7 @@ export default function PlazaPage() {
 
       const spiritScore = post.spirit_score ?? 0;
 
-      // Positivity disabled for now → always 0.5
+      // Positivity disabled for now
       const positivityRatio = 0.5;
 
       let autoMask = 2;
@@ -301,7 +301,7 @@ export default function PlazaPage() {
                     transition-all
                     duration-500
                     overflow-visible
-                    w-[400px]
+                    w-[420px]
                     flex flex-col
 
                     plaza-card-base
@@ -340,34 +340,25 @@ export default function PlazaPage() {
                     SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
                   </p>
 
-                  <div className="mt-auto w-full">
-                    <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-                      <span>Mask: {post.autoMask}</span>
-                      <span>{new Date(post.created_at).toLocaleString()}</span>
-                    </div>
+                  {isCreator && (
+                    <button
+                      onClick={() => handleDelete(post.id)}
+                      disabled={deletingId === post.id}
+                      className="absolute bottom-3 right-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                    >
+                      {deletingId === post.id ? "Deleting…" : "Delete"}
+                    </button>
+                  )}
 
-                    {isCreator && (
-                      <div className="mt-2 flex justify-center">
-                        <button
-                          onClick={() => handleDelete(post.id)}
-                          disabled={deletingId === post.id}
-                          className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50"
-                        >
-                          {deletingId === post.id ? "Deleting…" : "Delete"}
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="mt-4 w-full flex justify-center">
-                      <ReactionBar
-                        postId={post.id}
-                        creatorId={post.creator_id}
-                        reactions={post.reactions}
-                        spiritScore={post.spiritScore}
-                        positivityRatio={post.positivityRatio}
-                        onReact={() => fetchPosts(0, false)}
-                      />
-                    </div>
+                  <div className="mt-6 w-full flex justify-center">
+                    <ReactionBar
+                      postId={post.id}
+                      creatorId={post.creator_id}
+                      reactions={post.reactions}
+                      spiritScore={post.spiritScore}
+                      positivityRatio={post.positivityRatio}
+                      onReact={() => fetchPosts(0, false)}
+                    />
                   </div>
                 </div>
               );

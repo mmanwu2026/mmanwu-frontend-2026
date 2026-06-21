@@ -7,27 +7,27 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   const navItems = [
-  { label: "SoundSquare", href: "/sound-square/feed" },
-  { label: "VisionSquare", href: "/vision" },
-  { label: "SpiritSquare", href: "/spirit" },
-  { label: "Shrine", href: "/shrine" },
-  { label: "Profile", href: "/profile/me" },
-  { label: "Settings", href: "/settings" },
-];
+    { label: "SoundSquare", href: "/sound-square/feed" },
+    { label: "VisionSquare", href: "/vision" },
+    { label: "SpiritSquare", href: "/spirit" },
+    { label: "Shrine", href: "/shrine" },
+    { label: "Profile", href: "/profile/me" },
+    { label: "Settings", href: "/settings" },
+  ];
 
   return (
     <div
       className="
         h-full
-        w-[180px]
+        w-[120px]          /* Slimmer sidebar */
         flex flex-col
-        pt-32
+        pt-24              /* Pull Navigation down */
         px-4
         text-gray-300
-        border-r border-purple-500/10
         fixed
         left-0
         top-0
+        bg-black           /* Ensures no border line shows */
       "
     >
       <h2 className="text-lg font-semibold text-purple-200 mb-6">
