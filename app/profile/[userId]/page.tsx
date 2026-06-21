@@ -5,21 +5,63 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import ReactionBar from "@/components/plaza/ReactionBar";
 
-export default function UserProfilePage({ params }: { params: { userId: string } }) {
+interface UserProfile {
+  id: string;
+  username: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  spirit_score: number | null;
+  mask_tier: number | null;
+  positivity_ratio: number | null;
+}
+
+interface ReactionRow {
+  post_id: string;
+  maskTier: number;
+  value: number | null;
+}
+
+interface ReactionCounts {
+  mask1: number;
+  mask2: number;
+  mask3: number;
+  mask4: number;
+  mask5: number;
+  mask6: number;
+}
+
+interface UserPost {
+  id: string;
+  creator_id: string;
+  content: string;
+  created_at: string;
+  spirit_score: number | null;
+  reactions: ReactionCounts;
+  spiritScore: number;
+  positivityRatio: number;
+}
+
+export default function UserProfilePage({
+  params,
+}: {
+  params: { userId: string };
+}) {
   const router = useRouter();
   const userId = params.userId;
 
   const supabase = createSupabaseBrowserClient();
 
   const [sessionReady, setSessionReady] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Check session immediately on mount
+  // ⭐ Check session immediately
   useEffect(() => {
     async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (session?.user) {
         setSessionReady(true);
@@ -33,13 +75,15 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   // ⭐ Listen for auth changes
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setSessionReady(true);
-      } else {
-        router.replace("/login");
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event: string, session: any) => {
+        if (session?.user) {
+          setSessionReady(true);
+        } else {
+          router.replace("/login");
+        }
       }
-    });
+    );
 
     return () => listener.subscription.unsubscribe();
   }, [router, supabase]);
@@ -52,7 +96,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   }, [sessionReady, userId]);
 
   // ⭐ Hydration-safe profile loader
-  async function loadProfile() {
+  async function loadProfile(): Promise<void> {
     setLoading(true);
 
     const { data: userData } = await supabase
@@ -66,7 +110,8 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       return;
     }
 
-    setProfile(userData);
+    const typedProfile = userData as UserProfile;
+    setProfile(typedProfile);
 
     const { data: postsData } = await supabase
       .from("posts")
@@ -74,19 +119,23 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       .eq("creator_id", userId)
       .order("created_at", { ascending: false });
 
-    const postIds = postsData?.map((p) => p.id) ?? [];
+    const typedPosts = (postsData ?? []) as any[];
+
+    const postIds = typedPosts.map((p: any) => p.id);
 
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    const merged = (postsData ?? []).map((post) => {
-      const postReactions = (reactionsData ?? []).filter(
-        (r) => r.post_id === post.id
+    const typedReactions = (reactionsData ?? []) as ReactionRow[];
+
+    const merged: UserPost[] = typedPosts.map((post: any) => {
+      const postReactions = typedReactions.filter(
+        (r: ReactionRow) => r.post_id === post.id
       );
 
-      const counts = {
+      const counts: ReactionCounts = {
         mask1: postReactions.filter((r) => r.maskTier === 1).length,
         mask2: postReactions.filter((r) => r.maskTier === 2).length,
         mask3: postReactions.filter((r) => r.maskTier === 3).length,
@@ -99,7 +148,10 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+        .reduce(
+          (sum: number, r: ReactionRow) => sum + (r.value ?? 0),
+          0
+        );
 
       const weightedTotal = Math.abs(spiritScore);
       const positivityRatio =
@@ -146,9 +198,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     <div className="min-h-screen bg-black text-white p-6">
       {/* Profile Header */}
       <div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
-
         <div className="flex items-center gap-8">
-
           {/* Avatar */}
           <div
             className="relative group cursor-pointer"
@@ -162,7 +212,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
                 border border-zinc-700 shadow-xl bg-zinc-900
                 transition-transform duration-300 group-hover:scale-105
               "
-              onError={(e) => {
+              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                 const target = e.currentTarget;
                 if (target.src !== "/fallback-avatar.png") {
                   target.src = "/fallback-avatar.png";
@@ -177,9 +227,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
               {username}
             </h1>
 
-            <p className="text-zinc-400 text-sm mt-1">
-              {bio}
-            </p>
+            <p className="text-zinc-400 text-sm mt-1">{bio}</p>
           </div>
         </div>
 
@@ -208,12 +256,14 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           <p className="text-zinc-500 text-center">No posts yet.</p>
         )}
 
-        {posts.map((post) => (
+        {posts.map((post: UserPost) => (
           <div
             key={post.id}
             className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
           >
-            <p className="text-sm mb-3 whitespace-pre-line">{post.content}</p>
+            <p className="text-sm mb-3 whitespace-pre-line">
+              {post.content}
+            </p>
 
             <ReactionBar
               postId={post.id}

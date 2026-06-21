@@ -4,14 +4,25 @@ import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-export default function EditProfilePage({ params }: { params: { userId: string } }) {
+interface UserProfile {
+  id: string;
+  username: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+}
+
+export default function EditProfilePage({
+  params,
+}: {
+  params: { userId: string };
+}) {
   const router = useRouter();
   const userId = params.userId;
 
   const supabase = createSupabaseBrowserClient();
 
   const [sessionReady, setSessionReady] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -20,8 +31,9 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   // -----------------------------
   // Load Profile
   // -----------------------------
-  async function loadProfile() {
+  async function loadProfile(): Promise<void> {
     const { data: authData } = await supabase.auth.getUser();
+
     if (!authData?.user) {
       setTimeout(loadProfile, 200);
       return;
@@ -38,16 +50,20 @@ export default function EditProfilePage({ params }: { params: { userId: string }
       return;
     }
 
-    setProfile(userData);
-    setUsername(userData.username || "");
-    setBio(userData.bio || "");
-    setAvatarUrl(userData.avatar_url || null);
+    const typed = userData as UserProfile;
+
+    setProfile(typed);
+    setUsername(typed.username || "");
+    setBio(typed.bio || "");
+    setAvatarUrl(typed.avatar_url || null);
   }
 
   // -----------------------------
   // Avatar Upload Handler
   // -----------------------------
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -81,7 +97,7 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   // -----------------------------
   // Save Profile
   // -----------------------------
-  async function handleSave() {
+  async function handleSave(): Promise<void> {
     setSaving(true);
 
     await supabase
@@ -100,15 +116,19 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   // Session Hydration
   // -----------------------------
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        router.replace("/login");
-      } else {
-        setSessionReady(true);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event: string, session: any) => {
+        if (!session?.user) {
+          router.replace("/login");
+        } else {
+          setSessionReady(true);
+        }
       }
-    });
+    );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, [router, supabase]);
 
   useEffect(() => {
@@ -154,7 +174,9 @@ export default function EditProfilePage({ params }: { params: { userId: string }
           <input
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setUsername(e.target.value)
+            }
             className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
           />
         </div>
@@ -164,7 +186,9 @@ export default function EditProfilePage({ params }: { params: { userId: string }
           <label className="block text-sm text-zinc-400 mb-1">Bio</label>
           <textarea
             value={bio}
-            onChange={(e) => setBio(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              setBio(e.target.value)
+            }
             className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white h-24"
           />
         </div>

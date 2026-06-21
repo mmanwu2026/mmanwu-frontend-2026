@@ -15,6 +15,12 @@ type ReactionCounts = {
   mask6: number;
 };
 
+type ReactionRow = {
+  post_id: string;
+  maskTier: number;
+  value: number | null;
+};
+
 type RawSoundPost = {
   id: string;
   title: string;
@@ -42,15 +48,17 @@ export default function SoundSquareFeed() {
     loadInitial();
   }, []);
 
-  async function loadInitial() {
+  async function loadInitial(): Promise<void> {
     setLoading(true);
 
     const { data, error } = await supabase
       .from("sound_posts")
-      .select(`
+      .select(
+        `
         *,
         users:creator_id ( username )
-      `)
+      `
+      )
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
 
@@ -60,11 +68,12 @@ export default function SoundSquareFeed() {
       return;
     }
 
-    const merged = await mergeWithReactions(data as RawSoundPost[]);
+    const typed = data as RawSoundPost[];
+    const merged = await mergeWithReactions(typed);
     setPosts(merged);
 
-    if (data.length > 0) setCursor(data[data.length - 1].created_at);
-    if (data.length < PAGE_SIZE) setHasMore(false);
+    if (typed.length > 0) setCursor(typed[typed.length - 1].created_at);
+    if (typed.length < PAGE_SIZE) setHasMore(false);
 
     setLoading(false);
   }
@@ -76,10 +85,12 @@ export default function SoundSquareFeed() {
 
     const { data, error } = await supabase
       .from("sound_posts")
-      .select(`
+      .select(
+        `
         *,
         users:creator_id ( username )
-      `)
+      `
+      )
       .lt("created_at", cursor)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
@@ -90,17 +101,19 @@ export default function SoundSquareFeed() {
       return;
     }
 
-    if (data.length === 0) {
+    const typed = data as RawSoundPost[];
+
+    if (typed.length === 0) {
       setHasMore(false);
       setLoadingMore(false);
       return;
     }
 
-    const merged = await mergeWithReactions(data as RawSoundPost[]);
+    const merged = await mergeWithReactions(typed);
     setPosts((prev) => [...prev, ...merged]);
 
-    setCursor(data[data.length - 1].created_at);
-    if (data.length < PAGE_SIZE) setHasMore(false);
+    setCursor(typed[typed.length - 1].created_at);
+    if (typed.length < PAGE_SIZE) setHasMore(false);
 
     setLoadingMore(false);
   }, [cursor, loadingMore, hasMore, supabase]);
@@ -122,16 +135,18 @@ export default function SoundSquareFeed() {
   async function mergeWithReactions(
     rawPosts: RawSoundPost[]
   ): Promise<CardSoundPost[]> {
-    const postIds = rawPosts.map((p) => p.id);
+    const postIds = rawPosts.map((p: RawSoundPost) => p.id);
 
     const { data: reactionsData } = await supabase
       .from("sound_reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    return rawPosts.map((post) => {
-      const postReactions = (reactionsData ?? []).filter(
-        (r) => r.post_id === post.id
+    const typedReactions = (reactionsData ?? []) as ReactionRow[];
+
+    return rawPosts.map((post: RawSoundPost): CardSoundPost => {
+      const postReactions = typedReactions.filter(
+        (r: ReactionRow) => r.post_id === post.id
       );
 
       const counts: ReactionCounts = {
@@ -146,8 +161,11 @@ export default function SoundSquareFeed() {
       const spiritScore = post.spirit_score ?? 0;
 
       const weightedPositive = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+        .filter((r: ReactionRow) => (r.value ?? 0) > 0)
+        .reduce(
+          (sum: number, r: ReactionRow) => sum + (r.value ?? 0),
+          0
+        );
 
       const weightedTotal = Math.abs(spiritScore);
       const positivityRatio =
@@ -182,7 +200,7 @@ export default function SoundSquareFeed() {
       {loading && <p>Loading sounds...</p>}
 
       <div className="flex flex-col gap-6 mb-6">
-        {posts.map((post) => (
+        {posts.map((post: CardSoundPost) => (
           <SoundPostCard key={post.id} post={post} />
         ))}
       </div>

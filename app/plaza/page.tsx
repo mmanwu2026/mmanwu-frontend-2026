@@ -89,7 +89,7 @@ export default function PlazaPage() {
 
     if (!error && data) {
       setCreators((prev) => ({ ...prev, [id]: data }));
-      return data;
+      return data as CreatorProfile;
     }
 
     return null;
@@ -115,7 +115,9 @@ export default function PlazaPage() {
       return;
     }
 
-    const postIds = postsData.map((p) => p.id as string);
+    const typedPosts = postsData as PlazaPost[];
+
+    const postIds = typedPosts.map((p: PlazaPost) => p.id);
     if (postIds.length === 0) {
       if (!append) setPosts([]);
       setHasMore(false);
@@ -128,42 +130,46 @@ export default function PlazaPage() {
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
-      const postReactions = (reactionsData ?? []).filter(
-        (r: ReactionRow) => r.post_id === post.id
-      );
+    const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
-      };
+    const merged: PlazaPostWithAggregates[] = typedPosts.map(
+      (post: PlazaPost) => {
+        const postReactions = typedReactions.filter(
+          (r: ReactionRow) => r.post_id === post.id
+        );
 
-      const spiritScore = post.spirit_score ?? 0;
-      const positivityRatio = 0.5; // placeholder
+        const counts: ReactionCounts = {
+          mask1: postReactions.filter((r: ReactionRow) => r.maskTier === 1).length,
+          mask2: postReactions.filter((r: ReactionRow) => r.maskTier === 2).length,
+          mask3: postReactions.filter((r: ReactionRow) => r.maskTier === 3).length,
+          mask4: postReactions.filter((r: ReactionRow) => r.maskTier === 4).length,
+          mask5: postReactions.filter((r: ReactionRow) => r.maskTier === 5).length,
+          mask6: postReactions.filter((r: ReactionRow) => r.maskTier === 6).length,
+        };
 
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
+        const spiritScore = post.spirit_score ?? 0;
+        const positivityRatio = 0.5; // placeholder
 
-      return {
-        ...post,
-        reactions: counts,
-        spiritScore,
-        positivityRatio,
-        autoMask,
-      };
-    });
+        let autoMask = 2;
+        if (spiritScore <= 20) autoMask = 2;
+        else if (spiritScore <= 100) autoMask = 3;
+        else if (spiritScore <= 200) autoMask = 4;
+        else if (spiritScore <= 500) autoMask = 5;
+        else autoMask = 6;
+
+        return {
+          ...post,
+          reactions: counts,
+          spiritScore,
+          positivityRatio,
+          autoMask,
+        };
+      }
+    );
 
     setPosts((prev) => (append ? [...prev, ...merged] : merged));
 
-    if (postsData.length < PAGE_SIZE) setHasMore(false);
+    if (typedPosts.length < PAGE_SIZE) setHasMore(false);
 
     if (!append) setLoading(false);
     setLoadingMore(false);
@@ -215,11 +221,10 @@ export default function PlazaPage() {
     };
   }, [supabase]);
 
-  // ✅ fetch creators for all posts in a single effect, not inside render
   useEffect(() => {
     const missingCreatorIds = posts
-      .map((p) => p.creator_id)
-      .filter((id) => !creators[id]);
+      .map((p: PlazaPostWithAggregates) => p.creator_id)
+      .filter((id: string) => !creators[id]);
 
     if (missingCreatorIds.length === 0) return;
 
@@ -245,7 +250,7 @@ export default function PlazaPage() {
     await supabase.from("posts").delete().eq("id", postId);
 
     setDeletingId(null);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setPosts((prev) => prev.filter((p: PlazaPostWithAggregates) => p.id !== postId));
   }
 
   return (
@@ -274,23 +279,27 @@ export default function PlazaPage() {
           )}
 
           <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post) => {
+            {posts.map((post: PlazaPostWithAggregates) => {
               const key = post.id;
 
-              const creator = creators[post.creator_id];
+              const creator: CreatorProfile | undefined =
+                creators[post.creator_id];
 
               const prevPos =
                 prevPositivityMap.current[key] ?? post.positivityRatio;
               const prevPosReacts =
-                prevPositiveReactionsMap.current[key] ?? post.reactions.mask3;
+                prevPositiveReactionsMap.current[key] ??
+                post.reactions.mask3;
 
               const positivitySpike = post.positivityRatio - prevPos > 0.25;
-              const newPositiveReaction = post.reactions.mask3 > prevPosReacts;
+              const newPositiveReaction =
+                post.reactions.mask3 > prevPosReacts;
 
               const surge = positivitySpike || newPositiveReaction;
 
               prevPositivityMap.current[key] = post.positivityRatio;
-              prevPositiveReactionsMap.current[key] = post.reactions.mask3;
+              prevPositiveReactionsMap.current[key] =
+                post.reactions.mask3;
 
               const ascensionClass =
                 post.spiritScore > 500
@@ -321,7 +330,10 @@ export default function PlazaPage() {
                   ? "emotion-soft"
                   : "emotion-calm";
 
-              const floatY = Math.max(-20 - post.spiritScore * 0.25, -90);
+              const floatY = Math.max(
+                -20 - post.spiritScore * 0.25,
+                -90
+              );
 
               const glyphEmoji =
                 post.autoMask === 1 ? "😶‍🌫️" :

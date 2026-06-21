@@ -98,32 +98,34 @@ export default function CreatorProfilePage() {
       return;
     }
 
-    const postIds = postsData.map((p) => p.id);
+    // FIXED: typed callback
+    const postIds = postsData.map((p: any) => p.id);
 
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    const merged: CreatorPost[] = postsData.map((p) => {
+    // FIXED: typed callback
+    const merged: CreatorPost[] = postsData.map((p: any) => {
       const postReactions = (reactionsData ?? []).filter(
-        (r) => r.post_id === p.id
+        (r: any) => r.post_id === p.id
       );
 
       const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+        mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
       };
 
       const spiritScore = p.spirit_score ?? 0;
 
       const weightedPositive = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+        .filter((r: any) => (r.value ?? 0) > 0)
+        .reduce((sum: number, r: any) => sum + (r.value ?? 0), 0);
 
       const weightedTotal = Math.abs(spiritScore);
       const positivityRatio =
@@ -182,7 +184,7 @@ export default function CreatorProfilePage() {
         {loading && <p className="text-gray-300">Loading posts…</p>}
 
         <div className="space-y-12 w-full flex flex-col items-center">
-          {posts.map((post) => {
+          {posts.map((post: CreatorPost) => {
             const score = post.spiritScore;
             const positivityRatio = post.positivityRatio;
 

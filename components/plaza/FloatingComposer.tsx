@@ -6,19 +6,37 @@ import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
 
-export default function FloatingComposer({ onPost }: { onPost: (post: any) => void }) {
+interface GatekeeperResponse {
+  autoApprove?: boolean;
+  rewrites?: string[];
+}
+
+interface RewriteOption {
+  label: string;
+  text: string;
+  explanation: string;
+}
+
+interface FloatingComposerProps {
+  onPost: (post: any) => void;
+}
+
+export default function FloatingComposer({ onPost }: FloatingComposerProps) {
   const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
 
-  const [gatekeeperOptions, setGatekeeperOptions] = useState<any[] | null>(null);
+  const [gatekeeperOptions, setGatekeeperOptions] = useState<RewriteOption[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  async function runGatekeeper(rawText: string) {
+  // -----------------------------
+  // Gatekeeper API
+  // -----------------------------
+  async function runGatekeeper(rawText: string): Promise<GatekeeperResponse | null> {
     try {
       const res = await fetch("/api/gatekeeper", {
         method: "POST",
@@ -27,13 +45,16 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
       });
 
       if (!res.ok) return null;
-      return await res.json();
+      return (await res.json()) as GatekeeperResponse;
     } catch {
       return null;
     }
   }
 
-  async function publishToSupabase(finalText: string) {
+  // -----------------------------
+  // Publish to Supabase
+  // -----------------------------
+  async function publishToSupabase(finalText: string): Promise<void> {
     if (!user) return;
 
     const { data } = await supabase
@@ -49,14 +70,17 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
     if (data) onPost(data);
   }
 
-  async function handleSubmit() {
+  // -----------------------------
+  // Submit Handler
+  // -----------------------------
+  async function handleSubmit(): Promise<void> {
     if (!content.trim() || loading || !user) return;
 
     const result = await runGatekeeper(content);
 
     // Auto-approve path
     if (result?.autoApprove) {
-      publishToSupabase(content);
+      await publishToSupabase(content);
       setToastMessage("The spirits approve your message ✨");
       setContent("");
       setExpanded(false);
@@ -72,7 +96,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
         "Elevates the language for a more refined delivery.",
       ];
 
-      const formatted = result.rewrites.map((text: string, i: number) => ({
+      const formatted: RewriteOption[] = result.rewrites.map((text, i) => ({
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
@@ -83,13 +107,19 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
     }
   }
 
-  function handleGatekeeperSelect(finalText: string) {
+  // -----------------------------
+  // Gatekeeper Selection
+  // -----------------------------
+  function handleGatekeeperSelect(finalText: string): void {
     setShowGatekeeper(false);
     publishToSupabase(finalText);
     setContent("");
     setExpanded(false);
   }
 
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <>
       {/* Gatekeeper Modal */}
@@ -122,7 +152,6 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
       {/* EXPANDED PANEL */}
       {expanded && (
         <div className="absolute left-[180px] top-20 w-[360px] p-4 rounded-2xl bg-purple-900/40 backdrop-blur-xl shadow-xl z-[6000]">
-
           <textarea
             className="
               w-full rounded-xl p-3 resize-none
@@ -134,7 +163,9 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
             rows={5}
             placeholder="Share your thoughts…"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              setContent(e.target.value)
+            }
           />
 
           <button

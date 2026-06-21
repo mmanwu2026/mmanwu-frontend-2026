@@ -2,9 +2,14 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import type { User, Session } from "@supabase/supabase-js";
 
-const UserContext = createContext<any>(null);
+interface UserContextValue {
+  user: User | null;
+  loading: boolean;
+}
+
+const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const supabase = createSupabaseBrowserClient();
@@ -17,7 +22,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function load() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!active) return;
 
       setUser(session?.user ?? null);
@@ -34,12 +42,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // Listen for auth changes
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event: string, session: Session | null) => {
         setUser(session?.user ?? null);
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, [supabase]);
 
   return (
@@ -49,6 +59,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useUser() {
-  return useContext(UserContext);
+export function useUser(): UserContextValue {
+  const ctx = useContext(UserContext);
+  if (!ctx) {
+    throw new Error("useUser must be used inside <UserProvider>");
+  }
+  return ctx;
 }

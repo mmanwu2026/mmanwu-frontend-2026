@@ -2,17 +2,25 @@
 
 import React, { useState } from "react";
 
+export interface GatekeeperOption {
+  label: string;
+  text: string;
+  explanation?: string;
+}
+
+interface GatekeeperModalProps {
+  options: GatekeeperOption[];
+  onSelect: (text: string) => void;
+  onClose: () => void;
+  onRegenerate?: () => void;
+}
+
 export default function GatekeeperModal({
   options,
   onSelect,
   onClose,
   onRegenerate,
-}: {
-  options: any[];
-  onSelect: (text: string) => void;
-  onClose: () => void;
-  onRegenerate?: () => void;
-}) {
+}: GatekeeperModalProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
   return (
@@ -28,7 +36,7 @@ export default function GatekeeperModal({
         </p>
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-          {options.map((opt: any, idx: number) => (
+          {options.map((opt: GatekeeperOption, idx: number) => (
             <div
               key={idx}
               onClick={() => setSelected(opt.text)}
