@@ -17,22 +17,17 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   // ⭐ Hydration-safe profile loader
   async function loadProfile() {
-    // 0. Guard: userId must exist
     if (!userId) {
-      console.log("userId not ready yet, retrying...");
       setTimeout(loadProfile, 150);
       return;
     }
 
-    // 1. Ensure auth is hydrated
     const { data: authData } = await supabase.auth.getUser();
     if (!authData?.user) {
-      console.log("Auth not ready yet, retrying...");
       setTimeout(loadProfile, 200);
       return;
     }
 
-    // 2. Load profile row
     const { data: userData } = await supabase
       .from("users")
       .select("*")
@@ -40,14 +35,12 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       .maybeSingle();
 
     if (!userData) {
-      console.log("Profile row not ready yet, retrying...");
       setTimeout(loadProfile, 200);
       return;
     }
 
     setProfile(userData);
 
-    // 3. Load posts
     const { data: postsData } = await supabase
       .from("posts")
       .select("*")
@@ -62,13 +55,11 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     const postIds = postsData.map((p) => p.id);
 
-    // 4. Load reactions
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    // 5. Merge aggregates
     const merged = postsData.map((post) => {
       const postReactions = (reactionsData ?? []).filter(
         (r) => r.post_id === post.id
@@ -118,11 +109,11 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     return () => listener.subscription.unsubscribe();
   }, [router, supabase]);
 
-  // ⭐ Load profile AFTER session is ready AND userId exists
+  // ⭐ Load profile AFTER session is ready
   useEffect(() => {
-    if (!sessionReady) return;
-    if (!userId) return; // ⭐ Prevent undefined userId queries
-    loadProfile();
+    if (sessionReady && userId) {
+      loadProfile();
+    }
   }, [sessionReady, userId]);
 
   // ⭐ Loading state
@@ -134,7 +125,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // ⭐ Profile not found (only fires if truly missing)
+  // ⭐ Profile not found
   if (!profile?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -145,7 +136,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   // ⭐ Safe profile fields
   const username = profile.username || "Unknown";
-  const avatarUrl = profile.avatar_url || "/default-avatar.png";
+  const avatarUrl = profile.avatar_url || "/fallback-avatar.png";
   const bio = profile.bio || "No bio yet.";
   const spiritScore = profile.spirit_score ?? 0;
   const maskTier = profile.mask_tier ?? 0;
@@ -160,10 +151,12 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         <div className="flex items-center gap-8">
 
           {/* Avatar Container */}
-          <div className="relative group cursor-pointer"
-               onClick={() => router.push(`/profile/${userId}/edit`)}>
+          <div
+            className="relative group cursor-pointer"
+            onClick={() => router.push(`/profile/${userId}/edit`)}
+          >
 
-            {/* 🔥 SpiritScore Aura */}
+            {/* Aura */}
             <div
               className={`
                 absolute inset-0 rounded-full blur-xl transition-all duration-700
@@ -175,7 +168,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
               `}
             />
 
-            {/* 🌀 Animated Ring for High-Tier Users */}
+            {/* Animated Ring */}
             {maskTier >= 5 && (
               <div
                 className="
@@ -185,7 +178,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
               />
             )}
 
-            {/* Avatar Image */}
+            {/* Avatar */}
             <img
               src={avatarUrl}
               alt="avatar"
@@ -194,7 +187,14 @@ export default function UserProfilePage({ params }: { params: { userId: string }
                 border border-zinc-700 shadow-xl bg-zinc-900
                 transition-transform duration-300 group-hover:scale-105
               "
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (target.src !== "/fallback-avatar.png") {
+                  target.src = "/fallback-avatar.png";
+                }
+              }}
             />
+
           </div>
 
           {/* Username + Bio */}
@@ -209,7 +209,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           </div>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats */}
         <div className="flex gap-10 mt-8 text-sm">
           <div>
             <span className="font-semibold text-lg">{spiritScore}</span>{" "}
