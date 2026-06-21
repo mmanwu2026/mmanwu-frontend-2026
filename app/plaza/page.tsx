@@ -7,6 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import Sidebar from "@/components/plaza/Sidebar";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
+import { useUser } from "@/context/UserContext";
 
 interface PlazaPost {
   id: string;
@@ -34,10 +35,12 @@ interface ReactionCounts {
 
 interface PlazaPostWithAggregates extends PlazaPost {
   reactions: ReactionCounts;
-  spiritScore: number;      // UI field, derived from spirit_score
+  spiritScore: number;
   positivityRatio: number;
   autoMask: number;
 }
+
+const PAGE_SIZE = 20;
 
 function auraIntensity(score: number, positivity: number) {
   let level =
@@ -55,37 +58,51 @@ function auraIntensity(score: number, positivity: number) {
 
 export default function PlazaPage() {
   const supabase = createSupabaseBrowserClient();
+  const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<string>("");
 
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
 
-  async function fetchPosts() {
-    setLoading(true);
+  async function fetchPosts(pageToLoad: number = 0, append = false) {
+    if (!append) setLoading(true);
 
-    // 1) Fetch posts (spirit_score already updated by DB trigger)
+    const from = pageToLoad * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (postsError || !postsData) {
       console.error("Error fetching posts:", postsError);
-      setPosts([]);
-      setLoading(false);
+      if (!append) {
+        setPosts([]);
+        setLoading(false);
+      }
+      setHasMore(false);
       return;
     }
 
     const postIds = postsData.map((p) => p.id as string);
     if (postIds.length === 0) {
-      setPosts([]);
+      if (!append) setPosts([]);
+      setHasMore(false);
       setLoading(false);
       return;
     }
 
-    // 2) Fetch reactions for these posts
     const { data: reactionsData, error: reactionsError } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
@@ -109,10 +126,8 @@ export default function PlazaPage() {
         mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
-      // ✅ SpiritScore from DB trigger
       const spiritScore = post.spirit_score ?? 0;
 
-      // ✅ Positivity from reaction values, not recomputing spiritScore
       const positiveSum = postReactions
         .filter((r) => (r.value ?? 0) > 0)
         .reduce((sum, r) => sum + (r.value ?? 0), 0);
@@ -123,7 +138,6 @@ export default function PlazaPage() {
       const positivityRatio =
         totalAbs > 0 ? positiveSum / totalAbs : 0.5;
 
-      // ✅ AutoMask from SpiritScore tiers
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
       else if (spiritScore <= 100) autoMask = 3;
@@ -140,20 +154,113 @@ export default function PlazaPage() {
       };
     });
 
-    setPosts(merged);
-    setLoading(false);
+    setPosts((prev) => (append ? [...prev, ...merged] : merged));
+
+    if (postsData.length < PAGE_SIZE) {
+      setHasMore(false);
+    }
+
+    if (!append) setLoading(false);
+    setLoadingMore(false);
   }
 
   useEffect(() => {
-    fetchPosts();
+    fetchPosts(0, false);
   }, []);
+
+  // Realtime updates: refetch on new reactions or posts
+  useEffect(() => {
+    const channel = supabase
+      .channel("plaza-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reactions" },
+        () => {
+          fetchPosts(0, false);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => {
+          fetchPosts(0, false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
+  async function handleLoadMore() {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    await fetchPosts(nextPage, true);
+    setPage(nextPage);
+  }
+
+  async function handleDelete(postId: string) {
+    if (!user) return;
+    setDeletingId(postId);
+
+    const { error } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", postId);
+
+    setDeletingId(null);
+
+    if (error) {
+      console.error("Delete error:", error);
+      return;
+    }
+
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  }
+
+  function startEdit(postId: string, currentContent: string) {
+    setEditingId(postId);
+    setEditedContent(currentContent);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditedContent("");
+  }
+
+  async function saveEdit(postId: string) {
+    if (!user) return;
+    const trimmed = editedContent.trim();
+    if (!trimmed) return;
+
+    const { error } = await supabase
+      .from("posts")
+      .update({ content: trimmed })
+      .eq("id", postId);
+
+    if (error) {
+      console.error("Edit error:", error);
+      return;
+    }
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, content: trimmed } : p
+      )
+    );
+
+    setEditingId(null);
+    setEditedContent("");
+  }
 
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
 
       <div className="absolute left-0 top-20 w-[180px] px-4 z-[5000]">
-        <FloatingComposer onPost={fetchPosts} />
+        <FloatingComposer onPost={() => fetchPosts(0, false)} />
       </div>
 
       <div className="flex">
@@ -234,6 +341,21 @@ export default function PlazaPage() {
                 post.positivityRatio
               );
 
+              const totalReactions =
+                post.reactions.mask1 +
+                post.reactions.mask2 +
+                post.reactions.mask3 +
+                post.reactions.mask4 +
+                post.reactions.mask5 +
+                post.reactions.mask6;
+
+              const trendingScore =
+                post.spiritScore + totalReactions * 5;
+
+              const isTrending = trendingScore > 100;
+
+              const isCreator = user?.id === post.creator_id;
+
               return (
                 <div
                   key={post.id}
@@ -245,7 +367,6 @@ export default function PlazaPage() {
                     duration-500
                     overflow-visible
                     w-[360px]
-                    h-[420px]
                     flex flex-col
 
                     plaza-card-base
@@ -270,12 +391,45 @@ export default function PlazaPage() {
                     </div>
                   </div>
 
-                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4">
-                    {post.content}
-                  </p>
+                  {isTrending && (
+                    <p className="mt-2 text-xs text-yellow-400 text-center">
+                      Trending • Score {trendingScore}
+                    </p>
+                  )}
+
+                  <div className="mt-4 px-4 w-full">
+                    {editingId === post.id && isCreator ? (
+                      <div className="flex flex-col gap-2">
+                        <textarea
+                          className="w-full p-2 rounded bg-gray-800 text-sm text-gray-100"
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                        />
+                        <div className="flex justify-center gap-3 text-xs">
+                          <button
+                            onClick={() => saveEdit(post.id)}
+                            className="px-3 py-1 rounded bg-green-600 hover:bg-green-500"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center">
+                        {post.content}
+                      </p>
+                    )}
+                  </div>
 
                   <p className="mt-2 text-sm text-gray-400 text-center">
-                    SpiritScore: {post.spiritScore}
+                    SpiritScore: {post.spiritScore} • Reactions: {totalReactions} • Positivity:{" "}
+                    {(post.positivityRatio * 100).toFixed(0)}%
                   </p>
 
                   <div className="mt-auto w-full">
@@ -284,6 +438,24 @@ export default function PlazaPage() {
                       <span>{new Date(post.created_at).toLocaleString()}</span>
                     </div>
 
+                    {isCreator && (
+                      <div className="mt-2 flex justify-center gap-3 text-xs">
+                        <button
+                          onClick={() => startEdit(post.id, post.content)}
+                          className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(post.id)}
+                          disabled={deletingId === post.id}
+                          className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                        >
+                          {deletingId === post.id ? "Deleting…" : "Delete"}
+                        </button>
+                      </div>
+                    )}
+
                     <div className="mt-4 w-full flex justify-center">
                       <ReactionBar
                         postId={post.id}
@@ -291,7 +463,7 @@ export default function PlazaPage() {
                         reactions={post.reactions}
                         spiritScore={post.spiritScore}
                         positivityRatio={post.positivityRatio}
-                        onReact={fetchPosts}
+                        onReact={() => fetchPosts(0, false)}
                       />
                     </div>
                   </div>
@@ -299,6 +471,22 @@ export default function PlazaPage() {
               );
             })}
           </div>
+
+          {!loading && hasMore && (
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="mt-8 bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 disabled:opacity-50 text-sm"
+            >
+              {loadingMore ? "Loading more…" : "Load more"}
+            </button>
+          )}
+
+          {!hasMore && posts.length > 0 && (
+            <p className="mt-4 text-gray-500 text-xs">
+              You’ve reached the end of the Plaza.
+            </p>
+          )}
         </div>
       </div>
     </div>
