@@ -12,7 +12,7 @@ type ReactionCounts = {
   mask6: number;
 };
 
-// ⭐ RENAMED — avoids collision with feed/page.tsx
+// ⭐ FINAL — this is the ONLY type SoundPostCard exports
 export type CardSoundPost = {
   id: string;
   title: string;
@@ -155,12 +155,7 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
   // Reaction click handler
   async function handleReaction(maskTier: number) {
     const { error } = await supabase.rpc("react_to_post", {
-      args: [
-        post.id,
-        "sound",
-        maskTier,
-        null,
-      ],
+      args: [post.id, "sound", maskTier, null],
     });
 
     if (error) {
