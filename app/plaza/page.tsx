@@ -204,7 +204,7 @@ export default function PlazaPage() {
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-              Mmanwu Plaza (TEST)
+              Mmanwu Plaza
             </h1>
             <div className="h-[1px] w-40 bg-purple-500/0 mt-3"></div>
           </div>
@@ -293,26 +293,26 @@ export default function PlazaPage() {
 
               return (
                 <div
-                  key={post.id}
-                  className={`
-                    relative isolate
-                    p-8
-                    rounded-2xl
-                    transition-all
-                    duration-500
-                    overflow-visible
-                    w-[420px]
-                    flex flex-col
+  key={post.id}
+  className={`
+    relative isolate z-0
+    p-8
+    rounded-2xl
+    transition-all
+    duration-500
+    overflow-visible
+    w-[420px]
+    flex flex-col
 
-                    plaza-card-base
-                    aura-mask-${post.autoMask}
-                    aura-intensity-${intensity}
+    plaza-card-base
+    aura-mask-${post.autoMask}
+    aura-intensity-${intensity}
 
-                    ${ascensionClass}
-                    ${surgeClass}
-                    ${emotionClass}
-                  `}
-                >
+    ${ascensionClass}
+    ${surgeClass}
+    ${emotionClass}
+  `}
+>
                   <div className="ritual-glyph-container mt-4 flex justify-center">
                     <div className="ritual-glyph-levitate">
                       <div className="ritual-flame-ring clean"></div>
