@@ -2,20 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import SoundPostCard from "@/components/sound-square/SoundPostCard";
-
-type SoundPost = {
-  id: string;
-  title: string;
-  audio_url: string;
-  creator_name: string;
-  created_at: string;
-};
+import SoundPostCard, {
+  CardSoundPost,
+} from "@/components/sound-square/SoundPostCard";
 
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  const [posts, setPosts] = useState<SoundPost[]>([]);
+  const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
@@ -29,7 +23,10 @@ export default function SoundSquareFeed() {
 
     const { data, error } = await supabase
       .from("sound_posts")
-      .select("*")
+      .select(`
+        *,
+        users:creator_id ( username )
+      `)
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -39,22 +36,40 @@ export default function SoundSquareFeed() {
     }
 
     if (!data || data.length === 0) {
-      if (pageToLoad === 0) {
-        setPosts([]);
-      }
+      if (pageToLoad === 0) setPosts([]);
       setHasMore(false);
       return;
     }
 
+    // ⭐ Convert raw DB rows → CardSoundPost
+    const converted: CardSoundPost[] = data.map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      audio_url: p.audio_url,
+      creator_name: p.users?.username ?? "Unknown",
+      created_at: p.created_at,
+
+      // ⭐ Default values (no reactions loaded here)
+      reactions: {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+        mask6: 0,
+      },
+      spiritScore: p.spirit_score ?? 0,
+      positivityRatio: 0.5,
+      autoMask: 2,
+    }));
+
     if (pageToLoad === 0) {
-      setPosts(data);
+      setPosts(converted);
     } else {
-      setPosts((prev) => [...prev, ...data]);
+      setPosts((prev) => [...prev, ...converted]);
     }
 
-    if (data.length < PAGE_SIZE) {
-      setHasMore(false);
-    }
+    if (data.length < PAGE_SIZE) setHasMore(false);
   }
 
   useEffect(() => {
