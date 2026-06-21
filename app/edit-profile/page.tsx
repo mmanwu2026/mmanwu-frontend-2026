@@ -1,31 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@/context/UserContext";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
-export default function EditProfilePage() {
-  const { user } = useUser();
+interface UserProfile {
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
 
-  const [username, setUsername] = useState(user?.username ?? "");
-  const [avatar, setAvatar] = useState(user?.avatar_url ?? "");
-  const [bio, setBio] = useState(user?.bio ?? "");
+export default function EditProfilePage() {
+  const { user, loading } = useUser();
+  const supabase = createSupabaseBrowserClient();
+
+  // ⭐ BLOCK RENDERING UNTIL USER EXISTS
+  if (loading) return <div className="p-6">Loading…</div>;
+  if (!user) return <div className="p-6">You must be logged in.</div>;
+
+  // ⭐ NARROW ONCE — FIXES ALL TS ERRORS
+  const userId = user.id;
+
+  const [profile, setProfile] = useState<UserProfile>({
+    username: "",
+    avatar_url: "",
+    bio: "",
+  });
+
   const [saving, setSaving] = useState(false);
 
-  async function saveChanges() {
-    if (!user) return;
+  // Load profile
+  useEffect(() => {
+    async function loadProfile() {
+      const { data } = await supabase
+        .from("users")
+        .select("username, avatar_url, bio")
+        .eq("id", userId)
+        .single();
 
+      if (data) {
+        setProfile({
+          username: data.username ?? "",
+          avatar_url: data.avatar_url ?? "",
+          bio: data.bio ?? "",
+        });
+      }
+    }
+
+    loadProfile();
+  }, [userId, supabase]);
+
+  async function saveChanges() {
     setSaving(true);
 
     const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/users/update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: user.id,
-        username,
-        avatar_url: avatar,
-        bio,
+        id: userId, // ⭐ SAFE — narrowed above
+        username: profile.username,
+        avatar_url: profile.avatar_url,
+        bio: profile.bio,
       }),
     });
 
@@ -34,7 +71,7 @@ export default function EditProfilePage() {
 
     if (data.user) {
       alert("Profile updated successfully");
-      window.location.href = `/profile/${user.id}`;
+      window.location.href = `/profile/${userId}`;
     } else {
       alert("Failed to update profile");
     }
@@ -49,8 +86,10 @@ export default function EditProfilePage() {
           <label className="block text-sm font-medium">Username</label>
           <input
             className="border p-2 rounded w-full"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={profile.username ?? ""}
+            onChange={(e) =>
+              setProfile((p) => ({ ...p, username: e.target.value }))
+            }
           />
         </div>
 
@@ -58,8 +97,10 @@ export default function EditProfilePage() {
           <label className="block text-sm font-medium">Avatar URL</label>
           <input
             className="border p-2 rounded w-full"
-            value={avatar}
-            onChange={(e) => setAvatar(e.target.value)}
+            value={profile.avatar_url ?? ""}
+            onChange={(e) =>
+              setProfile((p) => ({ ...p, avatar_url: e.target.value }))
+            }
           />
         </div>
 
@@ -67,8 +108,10 @@ export default function EditProfilePage() {
           <label className="block text-sm font-medium">Bio</label>
           <textarea
             className="border p-2 rounded w-full"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
+            value={profile.bio ?? ""}
+            onChange={(e) =>
+              setProfile((p) => ({ ...p, bio: e.target.value }))
+            }
           />
         </div>
 
