@@ -13,7 +13,7 @@ type ReactionCounts = {
   mask6: number;
 };
 
-// ⭐ FIXED: SoundPost must include all fields SoundPostCard expects
+// ⭐ FINAL unified type — EXACTLY what SoundPostCard expects
 type SoundPost = {
   id: string;
   title: string;
@@ -23,7 +23,6 @@ type SoundPost = {
   created_at: string;
   spirit_score: number;
 
-  // Aggregates
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
@@ -190,7 +189,7 @@ export default function SoundSquareFeed() {
         spiritScore,
         positivityRatio,
         autoMask,
-      };
+      } as SoundPost;
     });
   }
 
