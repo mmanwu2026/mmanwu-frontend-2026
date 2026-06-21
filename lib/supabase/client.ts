@@ -9,17 +9,17 @@ export function createSupabaseBrowserClient() {
     {
       cookies: {
         get(name: string) {
-          if (typeof document === "undefined") return null;
+          if (typeof window === "undefined") return null;
           const match = document.cookie
             .split("; ")
             .find((row) => row.startsWith(name + "="));
           return match ? match.split("=")[1] : null;
         },
         set() {
-          // Browser client does not set cookies manually
+          // no-op
         },
         remove() {
-          // Browser client does not remove cookies manually
+          // no-op
         },
       },
     }
