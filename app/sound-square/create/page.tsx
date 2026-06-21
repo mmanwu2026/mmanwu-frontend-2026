@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/context/UserContext";
 
 export default function SoundSquareUpload() {
+  const supabase = createSupabaseBrowserClient();
   const { user } = useUser();
 
   const [file, setFile] = useState<File | null>(null);

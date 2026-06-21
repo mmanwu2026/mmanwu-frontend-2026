@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 export default function LoginPage() {
+  const supabase = createSupabaseBrowserClient();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -26,6 +28,7 @@ export default function LoginPage() {
       return;
     }
 
+    // Let the Plaza layout handle session validation
     window.location.href = "/plaza";
   }
 

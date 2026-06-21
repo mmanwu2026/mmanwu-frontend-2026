@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function AuthNav() {
+  const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
   async function handleLogout() {

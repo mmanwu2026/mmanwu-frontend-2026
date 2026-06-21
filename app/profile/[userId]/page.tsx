@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import ReactionBar from "@/components/plaza/ReactionBar";
 
 export default function UserProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
   const userId = params.userId;
+
+  const supabase = createSupabaseBrowserClient();
 
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -27,7 +29,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     }
 
     checkSession();
-  }, [router]);
+  }, [router, supabase]);
 
   // ⭐ Listen for auth changes
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [router]);
+  }, [router, supabase]);
 
   // ⭐ Load profile AFTER session is ready
   useEffect(() => {

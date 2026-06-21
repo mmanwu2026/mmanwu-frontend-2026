@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 export default function SignupPage() {
-  // ❌ remove createSupabaseBrowserClient
-  // supabase is now the shared singleton
+  const supabase = createSupabaseBrowserClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,6 +53,7 @@ export default function SignupPage() {
       return;
     }
 
+    // Let Plaza layout validate session
     window.location.href = "/plaza";
   }
 

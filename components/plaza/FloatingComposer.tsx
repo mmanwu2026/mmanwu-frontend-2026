@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
 
 export default function FloatingComposer({ onPost }: { onPost: (post: any) => void }) {
+  const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
@@ -53,6 +54,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
 
     const result = await runGatekeeper(content);
 
+    // Auto-approve path
     if (result?.autoApprove) {
       publishToSupabase(content);
       setToastMessage("The spirits approve your message ✨");
@@ -61,6 +63,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
       return;
     }
 
+    // Rewrite path
     if (result?.rewrites) {
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [

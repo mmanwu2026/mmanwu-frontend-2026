@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ReactionCounts = {
   mask1: number;
@@ -26,6 +26,8 @@ export type CardSoundPost = {
 };
 
 export default function SoundPostCard({ post }: { post: CardSoundPost }) {
+  const supabase = createSupabaseBrowserClient();
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -149,10 +151,13 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     };
   }, []);
 
-  // Reaction click handler
+  // ⭐ FIXED — Reaction click handler with correct RPC signature
   async function handleReaction(maskTier: number) {
     const { error } = await supabase.rpc("react_to_post", {
-      args: [post.id, "sound", maskTier, null],
+      p_post_id: post.id,
+      p_post_type: "sound",
+      p_mask_tier: maskTier,
+      p_user_id: null, // sound reactions allow anonymous? adjust if needed
     });
 
     if (error) {
@@ -160,6 +165,7 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
       return;
     }
 
+    // Refresh reaction counts
     const { data } = await supabase
       .from("sound_reactions")
       .select("maskTier")

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";
@@ -68,6 +68,8 @@ function auraIntensity(score: number, positivity: number) {
 export default function CreatorProfilePage() {
   const params = useParams();
   const creatorId = params?.id as string;
+
+  const supabase = createSupabaseBrowserClient();
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<CreatorPost[]>([]);

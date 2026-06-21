@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -16,12 +16,15 @@ type TrendingPost = {
 };
 
 export default function SoundSquareTrending() {
+  const supabase = createSupabaseBrowserClient();
+
   const [posts, setPosts] = useState<TrendingPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
+
       const { data, error } = await supabase
         .from("sound_trending")
         .select("*")
@@ -33,9 +36,10 @@ export default function SoundSquareTrending() {
       } else {
         setPosts(data || []);
       }
+
       setLoading(false);
     })();
-  }, []);
+  }, [supabase]);
 
   return (
     <div className="min-h-screen text-white p-6">

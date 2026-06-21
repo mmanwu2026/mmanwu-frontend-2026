@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@/context/UserContext";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface ReactionBarProps {
   postId: string;
@@ -29,6 +29,7 @@ export default function ReactionBar({
   onReact,
 }: ReactionBarProps) {
 
+  const supabase = createSupabaseBrowserClient();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
 
@@ -43,13 +44,12 @@ export default function ReactionBar({
     console.log("userId:", user?.id);
     console.log("maskTier:", maskTier);
 
+    // ⭐ Correct RPC call for your new Supabase client
     const { data, error } = await supabase.rpc("react_to_post", {
-      args: [
-        postId,        // p_post_id
-        "plaza",       // p_post_type
-        maskTier,      // p_maskTier
-        user!.id       // p_user_id
-      ]
+      p_post_id: postId,
+      p_post_type: "plaza",
+      p_mask_tier: maskTier,
+      p_user_id: user!.id,
     });
 
     console.log("RPC data:", data);

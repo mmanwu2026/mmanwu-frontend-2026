@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -9,6 +9,8 @@ import SoundPostCard, {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
+  const supabase = createSupabaseBrowserClient();
+
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -75,7 +77,7 @@ export default function SoundSquareFeed() {
       await loadPage(0);
       setLoading(false);
     })();
-  }, []);   // ✅ supabase removed from deps — singleton is stable
+  }, []);
 
   async function handleLoadMore() {
     if (!hasMore || loadingMore) return;

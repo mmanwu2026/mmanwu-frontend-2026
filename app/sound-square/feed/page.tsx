@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -28,8 +28,7 @@ type RawSoundPost = {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  // ❌ remove createSupabaseBrowserClient()
-  // supabase is now the shared singleton
+  const supabase = createSupabaseBrowserClient();
 
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -104,7 +103,7 @@ export default function SoundSquareFeed() {
     if (data.length < PAGE_SIZE) setHasMore(false);
 
     setLoadingMore(false);
-  }, [cursor, loadingMore, hasMore]);
+  }, [cursor, loadingMore, hasMore, supabase]);
 
   useEffect(() => {
     if (!loadMoreRef.current) return;

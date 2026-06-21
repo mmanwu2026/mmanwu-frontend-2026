@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function EditProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
   const userId = params.userId;
+
+  const supabase = createSupabaseBrowserClient();
 
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -107,7 +109,7 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [router]);
+  }, [router, supabase]);
 
   useEffect(() => {
     if (!sessionReady) return;
