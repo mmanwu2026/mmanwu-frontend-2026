@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import SoundPostCard from "@/components/sound-square/SoundPostCard";
+import SoundPostCard, {
+  CardSoundPost,
+} from "@/components/sound-square/SoundPostCard";
 
 type TrendingPost = {
   post_id: string;
@@ -43,18 +45,33 @@ export default function SoundSquareTrending() {
       {loading && <p>Loading trending sounds...</p>}
 
       <div className="flex flex-col gap-6">
-        {posts.map((p) => (
-          <SoundPostCard
-            key={p.post_id}
-            post={{
-              id: p.post_id,
-              title: p.title,
-              audio_url: p.audio_url,
-              creator_name: p.creator_name,
-              created_at: p.created_at,
-            }}
-          />
-        ))}
+        {posts.map((p) => {
+          // ⭐ Convert TrendingPost → CardSoundPost
+          const cardPost: CardSoundPost = {
+            id: p.post_id,
+            title: p.title,
+            audio_url: p.audio_url,
+            creator_name: p.creator_name,
+            created_at: p.created_at,
+
+            // ⭐ Trending posts don't have reactions — set defaults
+            reactions: {
+              mask1: 0,
+              mask2: 0,
+              mask3: 0,
+              mask4: 0,
+              mask5: 0,
+              mask6: 0,
+            },
+
+            // ⭐ Trending posts don't have spiritScore — set neutral defaults
+            spiritScore: 0,
+            positivityRatio: 0.5,
+            autoMask: 2,
+          };
+
+          return <SoundPostCard key={p.post_id} post={cardPost} />;
+        })}
       </div>
     </div>
   );
