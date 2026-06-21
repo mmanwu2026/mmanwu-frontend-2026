@@ -1,3 +1,4 @@
+// force new chunk hash
 "use client";
 
 import Link from "next/link";
