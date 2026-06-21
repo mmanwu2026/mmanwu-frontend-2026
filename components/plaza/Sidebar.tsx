@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUser } from "@/context/UserContext";   // ⭐ ADD THIS
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useUser();                     // ⭐ AND THIS
 
   const navItems = [
     { label: "SoundSquare", href: "/sound-square/feed" },
     { label: "VisionSquare", href: "/vision" },
     { label: "SpiritSquare", href: "/spirit" },
     { label: "Shrine", href: "/shrine" },
-    { label: "Profile", href: "/profile/me" },
+
+    // ⭐ FIXED: dynamic profile link
+    user
+      ? { label: "Profile", href: `/profile/${user.id}` }
+      : { label: "Profile", href: "/login" },
+
     { label: "Settings", href: "/settings" },
   ];
 
