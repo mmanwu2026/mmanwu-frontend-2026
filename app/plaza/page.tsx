@@ -14,6 +14,7 @@ interface PlazaPost {
   content: string;
   created_at: string;
   mask: number;
+  spirit_score: number;      // ✅ DB column
 }
 
 interface ReactionRow {
@@ -33,7 +34,7 @@ interface ReactionCounts {
 
 interface PlazaPostWithAggregates extends PlazaPost {
   reactions: ReactionCounts;
-  spiritScore: number;
+  spiritScore: number;       // ✅ UI field, derived from spirit_score
   positivityRatio: number;
   autoMask: number;
 }
@@ -64,7 +65,7 @@ export default function PlazaPage() {
   async function fetchPosts() {
     setLoading(true);
 
-    // 1) Fetch posts
+    // 1) Fetch posts (includes spirit_score from DB)
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
@@ -109,10 +110,8 @@ export default function PlazaPage() {
         mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
-      const spiritScore = postReactions.reduce(
-        (sum, r) => sum + (r.value ?? 0),
-        0
-      );
+      // ✅ Use SpiritScore from DB (updated by trigger), not recomputed from value
+      const spiritScore = post.spirit_score ?? 0;
 
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)

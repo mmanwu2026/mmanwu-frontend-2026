@@ -15,8 +15,8 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ FIX: loadProfile MUST be inside the component, after state and supabase
   async function loadProfile() {
+    // Load user profile
     const { data: userData } = await supabase
       .from("users")
       .select("*")
@@ -25,13 +25,61 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     setProfile(userData || {});
 
+    // Load posts
     const { data: postsData } = await supabase
       .from("posts")
       .select("*")
       .eq("creator_id", userId)
       .order("created_at", { ascending: false });
 
-    setPosts(postsData || []);
+    if (!postsData) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
+    const postIds = postsData.map((p) => p.id);
+
+    // Load reactions for these posts
+    const { data: reactionsData } = await supabase
+      .from("reactions")
+      .select("post_id, maskTier, value")
+      .in("post_id", postIds);
+
+    // Merge posts + reaction aggregates
+    const merged = postsData.map((post) => {
+      const postReactions = (reactionsData ?? []).filter(
+        (r) => r.post_id === post.id
+      );
+
+      const counts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
+
+      const spiritScore = post.spirit_score ?? 0;
+
+      const weightedPositive = postReactions
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+
+      const weightedTotal = Math.abs(spiritScore);
+      const positivityRatio =
+        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+
+      return {
+        ...post,
+        reactions: counts,
+        spiritScore,
+        positivityRatio,
+      };
+    });
+
+    setPosts(merged);
     setLoading(false);
   }
 
@@ -124,21 +172,14 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           >
             <p className="text-sm mb-3">{post.content}</p>
 
-<ReactionBar
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={{
-    mask1: post.mask1,
-    mask2: post.mask2,
-    mask3: post.mask3,
-    mask4: post.mask4,
-    mask5: post.mask5,
-    mask6: post.mask6,
-  }}
-  spiritScore={post.spirit_score ?? post.spiritScore ?? 0}   /* ⭐ REQUIRED */
-  positivityRatio={post.positivityRatio}
-  onReact={loadProfile}
-/>
+            <ReactionBar
+              postId={post.id}
+              creatorId={post.creator_id}
+              reactions={post.reactions}
+              spiritScore={post.spiritScore}
+              positivityRatio={post.positivityRatio}
+              onReact={loadProfile}
+            />
           </div>
         ))}
       </div>

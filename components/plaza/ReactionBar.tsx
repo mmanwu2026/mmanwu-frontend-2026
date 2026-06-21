@@ -5,7 +5,7 @@ import { useUser } from "@/context/UserContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 interface ReactionBarProps {
-  postId: string;   // FIXED: UUID string
+  postId: string;
   creatorId: string;
   reactions: {
     mask1: number;
@@ -15,8 +15,8 @@ interface ReactionBarProps {
     mask5: number;
     mask6: number;
   };
-  spiritScore: number;
-  positivityRatio: number;
+  spiritScore: number;        // ✅ now used
+  positivityRatio: number;    // ✅ now used
   onReact: () => void;
 }
 
@@ -24,8 +24,11 @@ export default function ReactionBar({
   postId,
   creatorId,
   reactions,
+  spiritScore,        // ✅ added
+  positivityRatio,    // ✅ added
   onReact,
 }: ReactionBarProps) {
+
   const supabase = createSupabaseBrowserClient();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
@@ -42,13 +45,13 @@ export default function ReactionBar({
     console.log("maskTier:", maskTier);
 
     const { data, error } = await supabase.rpc("react_to_post", {
-  args: [
-    postId,        // p_post_id
-    "plaza",       // p_post_type
-    maskTier,      // p_maskTier
-    user!.id       // p_user_id
-  ]
-});
+      args: [
+        postId,        // p_post_id
+        "plaza",       // p_post_type
+        maskTier,      // p_maskTier
+        user!.id       // p_user_id
+      ]
+    });
 
     console.log("RPC data:", data);
     console.log("RPC error:", error);

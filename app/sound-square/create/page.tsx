@@ -2,9 +2,11 @@
 
 import { useState, useRef } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { useUser } from "@/context/UserContext";
 
 export default function SoundSquareUpload() {
   const supabase = createSupabaseBrowserClient();
+  const { user } = useUser();
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -15,9 +17,6 @@ export default function SoundSquareUpload() {
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
-  // -------------------------------
-  // Drag & Drop
-  // -------------------------------
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
@@ -43,9 +42,6 @@ export default function SoundSquareUpload() {
     setFile(f);
   }
 
-  // -------------------------------
-  // Upload with Progress (XHR)
-  // -------------------------------
   async function uploadWithProgress(file: File, path: string) {
     return new Promise<{ publicUrl: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -81,10 +77,12 @@ export default function SoundSquareUpload() {
     });
   }
 
-  // -------------------------------
-  // Upload Handler
-  // -------------------------------
   async function handleUpload() {
+    if (!user) {
+      setError("You must be logged in.");
+      return;
+    }
+
     if (!file) {
       setError("No file selected.");
       return;
@@ -113,7 +111,6 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // Extract duration
     const audio = document.createElement("audio");
     audio.src = publicUrl;
 
@@ -123,11 +120,13 @@ export default function SoundSquareUpload() {
 
     const duration = audio.duration;
 
-    // Insert into DB
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title,
       audio_url: publicUrl,
       duration,
+      creator_id: user.id,     // ⭐ NEW
+      spirit_score: 0,         // ⭐ NEW
+      mask: 2,                 // ⭐ NEW baseline mask
     });
 
     if (dbError) {
@@ -142,9 +141,6 @@ export default function SoundSquareUpload() {
     setTitle("");
   }
 
-  // -------------------------------
-  // UI
-  // -------------------------------
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
       <h1 className="text-3xl font-bold mb-6">Upload to SoundSquare</h1>

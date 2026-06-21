@@ -8,7 +8,6 @@ import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
 import type { CSSProperties } from "react";
 
-// ⭐ ReactionCounts interface (missing before)
 interface ReactionCounts {
   mask1: number;
   mask2: number;
@@ -18,7 +17,6 @@ interface ReactionCounts {
   mask6: number;
 }
 
-// ⭐ Creator profile interface
 interface CreatorProfile {
   id: string;
   username: string | null;
@@ -28,17 +26,15 @@ interface CreatorProfile {
   mask_tier: number;
 }
 
-// ⭐ CreatorPost interface (UUID + aggregates)
 interface CreatorPost {
-  id: string;               // UUID
+  id: string;
   creator_id: string;
   content: string;
   created_at: string;
   mask: number;
 
-  // Aggregates
   reactions: ReactionCounts;
-  spirit_score: number;
+  spiritScore: number;
   positivityRatio: number;
   autoMask: number;
 }
@@ -75,76 +71,80 @@ export default function CreatorProfilePage() {
   const creatorId = params?.id as string;
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
-
-  // ⭐ FIX: posts must be CreatorPost[], not PlazaPost[]
   const [posts, setPosts] = useState<CreatorPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function fetchCreator() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("users")
       .select("*")
       .eq("id", creatorId)
       .single();
 
-    if (!error) setCreator(data);
+    if (data) setCreator(data);
   }
 
   async function fetchPosts() {
-    const { data, error } = await supabase
+    const { data: postsData } = await supabase
       .from("posts")
       .select("*")
       .eq("creator_id", creatorId)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      const patched: CreatorPost[] = data.map((p) => {
-        const r = p.reactions || {};
-
-        const total =
-          (r["1"] ?? 0) +
-          (r["2"] ?? 0) +
-          (r["3"] ?? 0) +
-          (r["4"] ?? 0) +
-          (r["5"] ?? 0) +
-          (r["6"] ?? 0);
-
-        const positive =
-          (r["3"] ?? 0) +
-          (r["4"] ?? 0) +
-          (r["5"] ?? 0) +
-          (r["6"] ?? 0);
-
-        const positivityRatio = total > 0 ? positive / total : 0.5;
-
-        const score = p.spirit_score ?? 0;
-
-        let autoMask = 2;
-        if (score <= 20) autoMask = 2;
-        else if (score <= 100) autoMask = 3;
-        else if (score <= 200) autoMask = 4;
-        else if (score <= 500) autoMask = 5;
-        else autoMask = 6;
-
-        return {
-          ...p,
-          spirit_score: score,
-          autoMask,
-          positivityRatio,
-          reactions: {
-            mask1: r["1"] ?? 0,
-            mask2: r["2"] ?? 0,
-            mask3: r["3"] ?? 0,
-            mask4: r["4"] ?? 0,
-            mask5: r["5"] ?? 0,
-            mask6: r["6"] ?? 0,
-          },
-        };
-      });
-
-      setPosts(patched);
+    if (!postsData) {
+      setPosts([]);
+      setLoading(false);
+      return;
     }
 
+    const postIds = postsData.map((p) => p.id);
+
+    const { data: reactionsData } = await supabase
+      .from("reactions")
+      .select("post_id, maskTier, value")
+      .in("post_id", postIds);
+
+    const merged: CreatorPost[] = postsData.map((p) => {
+      const postReactions = (reactionsData ?? []).filter(
+        (r) => r.post_id === p.id
+      );
+
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
+
+      const spiritScore = p.spirit_score ?? 0;
+
+      const weightedPositive = postReactions
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+
+      const weightedTotal = Math.abs(spiritScore);
+      const positivityRatio =
+        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+
+      let autoMask = 2;
+      if (spiritScore <= 20) autoMask = 2;
+      else if (spiritScore <= 100) autoMask = 3;
+      else if (spiritScore <= 200) autoMask = 4;
+      else if (spiritScore <= 500) autoMask = 5;
+      else autoMask = 6;
+
+      return {
+        ...p,
+        reactions: counts,
+        spiritScore,
+        positivityRatio,
+        autoMask,
+      };
+    });
+
+    setPosts(merged);
     setLoading(false);
   }
 
@@ -153,7 +153,9 @@ export default function CreatorProfilePage() {
     fetchPosts();
   }, [creatorId]);
 
-  if (!creator) return <p className="text-gray-300 p-10">Loading creator…</p>;
+  if (!creator) {
+    return <p className="text-gray-300 p-10">Loading creator…</p>;
+  }
 
   return (
     <div className="plaza-background min-h-[180vh] w-full pt-28 pb-32 relative z-0">
@@ -180,7 +182,7 @@ export default function CreatorProfilePage() {
 
         <div className="space-y-12 w-full flex flex-col items-center">
           {posts.map((post) => {
-            const score = post.spirit_score;
+            const score = post.spiritScore;
             const positivityRatio = post.positivityRatio;
 
             const glyphEmoji =
@@ -230,7 +232,7 @@ export default function CreatorProfilePage() {
 
                 <div className="mt-6 w-full flex justify-center">
                   <ReactionBar
-                    postId={post.id}              // UUID — now correct
+                    postId={post.id}
                     creatorId={post.creator_id}
                     reactions={post.reactions}
                     spiritScore={score}

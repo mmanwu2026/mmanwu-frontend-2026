@@ -3,15 +3,28 @@
 import { useRef, useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
+type ReactionCounts = {
+  mask1: number;
+  mask2: number;
+  mask3: number;
+  mask4: number;
+  mask5: number;
+  mask6: number;
+};
+
 type SoundPost = {
   id: string;
   title: string;
   audio_url: string;
   creator_name: string;
   created_at: string;
-};
 
-type ReactionCounts = Record<`mask${1 | 2 | 3 | 4 | 5}`, number>;
+  // Unified fields from feed
+  reactions: ReactionCounts;
+  spiritScore: number;
+  positivityRatio: number;
+  autoMask: number;
+};
 
 export default function SoundPostCard({ post }: { post: SoundPost }) {
   const supabase = createSupabaseBrowserClient();
@@ -20,16 +33,10 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [reactions, setReactions] = useState<ReactionCounts>({
-    mask1: 0,
-    mask2: 0,
-    mask3: 0,
-    mask4: 0,
-    mask5: 0,
-  });
+  const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
   const [intensity, setIntensity] = useState(0);
 
-  // Beat‑reactive analyser (intensity for masks)
+  // Beat‑reactive analyser
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -50,9 +57,7 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
     const tick = () => {
       analyser.getByteFrequencyData(dataArray);
 
-      const avg =
-        dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
-
+      const avg = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
       const normalized = Math.min(avg / 180, 1);
 
       setIntensity(normalized);
@@ -86,106 +91,76 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
   }, []);
 
   // Waveform visualizer
-  useEffect(() => {
-    if (!audioRef.current || !canvasRef.current) return;
+ useEffect(() => {
+  if (!audioRef.current || !canvasRef.current) return;
 
-    const audio = audioRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  const audio = audioRef.current;
+  const canvas = canvasRef.current;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
-    const audioCtx = new AudioContext();
-    const src = audioCtx.createMediaElementSource(audio);
-    const analyser = audioCtx.createAnalyser();
+  const audioCtx = new AudioContext();
+  const src = audioCtx.createMediaElementSource(audio);
+  const analyser = audioCtx.createAnalyser();
 
-    analyser.fftSize = 2048;
-    const bufferLength = analyser.fftSize;
-    const dataArray = new Uint8Array(bufferLength);
+  analyser.fftSize = 2048;
+  const bufferLength = analyser.fftSize;
+  const dataArray = new Uint8Array(bufferLength);
 
-    src.connect(analyser);
-    analyser.connect(audioCtx.destination);
+  src.connect(analyser);
+  analyser.connect(audioCtx.destination);
 
-    const draw = () => {
-      requestAnimationFrame(draw);
+  let frame: number;
 
-      analyser.getByteTimeDomainData(dataArray);
+  const draw = () => {
+    frame = requestAnimationFrame(draw);
 
-      const width = canvas.width;
-      const height = canvas.height;
+    analyser.getByteTimeDomainData(dataArray);
 
-      ctx.clearRect(0, 0, width, height);
+    const width = canvas.width;
+    const height = canvas.height;
 
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#9b5cf6";
+    ctx.clearRect(0, 0, width, height);
 
-      ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#9b5cf6";
 
-      const sliceWidth = width / bufferLength;
-      let x = 0;
+    ctx.beginPath();
 
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * height) / 2;
+    const sliceWidth = width / bufferLength;
+    let x = 0;
 
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = (v * height) / 2;
 
-        x += sliceWidth;
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
 
-      ctx.lineTo(width, height / 2);
-      ctx.stroke();
-    };
-
-    draw();
-
-    return () => {
-      audioCtx.close();
-    };
-  }, []);
-
-  // Load reaction counts
-  useEffect(() => {
-    async function loadReactions() {
-      const { data, error } = await supabase
-        .from("reactions")
-        .select("maskTier")
-        .eq("post_id", post.id)
-        .eq("post_type", "sound");
-
-      if (error) {
-        console.error("Error loading reactions:", error);
-        return;
-      }
-
-      const counts: ReactionCounts = {
-        mask1: 0,
-        mask2: 0,
-        mask3: 0,
-        mask4: 0,
-        mask5: 0,
-      };
-
-      data?.forEach((r: { maskTier: number }) => {
-        const key = `mask${r.maskTier}` as keyof ReactionCounts;
-        counts[key] += 1;
-      });
-
-      setReactions(counts);
+      x += sliceWidth;
     }
 
-    loadReactions();
-  }, [post.id, supabase]);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+  };
+
+  draw();
+
+  return () => {
+    cancelAnimationFrame(frame);
+    audioCtx.close().catch(() => {});   // ⭐ FIXED
+  };
+}, []);
 
   // Reaction click handler
   async function handleReaction(maskTier: number) {
     const { error } = await supabase.rpc("react_to_post", {
-      p_post_id: post.id,
-      p_post_type: "sound",
-      p_maskTier: maskTier,
+      args: [
+        post.id,
+        "sound",
+        maskTier,
+        null, // sound posts may not have creator restrictions
+      ],
     });
 
     if (error) {
@@ -194,10 +169,9 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
     }
 
     const { data } = await supabase
-      .from("reactions")
+      .from("sound_reactions")
       .select("maskTier")
-      .eq("post_id", post.id)
-      .eq("post_type", "sound");
+      .eq("post_id", post.id);
 
     const newCounts: ReactionCounts = {
       mask1: 0,
@@ -205,6 +179,7 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
       mask3: 0,
       mask4: 0,
       mask5: 0,
+      mask6: 0,
     };
 
     data?.forEach((r: { maskTier: number }) => {
@@ -258,36 +233,12 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
       </div>
 
       <div className="flex gap-6">
-        <ReactionMask
-          emoji="😶‍🌫️"
-          count={reactions.mask1}
-          onClick={() => handleReaction(1)}
-          intensity={intensity}
-        />
-        <ReactionMask
-          emoji="🔥"
-          count={reactions.mask2}
-          onClick={() => handleReaction(2)}
-          intensity={intensity}
-        />
-        <ReactionMask
-          emoji="😄"
-          count={reactions.mask3}
-          onClick={() => handleReaction(3)}
-          intensity={intensity}
-        />
-        <ReactionMask
-          emoji="🌌"
-          count={reactions.mask4}
-          onClick={() => handleReaction(4)}
-          intensity={intensity}
-        />
-        <ReactionMask
-          emoji="✨"
-          count={reactions.mask5}
-          onClick={() => handleReaction(5)}
-          intensity={intensity}
-        />
+        <ReactionMask emoji="😶‍🌫️" count={reactions.mask1} onClick={() => handleReaction(1)} intensity={intensity} />
+        <ReactionMask emoji="😤" count={reactions.mask2} onClick={() => handleReaction(2)} intensity={intensity} />
+        <ReactionMask emoji="😊" count={reactions.mask3} onClick={() => handleReaction(3)} intensity={intensity} />
+        <ReactionMask emoji="🤩" count={reactions.mask4} onClick={() => handleReaction(4)} intensity={intensity} />
+        <ReactionMask emoji="😇" count={reactions.mask5} onClick={() => handleReaction(5)} intensity={intensity} />
+        <ReactionMask emoji="🔱" count={reactions.mask6} onClick={() => handleReaction(6)} intensity={intensity} />
       </div>
     </div>
   );
