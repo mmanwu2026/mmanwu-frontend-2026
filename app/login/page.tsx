@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import Link from "next/link";
 
 export default function LoginPage() {
-  const supabase = createSupabaseBrowserClient();  // ⭐ FIXED: create client here
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -24,16 +22,16 @@ export default function LoginPage() {
 
     if (error) {
       setErrorMsg(error.message);
-    } else {
-      window.location.href = "/plaza";
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    window.location.href = "/plaza";
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-gray-200 px-6">
-      <h1 className="text-3xl font-bold mb-6">Login</h1>
+      <h1 className="text-3xl font-bold mb-6">Log In</h1>
 
       <form onSubmit={handleLogin} className="w-full max-w-sm space-y-4">
         <input
@@ -54,16 +52,14 @@ export default function LoginPage() {
           required
         />
 
-        {errorMsg && (
-          <p className="text-red-400 text-sm">{errorMsg}</p>
-        )}
+        {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
 
         <button
           type="submit"
           disabled={loading}
           className="w-full p-3 rounded bg-purple-600 hover:bg-purple-700 transition"
         >
-          {loading ? "Logging in…" : "Login"}
+          {loading ? "Logging in…" : "Log In"}
         </button>
       </form>
 
