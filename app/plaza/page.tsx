@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import type { CSSProperties } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
@@ -63,7 +63,8 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  const supabase = createSupabaseBrowserClient();
+  // ✅ Supabase client created once
+  const supabase = useRef(createSupabaseBrowserClient()).current;
   const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
@@ -77,6 +78,7 @@ export default function PlazaPage() {
 
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
+  const reloadGuardRef = useRef(false);
 
   async function fetchCreator(id: string) {
     if (creators[id]) return creators[id];
@@ -143,7 +145,6 @@ export default function PlazaPage() {
       };
 
       const spiritScore = post.spirit_score ?? 0;
-
       const positivityRatio = 0.5; // placeholder
 
       let autoMask = 2;
@@ -170,22 +171,47 @@ export default function PlazaPage() {
     setLoadingMore(false);
   }
 
+  // ✅ Initial load
   useEffect(() => {
     fetchPosts(0, false);
   }, []);
 
+  // ✅ Stable reload callback for reactions / composer
+  const reloadPosts = useCallback(() => {
+    fetchPosts(0, false);
+  }, []);
+
+  // ✅ Realtime subscription only once, throttled reload
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reactions" },
-        () => fetchPosts(0, false)
+        () => {
+          if (!reloadGuardRef.current) {
+            reloadGuardRef.current = true;
+            fetchPosts(0, false).finally(() => {
+              setTimeout(() => {
+                reloadGuardRef.current = false;
+              }, 500);
+            });
+          }
+        }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
-        () => fetchPosts(0, false)
+        () => {
+          if (!reloadGuardRef.current) {
+            reloadGuardRef.current = true;
+            fetchPosts(0, false).finally(() => {
+              setTimeout(() => {
+                reloadGuardRef.current = false;
+              }, 500);
+            });
+          }
+        }
       )
       .subscribe();
 
@@ -218,7 +244,7 @@ export default function PlazaPage() {
 
       <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000] pointer-events-none">
         <div className="pointer-events-auto">
-          <FloatingComposer onPost={() => fetchPosts(0, false)} />
+          <FloatingComposer onPost={reloadPosts} />
         </div>
       </div>
 
@@ -242,7 +268,13 @@ export default function PlazaPage() {
               const key = post.id;
 
               const creator = creators[post.creator_id];
-              if (!creator) fetchCreator(post.creator_id);
+
+              // ✅ Fetch creator OUTSIDE render loop
+              useEffect(() => {
+                if (!creator) {
+                  fetchCreator(post.creator_id);
+                }
+              }, [creator, post.creator_id]);
 
               const prevPos =
                 prevPositivityMap.current[key] ?? post.positivityRatio;
@@ -409,7 +441,7 @@ export default function PlazaPage() {
                         reactions={post.reactions}
                         spiritScore={post.spiritScore}
                         positivityRatio={post.positivityRatio}
-                        onReact={() => fetchPosts(0, false)}
+                        onReact={reloadPosts}
                       />
                     </div>
                   </div>
