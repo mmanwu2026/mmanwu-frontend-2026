@@ -40,6 +40,12 @@ interface PlazaPostWithAggregates extends PlazaPost {
   autoMask: number;
 }
 
+interface CreatorProfile {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
 const PAGE_SIZE = 20;
 
 function auraIntensity(score: number, positivity: number) {
@@ -61,6 +67,7 @@ export default function PlazaPage() {
   const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
+  const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
@@ -70,6 +77,23 @@ export default function PlazaPage() {
 
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
+
+  async function fetchCreator(id: string) {
+    if (creators[id]) return creators[id];
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .eq("id", id)
+      .single();
+
+    if (!error && data) {
+      setCreators((prev) => ({ ...prev, [id]: data }));
+      return data;
+    }
+
+    return null;
+  }
 
   async function fetchPosts(pageToLoad: number = 0, append = false) {
     if (!append) setLoading(true);
@@ -206,7 +230,6 @@ export default function PlazaPage() {
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
               Mmanwu Plaza
             </h1>
-            <div className="h-[1px] w-40 bg-purple-500/0 mt-3"></div>
           </div>
 
           {loading && <p className="text-gray-300">Loading posts…</p>}
@@ -217,6 +240,9 @@ export default function PlazaPage() {
           <div className="space-y-12 w-full flex flex-col items-center">
             {posts.map((post) => {
               const key = post.id;
+
+              const creator = creators[post.creator_id];
+              if (!creator) fetchCreator(post.creator_id);
 
               const prevPos =
                 prevPositivityMap.current[key] ?? post.positivityRatio;
@@ -293,26 +319,44 @@ export default function PlazaPage() {
 
               return (
                 <div
-  key={post.id}
-  className={`
-    relative isolate z-0
-    p-8
-    rounded-2xl
-    transition-all
-    duration-500
-    overflow-visible
-    w-[420px]
-    flex flex-col
+                  key={post.id}
+                  className={`
+                    relative isolate z-0
+                    p-8
+                    rounded-2xl
+                    transition-all
+                    duration-500
+                    overflow-visible
+                    w-[420px] h-[520px]
+                    flex flex-col
 
-    plaza-card-base
-    aura-mask-${post.autoMask}
-    aura-intensity-${intensity}
+                    plaza-card-base
+                    aura-mask-${post.autoMask}
+                    aura-intensity-${intensity}
 
-    ${ascensionClass}
-    ${surgeClass}
-    ${emotionClass}
-  `}
->
+                    ${ascensionClass}
+                    ${surgeClass}
+                    ${emotionClass}
+                  `}
+                >
+
+                  {/* ⭐ CREATOR AVATAR BADGE */}
+                  {creator && (
+                    <img
+                      src={creator.avatar_url || "/default-avatar.png"}
+                      alt="avatar"
+                      className="
+                        absolute
+                        top-3 left-3
+                        w-8 h-8
+                        rounded-full
+                        border border-gray-700
+                        object-cover
+                        z-[30]
+                      "
+                    />
+                  )}
+
                   <div className="ritual-glyph-container mt-4 flex justify-center">
                     <div className="ritual-glyph-levitate">
                       <div className="ritual-flame-ring clean"></div>
@@ -332,7 +376,7 @@ export default function PlazaPage() {
                     </p>
                   )}
 
-                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4">
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4 overflow-y-auto max-h-[200px]">
                     {post.content}
                   </p>
 
@@ -345,17 +389,18 @@ export default function PlazaPage() {
                     <span>{new Date(post.created_at).toLocaleString()}</span>
                   </div>
 
+                  {/* ⭐ DELETE BUTTON */}
                   <div className="relative w-full h-0">
-  {isCreator && (
-    <button
-      onClick={() => handleDelete(post.id)}
-      disabled={deletingId === post.id}
-      className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
-    >
-      {deletingId === post.id ? "Deleting…" : "Delete"}
-    </button>
-  )}
-</div>
+                    {isCreator && (
+                      <button
+                        onClick={() => handleDelete(post.id)}
+                        disabled={deletingId === post.id}
+                        className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
+                      >
+                        {deletingId === post.id ? "Deleting…" : "Delete"}
+                      </button>
+                    )}
+                  </div>
 
                   <div className="mt-6 w-full flex justify-center">
                     <ReactionBar
