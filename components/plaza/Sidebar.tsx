@@ -27,7 +27,7 @@ export default function Sidebar() {
         text-gray-300
         flex flex-col
         px-4
-        pt-[400px]        /* pt-100 → 400px spacing */
+        pt-[352px]
         z-[3000]
         pointer-events-auto
         [backface-visibility:hidden]

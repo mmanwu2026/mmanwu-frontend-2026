@@ -345,15 +345,17 @@ export default function PlazaPage() {
                     <span>{new Date(post.created_at).toLocaleString()}</span>
                   </div>
 
-                  {isCreator && (
-                    <button
-                      onClick={() => handleDelete(post.id)}
-                      disabled={deletingId === post.id}
-                      className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
-                    >
-                      {deletingId === post.id ? "Deleting…" : "Delete"}
-                    </button>
-                  )}
+                  <div className="relative w-full h-0">
+  {isCreator && (
+    <button
+      onClick={() => handleDelete(post.id)}
+      disabled={deletingId === post.id}
+      className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
+    >
+      {deletingId === post.id ? "Deleting…" : "Delete"}
+    </button>
+  )}
+</div>
 
                   <div className="mt-6 w-full flex justify-center">
                     <ReactionBar
