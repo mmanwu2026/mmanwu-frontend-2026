@@ -15,18 +15,44 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Hydration-safe profile loader
-  async function loadProfile() {
-    if (!userId) {
-      setTimeout(loadProfile, 150);
-      return;
+  // ⭐ NEW: Check session immediately on mount (fixes production)
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        setSessionReady(true);
+      } else {
+        router.replace("/login");
+      }
     }
 
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData?.user) {
-      setTimeout(loadProfile, 200);
-      return;
+    checkSession();
+  }, [router, supabase]);
+
+  // ⭐ Keep your listener for updates (login/logout)
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setSessionReady(true);
+      } else {
+        router.replace("/login");
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, [router, supabase]);
+
+  // ⭐ Load profile AFTER session is ready
+  useEffect(() => {
+    if (sessionReady && userId) {
+      loadProfile();
     }
+  }, [sessionReady, userId]);
+
+  // ⭐ Hydration-safe profile loader
+  async function loadProfile() {
+    setLoading(true);
 
     const { data: userData } = await supabase
       .from("users")
@@ -35,7 +61,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       .maybeSingle();
 
     if (!userData) {
-      setTimeout(loadProfile, 200);
+      setLoading(false);
       return;
     }
 
@@ -47,20 +73,14 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       .eq("creator_id", userId)
       .order("created_at", { ascending: false });
 
-    if (!postsData) {
-      setPosts([]);
-      setLoading(false);
-      return;
-    }
-
-    const postIds = postsData.map((p) => p.id);
+    const postIds = postsData?.map((p) => p.id) ?? [];
 
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    const merged = postsData.map((post) => {
+    const merged = (postsData ?? []).map((post) => {
       const postReactions = (reactionsData ?? []).filter(
         (r) => r.post_id === post.id
       );
@@ -96,26 +116,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setLoading(false);
   }
 
-  // ⭐ Wait for session hydration
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        router.replace("/login");
-      } else {
-        setSessionReady(true);
-      }
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, [router, supabase]);
-
-  // ⭐ Load profile AFTER session is ready
-  useEffect(() => {
-    if (sessionReady && userId) {
-      loadProfile();
-    }
-  }, [sessionReady, userId]);
-
   // ⭐ Loading state
   if (loading || !sessionReady || !userId) {
     return (
@@ -144,7 +144,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-
       {/* Profile Header */}
       <div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
 
