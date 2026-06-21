@@ -340,11 +340,16 @@ export default function PlazaPage() {
                     SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
                   </p>
 
+                  <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
+                    <span>Mask: {post.autoMask}</span>
+                    <span>{new Date(post.created_at).toLocaleString()}</span>
+                  </div>
+
                   {isCreator && (
                     <button
                       onClick={() => handleDelete(post.id)}
                       disabled={deletingId === post.id}
-                      className="absolute bottom-3 right-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                      className="absolute bottom-3 right-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
                     >
                       {deletingId === post.id ? "Deleting…" : "Delete"}
                     </button>
