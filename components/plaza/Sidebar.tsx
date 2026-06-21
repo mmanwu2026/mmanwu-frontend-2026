@@ -27,7 +27,7 @@ export default function Sidebar() {
         text-gray-300
         flex flex-col
         px-4
-        pt-48             /* Push Navigation DOWN */
+        pt-56             /* Push Navigation DOWN */
         z-[3000]
       "
     >

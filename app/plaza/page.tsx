@@ -194,12 +194,12 @@ export default function PlazaPage() {
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
 
-      <div className="absolute left-0 top-20 w-[120px] px-4 z-[5000]">
+      <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000]">
         <FloatingComposer onPost={() => fetchPosts(0, false)} />
       </div>
 
       <div className="flex">
-        <div className="w-[120px] shrink-0" />
+        <div className="w-[120px] shrink-0 bg-black" />
 
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
