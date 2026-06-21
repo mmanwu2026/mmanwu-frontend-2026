@@ -53,7 +53,7 @@ export default function ReactionBar({
     const { data, error } = await supabase.rpc("react_to_post", {
       p_post_id: postId,
       p_post_type: "plaza",
-      p_mask_tier: maskTier,
+      p_maskTier: maskTier,   // <-- FIXED HERE
       p_user_id: user.id,
     });
 

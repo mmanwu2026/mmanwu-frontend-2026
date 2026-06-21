@@ -156,8 +156,8 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     const { error } = await supabase.rpc("react_to_post", {
       p_post_id: post.id,
       p_post_type: "sound",
-      p_mask_tier: maskTier,
-      p_user_id: null, // sound reactions allow anonymous? adjust if needed
+      p_maskTier: maskTier,   // <-- FIXED HERE
+      p_user_id: null,        // keep as-is if sound reactions allow anonymous
     });
 
     if (error) {
