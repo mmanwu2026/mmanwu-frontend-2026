@@ -15,7 +15,7 @@ interface PlazaPost {
   content: string;
   created_at: string;
   mask: number;
-  spirit_score: number; // DB column
+  spirit_score: number;
 }
 
 interface ReactionRow {
@@ -67,8 +67,6 @@ export default function PlazaPage() {
   const [hasMore, setHasMore] = useState(true);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editedContent, setEditedContent] = useState<string>("");
 
   const prevPositivityMap = useRef<Record<string, number>>({});
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
@@ -87,11 +85,9 @@ export default function PlazaPage() {
 
     if (postsError || !postsData) {
       console.error("Error fetching posts:", postsError);
-      if (!append) {
-        setPosts([]);
-        setLoading(false);
-      }
+      if (!append) setPosts([]);
       setHasMore(false);
+      setLoading(false);
       return;
     }
 
@@ -103,14 +99,10 @@ export default function PlazaPage() {
       return;
     }
 
-    const { data: reactionsData, error: reactionsError } = await supabase
+    const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
-
-    if (reactionsError) {
-      console.error("Error fetching reactions:", reactionsError);
-    }
 
     const merged: PlazaPostWithAggregates[] = postsData.map((post) => {
       const postReactions = (reactionsData ?? []).filter(
@@ -128,15 +120,8 @@ export default function PlazaPage() {
 
       const spiritScore = post.spirit_score ?? 0;
 
-      const positiveSum = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
-
-      const totalAbs = postReactions
-        .reduce((sum, r) => sum + Math.abs(r.value ?? 0), 0);
-
-      const positivityRatio =
-        totalAbs > 0 ? positiveSum / totalAbs : 0.5;
+      // Positivity disabled for now → always 0.5
+      const positivityRatio = 0.5;
 
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
@@ -156,9 +141,7 @@ export default function PlazaPage() {
 
     setPosts((prev) => (append ? [...prev, ...merged] : merged));
 
-    if (postsData.length < PAGE_SIZE) {
-      setHasMore(false);
-    }
+    if (postsData.length < PAGE_SIZE) setHasMore(false);
 
     if (!append) setLoading(false);
     setLoadingMore(false);
@@ -168,23 +151,19 @@ export default function PlazaPage() {
     fetchPosts(0, false);
   }, []);
 
-  // Realtime updates: refetch on new reactions or posts
+  // Real-time updates
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reactions" },
-        () => {
-          fetchPosts(0, false);
-        }
+        () => fetchPosts(0, false)
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
-        () => {
-          fetchPosts(0, false);
-        }
+        () => fetchPosts(0, false)
       )
       .subscribe();
 
@@ -205,73 +184,29 @@ export default function PlazaPage() {
     if (!user) return;
     setDeletingId(postId);
 
-    const { error } = await supabase
-      .from("posts")
-      .delete()
-      .eq("id", postId);
+    await supabase.from("posts").delete().eq("id", postId);
 
     setDeletingId(null);
-
-    if (error) {
-      console.error("Delete error:", error);
-      return;
-    }
-
     setPosts((prev) => prev.filter((p) => p.id !== postId));
-  }
-
-  function startEdit(postId: string, currentContent: string) {
-    setEditingId(postId);
-    setEditedContent(currentContent);
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setEditedContent("");
-  }
-
-  async function saveEdit(postId: string) {
-    if (!user) return;
-    const trimmed = editedContent.trim();
-    if (!trimmed) return;
-
-    const { error } = await supabase
-      .from("posts")
-      .update({ content: trimmed })
-      .eq("id", postId);
-
-    if (error) {
-      console.error("Edit error:", error);
-      return;
-    }
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, content: trimmed } : p
-      )
-    );
-
-    setEditingId(null);
-    setEditedContent("");
   }
 
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
 
-      <div className="absolute left-0 top-20 w-[180px] px-4 z-[5000]">
+      <div className="absolute left-0 top-20 w-[120px] px-4 z-[5000]">
         <FloatingComposer onPost={() => fetchPosts(0, false)} />
       </div>
 
       <div className="flex">
-        <div className="w-[180px] shrink-0" />
+        <div className="w-[120px] shrink-0" />
 
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
               Mmanwu Plaza (TEST)
             </h1>
-            <div className="h-[1px] w-40 bg-purple-500/20 mt-3"></div>
+            <div className="h-[1px] w-40 bg-purple-500/0 mt-3"></div>
           </div>
 
           {loading && <p className="text-gray-300">Loading posts…</p>}
@@ -366,7 +301,7 @@ export default function PlazaPage() {
                     transition-all
                     duration-500
                     overflow-visible
-                    w-[360px]
+                    w-[400px]
                     flex flex-col
 
                     plaza-card-base
@@ -397,39 +332,12 @@ export default function PlazaPage() {
                     </p>
                   )}
 
-                  <div className="mt-4 px-4 w-full">
-                    {editingId === post.id && isCreator ? (
-                      <div className="flex flex-col gap-2">
-                        <textarea
-                          className="w-full p-2 rounded bg-gray-800 text-sm text-gray-100"
-                          value={editedContent}
-                          onChange={(e) => setEditedContent(e.target.value)}
-                        />
-                        <div className="flex justify-center gap-3 text-xs">
-                          <button
-                            onClick={() => saveEdit(post.id)}
-                            className="px-3 py-1 rounded bg-green-600 hover:bg-green-500"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center">
-                        {post.content}
-                      </p>
-                    )}
-                  </div>
+                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4">
+                    {post.content}
+                  </p>
 
                   <p className="mt-2 text-sm text-gray-400 text-center">
-                    SpiritScore: {post.spiritScore} • Reactions: {totalReactions} • Positivity:{" "}
-                    {(post.positivityRatio * 100).toFixed(0)}%
+                    SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
                   </p>
 
                   <div className="mt-auto w-full">
@@ -439,17 +347,11 @@ export default function PlazaPage() {
                     </div>
 
                     {isCreator && (
-                      <div className="mt-2 flex justify-center gap-3 text-xs">
-                        <button
-                          onClick={() => startEdit(post.id, post.content)}
-                          className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500"
-                        >
-                          Edit
-                        </button>
+                      <div className="mt-2 flex justify-center">
                         <button
                           onClick={() => handleDelete(post.id)}
                           disabled={deletingId === post.id}
-                          className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                          className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50"
                         >
                           {deletingId === post.id ? "Deleting…" : "Delete"}
                         </button>
