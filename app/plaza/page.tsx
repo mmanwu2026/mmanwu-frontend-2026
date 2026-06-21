@@ -120,8 +120,7 @@ export default function PlazaPage() {
 
       const spiritScore = post.spirit_score ?? 0;
 
-      // Positivity disabled for now
-      const positivityRatio = 0.5;
+      const positivityRatio = 0.5; // disabled for now
 
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
@@ -151,7 +150,6 @@ export default function PlazaPage() {
     fetchPosts(0, false);
   }, []);
 
-  // Real-time updates
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
@@ -194,12 +192,14 @@ export default function PlazaPage() {
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
 
-      <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000]">
-        <FloatingComposer onPost={() => fetchPosts(0, false)} />
+      <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000] pointer-events-none">
+        <div className="pointer-events-auto">
+          <FloatingComposer onPost={() => fetchPosts(0, false)} />
+        </div>
       </div>
 
       <div className="flex">
-        <div className="w-[120px] shrink-0 bg-black" />
+        <div className="w-[120px] shrink-0 bg-black pointer-events-none [backface-visibility:hidden] [transform:translateZ(0)]" />
 
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
@@ -295,7 +295,7 @@ export default function PlazaPage() {
                 <div
                   key={post.id}
                   className={`
-                    relative
+                    relative isolate
                     p-8
                     rounded-2xl
                     transition-all
@@ -349,7 +349,7 @@ export default function PlazaPage() {
                     <button
                       onClick={() => handleDelete(post.id)}
                       disabled={deletingId === post.id}
-                      className="absolute bottom-3 right-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
+                      className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
                     >
                       {deletingId === post.id ? "Deleting…" : "Delete"}
                     </button>

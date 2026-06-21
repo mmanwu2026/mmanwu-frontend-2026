@@ -22,13 +22,16 @@ export default function Sidebar() {
         left-0
         top-0
         h-full
-        w-[120px]          /* Slimmer sidebar */
-        bg-black           /* Removes border line */
+        w-[120px]
+        bg-black
         text-gray-300
         flex flex-col
         px-4
-        pt-56             /* Push Navigation DOWN */
+        pt-64
         z-[3000]
+        pointer-events-auto
+        [backface-visibility:hidden]
+        [transform:translateZ(0)]
       "
     >
       <h2 className="text-lg font-semibold text-purple-200 mb-6">
