@@ -27,32 +27,6 @@ export default function SpiritToast({ message, onClose }: SpiritToastProps) {
       >
         {message}
       </div>
-
-      <style jsx>{`
-        .animate-fade-in-up {
-          animation: fadeInUp 0.4s ease, fadeOut 0.4s ease 1.4s forwards;
-        }
-
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translate(-50%, 10px);
-          }
-          to {
-            opacity: 1;
-            transform: translate(-50%, 0px);
-          }
-        }
-
-        @keyframes fadeOut {
-          from {
-            opacity: 1;
-          }
-          to {
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   );
 }
