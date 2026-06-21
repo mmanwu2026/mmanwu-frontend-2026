@@ -134,17 +134,17 @@ export default function PlazaPage() {
       );
 
       const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+        mask1: postReactions.filter((r: ReactionRow) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r: ReactionRow) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r: ReactionRow) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r: ReactionRow) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r: ReactionRow) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r: ReactionRow) => r.maskTier === 6).length,
       };
 
       const spiritScore = post.spirit_score ?? 0;
 
-      const positivityRatio = 0.5; // disabled for now
+      const positivityRatio = 0.5; // placeholder
 
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
@@ -228,7 +228,7 @@ export default function PlazaPage() {
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-              Mmanwu Plaza
+              Mmanwu Plaza (TEST)
             </h1>
           </div>
 
@@ -339,8 +339,7 @@ export default function PlazaPage() {
                     ${emotionClass}
                   `}
                 >
-
-                  {/* ⭐ CREATOR AVATAR BADGE */}
+                  {/* CREATOR AVATAR BADGE */}
                   {creator && (
                     <img
                       src={creator.avatar_url || "/default-avatar.png"}
@@ -380,37 +379,39 @@ export default function PlazaPage() {
                     {post.content}
                   </p>
 
-                  <p className="mt-2 text-sm text-gray-400 text-center">
-                    SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
-                  </p>
+                  {/* BOTTOM-PINNED SECTION */}
+                  <div className="mt-auto w-full">
+                    <p className="text-sm text-gray-400 text-center">
+                      SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
+                    </p>
 
-                  <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-                    <span>Mask: {post.autoMask}</span>
-                    <span>{new Date(post.created_at).toLocaleString()}</span>
-                  </div>
+                    <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
+                      <span>Mask: {post.autoMask}</span>
+                      <span>{new Date(post.created_at).toLocaleString()}</span>
+                    </div>
 
-                  {/* ⭐ DELETE BUTTON */}
-                  <div className="relative w-full h-0">
-                    {isCreator && (
-                      <button
-                        onClick={() => handleDelete(post.id)}
-                        disabled={deletingId === post.id}
-                        className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
-                      >
-                        {deletingId === post.id ? "Deleting…" : "Delete"}
-                      </button>
-                    )}
-                  </div>
+                    <div className="relative w-full h-0">
+                      {isCreator && (
+                        <button
+                          onClick={() => handleDelete(post.id)}
+                          disabled={deletingId === post.id}
+                          className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
+                        >
+                          {deletingId === post.id ? "Deleting…" : "Delete"}
+                        </button>
+                      )}
+                    </div>
 
-                  <div className="mt-6 w-full flex justify-center">
-                    <ReactionBar
-                      postId={post.id}
-                      creatorId={post.creator_id}
-                      reactions={post.reactions}
-                      spiritScore={post.spiritScore}
-                      positivityRatio={post.positivityRatio}
-                      onReact={() => fetchPosts(0, false)}
-                    />
+                    <div className="mt-6 w-full flex justify-center">
+                      <ReactionBar
+                        postId={post.id}
+                        creatorId={post.creator_id}
+                        reactions={post.reactions}
+                        spiritScore={post.spiritScore}
+                        positivityRatio={post.positivityRatio}
+                        onReact={() => fetchPosts(0, false)}
+                      />
+                    </div>
                   </div>
                 </div>
               );
