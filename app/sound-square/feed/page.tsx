@@ -13,15 +13,20 @@ type ReactionCounts = {
   mask6: number;
 };
 
-type SoundPost = {
+// ⭐ Raw DB row
+type RawSoundPost = {
   id: string;
   title: string;
   audio_url: string;
   creator_id: string;
-  creator_name: string;
   created_at: string;
   spirit_score: number;
+  users?: { username: string | null } | null;
+};
 
+// ⭐ Final enriched post (what SoundPostCard expects)
+type SoundPost = RawSoundPost & {
+  creator_name: string;
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
@@ -63,16 +68,11 @@ export default function SoundSquareFeed() {
       return;
     }
 
-    const merged = await mergeWithReactions(data);
+    const merged = await mergeWithReactions(data as RawSoundPost[]);
+    setPosts(merged);
 
-    setPosts(merged as SoundPost[]);   // ⭐ FIX
-
-    if (data.length > 0) {
-      setCursor(data[data.length - 1].created_at);
-    }
-    if (data.length < PAGE_SIZE) {
-      setHasMore(false);
-    }
+    if (data.length > 0) setCursor(data[data.length - 1].created_at);
+    if (data.length < PAGE_SIZE) setHasMore(false);
 
     setLoading(false);
   }
@@ -104,14 +104,11 @@ export default function SoundSquareFeed() {
       return;
     }
 
-    const merged = await mergeWithReactions(data);
+    const merged = await mergeWithReactions(data as RawSoundPost[]);
+    setPosts((prev) => [...prev, ...merged]);
 
-    setPosts((prev) => [...prev, ...merged] as SoundPost[]);   // ⭐ FIX
     setCursor(data[data.length - 1].created_at);
-
-    if (data.length < PAGE_SIZE) {
-      setHasMore(false);
-    }
+    if (data.length < PAGE_SIZE) setHasMore(false);
 
     setLoadingMore(false);
   }, [cursor, loadingMore, hasMore, supabase]);
@@ -130,7 +127,7 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  async function mergeWithReactions(rawPosts: any[]) {
+  async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<SoundPost[]> {
     const postIds = rawPosts.map((p) => p.id);
 
     const { data: reactionsData } = await supabase
