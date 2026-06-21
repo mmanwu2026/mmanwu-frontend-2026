@@ -12,21 +12,21 @@ type ReactionCounts = {
   mask6: number;
 };
 
-type SoundPost = {
+// ⭐ RENAMED — avoids collision with feed/page.tsx
+export type CardSoundPost = {
   id: string;
   title: string;
   audio_url: string;
   creator_name: string;
   created_at: string;
 
-  // Unified fields from feed
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
   autoMask: number;
 };
 
-export default function SoundPostCard({ post }: { post: SoundPost }) {
+export default function SoundPostCard({ post }: { post: CardSoundPost }) {
   const supabase = createSupabaseBrowserClient();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -91,66 +91,66 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
   }, []);
 
   // Waveform visualizer
- useEffect(() => {
-  if (!audioRef.current || !canvasRef.current) return;
+  useEffect(() => {
+    if (!audioRef.current || !canvasRef.current) return;
 
-  const audio = audioRef.current;
-  const canvas = canvasRef.current;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+    const audio = audioRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-  const audioCtx = new AudioContext();
-  const src = audioCtx.createMediaElementSource(audio);
-  const analyser = audioCtx.createAnalyser();
+    const audioCtx = new AudioContext();
+    const src = audioCtx.createMediaElementSource(audio);
+    const analyser = audioCtx.createAnalyser();
 
-  analyser.fftSize = 2048;
-  const bufferLength = analyser.fftSize;
-  const dataArray = new Uint8Array(bufferLength);
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
 
-  src.connect(analyser);
-  analyser.connect(audioCtx.destination);
+    src.connect(analyser);
+    analyser.connect(audioCtx.destination);
 
-  let frame: number;
+    let frame: number;
 
-  const draw = () => {
-    frame = requestAnimationFrame(draw);
+    const draw = () => {
+      frame = requestAnimationFrame(draw);
 
-    analyser.getByteTimeDomainData(dataArray);
+      analyser.getByteTimeDomainData(dataArray);
 
-    const width = canvas.width;
-    const height = canvas.height;
+      const width = canvas.width;
+      const height = canvas.height;
 
-    ctx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, width, height);
 
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#9b5cf6";
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#9b5cf6";
 
-    ctx.beginPath();
+      ctx.beginPath();
 
-    const sliceWidth = width / bufferLength;
-    let x = 0;
+      const sliceWidth = width / bufferLength;
+      let x = 0;
 
-    for (let i = 0; i < bufferLength; i++) {
-      const v = dataArray[i] / 128.0;
-      const y = (v * height) / 2;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
 
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
 
-      x += sliceWidth;
-    }
+        x += sliceWidth;
+      }
 
-    ctx.lineTo(width, height / 2);
-    ctx.stroke();
-  };
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    };
 
-  draw();
+    draw();
 
-  return () => {
-    cancelAnimationFrame(frame);
-    audioCtx.close().catch(() => {});   // ⭐ FIXED
-  };
-}, []);
+    return () => {
+      cancelAnimationFrame(frame);
+      audioCtx.close().catch(() => {});
+    };
+  }, []);
 
   // Reaction click handler
   async function handleReaction(maskTier: number) {
@@ -159,7 +159,7 @@ export default function SoundPostCard({ post }: { post: SoundPost }) {
         post.id,
         "sound",
         maskTier,
-        null, // sound posts may not have creator restrictions
+        null,
       ],
     });
 

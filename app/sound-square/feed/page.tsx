@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import SoundPostCard from "@/components/sound-square/SoundPostCard";
 
 type ReactionCounts = {
   mask1: number;
@@ -13,193 +12,263 @@ type ReactionCounts = {
   mask6: number;
 };
 
-// ⭐ Raw DB row
-type RawSoundPost = {
+// ⭐ RENAMED — avoids collision with feed/page.tsx
+export type CardSoundPost = {
   id: string;
   title: string;
   audio_url: string;
-  creator_id: string;
-  created_at: string;
-  spirit_score: number;
-  users?: { username: string | null } | null;
-};
-
-// ⭐ FINAL unified type (renamed to avoid collision)
-type SoundPostFull = RawSoundPost & {
   creator_name: string;
+  created_at: string;
+
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
   autoMask: number;
 };
 
-const PAGE_SIZE = 20;
-
-export default function SoundSquareFeed() {
+export default function SoundPostCard({ post }: { post: CardSoundPost }) {
   const supabase = createSupabaseBrowserClient();
 
-  const [posts, setPosts] = useState<SoundPostFull[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
+  const [intensity, setIntensity] = useState(0);
 
+  // Beat‑reactive analyser
   useEffect(() => {
-    loadInitial();
+    if (!audioRef.current) return;
+
+    const audio = audioRef.current;
+    const ctx = new AudioContext();
+    const src = ctx.createMediaElementSource(audio);
+    const analyser = ctx.createAnalyser();
+
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    src.connect(analyser);
+    analyser.connect(ctx.destination);
+
+    let animationFrame: number;
+
+    const tick = () => {
+      analyser.getByteFrequencyData(dataArray);
+
+      const avg = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
+      const normalized = Math.min(avg / 180, 1);
+
+      setIntensity(normalized);
+
+      animationFrame = requestAnimationFrame(tick);
+    };
+
+    tick();
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      analyser.disconnect();
+      src.disconnect();
+      ctx.close();
+    };
   }, []);
 
-  async function loadInitial() {
-    setLoading(true);
+  // Waveform canvas resize
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
 
-    const { data, error } = await supabase
-      .from("sound_posts")
-      .select(`
-        *,
-        users:creator_id ( username )
-      `)
-      .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE);
+    const resize = () => {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    };
 
-    if (error || !data) {
-      console.error(error);
-      setLoading(false);
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  // Waveform visualizer
+  useEffect(() => {
+    if (!audioRef.current || !canvasRef.current) return;
+
+    const audio = audioRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const audioCtx = new AudioContext();
+    const src = audioCtx.createMediaElementSource(audio);
+    const analyser = audioCtx.createAnalyser();
+
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+
+    src.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    let frame: number;
+
+    const draw = () => {
+      frame = requestAnimationFrame(draw);
+
+      analyser.getByteTimeDomainData(dataArray);
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#9b5cf6";
+
+      ctx.beginPath();
+
+      const sliceWidth = width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      audioCtx.close().catch(() => {});
+    };
+  }, []);
+
+  // Reaction click handler
+  async function handleReaction(maskTier: number) {
+    const { error } = await supabase.rpc("react_to_post", {
+      args: [
+        post.id,
+        "sound",
+        maskTier,
+        null,
+      ],
+    });
+
+    if (error) {
+      console.error("Reaction error:", error);
       return;
     }
 
-    const merged = await mergeWithReactions(data as RawSoundPost[]);
-    setPosts(merged);
+    const { data } = await supabase
+      .from("sound_reactions")
+      .select("maskTier")
+      .eq("post_id", post.id);
 
-    if (data.length > 0) setCursor(data[data.length - 1].created_at);
-    if (data.length < PAGE_SIZE) setHasMore(false);
+    const newCounts: ReactionCounts = {
+      mask1: 0,
+      mask2: 0,
+      mask3: 0,
+      mask4: 0,
+      mask5: 0,
+      mask6: 0,
+    };
 
-    setLoading(false);
+    data?.forEach((r: { maskTier: number }) => {
+      const key = `mask${r.maskTier}` as keyof ReactionCounts;
+      newCounts[key] += 1;
+    });
+
+    setReactions(newCounts);
   }
 
-  const loadMore = useCallback(async () => {
-    if (!cursor || loadingMore || !hasMore) return;
+  function handlePlay() {
+    audioRef.current?.play();
+    setIsPlaying(true);
+  }
 
-    setLoadingMore(true);
-
-    const { data, error } = await supabase
-      .from("sound_posts")
-      .select(`
-        *,
-        users:creator_id ( username )
-      `)
-      .lt("created_at", cursor)
-      .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE);
-
-    if (error || !data) {
-      console.error(error);
-      setLoadingMore(false);
-      return;
-    }
-
-    if (data.length === 0) {
-      setHasMore(false);
-      setLoadingMore(false);
-      return;
-    }
-
-    const merged = await mergeWithReactions(data as RawSoundPost[]);
-    setPosts((prev) => [...prev, ...merged]);
-
-    setCursor(data[data.length - 1].created_at);
-    if (data.length < PAGE_SIZE) setHasMore(false);
-
-    setLoadingMore(false);
-  }, [cursor, loadingMore, hasMore, supabase]);
-
-  useEffect(() => {
-    if (!loadMoreRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { threshold: 1 }
-    );
-
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
-  }, [loadMore]);
-
-  async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<SoundPostFull[]> {
-    const postIds = rawPosts.map((p) => p.id);
-
-    const { data: reactionsData } = await supabase
-      .from("sound_reactions")
-      .select("post_id, maskTier, value")
-      .in("post_id", postIds);
-
-    return rawPosts.map((post) => {
-      const postReactions = (reactionsData ?? []).filter(
-        (r) => r.post_id === post.id
-      );
-
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
-      };
-
-      const spiritScore = post.spirit_score ?? 0;
-
-      const weightedPositive = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
-
-      const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio =
-        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
-
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
-
-      return {
-        ...post,
-        creator_name: post.users?.username ?? "Unknown",
-        reactions: counts,
-        spiritScore,
-        positivityRatio,
-        autoMask,
-      };
-    });
+  function handlePause() {
+    audioRef.current?.pause();
+    setIsPlaying(false);
   }
 
   return (
-    <div className="min-h-screen text-white p-6">
-      <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
+    <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+      <h2 className="text-xl font-semibold">{post.title}</h2>
+      <p className="text-gray-400 text-sm mb-4">
+        Uploaded by {post.creator_name} • {post.created_at}
+      </p>
 
-      {loading && <p>Loading sounds...</p>}
+      <audio ref={audioRef} src={post.audio_url} preload="metadata" />
 
-      <div className="flex flex-col gap-6 mb-6">
-        {posts.map((post) => (
-          <SoundPostCard key={post.id} post={post} />
-        ))}
+      <canvas
+        ref={canvasRef}
+        className="w-full h-24 bg-gray-700 rounded mb-4"
+      />
+
+      <div className="flex gap-4 mb-4">
+        {!isPlaying ? (
+          <button
+            onClick={handlePlay}
+            className="bg-green-600 px-4 py-2 rounded hover:bg-green-500"
+          >
+            Play
+          </button>
+        ) : (
+          <button
+            onClick={handlePause}
+            className="bg-red-600 px-4 py-2 rounded hover:bg-red-500"
+          >
+            Pause
+          </button>
+        )}
       </div>
 
-      {hasMore && (
-        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
-          {loadingMore && <p className="text-gray-400">Loading more...</p>}
-        </div>
-      )}
+      <div className="flex gap-6">
+        <ReactionMask emoji="😶‍🌫️" count={reactions.mask1} onClick={() => handleReaction(1)} intensity={intensity} />
+        <ReactionMask emoji="😤" count={reactions.mask2} onClick={() => handleReaction(2)} intensity={intensity} />
+        <ReactionMask emoji="😊" count={reactions.mask3} onClick={() => handleReaction(3)} intensity={intensity} />
+        <ReactionMask emoji="🤩" count={reactions.mask4} onClick={() => handleReaction(4)} intensity={intensity} />
+        <ReactionMask emoji="😇" count={reactions.mask5} onClick={() => handleReaction(5)} intensity={intensity} />
+        <ReactionMask emoji="🔱" count={reactions.mask6} onClick={() => handleReaction(6)} intensity={intensity} />
+      </div>
+    </div>
+  );
+}
 
-      {!hasMore && (
-        <p className="text-gray-500 text-sm mt-4 text-center">
-          You’ve reached the end of the feed.
-        </p>
-      )}
+function ReactionMask({
+  emoji,
+  count,
+  onClick,
+  intensity,
+}: {
+  emoji: string;
+  count: number;
+  onClick: () => void;
+  intensity: number;
+}) {
+  const scale = 1 + intensity * 0.4;
+  const glow = intensity * 0.7;
+
+  return (
+    <div
+      onClick={onClick}
+      className="flex flex-col items-center cursor-pointer transition"
+      style={{
+        transform: `scale(${scale})`,
+        filter: `drop-shadow(0 0 ${glow}rem rgba(255,255,255,0.6))`,
+      }}
+    >
+      <div className="text-4xl">{emoji}</div>
+      <p className="text-gray-400 text-xs mt-1">{count}</p>
     </div>
   );
 }
