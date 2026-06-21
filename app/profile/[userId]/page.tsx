@@ -17,6 +17,13 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   // ⭐ Hydration-safe profile loader
   async function loadProfile() {
+    // 0. Guard: userId must exist
+    if (!userId) {
+      console.log("userId not ready yet, retrying...");
+      setTimeout(loadProfile, 150);
+      return;
+    }
+
     // 1. Ensure auth is hydrated
     const { data: authData } = await supabase.auth.getUser();
     if (!authData?.user) {
@@ -111,15 +118,15 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     return () => listener.subscription.unsubscribe();
   }, [router, supabase]);
 
-  // ⭐ Load profile AFTER session is ready
+  // ⭐ Load profile AFTER session is ready AND userId exists
   useEffect(() => {
     if (!sessionReady) return;
+    if (!userId) return; // ⭐ Prevent undefined userId queries
     loadProfile();
-  }, [sessionReady, userId, supabase]);
-
+  }, [sessionReady, userId]);
 
   // ⭐ Loading state
-  if (loading || !sessionReady) {
+  if (loading || !sessionReady || !userId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile...</p>
@@ -138,7 +145,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   // ⭐ Safe profile fields
   const username = profile.username || "Unknown";
-  const avatarLetter = username.charAt(0).toUpperCase();
+  const avatarUrl = profile.avatar_url || "/default-avatar.png";
   const bio = profile.bio || "No bio yet.";
   const spiritScore = profile.spirit_score ?? 0;
   const maskTier = profile.mask_tier ?? 0;
@@ -146,79 +153,80 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-  {/* Profile Header */}
-<div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
 
-  <div className="flex items-center gap-8">
+      {/* Profile Header */}
+      <div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
 
-    {/* Avatar Container */}
-    <div className="relative group cursor-pointer"
-         onClick={() => router.push(`/profile/${userId}/edit`)}>
+        <div className="flex items-center gap-8">
 
-      {/* 🔥 SpiritScore Aura */}
-      <div
-        className={`
-          absolute inset-0 rounded-full blur-xl transition-all duration-700
-          ${spiritScore > 500 ? "bg-purple-500/40" :
-            spiritScore > 200 ? "bg-purple-500/30" :
-            spiritScore > 100 ? "bg-purple-500/20" :
-            spiritScore > 50  ? "bg-purple-500/10" :
-                                "bg-transparent"}
-        `}
-      />
+          {/* Avatar Container */}
+          <div className="relative group cursor-pointer"
+               onClick={() => router.push(`/profile/${userId}/edit`)}>
 
-      {/* 🌀 Animated Ring for High-Tier Users */}
-      {maskTier >= 5 && (
-        <div
-          className="
-            absolute inset-0 rounded-full border-2 border-purple-400/60
-            animate-spin-slow pointer-events-none
-          "
-        />
-      )}
+            {/* 🔥 SpiritScore Aura */}
+            <div
+              className={`
+                absolute inset-0 rounded-full blur-xl transition-all duration-700
+                ${spiritScore > 500 ? "bg-purple-500/40" :
+                  spiritScore > 200 ? "bg-purple-500/30" :
+                  spiritScore > 100 ? "bg-purple-500/20" :
+                  spiritScore > 50  ? "bg-purple-500/10" :
+                                      "bg-transparent"}
+              `}
+            />
 
-      {/* Avatar Image */}
-      <img
-        src={profile.avatar_url || "/default-avatar.png"}
-        alt="avatar"
-        className="
-          relative z-10 w-32 h-32 rounded-full object-cover
-          border border-zinc-700 shadow-xl bg-zinc-900
-          transition-transform duration-300 group-hover:scale-105
-        "
-      />
-    </div>
+            {/* 🌀 Animated Ring for High-Tier Users */}
+            {maskTier >= 5 && (
+              <div
+                className="
+                  absolute inset-0 rounded-full border-2 border-purple-400/60
+                  animate-spin-slow pointer-events-none
+                "
+              />
+            )}
 
-    {/* Username + Bio */}
-    <div className="flex flex-col">
-      <h1 className="text-3xl font-semibold tracking-wide">
-        {username}
-      </h1>
+            {/* Avatar Image */}
+            <img
+              src={avatarUrl}
+              alt="avatar"
+              className="
+                relative z-10 w-32 h-32 rounded-full object-cover
+                border border-zinc-700 shadow-xl bg-zinc-900
+                transition-transform duration-300 group-hover:scale-105
+              "
+            />
+          </div>
 
-      <p className="text-zinc-400 text-sm mt-1">
-        {bio}
-      </p>
-    </div>
-  </div>
+          {/* Username + Bio */}
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-semibold tracking-wide">
+              {username}
+            </h1>
 
-  {/* Stats Row */}
-  <div className="flex gap-10 mt-8 text-sm">
-    <div>
-      <span className="font-semibold text-lg">{spiritScore}</span>{" "}
-      <span className="text-zinc-400">Spirit Score</span>
-    </div>
+            <p className="text-zinc-400 text-sm mt-1">
+              {bio}
+            </p>
+          </div>
+        </div>
 
-    <div>
-      <span className="font-semibold text-lg">{maskTier}</span>{" "}
-      <span className="text-zinc-400">Mask Tier</span>
-    </div>
+        {/* Stats Row */}
+        <div className="flex gap-10 mt-8 text-sm">
+          <div>
+            <span className="font-semibold text-lg">{spiritScore}</span>{" "}
+            <span className="text-zinc-400">Spirit Score</span>
+          </div>
 
-    <div>
-      <span className="font-semibold text-lg">{positivity}%</span>{" "}
-      <span className="text-zinc-400">Positivity</span>
-    </div>
-  </div>
-</div>
+          <div>
+            <span className="font-semibold text-lg">{maskTier}</span>{" "}
+            <span className="text-zinc-400">Mask Tier</span>
+          </div>
+
+          <div>
+            <span className="font-semibold text-lg">{positivity}%</span>{" "}
+            <span className="text-zinc-400">Positivity</span>
+          </div>
+        </div>
+      </div>
 
       {/* Posts */}
       <div className="max-w-2xl mx-auto space-y-6">
