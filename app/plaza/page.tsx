@@ -9,16 +9,16 @@ import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
 
 interface PlazaPost {
-  id: string;                // UUID FIX
+  id: string;
   creator_id: string;
   content: string;
   created_at: string;
   mask: number;
-  spirit_score: number;      // ✅ DB column
+  spirit_score: number; // DB column
 }
 
 interface ReactionRow {
-  post_id: string;           // UUID FIX
+  post_id: string;
   maskTier: number;
   value: number | null;
 }
@@ -34,7 +34,7 @@ interface ReactionCounts {
 
 interface PlazaPostWithAggregates extends PlazaPost {
   reactions: ReactionCounts;
-  spiritScore: number;       // ✅ UI field, derived from spirit_score
+  spiritScore: number;      // UI field, derived from spirit_score
   positivityRatio: number;
   autoMask: number;
 }
@@ -65,7 +65,7 @@ export default function PlazaPage() {
   async function fetchPosts() {
     setLoading(true);
 
-    // 1) Fetch posts (includes spirit_score from DB)
+    // 1) Fetch posts (spirit_score already updated by DB trigger)
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
@@ -79,7 +79,6 @@ export default function PlazaPage() {
     }
 
     const postIds = postsData.map((p) => p.id as string);
-
     if (postIds.length === 0) {
       setPosts([]);
       setLoading(false);
@@ -110,17 +109,21 @@ export default function PlazaPage() {
         mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
-      // ✅ Use SpiritScore from DB (updated by trigger), not recomputed from value
+      // ✅ SpiritScore from DB trigger
       const spiritScore = post.spirit_score ?? 0;
 
-      const weightedPositive = postReactions
+      // ✅ Positivity from reaction values, not recomputing spiritScore
+      const positiveSum = postReactions
         .filter((r) => (r.value ?? 0) > 0)
         .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-      const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio =
-        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const totalAbs = postReactions
+        .reduce((sum, r) => sum + Math.abs(r.value ?? 0), 0);
 
+      const positivityRatio =
+        totalAbs > 0 ? positiveSum / totalAbs : 0.5;
+
+      // ✅ AutoMask from SpiritScore tiers
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
       else if (spiritScore <= 100) autoMask = 3;
@@ -283,7 +286,7 @@ export default function PlazaPage() {
 
                     <div className="mt-4 w-full flex justify-center">
                       <ReactionBar
-                        postId={post.id}              // UUID FIX
+                        postId={post.id}
                         creatorId={post.creator_id}
                         reactions={post.reactions}
                         spiritScore={post.spiritScore}
