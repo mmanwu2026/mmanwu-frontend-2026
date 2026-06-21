@@ -13,17 +13,17 @@ type ReactionCounts = {
   mask6: number;
 };
 
+// ⭐ FIXED: SoundPost must include all fields SoundPostCard expects
 type SoundPost = {
   id: string;
   title: string;
   audio_url: string;
   creator_id: string;
-  creator_name: string;   // ⭐ REQUIRED
+  creator_name: string;
   created_at: string;
   spirit_score: number;
-};
 
-type SoundPostWithAggregates = SoundPost & {
+  // Aggregates
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
@@ -35,7 +35,7 @@ const PAGE_SIZE = 20;
 export default function SoundSquareFeed() {
   const supabase = createSupabaseBrowserClient();
 
-  const [posts, setPosts] = useState<SoundPostWithAggregates[]>([]);
+  const [posts, setPosts] = useState<SoundPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -185,7 +185,7 @@ export default function SoundSquareFeed() {
 
       return {
         ...post,
-        creator_name: post.users?.username ?? "Unknown",   // ⭐ FIX
+        creator_name: post.users?.username ?? "Unknown",
         reactions: counts,
         spiritScore,
         positivityRatio,
