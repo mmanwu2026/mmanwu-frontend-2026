@@ -22,7 +22,7 @@ export default function SpiritToast({ message, onClose }: SpiritToastProps) {
         className="
           bg-black/80 text-white px-4 py-2 rounded-xl
           border border-white/10 shadow-lg
-          animate-fade-in-up
+          toast-fade
         "
       >
         {message}
