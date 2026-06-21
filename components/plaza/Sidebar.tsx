@@ -18,16 +18,17 @@ export default function Sidebar() {
   return (
     <div
       className="
-        h-full
-        w-[120px]          /* Slimmer sidebar */
-        flex flex-col
-        pt-24              /* Pull Navigation down */
-        px-4
-        text-gray-300
         fixed
         left-0
         top-0
-        bg-black           /* Ensures no border line shows */
+        h-full
+        w-[120px]          /* Slimmer sidebar */
+        bg-black           /* Removes border line */
+        text-gray-300
+        flex flex-col
+        px-4
+        pt-48             /* Push Navigation DOWN */
+        z-[3000]
       "
     >
       <h2 className="text-lg font-semibold text-purple-200 mb-6">
