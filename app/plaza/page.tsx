@@ -14,21 +14,6 @@ import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
 import { useUser } from "@/context/UserContext";
 
-interface PlazaPost {
-  id: string;
-  creator_id: string;
-  content: string;
-  created_at: string;
-  mask: number;
-  spirit_score: number;
-}
-
-interface ReactionRow {
-  post_id: string;
-  maskTier: number;
-  value: number | null;
-}
-
 interface ReactionCounts {
   mask1: number;
   mask2: number;
@@ -38,7 +23,13 @@ interface ReactionCounts {
   mask6: number;
 }
 
-interface PlazaPostWithAggregates extends PlazaPost {
+interface PlazaPostWithAggregates {
+  id: string;
+  creator_id: string;
+  content: string;
+  created_at: string;
+  spirit_score: number;
+  auto_mask: number;
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
@@ -83,23 +74,9 @@ export default function PlazaPage() {
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
   const reloadGuardRef = useRef(false);
 
-  async function fetchCreator(id: string) {
-    if (creators[id]) return creators[id];
-
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .eq("id", id)
-      .single();
-
-    if (!error && data) {
-      setCreators((prev) => ({ ...prev, [id]: data }));
-      return data as CreatorProfile;
-    }
-
-    return null;
-  }
-
+  // -----------------------------------------------------
+  // FETCH POSTS — FIXED VERSION
+  // -----------------------------------------------------
   async function fetchPosts(pageToLoad: number = 0, append = false) {
     if (!append) setLoading(true);
 
@@ -108,7 +85,10 @@ export default function PlazaPage() {
 
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
-      .select("*")
+      .select(`
+        *,
+        reactions:reactions(maskTier)
+      `)
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -120,53 +100,24 @@ export default function PlazaPage() {
       return;
     }
 
-    const typedPosts = postsData as PlazaPost[];
+    const typedPosts = postsData as any[];
 
-    const postIds = typedPosts.map((p: PlazaPost) => p.id);
-    if (postIds.length === 0) {
-      if (!append) setPosts([]);
-      setHasMore(false);
-      setLoading(false);
-      return;
-    }
-
-    const { data: reactionsData } = await supabase
-      .from("reactions")
-      .select("post_id, maskTier, value")
-      .in("post_id", postIds);
-
-    const typedReactions = (reactionsData ?? []) as ReactionRow[];
-
-    const merged: PlazaPostWithAggregates[] = typedPosts.map((post) => {
-      const postReactions = typedReactions.filter(
-        (r: ReactionRow) => r.post_id === post.id
-      );
-
+    const merged: PlazaPostWithAggregates[] = typedPosts.map((post: any) => {
       const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+        mask1: post.reactions.filter((r: any) => r.maskTier === 1).length,
+        mask2: post.reactions.filter((r: any) => r.maskTier === 2).length,
+        mask3: post.reactions.filter((r: any) => r.maskTier === 3).length,
+        mask4: post.reactions.filter((r: any) => r.maskTier === 4).length,
+        mask5: post.reactions.filter((r: any) => r.maskTier === 5).length,
+        mask6: post.reactions.filter((r: any) => r.maskTier === 6).length,
       };
-
-      const spiritScore = post.spirit_score ?? 0;
-      const positivityRatio = 0.5; // placeholder
-
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
 
       return {
         ...post,
         reactions: counts,
-        spiritScore,
-        positivityRatio,
-        autoMask,
+        spiritScore: post.spirit_score,
+        positivityRatio: post.positivity_ratio ?? 0.5,
+        autoMask: post.auto_mask,
       };
     });
 
@@ -186,6 +137,9 @@ export default function PlazaPage() {
     fetchPosts(0, false);
   }, []);
 
+  // -----------------------------------------------------
+  // REALTIME UPDATES
+  // -----------------------------------------------------
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
@@ -224,6 +178,26 @@ export default function PlazaPage() {
     };
   }, [supabase]);
 
+  // -----------------------------------------------------
+  // FETCH CREATOR PROFILES
+  // -----------------------------------------------------
+  async function fetchCreator(id: string) {
+    if (creators[id]) return creators[id];
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .eq("id", id)
+      .single();
+
+    if (!error && data) {
+      setCreators((prev) => ({ ...prev, [id]: data }));
+      return data as CreatorProfile;
+    }
+
+    return null;
+  }
+
   useEffect(() => {
     const missingCreatorIds = posts
       .map((p) => p.creator_id)
@@ -238,14 +212,9 @@ export default function PlazaPage() {
     })();
   }, [posts, creators]);
 
-  async function handleLoadMore() {
-    if (!hasMore || loadingMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    await fetchPosts(nextPage, true);
-    setPage(nextPage);
-  }
-
+  // -----------------------------------------------------
+  // DELETE POST
+  // -----------------------------------------------------
   async function handleDelete(postId: string) {
     if (!user) return;
     setDeletingId(postId);
@@ -256,6 +225,20 @@ export default function PlazaPage() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   }
 
+  // -----------------------------------------------------
+  // LOAD MORE
+  // -----------------------------------------------------
+  async function handleLoadMore() {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    await fetchPosts(nextPage, true);
+    setPage(nextPage);
+  }
+
+  // -----------------------------------------------------
+  // RENDER
+  // -----------------------------------------------------
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
@@ -267,7 +250,7 @@ export default function PlazaPage() {
       </div>
 
       <div className="flex">
-        <div className="w-[120px] shrink-0 bg-black pointer-events-none [backface-visibility:hidden] [transform:translateZ(0)]" />
+        <div className="w-[120px] shrink-0 bg-black pointer-events-none" />
 
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
@@ -285,8 +268,7 @@ export default function PlazaPage() {
             {posts.map((post) => {
               const key = post.id;
 
-              const creator: CreatorProfile | undefined =
-                creators[post.creator_id];
+              const creator = creators[post.creator_id];
 
               const prevPos =
                 prevPositivityMap.current[key] ?? post.positivityRatio;
