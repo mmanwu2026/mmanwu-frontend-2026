@@ -17,11 +17,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load initial session
+  // Load initial session AND wait for Supabase to hydrate
   useEffect(() => {
     let active = true;
 
     async function load() {
+      // Wait for Supabase to finish restoring the session
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -29,6 +30,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       setUser(session?.user ?? null);
+
+      // IMPORTANT: do NOT set loading=false until after hydration
       setLoading(false);
     }
 
@@ -39,7 +42,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase]);
 
-  // Listen for auth changes
+  // Listen for auth changes (login, logout, refresh)
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event: string, session: Session | null) => {
