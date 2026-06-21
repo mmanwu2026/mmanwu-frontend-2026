@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -14,8 +14,6 @@ export default function SoundSquareFeed() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-
-  const supabase = createSupabaseBrowserClient();
 
   async function loadPage(pageToLoad: number) {
     const from = pageToLoad * PAGE_SIZE;
@@ -41,7 +39,6 @@ export default function SoundSquareFeed() {
       return;
     }
 
-    // ⭐ Convert raw DB rows → CardSoundPost
     const converted: CardSoundPost[] = data.map((p: any) => ({
       id: p.id,
       title: p.title,
@@ -49,7 +46,6 @@ export default function SoundSquareFeed() {
       creator_name: p.users?.username ?? "Unknown",
       created_at: p.created_at,
 
-      // ⭐ Default values (no reactions loaded here)
       reactions: {
         mask1: 0,
         mask2: 0,
@@ -58,6 +54,7 @@ export default function SoundSquareFeed() {
         mask5: 0,
         mask6: 0,
       },
+
       spiritScore: p.spirit_score ?? 0,
       positivityRatio: 0.5,
       autoMask: 2,
@@ -78,7 +75,7 @@ export default function SoundSquareFeed() {
       await loadPage(0);
       setLoading(false);
     })();
-  }, [supabase]);
+  }, []);   // ✅ supabase removed from deps — singleton is stable
 
   async function handleLoadMore() {
     if (!hasMore || loadingMore) return;

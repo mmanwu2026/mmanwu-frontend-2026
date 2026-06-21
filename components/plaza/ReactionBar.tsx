@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@/context/UserContext";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 
 interface ReactionBarProps {
   postId: string;
@@ -15,8 +15,8 @@ interface ReactionBarProps {
     mask5: number;
     mask6: number;
   };
-  spiritScore: number;        // ✅ now used
-  positivityRatio: number;    // ✅ now used
+  spiritScore: number;
+  positivityRatio: number;
   onReact: () => void;
 }
 
@@ -24,12 +24,11 @@ export default function ReactionBar({
   postId,
   creatorId,
   reactions,
-  spiritScore,        // ✅ added
-  positivityRatio,    // ✅ added
+  spiritScore,
+  positivityRatio,
   onReact,
 }: ReactionBarProps) {
 
-  const supabase = createSupabaseBrowserClient();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
 

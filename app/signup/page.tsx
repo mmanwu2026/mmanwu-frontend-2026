@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";   // ⭐ FIXED
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import Link from "next/link";
 
 export default function SignupPage() {
-  const supabase = createSupabaseBrowserClient();   // ⭐ FIXED: create client here
+  // ❌ remove createSupabaseBrowserClient
+  // supabase is now the shared singleton
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

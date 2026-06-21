@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -16,7 +16,6 @@ type TrendingPost = {
 };
 
 export default function SoundSquareTrending() {
-  const supabase = createSupabaseBrowserClient();
   const [posts, setPosts] = useState<TrendingPost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +35,7 @@ export default function SoundSquareTrending() {
       }
       setLoading(false);
     })();
-  }, [supabase]);
+  }, []);
 
   return (
     <div className="min-h-screen text-white p-6">
@@ -46,7 +45,6 @@ export default function SoundSquareTrending() {
 
       <div className="flex flex-col gap-6">
         {posts.map((p) => {
-          // ⭐ Convert TrendingPost → CardSoundPost
           const cardPost: CardSoundPost = {
             id: p.post_id,
             title: p.title,
@@ -54,7 +52,6 @@ export default function SoundSquareTrending() {
             creator_name: p.creator_name,
             created_at: p.created_at,
 
-            // ⭐ Trending posts don't have reactions — set defaults
             reactions: {
               mask1: 0,
               mask2: 0,
@@ -64,7 +61,6 @@ export default function SoundSquareTrending() {
               mask6: 0,
             },
 
-            // ⭐ Trending posts don't have spiritScore — set neutral defaults
             spiritScore: 0,
             positivityRatio: 0.5,
             autoMask: 2,

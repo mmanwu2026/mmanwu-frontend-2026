@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
 
 export default function FloatingComposer({ onPost }: { onPost: (post: any) => void }) {
-  const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
@@ -117,7 +116,7 @@ export default function FloatingComposer({ onPost }: { onPost: (post: any) => vo
         </div>
       )}
 
-      {/* EXPANDED PANEL (opens to the right) */}
+      {/* EXPANDED PANEL */}
       {expanded && (
         <div className="absolute left-[180px] top-20 w-[360px] p-4 rounded-2xl bg-purple-900/40 backdrop-blur-xl shadow-xl z-[6000]">
 

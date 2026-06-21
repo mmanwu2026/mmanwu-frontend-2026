@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import { useUser } from "@/context/UserContext";
 
 export default function SoundSquareUpload() {
-  const supabase = createSupabaseBrowserClient();
   const { user } = useUser();
 
   const [file, setFile] = useState<File | null>(null);
@@ -124,9 +123,9 @@ export default function SoundSquareUpload() {
       title,
       audio_url: publicUrl,
       duration,
-      creator_id: user.id,     // ⭐ NEW
-      spirit_score: 0,         // ⭐ NEW
-      mask: 2,                 // ⭐ NEW baseline mask
+      creator_id: user.id,
+      spirit_score: 0,
+      mask: 2,
     });
 
     if (dbError) {

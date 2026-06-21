@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import type { CSSProperties } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 
 import Sidebar from "@/components/plaza/Sidebar";
 import ReactionBar from "@/components/plaza/ReactionBar";
@@ -63,7 +63,6 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  const supabase = useRef(createSupabaseBrowserClient()).current;
   const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);

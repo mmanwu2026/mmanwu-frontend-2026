@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import { useRouter } from "next/navigation";
 import ReactionBar from "@/components/plaza/ReactionBar";
 
 export default function UserProfilePage({ params }: { params: { userId: string } }) {
-  const supabase = createSupabaseBrowserClient();
   const router = useRouter();
   const userId = params.userId;
 
@@ -15,7 +14,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ NEW: Check session immediately on mount (fixes production)
+  // ⭐ Check session immediately on mount
   useEffect(() => {
     async function checkSession() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -28,9 +27,9 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     }
 
     checkSession();
-  }, [router, supabase]);
+  }, [router]);
 
-  // ⭐ Keep your listener for updates (login/logout)
+  // ⭐ Listen for auth changes
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
@@ -41,7 +40,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [router, supabase]);
+  }, [router]);
 
   // ⭐ Load profile AFTER session is ready
   useEffect(() => {
@@ -134,7 +133,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // ⭐ Safe profile fields
   const username = profile.username || "Unknown";
   const avatarUrl = profile.avatar_url || "/fallback-avatar.png";
   const bio = profile.bio || "No bio yet.";
@@ -149,35 +147,11 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
         <div className="flex items-center gap-8">
 
-          {/* Avatar Container */}
+          {/* Avatar */}
           <div
             className="relative group cursor-pointer"
             onClick={() => router.push(`/profile/${userId}/edit`)}
           >
-
-            {/* Aura */}
-            <div
-              className={`
-                absolute inset-0 rounded-full blur-xl transition-all duration-700
-                ${spiritScore > 500 ? "bg-purple-500/40" :
-                  spiritScore > 200 ? "bg-purple-500/30" :
-                  spiritScore > 100 ? "bg-purple-500/20" :
-                  spiritScore > 50  ? "bg-purple-500/10" :
-                                      "bg-transparent"}
-              `}
-            />
-
-            {/* Animated Ring */}
-            {maskTier >= 5 && (
-              <div
-                className="
-                  absolute inset-0 rounded-full border-2 border-purple-400/60
-                  animate-spin-slow pointer-events-none
-                "
-              />
-            )}
-
-            {/* Avatar */}
             <img
               src={avatarUrl}
               alt="avatar"
@@ -193,7 +167,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
                 }
               }}
             />
-
           </div>
 
           {/* Username + Bio */}

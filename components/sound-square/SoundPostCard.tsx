@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 
 type ReactionCounts = {
   mask1: number;
@@ -12,7 +12,6 @@ type ReactionCounts = {
   mask6: number;
 };
 
-// ⭐ FINAL — this is the ONLY type SoundPostCard exports
 export type CardSoundPost = {
   id: string;
   title: string;
@@ -27,8 +26,6 @@ export type CardSoundPost = {
 };
 
 export default function SoundPostCard({ post }: { post: CardSoundPost }) {
-  const supabase = createSupabaseBrowserClient();
-
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 

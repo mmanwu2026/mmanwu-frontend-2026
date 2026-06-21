@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 
 export default function AuthNav() {
-  const supabase = createSupabaseBrowserClient();
   const { user, loading } = useUser();
 
   async function handleLogout() {
@@ -28,7 +27,6 @@ export default function AuthNav() {
         </div>
       ) : (
         <div className="flex gap-4">
-          {/* ⭐ FIXED: dynamic profile link */}
           <Link
             href={`/profile/${user.id}`}
             className="hover:underline"

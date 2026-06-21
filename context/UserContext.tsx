@@ -1,28 +1,24 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 
 const UserContext = createContext<any>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createSupabaseBrowserClient();
-
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    // 1️⃣ Load initial session
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setUser(data.session?.user || null);
       setLoading(false);
     });
 
-    // 2️⃣ Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return;
@@ -53,12 +49,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // 3️⃣ Cleanup
     return () => {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   return (
     <UserContext.Provider value={{ user, loading }}>

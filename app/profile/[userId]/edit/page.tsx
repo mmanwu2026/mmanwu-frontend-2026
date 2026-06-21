@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import { useRouter } from "next/navigation";
 
 export default function EditProfilePage({ params }: { params: { userId: string } }) {
-  const supabase = createSupabaseBrowserClient();
   const router = useRouter();
   const userId = params.userId;
 
@@ -54,7 +53,6 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     const fileName = `${userId}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("avatars")
       .upload(filePath, file, { upsert: true });
@@ -64,14 +62,12 @@ export default function EditProfilePage({ params }: { params: { userId: string }
       return;
     }
 
-    // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from("avatars")
       .getPublicUrl(filePath);
 
     const publicUrl = publicUrlData.publicUrl;
 
-    // Save to users table
     await supabase
       .from("users")
       .update({ avatar_url: publicUrl })
@@ -111,7 +107,7 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [router, supabase]);
+  }, [router]);
 
   useEffect(() => {
     if (!sessionReady) return;

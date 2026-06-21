@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { supabase } from "@/lib/supabase-browser";   // ✅ FIXED
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -15,7 +15,6 @@ type ReactionCounts = {
   mask6: number;
 };
 
-// Raw DB row from Supabase
 type RawSoundPost = {
   id: string;
   title: string;
@@ -29,9 +28,9 @@ type RawSoundPost = {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  const supabase = createSupabaseBrowserClient();
+  // ❌ remove createSupabaseBrowserClient()
+  // supabase is now the shared singleton
 
-  // ⭐ THIS IS THE ONLY POST TYPE USED IN THIS FILE
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,9 +39,6 @@ export default function SoundSquareFeed() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // -----------------------------
-  // Load initial page
-  // -----------------------------
   useEffect(() => {
     loadInitial();
   }, []);
@@ -74,9 +70,6 @@ export default function SoundSquareFeed() {
     setLoading(false);
   }
 
-  // -----------------------------
-  // Load next page
-  // -----------------------------
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore || !hasMore) return;
 
@@ -111,11 +104,8 @@ export default function SoundSquareFeed() {
     if (data.length < PAGE_SIZE) setHasMore(false);
 
     setLoadingMore(false);
-  }, [cursor, loadingMore, hasMore, supabase]);
+  }, [cursor, loadingMore, hasMore]);
 
-  // -----------------------------
-  // IntersectionObserver
-  // -----------------------------
   useEffect(() => {
     if (!loadMoreRef.current) return;
 
@@ -130,9 +120,6 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  // -----------------------------
-  // Merge posts with reactions
-  // -----------------------------
   async function mergeWithReactions(
     rawPosts: RawSoundPost[]
   ): Promise<CardSoundPost[]> {
@@ -189,9 +176,6 @@ export default function SoundSquareFeed() {
     });
   }
 
-  // -----------------------------
-  // UI
-  // -----------------------------
   return (
     <div className="min-h-screen text-white p-6">
       <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
