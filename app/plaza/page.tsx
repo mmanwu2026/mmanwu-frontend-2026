@@ -63,7 +63,6 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  // ✅ Supabase client created once
   const supabase = useRef(createSupabaseBrowserClient()).current;
   const { user } = useUser();
 
@@ -73,7 +72,6 @@ export default function PlazaPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const prevPositivityMap = useRef<Record<string, number>>({});
@@ -136,12 +134,12 @@ export default function PlazaPage() {
       );
 
       const counts: ReactionCounts = {
-        mask1: postReactions.filter((r: ReactionRow) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r: ReactionRow) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r: ReactionRow) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r: ReactionRow) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r: ReactionRow) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r: ReactionRow) => r.maskTier === 6).length,
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
       const spiritScore = post.spirit_score ?? 0;
@@ -171,17 +169,14 @@ export default function PlazaPage() {
     setLoadingMore(false);
   }
 
-  // ✅ Initial load
   useEffect(() => {
     fetchPosts(0, false);
   }, []);
 
-  // ✅ Stable reload callback for reactions / composer
   const reloadPosts = useCallback(() => {
     fetchPosts(0, false);
   }, []);
 
-  // ✅ Realtime subscription only once, throttled reload
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
@@ -219,6 +214,21 @@ export default function PlazaPage() {
       supabase.removeChannel(channel);
     };
   }, [supabase]);
+
+  // ✅ fetch creators for all posts in a single effect, not inside render
+  useEffect(() => {
+    const missingCreatorIds = posts
+      .map((p) => p.creator_id)
+      .filter((id) => !creators[id]);
+
+    if (missingCreatorIds.length === 0) return;
+
+    (async () => {
+      for (const id of missingCreatorIds) {
+        await fetchCreator(id);
+      }
+    })();
+  }, [posts, creators]);
 
   async function handleLoadMore() {
     if (!hasMore || loadingMore) return;
@@ -268,13 +278,6 @@ export default function PlazaPage() {
               const key = post.id;
 
               const creator = creators[post.creator_id];
-
-              // ✅ Fetch creator OUTSIDE render loop
-              useEffect(() => {
-                if (!creator) {
-                  fetchCreator(post.creator_id);
-                }
-              }, [creator, post.creator_id]);
 
               const prevPos =
                 prevPositivityMap.current[key] ?? post.positivityRatio;
@@ -346,7 +349,6 @@ export default function PlazaPage() {
                 post.spiritScore + totalReactions * 5;
 
               const isTrending = trendingScore > 100;
-
               const isCreator = user?.id === post.creator_id;
 
               return (
@@ -371,7 +373,6 @@ export default function PlazaPage() {
                     ${emotionClass}
                   `}
                 >
-                  {/* CREATOR AVATAR BADGE */}
                   {creator && (
                     <img
                       src={creator.avatar_url || "/default-avatar.png"}
@@ -411,7 +412,6 @@ export default function PlazaPage() {
                     {post.content}
                   </p>
 
-                  {/* BOTTOM-PINNED SECTION */}
                   <div className="mt-auto w-full">
                     <p className="text-sm text-gray-400 text-center">
                       SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
