@@ -1,21 +1,27 @@
 "use client";
 
 import { useUser } from "@/context/UserContext";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function PlazaLayout({ children }: { children: React.ReactNode }) {
+export default function PlazaLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user, loading } = useUser();
+  const router = useRouter();
 
-  // 1. While loading, do nothing
-  if (loading) {
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
 
-  // 2. If user is still undefined/null AFTER loading, redirect
-  if (!user) {
-    redirect("/login");
-  }
+  if (loading) return null;
 
-  // 3. Otherwise, render Plaza
+  // While redirecting, don't flash Plaza
+  if (!user) return null;
+
   return <>{children}</>;
 }
