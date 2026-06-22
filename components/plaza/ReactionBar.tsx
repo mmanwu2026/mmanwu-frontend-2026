@@ -43,27 +43,23 @@ export default function ReactionBar({
   // Handle Reaction
   // -----------------------------
   const handleReact = async (maskTier: number): Promise<void> => {
-    if (loading || loggedOut || !user) return;
+  if (loading || loggedOut || !user) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    console.log("postId:", postId);
-    console.log("userId:", user.id);
-    console.log("maskTier:", maskTier);
+  const { data, error } = await supabase.rpc("apply_reaction", {
+    post_id: postId,
+    post_type: "plaza",
+    mask_tier: maskTier,
+    user_id: user.id,
+  });
 
-    const { data, error } = await supabase.rpc("react_to_post", {
-      p_post_id: postId,
-      p_post_type: "plaza",
-      p_maskTier: maskTier,
-      p_user_id: user.id,
-    });
+  console.log("RPC data:", data);
+  console.log("RPC error:", error);
 
-    console.log("RPC data:", data);
-    console.log("RPC error:", error);
-
-    setLoading(false);
-    onReact();
-  };
+  setLoading(false);
+  onReact();
+};
 
   // -----------------------------
   // Render
