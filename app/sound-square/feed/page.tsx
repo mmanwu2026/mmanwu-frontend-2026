@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import SoundPostCard, { CardSoundPost } from "@/components/sound-square/SoundPostCard";
+import SoundPostCard from "@/components/sound-square/SoundPostCard";
+import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
 
 type ReactionCounts = {
   mask1: number;
@@ -32,7 +33,6 @@ type RawSoundPost = {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
 
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
@@ -173,6 +173,7 @@ export default function SoundSquareFeed() {
         id: post.id,
         title: post.title,
         audio_url: post.audio_url,
+        creator_id: post.creator_id,               // ⭐ FIXED
         creator_name: post.users?.username ?? "Unknown",
         created_at: post.created_at,
 

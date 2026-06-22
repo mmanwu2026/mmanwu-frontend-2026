@@ -229,13 +229,14 @@ export default function CreatorProfilePage() {
 
               <div className="mt-6 w-full flex justify-center">
                 <ReactionBar
-                  postId={post.id}
-                  creatorId={post.creator_id}
-                  reactions={post.reactions}
-                  spiritScore={post.spiritScore}
-                  positivityRatio={post.positivityRatio}
-                  onReact={fetchPosts}
-                />
+  postType="plaza"
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={post.reactions}
+  spiritScore={post.spiritScore}
+  positivityRatio={post.positivityRatio}
+  onReact={fetchPosts}
+/>
               </div>
             </div>
           ))}

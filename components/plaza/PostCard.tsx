@@ -72,13 +72,14 @@ export default function PostCard({
         </p>
 
         <ReactionBar
-          postId={post.id}
-          creatorId={post.creator_id}
-          reactions={reactions}
-          spiritScore={spiritScore}
-          positivityRatio={positivityRatio}
-          onReact={onReact}
-        />
+  postType="plaza"
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={reactions}
+  spiritScore={spiritScore}
+  positivityRatio={positivityRatio}
+  onReact={onReact}
+/>
 
       </div>
     </div>

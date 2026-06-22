@@ -442,13 +442,14 @@ export default function PlazaPage() {
 
                         <div className="mt-6 w-full flex justify-center">
                           <ReactionBar
-                            postId={post.id}
-                            creatorId={post.creator_id}
-                            reactions={post.reactions}
-                            spiritScore={post.spirit_score}
-                            positivityRatio={post.positivity_ratio}
-                            onReact={reloadPosts}
-                          />
+  postType="plaza"
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={post.reactions}
+  spiritScore={post.spirit_score}
+  positivityRatio={post.positivity_ratio}
+  onReact={reloadPosts}
+/>
                         </div>
                       </div>
                     </div>

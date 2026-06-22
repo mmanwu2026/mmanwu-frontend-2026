@@ -238,14 +238,15 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           <div key={post.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
             <p className="text-sm mb-3 whitespace-pre-line">{post.content}</p>
 
-            <ReactionBar
-              postId={post.id}
-              creatorId={post.creator_id}
-              reactions={post.reactions}
-              spiritScore={post.spiritScore}
-              positivityRatio={post.positivityRatio}
-              onReact={loadProfile}
-            />
+<ReactionBar
+  postType="plaza"
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={post.reactions}
+  spiritScore={post.spiritScore}
+  positivityRatio={post.positivityRatio}
+  onReact={loadProfile}
+/>
           </div>
         ))}
       </div>
