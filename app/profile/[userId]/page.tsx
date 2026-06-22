@@ -52,28 +52,26 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Resolve "me" → actual user ID
+  // ⭐ FIXED: Reliable session resolver using onAuthStateChange
   useEffect(() => {
-    async function resolveUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event: string, session: { user: { id: string } } | null) => {
+        setSessionReady(true);
 
-      if (!session?.user) {
-        router.replace("/login");
-        return;
+        if (!session?.user) {
+          router.replace("/login");
+          return;
+        }
+
+        if (params.userId === "me") {
+          setResolvedUserId(session.user.id);
+        } else {
+          setResolvedUserId(params.userId);
+        }
       }
+    );
 
-      setSessionReady(true);
-
-      if (params.userId === "me") {
-        setResolvedUserId(session.user.id);
-      } else {
-        setResolvedUserId(params.userId);
-      }
-    }
-
-    resolveUser();
+    return () => authListener.subscription.unsubscribe();
   }, [params.userId, supabase, router]);
 
   // ⭐ Load profile + posts
@@ -238,15 +236,15 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           <div key={post.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
             <p className="text-sm mb-3 whitespace-pre-line">{post.content}</p>
 
-<ReactionBar
-  postType="plaza"
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={post.reactions}
-  spiritScore={post.spiritScore}
-  positivityRatio={post.positivityRatio}
-  onReact={loadProfile}
-/>
+            <ReactionBar
+              postType="plaza"
+              postId={post.id}
+              creatorId={post.creator_id}
+              reactions={post.reactions}
+              spiritScore={post.spiritScore}
+              positivityRatio={post.positivityRatio}
+              onReact={loadProfile}
+            />
           </div>
         ))}
       </div>

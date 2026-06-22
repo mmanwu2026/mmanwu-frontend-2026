@@ -24,28 +24,26 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // ⭐ Resolve "me" → actual user ID
+  // ⭐ FIXED: Reliable session resolver using onAuthStateChange
   useEffect(() => {
-    async function resolveUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+async (_event: string, session: { user: { id: string } } | null) => {
+        setSessionReady(true);
 
-      if (!session?.user) {
-        router.replace("/login");
-        return;
+        if (!session?.user) {
+          router.replace("/login");
+          return;
+        }
+
+        if (params.userId === "me") {
+          setResolvedUserId(session.user.id);
+        } else {
+          setResolvedUserId(params.userId);
+        }
       }
+    );
 
-      setSessionReady(true);
-
-      if (params.userId === "me") {
-        setResolvedUserId(session.user.id);
-      } else {
-        setResolvedUserId(params.userId);
-      }
-    }
-
-    resolveUser();
+    return () => authListener.subscription.unsubscribe();
   }, [params.userId, supabase, router]);
 
   // ⭐ Load Profile
@@ -55,7 +53,7 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     const { data: authData } = await supabase.auth.getUser();
     if (!authData?.user) return;
 
-    // ❗ Prevent editing another user's profile
+    // Prevent editing another user's profile
     if (authData.user.id !== resolvedUserId) {
       router.replace(`/profile/${authData.user.id}/edit`);
       return;
@@ -76,6 +74,13 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     setBio(typed.bio || "");
     setAvatarUrl(typed.avatar_url || null);
   }, [supabase, resolvedUserId, router]);
+
+  // ⭐ Load after session ready
+  useEffect(() => {
+    if (sessionReady && resolvedUserId) {
+      loadProfile();
+    }
+  }, [sessionReady, resolvedUserId, loadProfile]);
 
   // ⭐ Avatar Upload
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -123,13 +128,6 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     setSaving(false);
     router.push(`/profile/${resolvedUserId}`);
   }
-
-  // ⭐ Load after session ready
-  useEffect(() => {
-    if (sessionReady && resolvedUserId) {
-      loadProfile();
-    }
-  }, [sessionReady, resolvedUserId, loadProfile]);
 
   // ⭐ Loading state
   if (!sessionReady || !resolvedUserId || !profile) {
