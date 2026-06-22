@@ -49,11 +49,11 @@ export default function ReactionBar({
     console.log("🔥 Calling apply_reaction RPC");
 
     const { data, error } = await supabase.rpc("apply_reaction", {
-      post_id: postId,
-      post_type: "plaza",
-      mask_tier: maskTier,
-      user_id: user.id,
-    });
+  post_id: postId,
+  post_type: "plaza",
+  maskTier: maskTier,
+  user_id: user.id,
+});
 
     console.log("RPC data:", data);
     console.log("RPC error:", error);
