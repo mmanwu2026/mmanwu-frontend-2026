@@ -43,59 +43,54 @@ interface UserPost {
 
 export default function UserProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
-  const userId = params.userId;
-
-  // ⭐ GLOBAL SUPABASE CLIENT (SAFE)
   const supabase = useSupabase();
 
   const [sessionReady, setSessionReady] = useState(false);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Check session immediately
+  // ⭐ Resolve "me" → actual user ID
   useEffect(() => {
-    async function checkSession() {
+    async function resolveUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        setSessionReady(true);
-      } else {
+      if (!session?.user) {
         router.replace("/login");
+        return;
+      }
+
+      setSessionReady(true);
+
+      if (params.userId === "me") {
+        setResolvedUserId(session.user.id);
+      } else {
+        setResolvedUserId(params.userId);
       }
     }
 
-    checkSession();
-  }, [router, supabase]);
+    resolveUser();
+  }, [params.userId, supabase, router]);
 
-  // ⭐ Listen for auth changes
-  useEffect(() => {
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event: string, session: any) => {
-      if (session?.user) {
-        setSessionReady(true);
-      } else {
-        router.replace("/login");
-      }
-    }
-  );
-
-  return () => listener.subscription.unsubscribe();
-}, [router, supabase]);
-
-  // ⭐ Memoized profile loader
+  // ⭐ Load profile + posts
   const loadProfile = useCallback(async () => {
+    if (!resolvedUserId) return;
+
     setLoading(true);
 
+    // Load user profile
     const { data: userData } = await supabase
       .from("users")
       .select("*")
-      .eq("id", userId)
+      .eq("id", resolvedUserId)
       .maybeSingle();
 
     if (!userData) {
+      setProfile(null);
       setLoading(false);
       return;
     }
@@ -103,15 +98,17 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     const typedProfile = userData as UserProfile;
     setProfile(typedProfile);
 
+    // Load posts
     const { data: postsData } = await supabase
       .from("posts")
       .select("*")
-      .eq("creator_id", userId)
+      .eq("creator_id", resolvedUserId)
       .order("created_at", { ascending: false });
 
     const typedPosts = (postsData ?? []) as any[];
     const postIds = typedPosts.map((p) => p.id);
 
+    // Load reactions
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
@@ -119,6 +116,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
+    // Merge posts + reactions
     const merged: UserPost[] = typedPosts.map((post) => {
       const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
@@ -150,17 +148,17 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     setPosts(merged);
     setLoading(false);
-  }, [supabase, userId]);
+  }, [supabase, resolvedUserId]);
 
-  // ⭐ Load profile AFTER session is ready
+  // ⭐ Load after session + userId resolved
   useEffect(() => {
-    if (sessionReady && userId) {
+    if (sessionReady && resolvedUserId) {
       loadProfile();
     }
-  }, [sessionReady, userId, loadProfile]);
+  }, [sessionReady, resolvedUserId, loadProfile]);
 
-  // ⭐ Loading state
-  if (loading || !sessionReady || !userId) {
+  // ⭐ Loading screen
+  if (!sessionReady || !resolvedUserId || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile...</p>
@@ -191,7 +189,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         <div className="flex items-center gap-8">
           <div
             className="relative group cursor-pointer"
-            onClick={() => router.push(`/profile/${userId}/edit`)}
+            onClick={() => router.push(`/profile/${resolvedUserId}/edit`)}
           >
             <img
               src={avatarUrl}

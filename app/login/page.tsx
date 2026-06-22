@@ -15,6 +15,10 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+
+    // ⭐ Prevent double submissions
+    if (loading) return;
+
     setLoading(true);
     setErrorMsg("");
 
@@ -24,7 +28,13 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setErrorMsg(error.message);
+      // ⭐ Friendlier error messaging
+      if (error.message.includes("Invalid login credentials")) {
+        setErrorMsg("Incorrect email or password");
+      } else {
+        setErrorMsg(error.message);
+      }
+
       setLoading(false);
       return;
     }
@@ -61,11 +71,20 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full p-3 rounded bg-purple-600 hover:bg-purple-700 transition"
+          className="w-full p-3 rounded bg-purple-600 hover:bg-purple-700 transition disabled:opacity-50"
         >
           {loading ? "Logging in…" : "Log In"}
         </button>
       </form>
+
+      {/* ⭐ Optional — enable when ready */}
+      {/* 
+      <p className="mt-3 text-sm">
+        <Link href="/reset-password" className="text-purple-400 hover:text-purple-300">
+          Forgot password
+        </Link>
+      </p>
+      */}
 
       <p className="mt-4 text-sm">
         Don’t have an account?{" "}

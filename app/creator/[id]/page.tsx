@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
@@ -31,66 +31,66 @@ interface CreatorPost {
   creator_id: string;
   content: string;
   created_at: string;
-  mask: number;
 
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
-  autoMask: number;
-}
-
-function maskTitle(mask: number) {
-  switch (mask) {
-    case 1: return "Dark Whisper";
-    case 2: return "Fierce Awakener";
-    case 3: return "Gentle Riser";
-    case 4: return "Radiant Ascender";
-    case 5: return "Seraphic Uplifter";
-    case 6: return "Divine Apex";
-    default: return "Unknown Mask";
-  }
-}
-
-function auraIntensity(score: number, positivity: number) {
-  let level =
-    score < 6 ? 0 :
-    score < 16 ? 1 :
-    score < 31 ? 2 :
-    score < 51 ? 3 :
-    4;
-
-  if (positivity > 0.6) level++;
-  if (positivity < 0.3) level--;
-
-  return Math.max(0, Math.min(4, level));
+  glyph: string;
+  auraLevel: number;
 }
 
 export default function CreatorProfilePage() {
   const params = useParams();
-  const creatorId = params?.id as string;
-
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const router = useRouter();
   const supabase = useSupabase();
+
+  const [sessionReady, setSessionReady] = useState(false);
+  const [resolvedCreatorId, setResolvedCreatorId] = useState<string | null>(null);
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<CreatorPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchCreator() {
+  // ⭐ Resolve "me" → actual user ID
+  useEffect(() => {
+    async function resolve() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      setSessionReady(true);
+
+      if (params?.id === "me") {
+        setResolvedCreatorId(session?.user?.id ?? null);
+      } else {
+        setResolvedCreatorId(params?.id as string);
+      }
+    }
+
+    resolve();
+  }, [params, supabase]);
+
+  // ⭐ Fetch creator profile
+  const fetchCreator = useCallback(async () => {
+    if (!resolvedCreatorId) return;
+
     const { data } = await supabase
       .from("users")
       .select("*")
-      .eq("id", creatorId)
+      .eq("id", resolvedCreatorId)
       .single();
 
     if (data) setCreator(data);
-  }
+  }, [supabase, resolvedCreatorId]);
 
-  async function fetchPosts() {
+  // ⭐ Fetch posts
+  const fetchPosts = useCallback(async () => {
+    if (!resolvedCreatorId) return;
+
     const { data: postsData } = await supabase
       .from("posts")
       .select("*")
-      .eq("creator_id", creatorId)
+      .eq("creator_id", resolvedCreatorId)
       .order("created_at", { ascending: false });
 
     if (!postsData) {
@@ -130,30 +130,43 @@ export default function CreatorProfilePage() {
       const positivityRatio =
         weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
+      // ⭐ A3 — Glyph based on spiritScore buckets
+      const glyph =
+        spiritScore <= 20 ? "😤" :
+        spiritScore <= 100 ? "😊" :
+        spiritScore <= 300 ? "🤩" :
+        spiritScore <= 500 ? "😇" :
+        "🔱";
+
+      // ⭐ Aura intensity based on positivity + score
+      const auraLevel =
+        positivityRatio > 0.7 ? 4 :
+        positivityRatio > 0.5 ? 3 :
+        positivityRatio > 0.3 ? 2 :
+        positivityRatio > 0.1 ? 1 :
+        0;
 
       return {
         ...p,
         reactions: counts,
         spiritScore,
         positivityRatio,
-        autoMask,
+        glyph,
+        auraLevel,
       };
     });
 
     setPosts(merged);
     setLoading(false);
-  }
+  }, [supabase, resolvedCreatorId]);
 
+  // ⭐ Load creator + posts
   useEffect(() => {
-    fetchCreator();
-    fetchPosts();
-  }, [creatorId]);
+    if (sessionReady && resolvedCreatorId) {
+      fetchCreator();
+      fetchPosts();
+    }
+  }, [sessionReady, resolvedCreatorId, fetchCreator, fetchPosts]);
 
   if (!creator) {
     return <p className="text-gray-300 p-10">Loading creator…</p>;
@@ -168,6 +181,7 @@ export default function CreatorProfilePage() {
         </Link>
       </div>
 
+      {/* ⭐ Creator Header */}
       <div className="flex flex-col items-center text-center text-gray-200 mb-12">
         <img
           src={creator.avatar_url || "/default-avatar.png"}
@@ -179,72 +193,52 @@ export default function CreatorProfilePage() {
         <p className="text-sm text-gray-400 mt-1">Mask Tier: {creator.mask_tier}</p>
       </div>
 
+      {/* ⭐ Posts */}
       <div className="w-full flex flex-col items-center px-4">
         {loading && <p className="text-gray-300">Loading posts…</p>}
 
         <div className="space-y-12 w-full flex flex-col items-center">
-          {posts.map((post: CreatorPost) => {
-            const score = post.spiritScore;
-            const positivityRatio = post.positivityRatio;
-
-            const glyphEmoji =
-              post.autoMask === 1 ? "😶‍🌫️" :
-              post.autoMask === 2 ? "😤" :
-              post.autoMask === 3 ? "😊" :
-              post.autoMask === 4 ? "🤩" :
-              post.autoMask === 5 ? "😇" :
-              post.autoMask === 6 ? "🔱" :
-              "😤";
-
-            const intensity = auraIntensity(score, positivityRatio);
-
-            return (
-              <div
-                key={post.id}
-                className={`
-                  relative p-8 rounded-2xl transition-all duration-500
-                  overflow-visible min-h-[420px] w-[380px] mx-auto flex flex-col items-center
-                  plaza-card-base aura-mask-${post.autoMask} aura-intensity-${intensity}
-                `}
-              >
-                <div className="ritual-glyph-container mt-6">
-                  <div className="ritual-glyph-levitate">
-                    <div className="ritual-flame-ring"></div>
-                    <div className="ritual-shadow-floor"></div>
-                    <div className="emoji-glyph" style={{ "--float-y": "-40px" } as CSSProperties}>
-                      {glyphEmoji}
-                    </div>
+          {posts.map((post: CreatorPost) => (
+            <div
+              key={post.id}
+              className={`
+                relative p-8 rounded-2xl transition-all duration-500
+                overflow-visible min-h-[420px] w-[380px] mx-auto flex flex-col items-center
+                plaza-card-base aura-intensity-${post.auraLevel}
+              `}
+            >
+              {/* ⭐ Glyph */}
+              <div className="ritual-glyph-container mt-6">
+                <div className="ritual-glyph-levitate">
+                  <div className="ritual-flame-ring"></div>
+                  <div className="ritual-shadow-floor"></div>
+                  <div className="emoji-glyph" style={{ "--float-y": "-40px" } as CSSProperties}>
+                    {post.glyph}
                   </div>
-                </div>
-
-                <div className="mt-4 text-center">
-                  <div className="text-sm font-semibold tracking-wide ritual-mask-title">
-                    {maskTitle(post.autoMask)}
-                  </div>
-                </div>
-
-                <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-3 px-4">
-                  {post.content}
-                </p>
-
-                <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
-                  <span>Mask: {post.autoMask}</span>
-                  <span>{new Date(post.created_at).toLocaleString()}</span>
-                </div>
-
-                <div className="mt-6 w-full flex justify-center">
-                  <ReactionBar
-                    postId={post.id}
-                    creatorId={post.creator_id}
-                    reactions={post.reactions}
-                    spiritScore={score}
-                    positivityRatio={positivityRatio}
-                    onReact={fetchPosts}
-                  />
                 </div>
               </div>
-            );
-          })}
+
+              <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-3 px-4">
+                {post.content}
+              </p>
+
+              <div className="mt-4 flex justify-between w-full text-sm text-gray-400">
+                <span>Score: {post.spiritScore}</span>
+                <span>{new Date(post.created_at).toLocaleString()}</span>
+              </div>
+
+              <div className="mt-6 w-full flex justify-center">
+                <ReactionBar
+                  postId={post.id}
+                  creatorId={post.creator_id}
+                  reactions={post.reactions}
+                  spiritScore={post.spiritScore}
+                  positivityRatio={post.positivityRatio}
+                  onReact={fetchPosts}
+                />
+              </div>
+            </div>
+          ))}
         </div>
 
         <FloatingComposer onPost={fetchPosts} />

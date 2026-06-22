@@ -13,30 +13,58 @@ interface UserProfile {
 
 export default function EditProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
-  const userId = params.userId;
-
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
 
   const [sessionReady, setSessionReady] = useState(false);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // -----------------------------
-  // Load Profile (memoized)
-  // -----------------------------
-  const loadProfile = useCallback(async () => {
-    const { data: authData } = await supabase.auth.getUser();
+  // ⭐ Resolve "me" → actual user ID
+  useEffect(() => {
+    async function resolveUser() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
+      if (!session?.user) {
+        router.replace("/login");
+        return;
+      }
+
+      setSessionReady(true);
+
+      if (params.userId === "me") {
+        setResolvedUserId(session.user.id);
+      } else {
+        setResolvedUserId(params.userId);
+      }
+    }
+
+    resolveUser();
+  }, [params.userId, supabase, router]);
+
+  // ⭐ Load Profile
+  const loadProfile = useCallback(async () => {
+    if (!resolvedUserId) return;
+
+    const { data: authData } = await supabase.auth.getUser();
     if (!authData?.user) return;
+
+    // ❗ Prevent editing another user's profile
+    if (authData.user.id !== resolvedUserId) {
+      router.replace(`/profile/${authData.user.id}/edit`);
+      return;
+    }
 
     const { data: userData } = await supabase
       .from("users")
       .select("*")
-      .eq("id", userId)
+      .eq("id", resolvedUserId)
       .maybeSingle();
 
     if (!userData) return;
@@ -47,17 +75,15 @@ export default function EditProfilePage({ params }: { params: { userId: string }
     setUsername(typed.username || "");
     setBio(typed.bio || "");
     setAvatarUrl(typed.avatar_url || null);
-  }, [supabase, userId]);
+  }, [supabase, resolvedUserId, router]);
 
-  // -----------------------------
-  // Avatar Upload Handler
-  // -----------------------------
+  // ⭐ Avatar Upload
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !resolvedUserId) return;
 
     const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}.${fileExt}`;
+    const fileName = `${resolvedUserId}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -75,15 +101,15 @@ export default function EditProfilePage({ params }: { params: { userId: string }
 
     const publicUrl = publicUrlData.publicUrl;
 
-    await supabase.from("users").update({ avatar_url: publicUrl }).eq("id", userId);
+    await supabase.from("users").update({ avatar_url: publicUrl }).eq("id", resolvedUserId);
 
     setAvatarUrl(publicUrl);
   }
 
-  // -----------------------------
-  // Save Profile
-  // -----------------------------
+  // ⭐ Save Profile
   async function handleSave() {
+    if (!resolvedUserId) return;
+
     setSaving(true);
 
     await supabase
@@ -92,34 +118,21 @@ export default function EditProfilePage({ params }: { params: { userId: string }
         username,
         bio,
       })
-      .eq("id", userId);
+      .eq("id", resolvedUserId);
 
     setSaving(false);
-    router.push(`/profile/${userId}`);
+    router.push(`/profile/${resolvedUserId}`);
   }
 
-  // -----------------------------
-  // Session Hydration
-  // -----------------------------
+  // ⭐ Load after session ready
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: string, session: any) => {
-        if (!session?.user) {
-          router.replace("/login");
-        } else {
-          setSessionReady(true);
-        }
-      }
-    );
+    if (sessionReady && resolvedUserId) {
+      loadProfile();
+    }
+  }, [sessionReady, resolvedUserId, loadProfile]);
 
-    return () => listener.subscription.unsubscribe();
-  }, [router, supabase]);
-
-  useEffect(() => {
-    if (sessionReady) loadProfile();
-  }, [sessionReady, loadProfile]);
-
-  if (!sessionReady || !profile) {
+  // ⭐ Loading state
+  if (!sessionReady || !resolvedUserId || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile...</p>

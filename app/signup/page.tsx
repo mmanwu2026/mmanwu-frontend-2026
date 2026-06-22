@@ -5,7 +5,6 @@ import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 
 export default function SignupPage() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
 
   const [email, setEmail] = useState("");
@@ -19,7 +18,20 @@ export default function SignupPage() {
     setLoading(true);
     setErrorMsg("");
 
-    // Create auth user
+    // ⭐ Check if username already exists
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle();
+
+    if (existing) {
+      setErrorMsg("Username already taken.");
+      setLoading(false);
+      return;
+    }
+
+    // ⭐ Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -38,14 +50,14 @@ export default function SignupPage() {
       return;
     }
 
-    // Create profile row
+    // ⭐ Create profile row with correct defaults
     const { error: profileError } = await supabase.from("users").insert({
       id: userId,
       username,
       bio: "",
       avatar_url: null,
       spirit_score: 0,
-      mask_tier: 1,
+      mask_tier: 2, // ⭐ Correct default mask tier
     });
 
     if (profileError) {
@@ -54,7 +66,7 @@ export default function SignupPage() {
       return;
     }
 
-    // Let Plaza layout validate session
+    // ⭐ Redirect to plaza
     window.location.href = "/plaza";
   }
 

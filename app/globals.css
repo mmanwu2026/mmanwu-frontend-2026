@@ -1,7 +1,5 @@
-/* force-vercel-css-rebuild-005 */
-
 /* ------------------------------------------------------------ */
-/* 1. TAILWIND BASE                                             */
+/* 1. TAILwind BASE                                             */
 /* ------------------------------------------------------------ */
 
 @tailwind base;
@@ -19,10 +17,10 @@
 }
 
 /* ------------------------------------------------------------ */
-/* 3. AURA ENGINE — FIXED (CLASS-BASED)                         */
+/* 3. AURA ENGINE — ACTIVE                                      */
 /* ------------------------------------------------------------ */
 
-/* AURA COLOR MAP */
+/* Aura color map (mask-based) */
 .aura-mask-1 { --aura-color: #7C3AED; }
 .aura-mask-2 { --aura-color: #DC2626; }
 .aura-mask-3 { --aura-color: #22C55E; }
@@ -30,17 +28,14 @@
 .aura-mask-5 { --aura-color: #3B82F6; }
 .aura-mask-6 { --aura-color: #F97316; }
 
-/* AURA INTENSITY LEVELS */
+/* Aura intensity levels */
 .aura-intensity-0 { animation: none; }
 .aura-intensity-1 { animation: aura-breathe 3s ease-in-out infinite; }
 .aura-intensity-2 { animation: aura-breathe 2.4s ease-in-out infinite; }
 .aura-intensity-3 { animation: aura-pulse 2s ease-in-out infinite; }
 .aura-intensity-4 { animation: aura-pulse 1.6s ease-in-out infinite; }
 
-/* ------------------------------------------------------------ */
-/* BORDER GLOW SCALES WITH AURA INTENSITY                       */
-/* ------------------------------------------------------------ */
-
+/* Aura border glow scaling */
 .aura-intensity-0 .plaza-card-base {
   box-shadow:
     0 0 6px var(--aura-color, rgba(255,255,255,0.15)),
@@ -71,7 +66,7 @@
     inset 0 0 10px rgba(255,255,255,0.1);
 }
 
-/* KEYFRAMES */
+/* Aura animations */
 @keyframes aura-breathe {
   0%   { box-shadow: 0 0 8px var(--aura-color); }
   50%  { box-shadow: 0 0 16px var(--aura-color); }
@@ -85,150 +80,62 @@
 }
 
 /* ------------------------------------------------------------ */
-/* 4. SURGE ENGINE                                              */
-/* ------------------------------------------------------------ */
-
-.surge-weak,
-.surge-medium,
-.surge-strong {
-  opacity: 1;
-}
-
-/* ------------------------------------------------------------ */
-/* 5. ASCENSION ENGINE                                          */
-/* ------------------------------------------------------------ */
-
-.ascend-tier-1 { box-shadow: 0 0 4px rgba(255,255,255,0.15); }
-.ascend-tier-2 { box-shadow: 0 0 6px rgba(255,255,255,0.25); }
-.ascend-tier-3 { box-shadow: 0 0 10px rgba(255,255,255,0.35); }
-.ascend-tier-4 { box-shadow: 0 0 14px rgba(255,255,255,0.45); }
-.ascend-tier-5 { box-shadow: 0 0 20px rgba(255,255,255,0.55); }
-
-/* ------------------------------------------------------------ */
-/* 6. SPIRIT ENGINE                                             */
-/* ------------------------------------------------------------ */
-
-.spirit-spark,
-.spirit-particle {
-  pointer-events: none;
-}
-
-/* ------------------------------------------------------------ */
-/* 7. REACTION ENGINE                                           */
-/* ------------------------------------------------------------ */
-
-.reaction-mask {
-  position: relative;
-  z-index: 20;
-  transition: transform 0.18s ease-out, filter 0.18s ease-out;
-  filter:
-    drop-shadow(0 0 6px rgba(255, 0, 80, 0.55))
-    drop-shadow(0 0 12px rgba(140, 0, 255, 0.45));
-}
-
-.reaction-mask:hover {
-  transform: translateY(-4px) scale(1.15);
-  filter:
-    drop-shadow(0 0 10px rgba(255, 0, 80, 0.85))
-    drop-shadow(0 0 18px rgba(140, 0, 255, 0.75));
-}
-
-/* ------------------------------------------------------------ */
-/* 8. EMOTION ENGINE                                            */
-/* ------------------------------------------------------------ */
-
-.emotion-boost { filter: brightness(1.25) saturate(1.3); }
-.emotion-intense { transform: scale(1.06); }
-.emotion-soft { transform: scale(0.98); }
-
-/* ------------------------------------------------------------ */
-/* 9. MASK TIER VARIABLES                                       */
-/* ------------------------------------------------------------ */
-
-.mask-tier-1 { --aura-color: #0ea5e9; }
-.mask-tier-2 { --aura-color: #22c55e; }
-.mask-tier-3 { --aura-color: #eab308; }
-.mask-tier-4 { --aura-color: #f97316; }
-.mask-tier-5 { --aura-color: #ef4444; }
-
-/* ------------------------------------------------------------ */
-/* 10. AURA GLOW TIERS                                          */
-/* ------------------------------------------------------------ */
-
-.aura-tier-1 { box-shadow: 0 0 12px rgba(124, 58, 237, 0.55); }
-.aura-tier-2 { box-shadow: 0 0 12px rgba(220, 38, 38, 0.55); }
-.aura-tier-3 { box-shadow: 0 0 12px rgba(34, 197, 94, 0.55); }
-.aura-tier-4 { box-shadow: 0 0 12px rgba(250, 204, 21, 0.55); }
-.aura-tier-5 { box-shadow: 0 0 12px rgba(59, 130, 246, 0.55); }
-
-/* ------------------------------------------------------------ */
-/* PLAZA CARD BASE — BALANCED BORDER GLOW                       */
+/* 4. PLAZA CARD BASE                                           */
 /* ------------------------------------------------------------ */
 
 .plaza-card-base {
   border: 2px solid var(--aura-color, rgba(255,255,255,0.2));
-
-  /* ⭐ Balanced aura glow */
   box-shadow:
     0 0 14px var(--aura-color),
     inset 0 0 6px rgba(255,255,255,0.08);
+  backdrop-filter: blur(4px);
+}
+
+/* Clean variant */
+.plaza-card-base.clean {
+  border: 1.5px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(6px);
+  background: rgba(10, 10, 15, 0.55);
+  box-shadow:
+    0 0 10px var(--aura-color, rgba(255,255,255,0.15)),
+    inset 0 0 4px rgba(255,255,255,0.05);
 }
 
 /* ------------------------------------------------------------ */
-/* 12. D4 DARK TEMPLE BACKGROUND                                */
+/* 5. PLAZA BACKGROUND (Option B — Purple Top)                  */
 /* ------------------------------------------------------------ */
 
 .plaza-background {
-  background: radial-gradient(circle at center, #0a0a0f 0%, #0d0b1a 40%, #000000 100%);
+  background: radial-gradient(circle at top, #2a1455 0%, #050509 55%, #000000 100%);
   padding: 2rem 1rem;
 }
 
 /* ------------------------------------------------------------ */
-/* 13. DARK TEMPLE PANEL — FIXED (NEUTRALIZED)                  */
-/* ------------------------------------------------------------ */
-
-.dark-temple-panel {
-  background: rgba(10, 10, 15, 0.85);
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-radius: 1rem;
-  backdrop-filter: blur(10px);
-  box-shadow:
-    0 0 10px rgba(255, 255, 255, 0.15),
-    inset 0 0 10px rgba(255, 255, 255, 0.1);
-}
-
-/* ------------------------------------------------------------ */
-/* 14. D4 EMOJI FIRE AURA + LEVITATION (BALANCED VERSION)       */
+/* 6. GLYPH ENGINE — ACTIVE                                     */
 /* ------------------------------------------------------------ */
 
 .emoji-glyph {
   position: relative;
   z-index: 30;
   font-size: 3rem;
-
-  /* ⭐ Balanced glow — visible but not overpowering */
   filter:
     drop-shadow(0 0 10px rgba(255, 0, 80, 0.65))
     drop-shadow(0 0 18px rgba(140, 0, 255, 0.55))
     drop-shadow(0 0 26px rgba(255, 0, 80, 0.45));
-
   animation: d4-levitate 2.6s ease-in-out infinite;
 }
 
-/* ⭐ Balanced flame ring */
 .emoji-glyph::before {
   content: "";
   position: absolute;
   inset: -18px;
   border-radius: 9999px;
-
   background: radial-gradient(
     circle at center,
     rgba(255, 0, 80, 0.55),
     rgba(140, 0, 255, 0.35),
     rgba(0, 0, 0, 0)
   );
-
   filter: blur(10px);
   z-index: -1;
   animation: flame-ring-pulse 3.2s ease-in-out infinite;
@@ -240,56 +147,12 @@
   100% { opacity: 0.6; transform: scale(0.95); }
 }
 
-/* Levitation stays the same */
 @keyframes d4-levitate {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-12px); }
 }
 
-/* ------------------------------------------------------------ */
-/* 15. D4 TEMPLE EMBER PARTICLES                                */
-/* ------------------------------------------------------------ */
-
-.temple-ember {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  pointer-events: none;
-  animation: ember-rise 4.5s linear infinite;
-}
-
-/* ------------------------------------------------------------ */
-/* 16. END OF D4 THEME — FINAL OVERRIDES                        */
-/* ------------------------------------------------------------ */
-
-html, body {
-  background-color: #000 !important;
-  color: #e5e7eb !important;
-}
-
-* {
-  color-scheme: dark;
-}
-
-body::before {
-  content: "CSS LOADED";
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: red;
-  color: white;
-  padding: 4px 8px;
-  z-index: 999999;
-}
-/* ------------------------------------------------------------ */
-/* CLEAN D4 UPGRADE PATCH — HYBRID (B3)                         */
-/* ------------------------------------------------------------ */
-
-/* ------------------------------------------------------------ */
-/* 1. CLEAN GLYPH VARIANT                                       */
-/* ------------------------------------------------------------ */
-
+/* Clean glyph variant */
 .emoji-glyph.clean {
   font-size: 3.2rem;
   filter:
@@ -300,102 +163,9 @@ body::before {
 }
 
 /* ------------------------------------------------------------ */
-/* 2. CLEAN FLAME RING                                          */
+/* 7. FLOATING COMPOSER — POLISH                                */
 /* ------------------------------------------------------------ */
 
-.ritual-flame-ring.clean {
-  position: absolute;
-  inset: -14px;
-  border-radius: 9999px;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 0, 80, 0.35),
-    rgba(140, 0, 255, 0.25),
-    rgba(0, 0, 0, 0)
-  );
-  filter: blur(8px);
-  z-index: -1;
-  animation: flame-ring-clean 3.6s ease-in-out infinite;
-}
-
-@keyframes flame-ring-clean {
-  0% { opacity: 0.45; transform: scale(0.92); }
-  50% { opacity: 0.85; transform: scale(1.04); }
-  100% { opacity: 0.45; transform: scale(0.92); }
-}
-
-/* ------------------------------------------------------------ */
-/* 3. CLEAN SHADOW FLOOR                                        */
-/* ------------------------------------------------------------ */
-
-.ritual-shadow-floor.clean {
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  width: 70%;
-  height: 14px;
-  transform: translateX(-50%);
-  background: radial-gradient(
-    ellipse at center,
-    rgba(0, 0, 0, 0.55),
-    rgba(0, 0, 0, 0)
-  );
-  filter: blur(6px);
-  z-index: -2;
-}
-
-/* ------------------------------------------------------------ */
-/* 4. SUBTLE EMBERS (E3)                                        */
-/* ------------------------------------------------------------ */
-
-.temple-ember.subtle {
-  width: 4px;
-  height: 4px;
-  opacity: 0.25;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.45),
-    rgba(255, 255, 255, 0)
-  );
-  animation: ember-rise-subtle 6.5s linear infinite;
-}
-
-@keyframes ember-rise-subtle {
-  0% { transform: translateY(0) scale(0.9); opacity: 0.25; }
-  50% { transform: translateY(-18px) scale(1); opacity: 0.35; }
-  100% { transform: translateY(-36px) scale(0.9); opacity: 0.25; }
-}
-
-/* ------------------------------------------------------------ */
-/* 5. CLEAN PLAZA CARD POLISH                                   */
-/* ------------------------------------------------------------ */
-
-.plaza-card-base.clean {
-  border: 1.5px solid rgba(255,255,255,0.15);
-  backdrop-filter: blur(6px);
-  background: rgba(10, 10, 15, 0.55);
-  box-shadow:
-    0 0 10px var(--aura-color, rgba(255,255,255,0.15)),
-    inset 0 0 4px rgba(255,255,255,0.05);
-}
-
-/* ------------------------------------------------------------ */
-/* 6. CLEAN HEADER POLISH                                       */
-/* ------------------------------------------------------------ */
-
-.clean-plaza-header {
-  text-shadow:
-    0 0 6px rgba(140, 0, 255, 0.35),
-    0 0 12px rgba(255, 0, 80, 0.25);
-  letter-spacing: 0.04em;
-}
-
-/* Plaza background */
-.plaza-background {
-  background: radial-gradient(circle at top, #2a1455 0%, #050509 55%, #000000 100%);
-}
-
-/* Floating Composer */
 .floating-composer-container {
   background: rgba(20, 20, 30, 0.85) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -403,6 +173,7 @@ body::before {
   box-shadow:
     0 0 12px rgba(140, 0, 255, 0.35),
     inset 0 0 6px rgba(255, 255, 255, 0.08) !important;
+  position: relative; /* ⭐ Sidebar invisibility fix */
 }
 
 .floating-composer-textarea {
@@ -421,84 +192,58 @@ body::before {
   color: rgba(255, 255, 255, 0.4) !important;
 }
 
-/* Aura masks */
-.aura-mask-3 {
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
-  border-color: rgba(56, 189, 248, 0.6);
-}
-
-.aura-mask-4 {
-  box-shadow: 0 0 14px rgba(147, 51, 234, 0.55);
-  border-color: rgba(147, 51, 234, 0.7);
-}
-
-.aura-mask-5 {
-  box-shadow: 0 0 16px rgba(34, 197, 94, 0.55);
-  border-color: rgba(34, 197, 94, 0.7);
-}
-
-.aura-mask-6 {
-  box-shadow: 0 0 18px rgba(250, 250, 250, 0.7);
-  border-color: rgba(250, 250, 250, 0.8);
-}
-
-/* Aura intensity */
-.aura-intensity-high {
-  transform: translateY(-2px);
-}
-
-.aura-intensity-low {
-  opacity: 0.85;
-}
+/* ------------------------------------------------------------ */
+/* 8. PLAZA GRID + SIDEBAR FIXES                                */
+/* ------------------------------------------------------------ */
 
 .plaza-grid-container {
   display: flex;
   width: 100%;
 }
 
-/* Optional: smooth dimming layer */
 .dim-overlay {
   background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(1px);
 }
 
-/* Ensures floating composer never anchors to left sidebar */
-.floating-composer-container {
-  position: relative;
-}
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* ------------------------------------------------------------ */
+/* 9. EMBERS — ACTIVE CLEAN VARIANT                             */
+/* ------------------------------------------------------------ */
+
+.temple-ember.subtle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  opacity: 0.25;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+  animation: ember-rise-subtle 6.5s linear infinite;
 }
 
-.animate-spin-slow {
-  animation: spin-slow 6s linear infinite;
-}
-
-.toast-fade {
-  animation: fadeInUp 0.4s ease, fadeOut 0.4s ease 1.4s forwards;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 10px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0px);
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+@keyframes ember-rise-subtle {
+  0% { transform: translateY(0) scale(0.9); opacity: 0.25; }
+  50% { transform: translateY(-18px) scale(1); opacity: 0.35; }
+  100% { transform: translateY(-36px) scale(0.9); opacity: 0.25; }
 }
 
 /* ------------------------------------------------------------ */
-/* END CLEAN D4 PATCH                                           */
+/* 10. GLOBAL DARK THEME (G1)                                   */
+/* ------------------------------------------------------------ */
+
+html, body {
+  background-color: #000 !important;
+  color: #e5e7eb !important;
+}
+
+* {
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------ */
+/* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
