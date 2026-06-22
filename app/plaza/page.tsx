@@ -29,7 +29,7 @@ interface PlazaPostWithAggregates {
   content: string;
   created_at: string;
   spirit_score: number;
-  auto_mask: number;
+  automask: number;
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
@@ -59,7 +59,6 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
   const { user } = useUser();
 
@@ -75,9 +74,6 @@ export default function PlazaPage() {
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
   const reloadGuardRef = useRef(false);
 
-  // -----------------------------------------------------
-  // FETCH POSTS
-  // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
       if (!append) setLoading(true);
@@ -117,9 +113,9 @@ export default function PlazaPage() {
         return {
           ...post,
           reactions: counts,
-          spiritScore: post.spirit_score,
+          spiritScore: post.spirit_score ?? 0,
           positivityRatio: post.positivity_ratio ?? 0.5,
-          autoMask: post.auto_mask,
+          autoMask: post.automask ?? 2, // ⭐ key fix
         };
       });
 
@@ -137,16 +133,10 @@ export default function PlazaPage() {
     fetchPosts(0, false);
   }, [fetchPosts]);
 
-  // -----------------------------------------------------
-  // RELOAD POSTS
-  // -----------------------------------------------------
   const reloadPosts = useCallback(() => {
     fetchPosts(0, false);
   }, [fetchPosts]);
 
-  // -----------------------------------------------------
-  // REALTIME UPDATES
-  // -----------------------------------------------------
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
@@ -185,9 +175,6 @@ export default function PlazaPage() {
     };
   }, [supabase, fetchPosts]);
 
-  // -----------------------------------------------------
-  // FETCH CREATOR PROFILES
-  // -----------------------------------------------------
   async function fetchCreator(id: string) {
     if (creators[id]) return creators[id];
 
@@ -219,9 +206,6 @@ export default function PlazaPage() {
     })();
   }, [posts, creators]);
 
-  // -----------------------------------------------------
-  // DELETE POST
-  // -----------------------------------------------------
   async function handleDelete(postId: string) {
     if (!user) return;
     setDeletingId(postId);
@@ -232,9 +216,6 @@ export default function PlazaPage() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   }
 
-  // -----------------------------------------------------
-  // LOAD MORE
-  // -----------------------------------------------------
   async function handleLoadMore() {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
@@ -243,14 +224,11 @@ export default function PlazaPage() {
     await fetchPosts(nextPage, true);
     setPage(nextPage);
   }
-  // -----------------------------------------------------
-  // RENDER
-  // -----------------------------------------------------
+
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
 
-      {/* Floating Composer */}
       <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000] pointer-events-none">
         <div className="pointer-events-auto">
           <FloatingComposer onPost={reloadPosts} />
@@ -373,7 +351,6 @@ export default function PlazaPage() {
                     ${emotionClass}
                   `}
                 >
-                  {/* ⭐ Aura Wrapper */}
                   <div
                     className={`
                       aura-mask-${post.autoMask}
@@ -381,9 +358,7 @@ export default function PlazaPage() {
                       rounded-2xl p-8 w-full h-full
                     `}
                   >
-                    {/* ⭐ Glow Target */}
                     <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
-
                       {creator && (
                         <img
                           src={creator.avatar_url || "/default-avatar.png"}
@@ -455,7 +430,6 @@ export default function PlazaPage() {
                           />
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
