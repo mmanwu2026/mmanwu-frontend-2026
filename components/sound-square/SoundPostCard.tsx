@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useUser } from "@/context/UserContext";
 
 type ReactionCounts = {
   mask1: number;
@@ -26,8 +27,8 @@ export type CardSoundPost = {
 };
 
 export default function SoundPostCard({ post }: { post: CardSoundPost }) {
-  // ⭐ FIX: Memoize Supabase client
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const { user } = useUser();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -159,24 +160,29 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
   }, []);
 
   // -----------------------------------------------------
-  // Reaction Handler (memoized client)
+  // ⭐ Unified Reaction Handler
   // -----------------------------------------------------
   async function handleReaction(maskTier: number) {
-    const { error } = await supabase.rpc("react_to_post", {
-      p_post_id: post.id,
-      p_post_type: "sound",
-      p_maskTier: maskTier,
-      p_user_id: null, // sound reactions allow anonymous
-    });
-
-    if (error) {
-      console.error("Reaction error:", error);
+    if (!user) {
+      console.error("User not logged in");
       return;
     }
 
-    // Refresh reaction counts
-    const { data } = await supabase
-      .from("sound_reactions")
+    const { data, error } = await supabase.rpc("apply_reaction", {
+      post_id: post.id,
+      post_type: "sound",
+      mask_tier: maskTier,
+      user_id: user.id,
+    });
+
+    console.log("apply_reaction data:", data);
+    console.log("apply_reaction error:", error);
+
+    if (error) return;
+
+    // Refresh unified reaction counts
+    const { data: reactionRows } = await supabase
+      .from("reactions")
       .select("maskTier")
       .eq("post_id", post.id);
 
@@ -189,7 +195,7 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
       mask6: 0,
     };
 
-    data?.forEach((r: { maskTier: number }) => {
+    reactionRows?.forEach((r: { maskTier: number }) => {
       const key = `mask${r.maskTier}` as keyof ReactionCounts;
       newCounts[key] += 1;
     });
