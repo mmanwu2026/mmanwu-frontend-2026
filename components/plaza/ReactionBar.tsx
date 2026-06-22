@@ -14,6 +14,7 @@ interface ReactionCounts {
 }
 
 interface ReactionBarProps {
+  postType: "plaza" | "sound";   // ⭐ NEW
   postId: string;
   creatorId: string;
   reactions: ReactionCounts;
@@ -23,6 +24,7 @@ interface ReactionBarProps {
 }
 
 export default function ReactionBar({
+  postType,        // ⭐ NEW
   postId,
   creatorId,
   reactions,
@@ -38,47 +40,34 @@ export default function ReactionBar({
   const loggedOut = !user;
   const isCreator = user?.id === creatorId;
 
-  // -----------------------------
-  // Handle Reaction
-  // -----------------------------
   const handleReact = async (maskTier: number): Promise<void> => {
     if (loading || loggedOut || !user) return;
 
     setLoading(true);
 
-    console.log("🔥 Calling apply_reaction RPC");
-    console.log("RPC ARGS:", {
-      post_id: postId,
-      post_type: "plaza",
-      masktier: maskTier,
-      user_id: user?.id,
-    });
-
     const { data, error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
-      post_type: "plaza",
-      masktier: maskTier, // lowercase is correct
-      user_id: user?.id,
+      post_type: postType,   // ⭐ FIXED
+      masktier: maskTier,    // ⭐ CORRECT
+      user_id: user.id,
     });
 
-    console.log("RPC data:", data);
-    console.log("RPC error:", error);
-
     setLoading(false);
+
+    if (error) {
+      console.error("apply_reaction error:", error);
+      return;
+    }
 
     try {
       onReact();
     } catch (e) {
-      console.error("🔥 onReact crashed:", e);
+      console.error("onReact crashed:", e);
     }
   };
 
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <div className="flex items-center justify-center gap-6 mt-4">
-      {/* Mask 1 — Creator Only */}
       {isCreator && (
         <button
           onClick={() => handleReact(1)}
@@ -90,7 +79,6 @@ export default function ReactionBar({
         </button>
       )}
 
-      {/* Mask 2 — Creator Only */}
       {isCreator && (
         <button
           onClick={() => handleReact(2)}
@@ -102,7 +90,6 @@ export default function ReactionBar({
         </button>
       )}
 
-      {/* Mask 3 — Everyone */}
       <button
         onClick={() => handleReact(3)}
         disabled={loggedOut || loading}
@@ -112,7 +99,6 @@ export default function ReactionBar({
         <span className="text-xs block text-gray-400">{reactions.mask3}</span>
       </button>
 
-      {/* Mask 4 — Everyone */}
       <button
         onClick={() => handleReact(4)}
         disabled={loggedOut || loading}
@@ -122,7 +108,6 @@ export default function ReactionBar({
         <span className="text-xs block text-gray-400">{reactions.mask4}</span>
       </button>
 
-      {/* Mask 5 — Everyone */}
       <button
         onClick={() => handleReact(5)}
         disabled={loggedOut || loading}
@@ -132,7 +117,6 @@ export default function ReactionBar({
         <span className="text-xs block text-gray-400">{reactions.mask5}</span>
       </button>
 
-      {/* Mask 6 — Display Only */}
       <div className="reaction-mask text-3xl opacity-70 cursor-default">
         🔱
         <span className="text-xs block text-gray-400">{reactions.mask6}</span>

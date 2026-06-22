@@ -5,7 +5,6 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 
 export default function SoundSquareUpload() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
   const { user } = useUser();
 
@@ -112,24 +111,12 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // Extract duration
-    const audio = document.createElement("audio");
-    audio.src = publicUrl;
-
-    await new Promise((resolve) => {
-      audio.onloadedmetadata = resolve;
-    });
-
-    const duration = audio.duration;
-
     // Insert DB row
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title,
       audio_url: publicUrl,
-      duration,
       creator_id: user.id,
-      spirit_score: 0,
-      mask: 2,
+      creator_name: user.user_metadata?.full_name || user.email,
     });
 
     if (dbError) {

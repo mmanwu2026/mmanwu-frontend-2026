@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import SoundPostCard, { CardSoundPost } from "@/components/sound-square/SoundPostCard";
+import SoundPostCard from "@/components/sound-square/SoundPostCard";
+import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
 
 type TrendingPost = {
   post_id: string;
+  creator_id: string;     // ⭐ REQUIRED
   title: string;
   audio_url: string;
   creator_name: string;
@@ -14,7 +16,6 @@ type TrendingPost = {
 };
 
 export default function SoundSquareTrending() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
 
   const [posts, setPosts] = useState<TrendingPost[]>([]);
@@ -50,6 +51,7 @@ export default function SoundSquareTrending() {
         {posts.map((p) => {
           const cardPost: CardSoundPost = {
             id: p.post_id,
+            creator_id: p.creator_id,   // ⭐ FIXED
             title: p.title,
             audio_url: p.audio_url,
             creator_name: p.creator_name,

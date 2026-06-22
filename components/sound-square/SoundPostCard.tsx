@@ -3,31 +3,10 @@
 import { useRef, useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
-
-type ReactionCounts = {
-  mask1: number;
-  mask2: number;
-  mask3: number;
-  mask4: number;
-  mask5: number;
-  mask6: number;
-};
-
-export type CardSoundPost = {
-  id: string;
-  title: string;
-  audio_url: string;
-  creator_name: string;
-  created_at: string;
-
-  reactions: ReactionCounts;
-  spiritScore: number;
-  positivityRatio: number;
-  autoMask: number;
-};
+import ReactionBar from "@/components/plaza/ReactionBar";
+import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
 
 export default function SoundPostCard({ post }: { post: CardSoundPost }) {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
   const { user } = useUser();
 
@@ -36,11 +15,11 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
+  const [spiritScore, setSpiritScore] = useState(post.spiritScore);
+  const [positivityRatio, setPositivityRatio] = useState(post.positivityRatio);
+
   const [intensity, setIntensity] = useState(0);
 
-  // -----------------------------------------------------
-  // Beat‑reactive analyser
-  // -----------------------------------------------------
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -60,12 +39,9 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
 
     const tick = () => {
       analyser.getByteFrequencyData(dataArray);
-
       const avg = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
       const normalized = Math.min(avg / 180, 1);
-
       setIntensity(normalized);
-
       animationFrame = requestAnimationFrame(tick);
     };
 
@@ -79,28 +55,8 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     };
   }, []);
 
-  // -----------------------------------------------------
-  // Waveform canvas resize
-  // -----------------------------------------------------
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-
-    const resize = () => {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-    };
-
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-
-  // -----------------------------------------------------
-  // Waveform visualizer
-  // -----------------------------------------------------
-  useEffect(() => {
-    if (!audioRef.current || !canvasRef.current) return;
+    if (!canvasRef.current || !audioRef.current) return;
 
     const audio = audioRef.current;
     const canvas = canvasRef.current;
@@ -152,39 +108,27 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
       ctx.stroke();
     };
 
+    const resize = () => {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+
     draw();
 
     return () => {
       cancelAnimationFrame(frame);
+      window.removeEventListener("resize", resize);
       audioCtx.close().catch(() => {});
     };
   }, []);
 
-  // -----------------------------------------------------
-  // ⭐ Unified Reaction Handler
-  // -----------------------------------------------------
-  async function handleReaction(maskTier: number) {
-    if (!user) {
-      console.error("User not logged in");
-      return;
-    }
-
-    const { data, error } = await supabase.rpc("apply_reaction", {
-      post_id: post.id,
-      post_type: "sound",
-      mask_tier: maskTier,
-      user_id: user.id,
-    });
-
-    console.log("apply_reaction data:", data);
-    console.log("apply_reaction error:", error);
-
-    if (error) return;
-
-    // Refresh unified reaction counts
+  const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
-      .select("maskTier")
+      .select("maskTier, value")
       .eq("post_id", post.id);
 
     const newCounts: ReactionCounts = {
@@ -196,13 +140,25 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
       mask6: 0,
     };
 
-    reactionRows?.forEach((r: { maskTier: number }) => {
+    let newSpirit = 0;
+    let weightedPositive = 0;
+
+    reactionRows?.forEach((r: { maskTier: number; value: number | null }) => {
       const key = `mask${r.maskTier}` as keyof ReactionCounts;
       newCounts[key] += 1;
+      const v = r.value ?? 0;
+      newSpirit += v;
+      if (v > 0) weightedPositive += v;
     });
 
+    const weightedTotal = Math.abs(newSpirit);
+    const newPositivity =
+      weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+
     setReactions(newCounts);
-  }
+    setSpiritScore(newSpirit);
+    setPositivityRatio(newPositivity);
+  };
 
   function handlePlay() {
     audioRef.current?.play();
@@ -213,6 +169,8 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     audioRef.current?.pause();
     setIsPlaying(false);
   }
+
+  const scale = 1 + intensity * 0.2;
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
@@ -226,6 +184,7 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
       <canvas
         ref={canvasRef}
         className="w-full h-24 bg-gray-700 rounded mb-4"
+        style={{ transform: `scale(${scale})` }}
       />
 
       <div className="flex gap-4 mb-4">
@@ -246,43 +205,15 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
         )}
       </div>
 
-      <div className="flex gap-6">
-        <ReactionMask emoji="😶‍🌫️" count={reactions.mask1} onClick={() => handleReaction(1)} intensity={intensity} />
-        <ReactionMask emoji="😤" count={reactions.mask2} onClick={() => handleReaction(2)} intensity={intensity} />
-        <ReactionMask emoji="😊" count={reactions.mask3} onClick={() => handleReaction(3)} intensity={intensity} />
-        <ReactionMask emoji="🤩" count={reactions.mask4} onClick={() => handleReaction(4)} intensity={intensity} />
-        <ReactionMask emoji="😇" count={reactions.mask5} onClick={() => handleReaction(5)} intensity={intensity} />
-        <ReactionMask emoji="🔱" count={reactions.mask6} onClick={() => handleReaction(6)} intensity={intensity} />
-      </div>
-    </div>
-  );
-}
-
-function ReactionMask({
-  emoji,
-  count,
-  onClick,
-  intensity,
-}: {
-  emoji: string;
-  count: number;
-  onClick: () => void;
-  intensity: number;
-}) {
-  const scale = 1 + intensity * 0.4;
-  const glow = intensity * 0.7;
-
-  return (
-    <div
-      onClick={onClick}
-      className="flex flex-col items-center cursor-pointer transition"
-      style={{
-        transform: `scale(${scale})`,
-        filter: `drop-shadow(0 0 ${glow}rem rgba(255,255,255,0.6))`,
-      }}
-    >
-      <div className="text-4xl">{emoji}</div>
-      <p className="text-gray-400 text-xs mt-1">{count}</p>
+      <ReactionBar
+        postType="sound"
+        postId={post.id}
+        creatorId={post.creator_id}
+        reactions={reactions}
+        spiritScore={spiritScore}
+        positivityRatio={positivityRatio}
+        onReact={refreshReactions}
+      />
     </div>
   );
 }
