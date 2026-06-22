@@ -30,7 +30,6 @@ export default function ReactionBar({
   positivityRatio,
   onReact,
 }: ReactionBarProps) {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
   const { user } = useUser();
 
@@ -48,12 +47,18 @@ export default function ReactionBar({
     setLoading(true);
 
     console.log("🔥 Calling apply_reaction RPC");
+    console.log("RPC ARGS:", {
+      post_id: postId,
+      post_type: "plaza",
+      masktier: maskTier,
+      user_id: user?.id,
+    });
 
     const { data, error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: "plaza",
-      masktier: maskTier, // ← lowercase is correct
-      user_id: user.id,
+      masktier: maskTier, // lowercase is correct
+      user_id: user?.id,
     });
 
     console.log("RPC data:", data);
