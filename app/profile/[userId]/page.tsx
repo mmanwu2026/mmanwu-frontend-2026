@@ -55,7 +55,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Reliable session resolver using onAuthStateChange
+  // Session resolver
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event: string, session: any) => {
@@ -79,13 +79,12 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     };
   }, [params.userId, supabase, router]);
 
-  // ⭐ Load profile + posts
+  // Load profile + posts
   const loadProfile = useCallback(async () => {
     if (!resolvedUserId) return;
 
     setLoading(true);
 
-    // Load user profile
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -108,7 +107,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     const typedProfile = userData as UserProfile;
     setProfile(typedProfile);
 
-    // Load posts
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
@@ -127,7 +125,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     let typedReactions: ReactionRow[] = [];
 
-    // Only query reactions if there are posts
     if (postIds.length > 0) {
       const { data: reactionsData, error: reactionsError } = await supabase
         .from("reactions")
@@ -142,7 +139,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       }
     }
 
-    // Merge posts + reactions
     const merged: UserPost[] =
       typedPosts.length > 0
         ? typedPosts.map((post) => {
@@ -182,14 +178,12 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setLoading(false);
   }, [supabase, resolvedUserId]);
 
-  // ⭐ Load after session + userId resolved
   useEffect(() => {
     if (sessionReady && resolvedUserId) {
       loadProfile();
     }
   }, [sessionReady, resolvedUserId, loadProfile]);
 
-  // ⭐ Loading screen
   if (!sessionReady || !resolvedUserId || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -198,7 +192,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // ⭐ Profile not found
   if (!profile?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -216,7 +209,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      {/* Profile Header */}
       <div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
         <div className="flex items-center gap-8">
           <div
@@ -260,7 +252,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         </div>
       </div>
 
-      {/* Posts */}
       <div className="max-w-2xl mx-auto space-y-6">
         {posts.length === 0 && (
           <p className="text-zinc-500 text-center">No posts yet.</p>
