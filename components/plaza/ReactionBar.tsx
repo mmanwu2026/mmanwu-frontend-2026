@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useUser } from "@/context/UserContext";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/context/SupabaseContext";
 
 interface ReactionCounts {
   mask1: number;
@@ -30,7 +30,8 @@ export default function ReactionBar({
   positivityRatio,
   onReact,
 }: ReactionBarProps) {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
   const { user } = useUser();
 
   const [loading, setLoading] = useState(false);
@@ -49,11 +50,11 @@ export default function ReactionBar({
     console.log("🔥 Calling apply_reaction RPC");
 
     const { data, error } = await supabase.rpc("apply_reaction", {
-  post_id: postId,
-  post_type: "plaza",
-  masktier: maskTier,   // ← lowercase
-  user_id: user.id,
-});
+      post_id: postId,
+      post_type: "plaza",
+      masktier: maskTier, // ← lowercase is correct
+      user_id: user.id,
+    });
 
     console.log("RPC data:", data);
     console.log("RPC error:", error);

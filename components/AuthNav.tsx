@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { useUser } from "@/context/UserContext";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/context/SupabaseContext";
 
 export default function AuthNav() {
-  // ⭐ FIX: Memoize the Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
   const { user, loading } = useUser();
 
   async function handleLogout() {

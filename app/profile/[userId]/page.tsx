@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useEffect, useState, useCallback } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import ReactionBar from "@/components/plaza/ReactionBar";
 
@@ -45,8 +45,8 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const router = useRouter();
   const userId = params.userId;
 
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT (SAFE)
+  const supabase = useSupabase();
 
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -72,16 +72,18 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
   // ⭐ Listen for auth changes
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event: string, session: any) => {
       if (session?.user) {
         setSessionReady(true);
       } else {
         router.replace("/login");
       }
-    });
+    }
+  );
 
-    return () => listener.subscription.unsubscribe();
-  }, [router, supabase]);
+  return () => listener.subscription.unsubscribe();
+}, [router, supabase]);
 
   // ⭐ Memoized profile loader
   const loadProfile = useCallback(async () => {

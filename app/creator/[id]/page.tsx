@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import React, { useEffect, useState } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";
@@ -69,8 +69,8 @@ export default function CreatorProfilePage() {
   const params = useParams();
   const creatorId = params?.id as string;
 
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<CreatorPost[]>([]);

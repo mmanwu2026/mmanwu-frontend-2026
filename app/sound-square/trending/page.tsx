@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard, { CardSoundPost } from "@/components/sound-square/SoundPostCard";
 
 type TrendingPost = {
@@ -14,8 +14,8 @@ type TrendingPost = {
 };
 
 export default function SoundSquareTrending() {
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [posts, setPosts] = useState<TrendingPost[]>([]);
   const [loading, setLoading] = useState(true);

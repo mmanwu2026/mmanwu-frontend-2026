@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import React, { useState } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 
 export default function LoginPage() {
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

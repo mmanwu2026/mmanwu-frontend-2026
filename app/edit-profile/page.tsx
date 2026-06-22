@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@/context/UserContext";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/context/SupabaseContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
@@ -14,9 +14,7 @@ interface UserProfile {
 
 export default function EditProfilePage() {
   const { user, loading } = useUser();
-
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useSupabase(); // ⭐ GLOBAL CLIENT — SAFE
 
   // ⭐ BLOCK RENDERING UNTIL USER EXISTS
   if (loading) return <div className="p-6">Loading…</div>;

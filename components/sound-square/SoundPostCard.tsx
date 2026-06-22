@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useRef, useState, useEffect } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 
 type ReactionCounts = {
@@ -27,7 +27,8 @@ export type CardSoundPost = {
 };
 
 export default function SoundPostCard({ post }: { post: CardSoundPost }) {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
   const { user } = useUser();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useEffect, useState, useCallback } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
 interface UserProfile {
@@ -15,8 +15,8 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   const router = useRouter();
   const userId = params.userId;
 
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -102,13 +102,15 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   // Session Hydration
   // -----------------------------
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        router.replace("/login");
-      } else {
-        setSessionReady(true);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event: string, session: any) => {
+        if (!session?.user) {
+          router.replace("/login");
+        } else {
+          setSessionReady(true);
+        }
       }
-    });
+    );
 
     return () => listener.subscription.unsubscribe();
   }, [router, supabase]);

@@ -5,11 +5,10 @@ import React, {
   useState,
   useRef,
   useCallback,
-  useMemo,
   type CSSProperties,
 } from "react";
 
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/context/SupabaseContext";
 import Sidebar from "@/components/plaza/Sidebar";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
@@ -60,7 +59,8 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
   const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
@@ -136,6 +136,7 @@ export default function PlazaPage() {
   useEffect(() => {
     fetchPosts(0, false);
   }, [fetchPosts]);
+
   // -----------------------------------------------------
   // RELOAD POSTS
   // -----------------------------------------------------
@@ -242,7 +243,6 @@ export default function PlazaPage() {
     await fetchPosts(nextPage, true);
     setPage(nextPage);
   }
-
   // -----------------------------------------------------
   // RENDER
   // -----------------------------------------------------
@@ -276,7 +276,7 @@ export default function PlazaPage() {
           )}
 
           <div className="space-y-12 w-full flex flex-col items-center">
-                        {posts.map((post) => {
+            {posts.map((post) => {
               const key = post.id;
 
               const creator = creators[post.creator_id];
@@ -461,7 +461,7 @@ export default function PlazaPage() {
                 </div>
               );
             })}
-                    </div>
+          </div>
 
           {!loading && hasMore && (
             <button

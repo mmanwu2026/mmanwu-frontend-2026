@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard, { CardSoundPost } from "@/components/sound-square/SoundPostCard";
 
 type ReactionCounts = {
@@ -32,8 +32,8 @@ type RawSoundPost = {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);

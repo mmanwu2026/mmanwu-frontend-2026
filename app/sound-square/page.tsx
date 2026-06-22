@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard, {
   CardSoundPost,
 } from "@/components/sound-square/SoundPostCard";
@@ -9,7 +9,8 @@ import SoundPostCard, {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [loading, setLoading] = useState(true);

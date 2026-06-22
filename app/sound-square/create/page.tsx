@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useState, useRef } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 
 export default function SoundSquareUpload() {
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
   const { user } = useUser();
 
   const [file, setFile] = useState<File | null>(null);

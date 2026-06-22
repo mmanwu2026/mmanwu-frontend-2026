@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createContext, useContext, useEffect, useState } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface UserContextValue {
@@ -12,8 +12,8 @@ interface UserContextValue {
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  // ⭐ FIX: Memoize the Supabase client so it is NOT recreated on every render
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

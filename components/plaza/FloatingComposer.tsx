@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import React, { useState } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
@@ -22,8 +22,8 @@ interface FloatingComposerProps {
 }
 
 export default function FloatingComposer({ onPost }: FloatingComposerProps) {
-  // ⭐ FIX: Memoize Supabase client
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
+  const supabase = useSupabase();
 
   const { user, loading } = useUser();
 
