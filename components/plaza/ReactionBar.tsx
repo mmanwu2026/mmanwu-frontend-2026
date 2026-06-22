@@ -30,10 +30,9 @@ export default function ReactionBar({
   positivityRatio,
   onReact,
 }: ReactionBarProps) {
-  // ⭐ FIX: Memoize Supabase client
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-
   const { user } = useUser();
+
   const [loading, setLoading] = useState(false);
 
   const loggedOut = !user;
@@ -43,23 +42,30 @@ export default function ReactionBar({
   // Handle Reaction
   // -----------------------------
   const handleReact = async (maskTier: number): Promise<void> => {
-  if (loading || loggedOut || !user) return;
+    if (loading || loggedOut || !user) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  const { data, error } = await supabase.rpc("apply_reaction", {
-    post_id: postId,
-    post_type: "plaza",
-    mask_tier: maskTier,
-    user_id: user.id,
-  });
+    console.log("🔥 Calling apply_reaction RPC");
 
-  console.log("RPC data:", data);
-  console.log("RPC error:", error);
+    const { data, error } = await supabase.rpc("apply_reaction", {
+      post_id: postId,
+      post_type: "plaza",
+      mask_tier: maskTier,
+      user_id: user.id,
+    });
 
-  setLoading(false);
-  onReact();
-};
+    console.log("RPC data:", data);
+    console.log("RPC error:", error);
+
+    setLoading(false);
+
+    try {
+      onReact();
+    } catch (e) {
+      console.error("🔥 onReact crashed:", e);
+    }
+  };
 
   // -----------------------------
   // Render
