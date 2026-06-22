@@ -28,12 +28,14 @@ interface PlazaPostWithAggregates {
   creator_id: string;
   content: string;
   created_at: string;
+
+  // DB fields (snake_case)
   spirit_score: number;
+  positivity_ratio: number;
   automask: number;
+
+  // Aggregated
   reactions: ReactionCounts;
-  spiritScore: number;
-  positivityRatio: number;
-  autoMask: number;
 }
 
 interface CreatorProfile {
@@ -74,6 +76,9 @@ export default function PlazaPage() {
   const prevPositiveReactionsMap = useRef<Record<string, number>>({});
   const reloadGuardRef = useRef(false);
 
+  // -----------------------------------------------------
+  // FETCH POSTS
+  // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
       if (!append) setLoading(true);
@@ -113,9 +118,11 @@ export default function PlazaPage() {
         return {
           ...post,
           reactions: counts,
-          spiritScore: post.spirit_score ?? 0,
-          positivityRatio: post.positivity_ratio ?? 0.5,
-          autoMask: post.automask ?? 2, // ⭐ key fix
+
+          // Normalize to snake_case only
+          spirit_score: post.spirit_score ?? 0,
+          positivity_ratio: post.positivity_ratio ?? 0.5,
+          automask: post.automask ?? 2,
         };
       });
 
@@ -137,6 +144,9 @@ export default function PlazaPage() {
     fetchPosts(0, false);
   }, [fetchPosts]);
 
+  // -----------------------------------------------------
+  // REALTIME SUBSCRIPTIONS
+  // -----------------------------------------------------
   useEffect(() => {
     const channel = supabase
       .channel("plaza-realtime")
@@ -175,6 +185,9 @@ export default function PlazaPage() {
     };
   }, [supabase, fetchPosts]);
 
+  // -----------------------------------------------------
+  // CREATOR FETCH
+  // -----------------------------------------------------
   async function fetchCreator(id: string) {
     if (creators[id]) return creators[id];
 
@@ -206,6 +219,9 @@ export default function PlazaPage() {
     })();
   }, [posts, creators]);
 
+  // -----------------------------------------------------
+  // DELETE POST
+  // -----------------------------------------------------
   async function handleDelete(postId: string) {
     if (!user) return;
     setDeletingId(postId);
@@ -216,6 +232,9 @@ export default function PlazaPage() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   }
 
+  // -----------------------------------------------------
+  // LOAD MORE
+  // -----------------------------------------------------
   async function handleLoadMore() {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
@@ -225,6 +244,9 @@ export default function PlazaPage() {
     setPage(nextPage);
   }
 
+  // -----------------------------------------------------
+  // RENDER
+  // -----------------------------------------------------
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
@@ -245,9 +267,7 @@ export default function PlazaPage() {
             </h1>
           </div>
 
-          {loading && (
-            <p className="text-gray-300">Loading posts…</p>
-          )}
+          {loading && <p className="text-gray-300">Loading posts…</p>}
 
           {!loading && posts.length === 0 && (
             <p className="text-gray-300">No posts yet…</p>
@@ -260,67 +280,68 @@ export default function PlazaPage() {
               const creator = creators[post.creator_id];
 
               const prevPos =
-                prevPositivityMap.current[key] ?? post.positivityRatio;
+                prevPositivityMap.current[key] ?? post.positivity_ratio;
               const prevPosReacts =
                 prevPositiveReactionsMap.current[key] ??
                 post.reactions.mask3;
 
-              const positivitySpike = post.positivityRatio - prevPos > 0.25;
+              const positivitySpike =
+                post.positivity_ratio - prevPos > 0.25;
               const newPositiveReaction =
                 post.reactions.mask3 > prevPosReacts;
 
               const surge = positivitySpike || newPositiveReaction;
 
-              prevPositivityMap.current[key] = post.positivityRatio;
+              prevPositivityMap.current[key] = post.positivity_ratio;
               prevPositiveReactionsMap.current[key] =
                 post.reactions.mask3;
 
               const ascensionClass =
-                post.spiritScore > 500
+                post.spirit_score > 500
                   ? "ascend-tier-5"
-                  : post.spiritScore > 200
+                  : post.spirit_score > 200
                   ? "ascend-tier-4"
-                  : post.spiritScore > 150
+                  : post.spirit_score > 150
                   ? "ascend-tier-3"
-                  : post.spiritScore > 100
+                  : post.spirit_score > 100
                   ? "ascend-tier-2"
                   : "ascend-tier-1";
 
               const surgeClass =
-                surge && post.spiritScore > 200
+                surge && post.spirit_score > 200
                   ? "surge-strong"
-                  : surge && post.spiritScore > 150
+                  : surge && post.spirit_score > 150
                   ? "surge-medium"
-                  : surge && post.spiritScore > 100
+                  : surge && post.spirit_score > 100
                   ? "surge-weak"
                   : "";
 
               const emotionClass =
-                post.positivityRatio > 0.75
+                post.positivity_ratio > 0.75
                   ? "emotion-boost"
-                  : post.positivityRatio > 0.55
+                  : post.positivity_ratio > 0.55
                   ? "emotion-intense"
-                  : post.positivityRatio < 0.25
+                  : post.positivity_ratio < 0.25
                   ? "emotion-soft"
                   : "emotion-calm";
 
               const floatY = Math.max(
-                -20 - post.spiritScore * 0.25,
+                -20 - post.spirit_score * 0.25,
                 -90
               );
 
               const glyphEmoji =
-                post.autoMask === 1 ? "😶‍🌫️" :
-                post.autoMask === 2 ? "😤" :
-                post.autoMask === 3 ? "😊" :
-                post.autoMask === 4 ? "🤩" :
-                post.autoMask === 5 ? "😇" :
-                post.autoMask === 6 ? "🔱" :
+                post.automask === 1 ? "😶‍🌫️" :
+                post.automask === 2 ? "😤" :
+                post.automask === 3 ? "😊" :
+                post.automask === 4 ? "🤩" :
+                post.automask === 5 ? "😇" :
+                post.automask === 6 ? "🔱" :
                 "😤";
 
               const intensity = auraIntensity(
-                post.spiritScore,
-                post.positivityRatio
+                post.spirit_score,
+                post.positivity_ratio
               );
 
               const totalReactions =
@@ -332,7 +353,7 @@ export default function PlazaPage() {
                 post.reactions.mask6;
 
               const trendingScore =
-                post.spiritScore + totalReactions * 5;
+                post.spirit_score + totalReactions * 5;
 
               const isTrending = trendingScore > 100;
               const isCreator = user?.id === post.creator_id;
@@ -353,7 +374,7 @@ export default function PlazaPage() {
                 >
                   <div
                     className={`
-                      aura-mask-${post.autoMask}
+                      aura-mask-${post.automask}
                       aura-intensity-${intensity}
                       rounded-2xl p-8 w-full h-full
                     `}
@@ -399,11 +420,11 @@ export default function PlazaPage() {
 
                       <div className="mt-auto w-full">
                         <p className="text-sm text-gray-400 text-center">
-                          SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
+                          SpiritScore: {post.spirit_score} • Reactions: {totalReactions}
                         </p>
 
                         <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
-                          <span>Mask: {post.autoMask}</span>
+                          <span>Mask: {post.automask}</span>
                           <span>{new Date(post.created_at).toLocaleString()}</span>
                         </div>
 
@@ -424,8 +445,8 @@ export default function PlazaPage() {
                             postId={post.id}
                             creatorId={post.creator_id}
                             reactions={post.reactions}
-                            spiritScore={post.spiritScore}
-                            positivityRatio={post.positivityRatio}
+                            spiritScore={post.spirit_score}
+                            positivityRatio={post.positivity_ratio}
                             onReact={reloadPosts}
                           />
                         </div>
