@@ -8,8 +8,8 @@ import React, {
   useMemo,
   type CSSProperties,
 } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/plaza/Sidebar";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
@@ -60,9 +60,7 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  // ⭐ FIX: Memoize Supabase client
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-
   const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
@@ -78,7 +76,7 @@ export default function PlazaPage() {
   const reloadGuardRef = useRef(false);
 
   // -----------------------------------------------------
-  // FETCH POSTS — MEMOIZED
+  // FETCH POSTS
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
@@ -138,16 +136,15 @@ export default function PlazaPage() {
   useEffect(() => {
     fetchPosts(0, false);
   }, [fetchPosts]);
-
   // -----------------------------------------------------
-  // RELOAD POSTS — MEMOIZED
+  // RELOAD POSTS
   // -----------------------------------------------------
   const reloadPosts = useCallback(() => {
     fetchPosts(0, false);
   }, [fetchPosts]);
 
   // -----------------------------------------------------
-  // REALTIME UPDATES — STABLE
+  // REALTIME UPDATES
   // -----------------------------------------------------
   useEffect(() => {
     const channel = supabase
@@ -240,6 +237,7 @@ export default function PlazaPage() {
   async function handleLoadMore() {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
+
     const nextPage = page + 1;
     await fetchPosts(nextPage, true);
     setPage(nextPage);
@@ -252,6 +250,7 @@ export default function PlazaPage() {
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
 
+      {/* Floating Composer */}
       <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000] pointer-events-none">
         <div className="pointer-events-auto">
           <FloatingComposer onPost={reloadPosts} />
@@ -268,13 +267,16 @@ export default function PlazaPage() {
             </h1>
           </div>
 
-          {loading && <p className="text-gray-300">Loading posts…</p>}
+          {loading && (
+            <p className="text-gray-300">Loading posts…</p>
+          )}
+
           {!loading && posts.length === 0 && (
             <p className="text-gray-300">No posts yet…</p>
           )}
 
           <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post) => {
+                        {posts.map((post) => {
               const key = post.id;
 
               const creator = creators[post.creator_id];
@@ -362,101 +364,104 @@ export default function PlazaPage() {
                   key={post.id}
                   className={`
                     relative isolate z-0
-                    p-8
-                    rounded-2xl
-                    transition-all
-                    duration-500
+                    transition-all duration-500
                     overflow-visible
                     w-[420px] h-[520px]
                     flex flex-col
-
-                    plaza-card-base
-                    aura-mask-${post.autoMask}
-                    aura-intensity-${intensity}
-
                     ${ascensionClass}
                     ${surgeClass}
                     ${emotionClass}
                   `}
                 >
-                  {creator && (
-                    <img
-                      src={creator.avatar_url || "/default-avatar.png"}
-                      alt="avatar"
-                      className="
-                        absolute
-                        top-3 left-3
-                        w-8 h-8
-                        rounded-full
-                        border border-gray-700
-                        object-cover
-                        z-[30]
-                      "
-                    />
-                  )}
+                  {/* ⭐ Aura Wrapper */}
+                  <div
+                    className={`
+                      aura-mask-${post.autoMask}
+                      aura-intensity-${intensity}
+                      rounded-2xl p-8 w-full h-full
+                    `}
+                  >
+                    {/* ⭐ Glow Target */}
+                    <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
 
-                  <div className="ritual-glyph-container mt-4 flex justify-center">
-                    <div className="ritual-glyph-levitate">
-                      <div className="ritual-flame-ring clean"></div>
-                      <div className="ritual-shadow-floor clean"></div>
-                      <div
-                        className="emoji-glyph clean"
-                        style={
-                          { "--float-y": `${floatY}px` } as CSSProperties
-                        }
-                      >
-                        {glyphEmoji}
-                      </div>
-                    </div>
-                  </div>
-
-                  {isTrending && (
-                    <p className="mt-2 text-xs text-yellow-400 text-center">
-                      Trending • Score {trendingScore}
-                    </p>
-                  )}
-
-                  <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4 overflow-y-auto max-h-[200px]">
-                    {post.content}
-                  </p>
-
-                  <div className="mt-auto w-full">
-                    <p className="text-sm text-gray-400 text-center">
-                      SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
-                    </p>
-
-                    <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
-                      <span>Mask: {post.autoMask}</span>
-                      <span>{new Date(post.created_at).toLocaleString()}</span>
-                    </div>
-
-                    <div className="relative w-full h-0">
-                      {isCreator && (
-                        <button
-                          onClick={() => handleDelete(post.id)}
-                          disabled={deletingId === post.id}
-                          className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
-                        >
-                          {deletingId === post.id ? "Deleting…" : "Delete"}
-                        </button>
+                      {creator && (
+                        <img
+                          src={creator.avatar_url || "/default-avatar.png"}
+                          alt="avatar"
+                          className="
+                            absolute top-3 left-3
+                            w-8 h-8 rounded-full
+                            border border-gray-700
+                            object-cover z-[30]
+                          "
+                        />
                       )}
-                    </div>
 
-                    <div className="mt-6 w-full flex justify-center">
-                      <ReactionBar
-                        postId={post.id}
-                        creatorId={post.creator_id}
-                        reactions={post.reactions}
-                        spiritScore={post.spiritScore}
-                        positivityRatio={post.positivityRatio}
-                        onReact={reloadPosts}
-                      />
+                      <div className="ritual-glyph-container mt-4 flex justify-center">
+                        <div className="ritual-glyph-levitate">
+                          <div className="ritual-flame-ring clean"></div>
+                          <div className="ritual-shadow-floor clean"></div>
+                          <div
+                            className="emoji-glyph clean"
+                            style={
+                              { "--float-y": `${floatY}px` } as CSSProperties
+                            }
+                          >
+                            {glyphEmoji}
+                          </div>
+                        </div>
+                      </div>
+
+                      {isTrending && (
+                        <p className="mt-2 text-xs text-yellow-400 text-center">
+                          Trending • Score {trendingScore}
+                        </p>
+                      )}
+
+                      <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4 overflow-y-auto max-h-[200px]">
+                        {post.content}
+                      </p>
+
+                      <div className="mt-auto w-full">
+                        <p className="text-sm text-gray-400 text-center">
+                          SpiritScore: {post.spiritScore} • Reactions: {totalReactions}
+                        </p>
+
+                        <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
+                          <span>Mask: {post.autoMask}</span>
+                          <span>{new Date(post.created_at).toLocaleString()}</span>
+                        </div>
+
+                        <div className="relative w-full h-0">
+                          {isCreator && (
+                            <button
+                              onClick={() => handleDelete(post.id)}
+                              disabled={deletingId === post.id}
+                              className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
+                            >
+                              {deletingId === post.id ? "Deleting…" : "Delete"}
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="mt-6 w-full flex justify-center">
+                          <ReactionBar
+                            postId={post.id}
+                            creatorId={post.creator_id}
+                            reactions={post.reactions}
+                            spiritScore={post.spiritScore}
+                            positivityRatio={post.positivityRatio}
+                            onReact={reloadPosts}
+                          />
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
+                    </div>
 
           {!loading && hasMore && (
             <button
