@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import ReactionBar from "@/components/plaza/ReactionBar";
@@ -41,15 +41,12 @@ interface UserPost {
   positivityRatio: number;
 }
 
-export default function UserProfilePage({
-  params,
-}: {
-  params: { userId: string };
-}) {
+export default function UserProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
   const userId = params.userId;
 
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -75,28 +72,19 @@ export default function UserProfilePage({
 
   // ⭐ Listen for auth changes
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: string, session: any) => {
-        if (session?.user) {
-          setSessionReady(true);
-        } else {
-          router.replace("/login");
-        }
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setSessionReady(true);
+      } else {
+        router.replace("/login");
       }
-    );
+    });
 
     return () => listener.subscription.unsubscribe();
   }, [router, supabase]);
 
-  // ⭐ Load profile AFTER session is ready
-  useEffect(() => {
-    if (sessionReady && userId) {
-      loadProfile();
-    }
-  }, [sessionReady, userId]);
-
-  // ⭐ Hydration-safe profile loader
-  async function loadProfile(): Promise<void> {
+  // ⭐ Memoized profile loader
+  const loadProfile = useCallback(async () => {
     setLoading(true);
 
     const { data: userData } = await supabase
@@ -120,8 +108,7 @@ export default function UserProfilePage({
       .order("created_at", { ascending: false });
 
     const typedPosts = (postsData ?? []) as any[];
-
-    const postIds = typedPosts.map((p: any) => p.id);
+    const postIds = typedPosts.map((p) => p.id);
 
     const { data: reactionsData } = await supabase
       .from("reactions")
@@ -130,10 +117,8 @@ export default function UserProfilePage({
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    const merged: UserPost[] = typedPosts.map((post: any) => {
-      const postReactions = typedReactions.filter(
-        (r: ReactionRow) => r.post_id === post.id
-      );
+    const merged: UserPost[] = typedPosts.map((post) => {
+      const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
       const counts: ReactionCounts = {
         mask1: postReactions.filter((r) => r.maskTier === 1).length,
@@ -148,14 +133,10 @@ export default function UserProfilePage({
 
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)
-        .reduce(
-          (sum: number, r: ReactionRow) => sum + (r.value ?? 0),
-          0
-        );
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
       const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio =
-        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
       return {
         ...post,
@@ -167,7 +148,14 @@ export default function UserProfilePage({
 
     setPosts(merged);
     setLoading(false);
-  }
+  }, [supabase, userId]);
+
+  // ⭐ Load profile AFTER session is ready
+  useEffect(() => {
+    if (sessionReady && userId) {
+      loadProfile();
+    }
+  }, [sessionReady, userId, loadProfile]);
 
   // ⭐ Loading state
   if (loading || !sessionReady || !userId) {
@@ -199,7 +187,6 @@ export default function UserProfilePage({
       {/* Profile Header */}
       <div className="max-w-2xl mx-auto mb-10 border-b border-zinc-800 pb-10">
         <div className="flex items-center gap-8">
-          {/* Avatar */}
           <div
             className="relative group cursor-pointer"
             onClick={() => router.push(`/profile/${userId}/edit`)}
@@ -207,12 +194,8 @@ export default function UserProfilePage({
             <img
               src={avatarUrl}
               alt="avatar"
-              className="
-                relative z-10 w-32 h-32 rounded-full object-cover
-                border border-zinc-700 shadow-xl bg-zinc-900
-                transition-transform duration-300 group-hover:scale-105
-              "
-              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              className="relative z-10 w-32 h-32 rounded-full object-cover border border-zinc-700 shadow-xl bg-zinc-900 transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
                 const target = e.currentTarget;
                 if (target.src !== "/fallback-avatar.png") {
                   target.src = "/fallback-avatar.png";
@@ -221,17 +204,12 @@ export default function UserProfilePage({
             />
           </div>
 
-          {/* Username + Bio */}
           <div className="flex flex-col">
-            <h1 className="text-3xl font-semibold tracking-wide">
-              {username}
-            </h1>
-
+            <h1 className="text-3xl font-semibold tracking-wide">{username}</h1>
             <p className="text-zinc-400 text-sm mt-1">{bio}</p>
           </div>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-10 mt-8 text-sm">
           <div>
             <span className="font-semibold text-lg">{spiritScore}</span>{" "}
@@ -256,14 +234,9 @@ export default function UserProfilePage({
           <p className="text-zinc-500 text-center">No posts yet.</p>
         )}
 
-        {posts.map((post: UserPost) => (
-          <div
-            key={post.id}
-            className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
-          >
-            <p className="text-sm mb-3 whitespace-pre-line">
-              {post.content}
-            </p>
+        {posts.map((post) => (
+          <div key={post.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+            <p className="text-sm mb-3 whitespace-pre-line">{post.content}</p>
 
             <ReactionBar
               postId={post.id}

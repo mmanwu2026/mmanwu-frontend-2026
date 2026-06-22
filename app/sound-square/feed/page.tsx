@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import SoundPostCard, {
-  CardSoundPost,
-} from "@/components/sound-square/SoundPostCard";
+import SoundPostCard, { CardSoundPost } from "@/components/sound-square/SoundPostCard";
 
 type ReactionCounts = {
   mask1: number;
@@ -34,7 +32,8 @@ type RawSoundPost = {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -132,10 +131,8 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  async function mergeWithReactions(
-    rawPosts: RawSoundPost[]
-  ): Promise<CardSoundPost[]> {
-    const postIds = rawPosts.map((p: RawSoundPost) => p.id);
+  async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
+    const postIds = rawPosts.map((p) => p.id);
 
     const { data: reactionsData } = await supabase
       .from("sound_reactions")
@@ -144,10 +141,8 @@ export default function SoundSquareFeed() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    return rawPosts.map((post: RawSoundPost): CardSoundPost => {
-      const postReactions = typedReactions.filter(
-        (r: ReactionRow) => r.post_id === post.id
-      );
+    return rawPosts.map((post) => {
+      const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
       const counts: ReactionCounts = {
         mask1: postReactions.filter((r) => r.maskTier === 1).length,
@@ -161,15 +156,11 @@ export default function SoundSquareFeed() {
       const spiritScore = post.spirit_score ?? 0;
 
       const weightedPositive = postReactions
-        .filter((r: ReactionRow) => (r.value ?? 0) > 0)
-        .reduce(
-          (sum: number, r: ReactionRow) => sum + (r.value ?? 0),
-          0
-        );
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
       const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio =
-        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
@@ -200,7 +191,7 @@ export default function SoundSquareFeed() {
       {loading && <p>Loading sounds...</p>}
 
       <div className="flex flex-col gap-6 mb-6">
-        {posts.map((post: CardSoundPost) => (
+        {posts.map((post) => (
           <SoundPostCard key={post.id} post={post} />
         ))}
       </div>

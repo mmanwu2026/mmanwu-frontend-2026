@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 export default function SignupPage() {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -103,7 +104,7 @@ export default function SignupPage() {
       </form>
 
       <p className="mt-4 text-sm">
-        Already have an account?{" "}
+        Already have an account{" "}
         <Link href="/login" className="text-purple-400 hover:text-purple-300">
           Log in
         </Link>

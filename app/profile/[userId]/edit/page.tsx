@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -11,15 +11,12 @@ interface UserProfile {
   avatar_url: string | null;
 }
 
-export default function EditProfilePage({
-  params,
-}: {
-  params: { userId: string };
-}) {
+export default function EditProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
   const userId = params.userId;
 
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -29,15 +26,12 @@ export default function EditProfilePage({
   const [saving, setSaving] = useState(false);
 
   // -----------------------------
-  // Load Profile
+  // Load Profile (memoized)
   // -----------------------------
-  async function loadProfile(): Promise<void> {
+  const loadProfile = useCallback(async () => {
     const { data: authData } = await supabase.auth.getUser();
 
-    if (!authData?.user) {
-      setTimeout(loadProfile, 200);
-      return;
-    }
+    if (!authData?.user) return;
 
     const { data: userData } = await supabase
       .from("users")
@@ -45,10 +39,7 @@ export default function EditProfilePage({
       .eq("id", userId)
       .maybeSingle();
 
-    if (!userData) {
-      setTimeout(loadProfile, 200);
-      return;
-    }
+    if (!userData) return;
 
     const typed = userData as UserProfile;
 
@@ -56,14 +47,12 @@ export default function EditProfilePage({
     setUsername(typed.username || "");
     setBio(typed.bio || "");
     setAvatarUrl(typed.avatar_url || null);
-  }
+  }, [supabase, userId]);
 
   // -----------------------------
   // Avatar Upload Handler
   // -----------------------------
-  async function handleAvatarUpload(
-    e: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> {
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -86,10 +75,7 @@ export default function EditProfilePage({
 
     const publicUrl = publicUrlData.publicUrl;
 
-    await supabase
-      .from("users")
-      .update({ avatar_url: publicUrl })
-      .eq("id", userId);
+    await supabase.from("users").update({ avatar_url: publicUrl }).eq("id", userId);
 
     setAvatarUrl(publicUrl);
   }
@@ -97,7 +83,7 @@ export default function EditProfilePage({
   // -----------------------------
   // Save Profile
   // -----------------------------
-  async function handleSave(): Promise<void> {
+  async function handleSave() {
     setSaving(true);
 
     await supabase
@@ -116,25 +102,20 @@ export default function EditProfilePage({
   // Session Hydration
   // -----------------------------
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: string, session: any) => {
-        if (!session?.user) {
-          router.replace("/login");
-        } else {
-          setSessionReady(true);
-        }
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        router.replace("/login");
+      } else {
+        setSessionReady(true);
       }
-    );
+    });
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, [router, supabase]);
 
   useEffect(() => {
-    if (!sessionReady) return;
-    loadProfile();
-  }, [sessionReady]);
+    if (sessionReady) loadProfile();
+  }, [sessionReady, loadProfile]);
 
   if (!sessionReady || !profile) {
     return (
@@ -174,9 +155,7 @@ export default function EditProfilePage({
           <input
             type="text"
             value={username}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setUsername(e.target.value)
-            }
+            onChange={(e) => setUsername(e.target.value)}
             className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
           />
         </div>
@@ -186,9 +165,7 @@ export default function EditProfilePage({
           <label className="block text-sm text-zinc-400 mb-1">Bio</label>
           <textarea
             value={bio}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setBio(e.target.value)
-            }
+            onChange={(e) => setBio(e.target.value)}
             className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white h-24"
           />
         </div>

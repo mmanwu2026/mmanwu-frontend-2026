@@ -5,6 +5,7 @@ import React, {
   useState,
   useRef,
   useCallback,
+  useMemo,
   type CSSProperties,
 } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -59,7 +60,9 @@ function auraIntensity(score: number, positivity: number) {
 }
 
 export default function PlazaPage() {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
   const { user } = useUser();
 
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
@@ -75,70 +78,76 @@ export default function PlazaPage() {
   const reloadGuardRef = useRef(false);
 
   // -----------------------------------------------------
-  // FETCH POSTS — FIXED VERSION
+  // FETCH POSTS — MEMOIZED
   // -----------------------------------------------------
-  async function fetchPosts(pageToLoad: number = 0, append = false) {
-    if (!append) setLoading(true);
+  const fetchPosts = useCallback(
+    async (pageToLoad: number = 0, append = false) => {
+      if (!append) setLoading(true);
 
-    const from = pageToLoad * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+      const from = pageToLoad * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-    const { data: postsData, error: postsError } = await supabase
-      .from("posts")
-      .select(`
-        *,
-        reactions:reactions(maskTier)
-      `)
-      .order("created_at", { ascending: false })
-      .range(from, to);
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select(`
+          *,
+          reactions:reactions(maskTier)
+        `)
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
-    if (postsError || !postsData) {
-      console.error("Error fetching posts:", postsError);
-      if (!append) setPosts([]);
-      setHasMore(false);
-      setLoading(false);
-      return;
-    }
+      if (postsError || !postsData) {
+        console.error("Error fetching posts:", postsError);
+        if (!append) setPosts([]);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
 
-    const typedPosts = postsData as any[];
+      const typedPosts = postsData as any[];
 
-    const merged: PlazaPostWithAggregates[] = typedPosts.map((post: any) => {
-      const counts: ReactionCounts = {
-        mask1: post.reactions.filter((r: any) => r.maskTier === 1).length,
-        mask2: post.reactions.filter((r: any) => r.maskTier === 2).length,
-        mask3: post.reactions.filter((r: any) => r.maskTier === 3).length,
-        mask4: post.reactions.filter((r: any) => r.maskTier === 4).length,
-        mask5: post.reactions.filter((r: any) => r.maskTier === 5).length,
-        mask6: post.reactions.filter((r: any) => r.maskTier === 6).length,
-      };
+      const merged: PlazaPostWithAggregates[] = typedPosts.map((post: any) => {
+        const counts: ReactionCounts = {
+          mask1: post.reactions.filter((r: any) => r.maskTier === 1).length,
+          mask2: post.reactions.filter((r: any) => r.maskTier === 2).length,
+          mask3: post.reactions.filter((r: any) => r.maskTier === 3).length,
+          mask4: post.reactions.filter((r: any) => r.maskTier === 4).length,
+          mask5: post.reactions.filter((r: any) => r.maskTier === 5).length,
+          mask6: post.reactions.filter((r: any) => r.maskTier === 6).length,
+        };
 
-      return {
-        ...post,
-        reactions: counts,
-        spiritScore: post.spirit_score,
-        positivityRatio: post.positivity_ratio ?? 0.5,
-        autoMask: post.auto_mask,
-      };
-    });
+        return {
+          ...post,
+          reactions: counts,
+          spiritScore: post.spirit_score,
+          positivityRatio: post.positivity_ratio ?? 0.5,
+          autoMask: post.auto_mask,
+        };
+      });
 
-    setPosts((prev) => (append ? [...prev, ...merged] : merged));
+      setPosts((prev) => (append ? [...prev, ...merged] : merged));
 
-    if (typedPosts.length < PAGE_SIZE) setHasMore(false);
+      if (typedPosts.length < PAGE_SIZE) setHasMore(false);
 
-    if (!append) setLoading(false);
-    setLoadingMore(false);
-  }
+      if (!append) setLoading(false);
+      setLoadingMore(false);
+    },
+    [supabase]
+  );
 
   useEffect(() => {
     fetchPosts(0, false);
-  }, []);
-
-  const reloadPosts = useCallback(() => {
-    fetchPosts(0, false);
-  }, []);
+  }, [fetchPosts]);
 
   // -----------------------------------------------------
-  // REALTIME UPDATES
+  // RELOAD POSTS — MEMOIZED
+  // -----------------------------------------------------
+  const reloadPosts = useCallback(() => {
+    fetchPosts(0, false);
+  }, [fetchPosts]);
+
+  // -----------------------------------------------------
+  // REALTIME UPDATES — STABLE
   // -----------------------------------------------------
   useEffect(() => {
     const channel = supabase
@@ -176,7 +185,7 @@ export default function PlazaPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, fetchPosts]);
 
   // -----------------------------------------------------
   // FETCH CREATOR PROFILES

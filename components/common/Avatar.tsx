@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 
 export default function Avatar({
   src,
@@ -13,21 +14,18 @@ export default function Avatar({
   alt?: string;
   className?: string;
 }) {
-  const fallback = "/fallback-avatar.png"; // ⭐ Place this in /public
+  const fallback = "/fallback-avatar.png";
+
+  const [imgSrc, setImgSrc] = useState(src || fallback);
 
   return (
     <Image
-      src={src || fallback}
+      src={imgSrc}
       alt={alt}
       width={size}
       height={size}
       className={`rounded-full object-cover ${className}`}
-      onError={(e) => {
-        const target = e.target as HTMLImageElement;
-        if (target.src !== fallback) {
-          target.src = fallback;
-        }
-      }}
+      onError={() => setImgSrc(fallback)}
     />
   );
 }

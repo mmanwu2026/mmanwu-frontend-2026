@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
@@ -22,7 +22,9 @@ interface FloatingComposerProps {
 }
 
 export default function FloatingComposer({ onPost }: FloatingComposerProps) {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
   const { user, loading } = useUser();
 
   const [content, setContent] = useState("");
@@ -57,7 +59,7 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
   async function publishToSupabase(finalText: string): Promise<void> {
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("posts")
       .insert({
         content: finalText,
@@ -66,6 +68,11 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
       })
       .select()
       .single();
+
+    if (error) {
+      console.error("Post insert error:", error);
+      return;
+    }
 
     if (data) onPost(data);
   }

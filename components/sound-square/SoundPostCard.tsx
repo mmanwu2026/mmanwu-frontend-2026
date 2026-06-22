@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ReactionCounts = {
@@ -26,7 +26,8 @@ export type CardSoundPost = {
 };
 
 export default function SoundPostCard({ post }: { post: CardSoundPost }) {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -35,7 +36,9 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
   const [intensity, setIntensity] = useState(0);
 
+  // -----------------------------------------------------
   // Beat‑reactive analyser
+  // -----------------------------------------------------
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -74,7 +77,9 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     };
   }, []);
 
+  // -----------------------------------------------------
   // Waveform canvas resize
+  // -----------------------------------------------------
   useEffect(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -89,7 +94,9 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
+  // -----------------------------------------------------
   // Waveform visualizer
+  // -----------------------------------------------------
   useEffect(() => {
     if (!audioRef.current || !canvasRef.current) return;
 
@@ -151,13 +158,15 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     };
   }, []);
 
-  // ⭐ FIXED — Reaction click handler with correct RPC signature
+  // -----------------------------------------------------
+  // Reaction Handler (memoized client)
+  // -----------------------------------------------------
   async function handleReaction(maskTier: number) {
     const { error } = await supabase.rpc("react_to_post", {
       p_post_id: post.id,
       p_post_type: "sound",
-      p_maskTier: maskTier,   // <-- FIXED HERE
-      p_user_id: null,        // keep as-is if sound reactions allow anonymous
+      p_maskTier: maskTier,
+      p_user_id: null, // sound reactions allow anonymous
     });
 
     if (error) {

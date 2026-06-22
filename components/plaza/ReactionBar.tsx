@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUser } from "@/context/UserContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -30,9 +30,10 @@ export default function ReactionBar({
   positivityRatio,
   onReact,
 }: ReactionBarProps) {
-  const supabase = createSupabaseBrowserClient();
-  const { user } = useUser();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
 
   const loggedOut = !user;
@@ -53,7 +54,7 @@ export default function ReactionBar({
     const { data, error } = await supabase.rpc("react_to_post", {
       p_post_id: postId,
       p_post_type: "plaza",
-      p_maskTier: maskTier,   // <-- FIXED HERE
+      p_maskTier: maskTier,
       p_user_id: user.id,
     });
 

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUser } from "@/context/UserContext";
 
 export default function SoundSquareUpload() {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
   const { user } = useUser();
 
   const [file, setFile] = useState<File | null>(null);
@@ -111,6 +113,7 @@ export default function SoundSquareUpload() {
       return;
     }
 
+    // Extract duration
     const audio = document.createElement("audio");
     audio.src = publicUrl;
 
@@ -120,6 +123,7 @@ export default function SoundSquareUpload() {
 
     const duration = audio.duration;
 
+    // Insert DB row
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title,
       audio_url: publicUrl,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useUser } from "@/context/UserContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -14,13 +14,14 @@ interface UserProfile {
 
 export default function EditProfilePage() {
   const { user, loading } = useUser();
-  const supabase = createSupabaseBrowserClient();
+
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   // ⭐ BLOCK RENDERING UNTIL USER EXISTS
   if (loading) return <div className="p-6">Loading…</div>;
   if (!user) return <div className="p-6">You must be logged in.</div>;
 
-  // ⭐ NARROW ONCE — FIXES ALL TS ERRORS
   const userId = user.id;
 
   const [profile, setProfile] = useState<UserProfile>({
@@ -59,7 +60,7 @@ export default function EditProfilePage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: userId, // ⭐ SAFE — narrowed above
+        id: userId,
         username: profile.username,
         avatar_url: profile.avatar_url,
         bio: profile.bio,

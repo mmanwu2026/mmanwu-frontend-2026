@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -69,7 +69,8 @@ export default function CreatorProfilePage() {
   const params = useParams();
   const creatorId = params?.id as string;
 
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize Supabase client
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<CreatorPost[]>([]);
@@ -98,7 +99,6 @@ export default function CreatorProfilePage() {
       return;
     }
 
-    // FIXED: typed callback
     const postIds = postsData.map((p: any) => p.id);
 
     const { data: reactionsData } = await supabase
@@ -106,7 +106,6 @@ export default function CreatorProfilePage() {
       .select("post_id, maskTier, value")
       .in("post_id", postIds);
 
-    // FIXED: typed callback
     const merged: CreatorPost[] = postsData.map((p: any) => {
       const postReactions = (reactionsData ?? []).filter(
         (r: any) => r.post_id === p.id

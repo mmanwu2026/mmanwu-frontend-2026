@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -12,17 +12,17 @@ interface UserContextValue {
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createSupabaseBrowserClient();
+  // ⭐ FIX: Memoize the Supabase client so it is NOT recreated on every render
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load initial session AND wait for Supabase to hydrate
+  // Load initial session
   useEffect(() => {
     let active = true;
 
     async function load() {
-      // Wait for Supabase to finish restoring the session
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -30,8 +30,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       setUser(session?.user ?? null);
-
-      // IMPORTANT: do NOT set loading=false until after hydration
       setLoading(false);
     }
 
@@ -42,7 +40,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase]);
 
-  // Listen for auth changes (login, logout, refresh)
+  // Listen for auth changes
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event: string, session: Session | null) => {
