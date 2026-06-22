@@ -55,10 +55,10 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ FIXED: Reliable session resolver using onAuthStateChange
+  // ⭐ Reliable session resolver using onAuthStateChange
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event: string, session: { user: { id: string } } | null) => {
+      async (_event: string, session: any) => {
         setSessionReady(true);
 
         if (!session?.user) {
@@ -74,7 +74,9 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       }
     );
 
-    return () => authListener.subscription.unsubscribe();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [params.userId, supabase, router]);
 
   // ⭐ Load profile + posts
@@ -84,11 +86,18 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setLoading(true);
 
     // Load user profile
-    const { data: userData } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from("users")
       .select("*")
       .eq("id", resolvedUserId)
       .maybeSingle();
+
+    if (userError) {
+      console.error("Profile load error:", userError);
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
 
     if (!userData) {
       setProfile(null);
@@ -100,52 +109,74 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setProfile(typedProfile);
 
     // Load posts
-    const { data: postsData } = await supabase
+    const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
       .eq("creator_id", resolvedUserId)
       .order("created_at", { ascending: false });
 
+    if (postsError) {
+      console.error("Posts load error:", postsError);
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
     const typedPosts = (postsData ?? []) as any[];
     const postIds = typedPosts.map((p) => p.id);
 
-    // Load reactions
-    const { data: reactionsData } = await supabase
-      .from("reactions")
-      .select("post_id, maskTier, value")
-      .in("post_id", postIds);
+    let typedReactions: ReactionRow[] = [];
 
-    const typedReactions = (reactionsData ?? []) as ReactionRow[];
+    // Only query reactions if there are posts
+    if (postIds.length > 0) {
+      const { data: reactionsData, error: reactionsError } = await supabase
+        .from("reactions")
+        .select("post_id, maskTier, value")
+        .in("post_id", postIds);
+
+      if (reactionsError) {
+        console.error("Reactions load error:", reactionsError);
+        typedReactions = [];
+      } else {
+        typedReactions = (reactionsData ?? []) as ReactionRow[];
+      }
+    }
 
     // Merge posts + reactions
-    const merged: UserPost[] = typedPosts.map((post) => {
-      const postReactions = typedReactions.filter((r) => r.post_id === post.id);
+    const merged: UserPost[] =
+      typedPosts.length > 0
+        ? typedPosts.map((post) => {
+            const postReactions = typedReactions.filter(
+              (r) => r.post_id === post.id
+            );
 
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
-      };
+            const counts: ReactionCounts = {
+              mask1: postReactions.filter((r) => r.maskTier === 1).length,
+              mask2: postReactions.filter((r) => r.maskTier === 2).length,
+              mask3: postReactions.filter((r) => r.maskTier === 3).length,
+              mask4: postReactions.filter((r) => r.maskTier === 4).length,
+              mask5: postReactions.filter((r) => r.maskTier === 5).length,
+              mask6: postReactions.filter((r) => r.maskTier === 6).length,
+            };
 
-      const spiritScore = post.spirit_score ?? 0;
+            const spiritScore = post.spirit_score ?? 0;
 
-      const weightedPositive = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+            const weightedPositive = postReactions
+              .filter((r) => (r.value ?? 0) > 0)
+              .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-      const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+            const weightedTotal = Math.abs(spiritScore);
+            const positivityRatio =
+              weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-      return {
-        ...post,
-        reactions: counts,
-        spiritScore,
-        positivityRatio,
-      };
-    });
+            return {
+              ...post,
+              reactions: counts,
+              spiritScore,
+              positivityRatio,
+            };
+          })
+        : [];
 
     setPosts(merged);
     setLoading(false);
@@ -236,7 +267,10 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         )}
 
         {posts.map((post) => (
-          <div key={post.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+          <div
+            key={post.id}
+            className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
+          >
             <p className="text-sm mb-3 whitespace-pre-line">{post.content}</p>
 
             <ReactionBar
