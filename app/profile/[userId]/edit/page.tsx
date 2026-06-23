@@ -15,6 +15,11 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   const router = useRouter();
   const supabase = useSupabase();
 
+  // ⭐ CRITICAL FIX: Prevent accidental rendering on /profile/self or /profile/<id>
+  if (params.userId === "self" || params.userId === "edit") {
+    return null;
+  }
+
   const [sessionReady, setSessionReady] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
 
@@ -24,10 +29,10 @@ export default function EditProfilePage({ params }: { params: { userId: string }
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // ⭐ FIXED: Reliable session resolver using onAuthStateChange
+  // ⭐ Reliable session resolver
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
-async (_event: string, session: { user: { id: string } } | null) => {
+      async (_event: string, session: { user: { id: string } } | null) => {
         setSessionReady(true);
 
         if (!session?.user) {
@@ -35,7 +40,7 @@ async (_event: string, session: { user: { id: string } } | null) => {
           return;
         }
 
-        if (params.userId === "me") {
+        if (params.userId === "self") {
           setResolvedUserId(session.user.id);
         } else {
           setResolvedUserId(params.userId);
