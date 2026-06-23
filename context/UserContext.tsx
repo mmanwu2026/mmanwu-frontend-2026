@@ -1,29 +1,60 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { createContext, useContext, useEffect, useState } from "react";
+import { useSupabase } from "@/context/SupabaseContext";
+import type { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 
-const SupabaseContext = createContext<any>(null);
+interface UserContextValue {
+  user: User | null;
+  loading: boolean;
+}
 
-export function SupabaseProvider({ children }: { children: React.ReactNode }) {
-  const supabase = useMemo(() => {
-    return createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const UserContext = createContext<UserContextValue | null>(null);
+
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const supabase = useSupabase();
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    }
+
+    load();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        if (!active) return;
+        setUser(session?.user ?? null);
+      }
     );
-  }, []);
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   return (
-    <SupabaseContext.Provider value={supabase}>
+    <UserContext.Provider value={{ user, loading }}>
       {children}
-    </SupabaseContext.Provider>
+    </UserContext.Provider>
   );
 }
 
-export function useSupabase() {
-  const ctx = useContext(SupabaseContext);
+export function useUser(): UserContextValue {
+  const ctx = useContext(UserContext);
   if (!ctx) {
-    throw new Error("useSupabase must be used within SupabaseProvider");
+    throw new Error("useUser must be used inside <UserProvider>");
   }
   return ctx;
 }
