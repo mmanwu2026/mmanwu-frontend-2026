@@ -1,65 +1,29 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
-import type { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
+import { createContext, useContext, useMemo } from "react";
+import { createBrowserClient } from "@supabase/ssr";
 
-interface UserContextValue {
-  user: User | null;
-  loading: boolean;
-}
+const SupabaseContext = createContext<any>(null);
 
-const UserContext = createContext<UserContextValue | null>(null);
-
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const supabase = useSupabase();
-
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-
-      if (!active) return;
-
-      if (data.session?.user) {
-        setUser(data.session.user);
-      }
-
-      // ⭐ FIX: end loading after initial session check
-      setLoading(false);
-    };
-
-    init();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        if (!active) return;
-
-        setUser(session?.user ?? null);
-      }
+export function SupabaseProvider({ children }: { children: React.ReactNode }) {
+  const supabase = useMemo(() => {
+    return createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-
-    return () => {
-      active = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [supabase]);
+  }, []);
 
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <SupabaseContext.Provider value={supabase}>
       {children}
-    </UserContext.Provider>
+    </SupabaseContext.Provider>
   );
 }
 
-export function useUser(): UserContextValue {
-  const ctx = useContext(UserContext);
+export function useSupabase() {
+  const ctx = useContext(SupabaseContext);
   if (!ctx) {
-    throw new Error("useUser must be used inside <UserProvider>");
+    throw new Error("useSupabase must be used within SupabaseProvider");
   }
   return ctx;
 }
