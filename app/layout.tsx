@@ -10,8 +10,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-black text-white" suppressHydrationWarning>
         <SupabaseProvider>
+          <AuthNavWrapper />   {/* ← moved OUTSIDE UserProvider */}
           <UserProvider>
-            <AuthNavWrapper />
             {children}
           </UserProvider>
         </SupabaseProvider>
