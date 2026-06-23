@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,31 +17,31 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
-    // ⭐ Prevent double submissions
     if (loading) return;
 
     setLoading(true);
     setErrorMsg("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      // ⭐ Friendlier error messaging
       if (error.message.includes("Invalid login credentials")) {
         setErrorMsg("Incorrect email or password");
       } else {
         setErrorMsg(error.message);
       }
-
       setLoading(false);
       return;
     }
 
-    // Let the Plaza layout handle session validation
-    window.location.href = "/plaza";
+    // ⭐ Ensure Supabase finishes writing the session cookie
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    // ⭐ Use Next.js router (safe, preserves JS context)
+    router.push("/plaza");
   }
 
   return (
@@ -76,15 +77,6 @@ export default function LoginPage() {
           {loading ? "Logging in…" : "Log In"}
         </button>
       </form>
-
-      {/* ⭐ Optional — enable when ready */}
-      {/* 
-      <p className="mt-3 text-sm">
-        <Link href="/reset-password" className="text-purple-400 hover:text-purple-300">
-          Forgot password
-        </Link>
-      </p>
-      */}
 
       <p className="mt-4 text-sm">
         Don’t have an account?{" "}
