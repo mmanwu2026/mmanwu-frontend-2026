@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
@@ -15,25 +15,20 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
-  // ⭐ NEW: HARD BLOCK until user is known
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading session…</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    router.replace("/login");
-    return null;
-  }
-
-  const resolvedId = params.userId === "me" ? user.id : params.userId;
+  // ⭐ Always compute this early, but allow null
+  const resolvedId =
+    params.userId === "me" ? user?.id ?? null : params.userId;
 
   useEffect(() => {
+    if (loading) return;          // Wait for UserProvider
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!resolvedId) return;      // ⭐ Prevent undefined from ever being used
+
     loadProfile(resolvedId);
-  }, [resolvedId]);
+  }, [loading, user, resolvedId]);
 
   const loadProfile = async (id: string) => {
     setFetching(true);
@@ -56,7 +51,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setFetching(false);
   };
 
-  if (fetching) {
+  if (loading || fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
