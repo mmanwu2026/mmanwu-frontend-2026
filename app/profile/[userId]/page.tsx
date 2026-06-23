@@ -11,27 +11,27 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [fetching, setFetching] = useState(true);
+ const [profile, setProfile] = useState(null);
+const [posts, setPosts] = useState([]);
+const [fetching, setFetching] = useState(true);
 
-  // ⭐ Always compute this early, but allow null
-  const resolvedId =
-    params.userId === "me" ? user?.id ?? null : params.userId;
+// ⭐ Always compute this early, but allow null
+const resolvedId =
+  params.userId === "me" ? user?.id ?? null : params.userId;
 
-  useEffect(() => {
-    if (loading) return;          // Wait for UserProvider
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (!resolvedId) return;      // ⭐ Prevent undefined from ever being used
+useEffect(() => {
+  if (loading) return;          // Wait for UserProvider
+  if (!user) {
+    router.replace("/login");
+    return;
+  }
+  if (!resolvedId) return;      // ⭐ Prevent undefined from ever being used
 
-    loadProfile(resolvedId);
-  }, [loading, user, resolvedId]);
+  loadProfile(resolvedId);
+}, [loading, user, resolvedId]);
 
-  const loadProfile = async (id: string) => {
-    setFetching(true);
+const loadProfile = async (id: string) => {
+  setFetching(true);
 
     const { data: userData } = await supabase
       .from("users")
