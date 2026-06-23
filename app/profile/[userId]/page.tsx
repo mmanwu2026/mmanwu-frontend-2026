@@ -42,7 +42,7 @@ interface UserPost {
   positivityRatio: number;
 }
 
-export default function UserProfilePage({ params }: { params: { userId: string } }) {
+export default function UserProfilePage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const supabase = useSupabase();
 
@@ -53,7 +53,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ 1. Initial session check — DO NOT redirect here
+  // ⭐ 1. Initial session check
   useEffect(() => {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -61,14 +61,14 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       setSessionReady(true);
 
       if (session?.user) {
-        setResolvedUserId(params.userId === "me" ? session.user.id : params.userId);
+        setResolvedUserId(params.id === "me" ? session.user.id : params.id);
       }
     };
 
     loadSession();
-  }, [params.userId, supabase]);
+  }, [params.id, supabase]);
 
-  // ⭐ 2. Auth listener — THIS is the real source of truth
+  // ⭐ 2. Auth listener
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, session: Session | null) => {
@@ -77,12 +77,12 @@ export default function UserProfilePage({ params }: { params: { userId: string }
           return;
         }
 
-        setResolvedUserId(params.userId === "me" ? session.user.id : params.userId);
+        setResolvedUserId(params.id === "me" ? session.user.id : params.id);
       }
     );
 
     return () => listener.subscription.unsubscribe();
-  }, [params.userId, supabase, router]);
+  }, [params.id, supabase, router]);
 
   // ⭐ 3. Load profile + posts
   const loadProfile = useCallback(async () => {
@@ -90,7 +90,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
 
     setLoading(true);
 
-    // Load profile
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -113,7 +112,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     const typedProfile = userData as UserProfile;
     setProfile(typedProfile);
 
-    // Load posts
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
@@ -146,7 +144,6 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       }
     }
 
-    // Merge reactions into posts
     const merged: UserPost[] = typedPosts.map((post) => {
       const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
@@ -181,7 +178,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setLoading(false);
   }, [supabase, resolvedUserId]);
 
-  // ⭐ 4. Trigger load when session + userId are ready
+  // ⭐ 4. Trigger load
   useEffect(() => {
     if (sessionReady && resolvedUserId) {
       loadProfile();
