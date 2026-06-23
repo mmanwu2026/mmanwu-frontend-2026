@@ -11,8 +11,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-black text-white" suppressHydrationWarning>
         <SupabaseProvider>
           <UserProvider>
-            <AuthNavWrapper />   {/* ← MUST be inside UserProvider */}
             {children}
+            <AuthNavWrapper />   {/* ← Move it BELOW children */}
           </UserProvider>
         </SupabaseProvider>
       </body>
