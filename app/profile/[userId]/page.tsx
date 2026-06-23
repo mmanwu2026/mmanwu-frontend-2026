@@ -42,7 +42,7 @@ interface UserPost {
   positivityRatio: number;
 }
 
-export default function UserProfilePage({ params }: { params: { id: string } }) {
+export default function UserProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
   const supabase = useSupabase();
 
@@ -61,12 +61,12 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
       setSessionReady(true);
 
       if (session?.user) {
-        setResolvedUserId(params.id === "me" ? session.user.id : params.id);
+        setResolvedUserId(params.userId === "me" ? session.user.id : params.userId);
       }
     };
 
     loadSession();
-  }, [params.id, supabase]);
+  }, [params.userId, supabase]);
 
   // ⭐ 2. Auth listener
   useEffect(() => {
@@ -77,12 +77,12 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
           return;
         }
 
-        setResolvedUserId(params.id === "me" ? session.user.id : params.id);
+        setResolvedUserId(params.userId === "me" ? session.user.id : params.userId);
       }
     );
 
     return () => listener.subscription.unsubscribe();
-  }, [params.id, supabase, router]);
+  }, [params.userId, supabase, router]);
 
   // ⭐ 3. Load profile + posts
   const loadProfile = useCallback(async () => {
