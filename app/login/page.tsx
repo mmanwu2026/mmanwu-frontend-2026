@@ -15,34 +15,39 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (loading) return;
+  if (loading) return;
 
-    setLoading(true);
-    setErrorMsg("");
+  setLoading(true);
+  setErrorMsg("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  // ⭐ Run the login request
+  const result = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) {
-      if (error.message.includes("Invalid login credentials")) {
-        setErrorMsg("Incorrect email or password");
-      } else {
-        setErrorMsg(error.message);
-      }
-      setLoading(false);
-      return;
+  // ⭐ ADD THIS — diagnostic output
+  console.log("LOGIN RESULT:", result);
+
+  const { error } = result;
+
+  if (error) {
+    if (error.message.includes("Invalid login credentials")) {
+      setErrorMsg("Incorrect email or password");
+    } else {
+      setErrorMsg(error.message);
     }
-
-    // ⭐ Ensure Supabase finishes writing the session cookie
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    // ⭐ Use Next.js router (safe, preserves JS context)
-    router.push("/plaza");
+    setLoading(false);
+    return;
   }
+
+  // ⭐ Ensure Supabase finishes writing the session cookie
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  router.push("/plaza");
+}
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-gray-200 px-6">
