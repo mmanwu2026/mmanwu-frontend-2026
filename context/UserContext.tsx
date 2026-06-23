@@ -17,7 +17,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ FIX: Wait for Supabase to hydrate session properly
+  // ⭐ FIX: Wait for Supabase hydration AND auth listener
   useEffect(() => {
     let active = true;
 
@@ -26,31 +26,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (!active) return;
 
-      // ⭐ DO NOT immediately assume null means logged out
-      // Supabase may still be hydrating the session
-      if (data.session) {
+      if (data.session?.user) {
         setUser(data.session.user);
       }
 
-      setLoading(false);
+      // ❗ DO NOT set loading=false yet — wait for listener
     };
 
     load();
 
-    return () => {
-      active = false;
-    };
-  }, [supabase]);
-
-  // Listen for auth changes
-  useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event: string, session: Session | null) => {
+        if (!active) return;
+
         setUser(session?.user ?? null);
+        setLoading(false); // ⭐ Correct place to end loading
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
   }, [supabase]);
 
   return (
