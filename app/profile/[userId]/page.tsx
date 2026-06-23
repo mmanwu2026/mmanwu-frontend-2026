@@ -15,19 +15,25 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
-  // Wait for UserProvider
+  // ⭐ NEW: HARD BLOCK until user is known
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading session…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.replace("/login");
+    return null;
+  }
+
+  const resolvedId = params.userId === "me" ? user.id : params.userId;
+
   useEffect(() => {
-    if (loading) return;
-
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-
-    const id = params.userId === "me" ? user.id : params.userId;
-
-    loadProfile(id);
-  }, [loading, user, params.userId]);
+    loadProfile(resolvedId);
+  }, [resolvedId]);
 
   const loadProfile = async (id: string) => {
     setFetching(true);
@@ -50,10 +56,10 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     setFetching(false);
   };
 
-  if (loading || fetching) {
+  if (fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile...</p>
+        <p className="text-zinc-400 text-sm">Loading profile…</p>
       </div>
     );
   }
