@@ -2,13 +2,13 @@
 
 import { UserProvider } from "@/context/UserContext";
 import { SupabaseProvider } from "@/context/SupabaseContext";
-import AuthNavWrapper from "@/components/AuthNavWrapper";
+import AuthNav from "@/components/AuthNav";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SupabaseProvider>
       <UserProvider>
-        <AuthNavWrapper />   {/* ← MUST be inside UserProvider */}
+        <AuthNav />
         {children}
       </UserProvider>
     </SupabaseProvider>
