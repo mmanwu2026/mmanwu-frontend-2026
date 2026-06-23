@@ -12,26 +12,28 @@ interface UserContextValue {
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load initial session
+  // ⭐ FIX: Wait for Supabase to hydrate session properly
   useEffect(() => {
     let active = true;
 
-    async function load() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const load = async () => {
+      const { data } = await supabase.auth.getSession();
 
       if (!active) return;
 
-      setUser(session?.user ?? null);
+      // ⭐ DO NOT immediately assume null means logged out
+      // Supabase may still be hydrating the session
+      if (data.session) {
+        setUser(data.session.user);
+      }
+
       setLoading(false);
-    }
+    };
 
     load();
 
@@ -48,9 +50,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
   return (
