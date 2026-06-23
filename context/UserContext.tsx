@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import type { User, Session } from "@supabase/supabase-js";
+import type { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 
 interface UserContextValue {
   user: User | null;
@@ -17,11 +17,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ FIX: Wait for Supabase hydration AND auth listener
   useEffect(() => {
     let active = true;
 
-    const load = async () => {
+    const init = async () => {
       const { data } = await supabase.auth.getSession();
 
       if (!active) return;
@@ -29,18 +28,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (data.session?.user) {
         setUser(data.session.user);
       }
-
-      // ❗ DO NOT set loading=false yet — wait for listener
+      // Do NOT set loading=false yet — wait for listener
     };
 
-    load();
+    init();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: string, session: Session | null) => {
+      (_event: AuthChangeEvent, session: Session | null) => {
         if (!active) return;
 
         setUser(session?.user ?? null);
-        setLoading(false); // ⭐ Correct place to end loading
+        setLoading(false); // END loading here
       }
     );
 
