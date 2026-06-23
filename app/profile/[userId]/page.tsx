@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
-import ReactionBar from "@/components/plaza/ReactionBar";
 
 export default function UserProfilePage({ params }: { params: { userId: string } }) {
   const router = useRouter();
@@ -15,7 +14,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
-  // ⭐ Hydration guard — do NOT proceed until UserProvider is ready
+  // ⭐ 1. Hydration guard — do NOT proceed until UserProvider is ready
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -24,16 +23,17 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // ⭐ If user is not logged in after hydration → redirect
+  // ⭐ 2. AFTER hydration, if no user → redirect
   if (!user) {
     router.replace("/login");
     return null;
   }
 
-  // ⭐ Resolve the actual ID AFTER hydration
-  const actualUserId = params.userId === "me" ? user.id : params.userId;
+  // ⭐ 3. Only compute actualUserId AFTER hydration + user is known
+  const actualUserId =
+    params.userId === "me" ? user.id : params.userId;
 
-  // ⭐ If params haven't hydrated yet, wait
+  // ⭐ 4. If params haven't hydrated yet, wait
   if (!actualUserId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -42,7 +42,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // ⭐ Load profile ONCE when actualUserId becomes stable
+  // ⭐ 5. Load profile ONCE when actualUserId becomes stable
   useEffect(() => {
     async function load() {
       setFetching(true);
@@ -68,7 +68,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     load();
   }, [actualUserId, supabase]);
 
-  // ⭐ Still fetching? Show loader
+  // ⭐ 6. Still fetching? Show loader
   if (fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -77,7 +77,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
-  // ⭐ No profile found
+  // ⭐ 7. No profile found
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
