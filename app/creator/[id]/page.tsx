@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
+import { useUser } from "@/context/UserContext";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";
@@ -43,132 +44,122 @@ export default function CreatorProfilePage() {
   const params = useParams();
   const router = useRouter();
   const supabase = useSupabase();
-
-  const [sessionReady, setSessionReady] = useState(false);
-  const [resolvedCreatorId, setResolvedCreatorId] = useState<string | null>(null);
+  const { user, loading } = useUser();
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<CreatorPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
 
-  // ⭐ Resolve "me" → actual user ID
+  // ⭐ Hydration guard — wait for UserProvider
+  if (loading) {
+    return (
+      <p className="text-gray-300 p-10">Loading creator…</p>
+    );
+  }
+
+  // ⭐ If not logged in after hydration → redirect
+  if (!user) {
+    router.replace("/login");
+    return null;
+  }
+
+  // ⭐ Resolve ID AFTER hydration
+  const actualId = params?.id === "me" ? user.id : (params?.id as string);
+
+  if (!actualId) {
+    return <p className="text-gray-300 p-10">Loading creator…</p>;
+  }
+
+  // ⭐ Fetch creator + posts
   useEffect(() => {
-    async function resolve() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    async function load() {
+      setFetching(true);
 
-      setSessionReady(true);
+      // Fetch creator
+      const { data: creatorData } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", actualId)
+        .maybeSingle();
 
-      if (params?.id === "me") {
-        setResolvedCreatorId(session?.user?.id ?? null);
-      } else {
-        setResolvedCreatorId(params?.id as string);
+      setCreator(creatorData);
+
+      // Fetch posts
+      const { data: postsData } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("creator_id", actualId)
+        .order("created_at", { ascending: false });
+
+      if (!postsData) {
+        setPosts([]);
+        setFetching(false);
+        return;
       }
+
+      const postIds = postsData.map((p: any) => p.id);
+
+      const { data: reactionsData } = await supabase
+        .from("reactions")
+        .select("post_id, maskTier, value")
+        .in("post_id", postIds);
+
+      const merged: CreatorPost[] = postsData.map((p: any) => {
+        const postReactions = (reactionsData ?? []).filter(
+          (r: any) => r.post_id === p.id
+        );
+
+        const counts: ReactionCounts = {
+          mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
+          mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
+          mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
+          mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
+          mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
+          mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
+        };
+
+        const spiritScore = p.spirit_score ?? 0;
+
+        const weightedPositive = postReactions
+          .filter((r: any) => (r.value ?? 0) > 0)
+          .reduce((sum: number, r: any) => sum + (r.value ?? 0), 0);
+
+        const weightedTotal = Math.abs(spiritScore);
+        const positivityRatio =
+          weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+
+        const glyph =
+          spiritScore <= 20 ? "😤" :
+          spiritScore <= 100 ? "😊" :
+          spiritScore <= 300 ? "🤩" :
+          spiritScore <= 500 ? "😇" :
+          "🔱";
+
+        const auraLevel =
+          positivityRatio > 0.7 ? 4 :
+          positivityRatio > 0.5 ? 3 :
+          positivityRatio > 0.3 ? 2 :
+          positivityRatio > 0.1 ? 1 :
+          0;
+
+        return {
+          ...p,
+          reactions: counts,
+          spiritScore,
+          positivityRatio,
+          glyph,
+          auraLevel,
+        };
+      });
+
+      setPosts(merged);
+      setFetching(false);
     }
 
-    resolve();
-  }, [params, supabase]);
+    load();
+  }, [actualId, supabase]);
 
-  // ⭐ Fetch creator profile
-  const fetchCreator = useCallback(async () => {
-    if (!resolvedCreatorId) return;
-
-    const { data } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", resolvedCreatorId)
-      .single();
-
-    if (data) setCreator(data);
-  }, [supabase, resolvedCreatorId]);
-
-  // ⭐ Fetch posts
-  const fetchPosts = useCallback(async () => {
-    if (!resolvedCreatorId) return;
-
-    const { data: postsData } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("creator_id", resolvedCreatorId)
-      .order("created_at", { ascending: false });
-
-    if (!postsData) {
-      setPosts([]);
-      setLoading(false);
-      return;
-    }
-
-    const postIds = postsData.map((p: any) => p.id);
-
-    const { data: reactionsData } = await supabase
-      .from("reactions")
-      .select("post_id, maskTier, value")
-      .in("post_id", postIds);
-
-    const merged: CreatorPost[] = postsData.map((p: any) => {
-      const postReactions = (reactionsData ?? []).filter(
-        (r: any) => r.post_id === p.id
-      );
-
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
-      };
-
-      const spiritScore = p.spirit_score ?? 0;
-
-      const weightedPositive = postReactions
-        .filter((r: any) => (r.value ?? 0) > 0)
-        .reduce((sum: number, r: any) => sum + (r.value ?? 0), 0);
-
-      const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio =
-        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
-
-      // ⭐ A3 — Glyph based on spiritScore buckets
-      const glyph =
-        spiritScore <= 20 ? "😤" :
-        spiritScore <= 100 ? "😊" :
-        spiritScore <= 300 ? "🤩" :
-        spiritScore <= 500 ? "😇" :
-        "🔱";
-
-      // ⭐ Aura intensity based on positivity + score
-      const auraLevel =
-        positivityRatio > 0.7 ? 4 :
-        positivityRatio > 0.5 ? 3 :
-        positivityRatio > 0.3 ? 2 :
-        positivityRatio > 0.1 ? 1 :
-        0;
-
-      return {
-        ...p,
-        reactions: counts,
-        spiritScore,
-        positivityRatio,
-        glyph,
-        auraLevel,
-      };
-    });
-
-    setPosts(merged);
-    setLoading(false);
-  }, [supabase, resolvedCreatorId]);
-
-  // ⭐ Load creator + posts
-  useEffect(() => {
-    if (sessionReady && resolvedCreatorId) {
-      fetchCreator();
-      fetchPosts();
-    }
-  }, [sessionReady, resolvedCreatorId, fetchCreator, fetchPosts]);
-
-  if (!creator) {
+  if (fetching || !creator) {
     return <p className="text-gray-300 p-10">Loading creator…</p>;
   }
 
@@ -181,7 +172,7 @@ export default function CreatorProfilePage() {
         </Link>
       </div>
 
-      {/* ⭐ Creator Header */}
+      {/* Creator Header */}
       <div className="flex flex-col items-center text-center text-gray-200 mb-12">
         <img
           src={creator.avatar_url || "/default-avatar.png"}
@@ -193,10 +184,8 @@ export default function CreatorProfilePage() {
         <p className="text-sm text-gray-400 mt-1">Mask Tier: {creator.mask_tier}</p>
       </div>
 
-      {/* ⭐ Posts */}
+      {/* Posts */}
       <div className="w-full flex flex-col items-center px-4">
-        {loading && <p className="text-gray-300">Loading posts…</p>}
-
         <div className="space-y-12 w-full flex flex-col items-center">
           {posts.map((post: CreatorPost) => (
             <div
@@ -207,7 +196,7 @@ export default function CreatorProfilePage() {
                 plaza-card-base aura-intensity-${post.auraLevel}
               `}
             >
-              {/* ⭐ Glyph */}
+              {/* Glyph */}
               <div className="ritual-glyph-container mt-6">
                 <div className="ritual-glyph-levitate">
                   <div className="ritual-flame-ring"></div>
@@ -229,20 +218,20 @@ export default function CreatorProfilePage() {
 
               <div className="mt-6 w-full flex justify-center">
                 <ReactionBar
-  postType="plaza"
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={post.reactions}
-  spiritScore={post.spiritScore}
-  positivityRatio={post.positivityRatio}
-  onReact={fetchPosts}
-/>
+                  postType="plaza"
+                  postId={post.id}
+                  creatorId={post.creator_id}
+                  reactions={post.reactions}
+                  spiritScore={post.spiritScore}
+                  positivityRatio={post.positivityRatio}
+                  onReact={() => {}}
+                />
               </div>
             </div>
           ))}
         </div>
 
-        <FloatingComposer onPost={fetchPosts} />
+        <FloatingComposer onPost={() => {}} />
       </div>
     </div>
   );
