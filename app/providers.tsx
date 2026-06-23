@@ -9,8 +9,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SupabaseProvider>
       <UserProvider>
         {children}
-        <AuthNavWrapper />
       </UserProvider>
+
+      {/* AuthNavWrapper must be OUTSIDE UserProvider */}
+      <AuthNavWrapper />
     </SupabaseProvider>
   );
 }
