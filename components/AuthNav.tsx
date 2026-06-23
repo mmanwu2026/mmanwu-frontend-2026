@@ -5,7 +5,6 @@ import { useUser } from "@/context/UserContext";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function AuthNav() {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
@@ -14,7 +13,14 @@ export default function AuthNav() {
     window.location.href = "/login";
   }
 
-  if (loading) return null;
+  // ⭐ FIX: Never return null during hydration
+  if (loading) {
+    return (
+      <nav className="w-full flex justify-end p-4 text-white">
+        <div className="text-zinc-400 text-sm">Loading…</div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="w-full flex justify-end p-4 text-white">
@@ -29,17 +35,11 @@ export default function AuthNav() {
         </div>
       ) : (
         <div className="flex gap-4">
-          <Link
-            href={`/profile/${user.id}`}
-            className="hover:underline"
-          >
+          <Link href={`/profile/${user.id}`} className="hover:underline">
             My Profile
           </Link>
 
-          <button
-            onClick={handleLogout}
-            className="hover:underline"
-          >
+          <button onClick={handleLogout} className="hover:underline">
             Logout
           </button>
         </div>
