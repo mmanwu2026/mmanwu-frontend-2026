@@ -28,7 +28,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (data.session?.user) {
         setUser(data.session.user);
       }
-      // Do NOT set loading=false yet — wait for listener
+
+      // ⭐ FIX: end loading after initial session check
+      setLoading(false);
     };
 
     init();
@@ -38,7 +40,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!active) return;
 
         setUser(session?.user ?? null);
-        setLoading(false); // END loading here
       }
     );
 
