@@ -26,7 +26,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       setUser(data.session?.user ?? null);
-      setLoading(false);
+      setLoading(false); // ⭐ FIXED
     }
 
     load();
@@ -34,7 +34,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
         if (!active) return;
+
         setUser(session?.user ?? null);
+        setLoading(false); // ⭐ FIXED — THIS WAS MISSING
       }
     );
 
