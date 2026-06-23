@@ -1,5 +1,7 @@
 "use client";
 
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+
 import { useEffect, useState, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
@@ -52,36 +54,55 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Session resolver
+  // ⭐ 1. Fetch session immediately on mount (critical)
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event: string, session: any) => {
-        setSessionReady(true);
+    const loadSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-        if (!session?.user) {
-          router.replace("/login");
-          return;
-        }
+      setSessionReady(true);
 
-        if (params.userId === "me") {
-          setResolvedUserId(session.user.id);
-        } else {
-          setResolvedUserId(params.userId);
-        }
+      if (!session?.user) {
+        router.replace("/login");
+        return;
       }
-    );
 
-    return () => {
-      authListener.subscription.unsubscribe();
+      if (params.userId === "me") {
+        setResolvedUserId(session.user.id);
+      } else {
+        setResolvedUserId(params.userId);
+      }
     };
+
+    loadSession();
   }, [params.userId, supabase, router]);
 
-  // Load profile + posts
+  // ⭐ 2. Listen for auth changes (optional but correct)
+  useEffect(() => {
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event: AuthChangeEvent, session: Session | null) => {
+      if (!session?.user) {
+        router.replace("/login");
+        return;
+      }
+
+      if (params.userId === "me") {
+        setResolvedUserId(session.user.id);
+      } else {
+        setResolvedUserId(params.userId);
+      }
+    }
+  );
+
+  return () => listener.subscription.unsubscribe();
+}, [params.userId, supabase, router]);
+
+  // ⭐ 3. Load profile + posts
   const loadProfile = useCallback(async () => {
     if (!resolvedUserId) return;
 
     setLoading(true);
 
+    // Load profile
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -104,6 +125,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     const typedProfile = userData as UserProfile;
     setProfile(typedProfile);
 
+    // Load posts
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
@@ -136,51 +158,49 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       }
     }
 
-    const merged: UserPost[] =
-      typedPosts.length > 0
-        ? typedPosts.map((post) => {
-            const postReactions = typedReactions.filter(
-              (r) => r.post_id === post.id
-            );
+    // Merge reactions into posts
+    const merged: UserPost[] = typedPosts.map((post) => {
+      const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
-            const counts: ReactionCounts = {
-              mask1: postReactions.filter((r) => r.maskTier === 1).length,
-              mask2: postReactions.filter((r) => r.maskTier === 2).length,
-              mask3: postReactions.filter((r) => r.maskTier === 3).length,
-              mask4: postReactions.filter((r) => r.maskTier === 4).length,
-              mask5: postReactions.filter((r) => r.maskTier === 5).length,
-              mask6: postReactions.filter((r) => r.maskTier === 6).length,
-            };
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
 
-            const spiritScore = post.spirit_score ?? 0;
+      const spiritScore = post.spirit_score ?? 0;
 
-            const weightedPositive = postReactions
-              .filter((r) => (r.value ?? 0) > 0)
-              .reduce((sum, r) => sum + (r.value ?? 0), 0);
+      const weightedPositive = postReactions
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-            const weightedTotal = Math.abs(spiritScore);
-            const positivityRatio =
-              weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const weightedTotal = Math.abs(spiritScore);
+      const positivityRatio =
+        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-            return {
-              ...post,
-              reactions: counts,
-              spiritScore,
-              positivityRatio,
-            };
-          })
-        : [];
+      return {
+        ...post,
+        reactions: counts,
+        spiritScore,
+        positivityRatio,
+      };
+    });
 
     setPosts(merged);
     setLoading(false);
   }, [supabase, resolvedUserId]);
 
+  // ⭐ 4. Trigger load when session + userId are ready
   useEffect(() => {
     if (sessionReady && resolvedUserId) {
       loadProfile();
     }
   }, [sessionReady, resolvedUserId, loadProfile]);
 
+  // ⭐ 5. Loading state
   if (!sessionReady || !resolvedUserId || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -189,6 +209,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
+  // ⭐ 6. Profile not found
   if (!profile?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -197,6 +218,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
     );
   }
 
+  // ⭐ 7. Render UI
   const username = profile.username || "Unknown";
   const avatarUrl = profile.avatar_url || "/fallback-avatar.png";
   const bio = profile.bio || "No bio yet.";
