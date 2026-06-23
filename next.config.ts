@@ -13,7 +13,6 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ⭐ Production rewrites (must come FIRST)
       {
         source: "/api/profile/:userId",
         destination:
@@ -25,7 +24,6 @@ const nextConfig: NextConfig = {
           "https://mmanwu-clean-production-6465.up.railway.app/api/:path*",
       },
 
-      // ⭐ Development-only rewrites
       ...(isDev
         ? [
             {

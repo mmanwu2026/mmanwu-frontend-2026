@@ -1,0 +1,11 @@
+{
+  "routes": [
+    {
+      "src": "/auth/(.*)",
+      "headers": {
+        "Cache-Control": "no-store"
+      },
+      "continue": true
+    }
+  ]
+}
