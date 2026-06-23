@@ -8,11 +8,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SupabaseProvider>
       <UserProvider>
+        <AuthNavWrapper />   {/* ← MUST be inside UserProvider */}
         {children}
       </UserProvider>
-
-      {/* AuthNavWrapper must be OUTSIDE UserProvider */}
-      <AuthNavWrapper />
     </SupabaseProvider>
   );
 }
