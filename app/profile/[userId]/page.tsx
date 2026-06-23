@@ -1,7 +1,6 @@
 "use client";
 
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-
 import { useEffect, useState, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
@@ -54,47 +53,36 @@ export default function UserProfilePage({ params }: { params: { userId: string }
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ 1. Fetch session immediately on mount (critical)
+  // ⭐ 1. Initial session check — DO NOT redirect here
   useEffect(() => {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       setSessionReady(true);
 
-      if (!session?.user) {
-        router.replace("/login");
-        return;
-      }
-
-      if (params.userId === "me") {
-        setResolvedUserId(session.user.id);
-      } else {
-        setResolvedUserId(params.userId);
+      if (session?.user) {
+        setResolvedUserId(params.userId === "me" ? session.user.id : params.userId);
       }
     };
 
     loadSession();
-  }, [params.userId, supabase, router]);
+  }, [params.userId, supabase]);
 
-  // ⭐ 2. Listen for auth changes (optional but correct)
+  // ⭐ 2. Auth listener — THIS is the real source of truth
   useEffect(() => {
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    async (_event: AuthChangeEvent, session: Session | null) => {
-      if (!session?.user) {
-        router.replace("/login");
-        return;
-      }
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event: AuthChangeEvent, session: Session | null) => {
+        if (!session?.user) {
+          router.replace("/login");
+          return;
+        }
 
-      if (params.userId === "me") {
-        setResolvedUserId(session.user.id);
-      } else {
-        setResolvedUserId(params.userId);
+        setResolvedUserId(params.userId === "me" ? session.user.id : params.userId);
       }
-    }
-  );
+    );
 
-  return () => listener.subscription.unsubscribe();
-}, [params.userId, supabase, router]);
+    return () => listener.subscription.unsubscribe();
+  }, [params.userId, supabase, router]);
 
   // ⭐ 3. Load profile + posts
   const loadProfile = useCallback(async () => {
