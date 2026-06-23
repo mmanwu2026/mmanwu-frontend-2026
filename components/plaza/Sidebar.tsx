@@ -37,7 +37,7 @@ export default function Sidebar() {
 
       <div className="flex flex-col space-y-4">
         {navItems.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const active = pathname?.startsWith(item.href) ?? false;
 
           return (
             <Link
