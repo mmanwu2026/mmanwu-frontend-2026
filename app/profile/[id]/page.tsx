@@ -1,6 +1,14 @@
-// rebuild 004
-import ProfileClient from "@/components/ProfileClient";
+// server component wrapper
+import dynamic from "next/dynamic";
+
+const ProfileClient = dynamic(() => import("@/components/ProfileClient"), {
+  ssr: false,
+});
 
 export default function Page({ params }: { params: { id: string } }) {
-  return <ProfileClient userId={params.id} />;
+  return (
+    <div className="w-full">
+      <ProfileClient userId={params.id} />
+    </div>
+  );
 }
