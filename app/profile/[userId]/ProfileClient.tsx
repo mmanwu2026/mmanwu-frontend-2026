@@ -10,22 +10,20 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
-  // ⭐ INSERTED LOG HERE
   console.log("AUTH USER:", user);
 
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [fetching, setFetching] = useState(true);
+  // ⭐ 1. Wait until user is fully loaded
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading profile…</p>
+      </div>
+    );
+  }
 
-  // ⭐ SAFE REDIRECT — prevents freeze on dynamic routes
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [loading, user, router]);
-
-  // ⭐ While redirecting or waiting for user, show a stable UI
+  // ⭐ 2. If user is still null AFTER loading, redirect
   if (!user) {
+    router.replace("/login");
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Redirecting…</p>
@@ -33,36 +31,26 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  if (loading || !supabase) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
-  }
-
+  // ⭐ 3. Now safe to compute actualUserId
   const actualUserId = userId === "me" ? user.id : userId;
 
-  if (!actualUserId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
-  }
+  const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [fetching, setFetching] = useState(true);
 
+  // ⭐ 4. Load profile + posts
   useEffect(() => {
     async function load() {
       try {
         setFetching(true);
 
         const { data: userData, error: userError } = await supabase
-  .from("users")
-  .select("*")
-  .eq("id", actualUserId)
-  .maybeSingle();
+          .from("users")
+          .select("*")
+          .eq("id", actualUserId)
+          .maybeSingle();
 
-console.log("QUERY USER DATA:", userData, "ERROR:", userError);
+        console.log("QUERY USER DATA:", userData, "ERROR:", userError);
 
         if (userError) console.error("❌ Supabase USER error:", userError);
 
@@ -87,6 +75,7 @@ console.log("QUERY USER DATA:", userData, "ERROR:", userError);
     load();
   }, [actualUserId, supabase]);
 
+  // ⭐ 5. Show loading while fetching
   if (fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -95,6 +84,7 @@ console.log("QUERY USER DATA:", userData, "ERROR:", userError);
     );
   }
 
+  // ⭐ 6. No profile found
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
