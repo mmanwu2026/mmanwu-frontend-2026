@@ -48,7 +48,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
       const { data: postsData } = await supabase
         .from("posts")
         .select("id, content, created_at")
-        .eq("creator_id", userId)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       setPosts(postsData || []);
