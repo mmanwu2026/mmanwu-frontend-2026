@@ -13,7 +13,7 @@ export default function AuthNav() {
     window.location.href = "/login";
   }
 
-  // ⭐ FIX: Never return null during hydration
+  // ⭐ SAFE HYDRATION: never return null
   if (loading) {
     return (
       <nav className="w-full flex justify-end p-4 text-white">
@@ -35,9 +35,12 @@ export default function AuthNav() {
         </div>
       ) : (
         <div className="flex gap-4">
-          <Link href={`/profile/${user.id}`} className="hover:underline">
-            My Profile
-          </Link>
+          {/* ⭐ FIXED: prevent hydration crash by guarding user.id */}
+          {user && (
+            <Link href={`/profile/${user.id}`} className="hover:underline">
+              My Profile
+            </Link>
+          )}
 
           <button onClick={handleLogout} className="hover:underline">
             Logout
