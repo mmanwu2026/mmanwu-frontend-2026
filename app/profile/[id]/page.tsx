@@ -1,6 +1,10 @@
 "use client";
 
-import ProfileClient from "@/components/ProfileClient";
+import dynamic from "next/dynamic";
+
+const ProfileClient = dynamic(() => import("@/components/ProfileClient"), {
+  ssr: false,
+});
 
 export default function Page({ params }: { params: { id: string } }) {
   return (
