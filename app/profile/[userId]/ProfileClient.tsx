@@ -12,7 +12,6 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
   console.log("AUTH USER:", user);
 
-  // ⭐ 1. Wait until user is fully loaded
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -21,7 +20,6 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  // ⭐ 2. If user is still null AFTER loading, redirect
   if (!user) {
     router.replace("/login");
     return (
@@ -31,16 +29,14 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  // ⭐ 3. Now safe to compute actualUserId
   const actualUserId = userId === "me" ? user.id : userId;
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
-  // ⭐ 4. Load profile + posts
   useEffect(() => {
-    // ⭐ CRITICAL FIX — prevents undefined queries
+    // ⭐ CRITICAL FIX — prevents undefined queries AND ensures effect runs again
     if (!user || !actualUserId) return;
 
     async function load() {
@@ -55,8 +51,6 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
         console.log("QUERY USER DATA:", userData, "ERROR:", userError);
 
-        if (userError) console.error("❌ Supabase USER error:", userError);
-
         setProfile(userData);
 
         const { data: postsData, error: postsError } = await supabase
@@ -65,20 +59,15 @@ export default function ProfileClient({ userId }: { userId: string }) {
           .eq("creator_id", actualUserId)
           .order("created_at", { ascending: false });
 
-        if (postsError) console.error("❌ Supabase POSTS error:", postsError);
-
         setPosts(postsData ?? []);
-      } catch (err) {
-        console.error("❌ Unexpected ProfileClient error:", err);
       } finally {
         setFetching(false);
       }
     }
 
     load();
-  }, [user, actualUserId, supabase]); // ⭐ user MUST be in deps
+  }, [user, actualUserId, supabase]); // ⭐ user MUST be here
 
-  // ⭐ 5. Show loading while fetching
   if (fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -87,7 +76,6 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  // ⭐ 6. No profile found
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
