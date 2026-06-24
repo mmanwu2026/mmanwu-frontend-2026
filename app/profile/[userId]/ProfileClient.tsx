@@ -14,17 +14,28 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
+  // ⭐ SAFE REDIRECT — prevents freeze on dynamic routes
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
+
+  // ⭐ While redirecting or waiting for user, show a stable UI
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Redirecting…</p>
+      </div>
+    );
+  }
+
   if (loading || !supabase) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
       </div>
     );
-  }
-
-  if (!user) {
-    router.replace("/login");
-    return null;
   }
 
   const actualUserId = userId === "me" ? user.id : userId;
