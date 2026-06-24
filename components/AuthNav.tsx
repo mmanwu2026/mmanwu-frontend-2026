@@ -35,7 +35,9 @@ export default function AuthNav() {
         </div>
       ) : (
         <div className="flex gap-4">
+          {/* ⭐ Correct dynamic profile link */}
           <Link href={`/profile/${user.id}`}>My Profile</Link>
+
           <button onClick={handleLogout}>Logout</button>
         </div>
       )}

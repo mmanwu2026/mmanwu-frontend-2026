@@ -8,12 +8,14 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useUser();
 
+  // Build nav items *after* user is known
   const navItems = [
     { label: "SoundSquare", href: "/sound-square/feed" },
     { label: "VisionSquare", href: "/vision" },
     { label: "SpiritSquare", href: "/spirit" },
     { label: "Shrine", href: "/shrine" },
 
+    // Correct dynamic profile link
     user
       ? { label: "Profile", href: `/profile/${user.id}` }
       : { label: "Profile", href: "/login" },
