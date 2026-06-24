@@ -58,10 +58,10 @@ export default function ProfileClient({ userId }: { userId: string }) {
       setProfile(profileData);
 
       const { data: postsData } = await supabase
-        .from("posts")
-        .select("id, content, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+  .from("posts")
+  .select("id, content, created_at")
+  .eq("creator_id", userId)
+  .order("created_at", { ascending: false });
 
       setPosts(postsData || []);
       setLoadingProfile(false);
