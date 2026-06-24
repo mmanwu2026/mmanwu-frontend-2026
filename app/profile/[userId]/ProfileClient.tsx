@@ -57,10 +57,12 @@ export default function ProfileClient({ userId }: { userId: string }) {
         setFetching(true);
 
         const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", actualUserId)
-          .maybeSingle();
+  .from("users")
+  .select("*")
+  .eq("id", actualUserId)
+  .maybeSingle();
+
+console.log("QUERY USER DATA:", userData, "ERROR:", userError);
 
         if (userError) console.error("❌ Supabase USER error:", userError);
 
