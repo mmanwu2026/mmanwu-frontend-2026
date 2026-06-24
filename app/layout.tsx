@@ -1,4 +1,3 @@
-// vercel rebuild 002
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -6,11 +5,13 @@ export const metadata = {
   title: "Mmanwu Reactions Plaza",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="bg-black text-white">
-        <Providers>{children}</Providers>
+        <div id="__next">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );
