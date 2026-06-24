@@ -11,7 +11,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-  }, []);
+  }, []); // ⭐ DO NOT REMOVE THIS
 
   return (
     <SupabaseContext.Provider value={supabase}>
