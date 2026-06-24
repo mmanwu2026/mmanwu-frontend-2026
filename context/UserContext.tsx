@@ -26,7 +26,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       setUser(data.session?.user ?? null);
-      setLoading(false); // ⭐ FIXED
+      setLoading(false);
     }
 
     load();
@@ -36,13 +36,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!active) return;
 
         setUser(session?.user ?? null);
-        setLoading(false); // ⭐ FIXED — THIS WAS MISSING
+        setLoading(false);
       }
     );
 
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
+
+      // ⭐ SAFE CLEANUP — prevents hydration crash
+      listener?.subscription?.unsubscribe?.();
     };
   }, [supabase]);
 
