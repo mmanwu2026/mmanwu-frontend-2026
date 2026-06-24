@@ -10,7 +10,12 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
-  // ⭐ Prevent second mount during redirect
+  // ⭐ BLOCK PREFETCH MOUNTS (Plaza prefetch issue)
+  if (!userId) {
+    return null;
+  }
+
+  // ⭐ BLOCK REDIRECT REMOUNT (Next.js soft navigation issue)
   if (!loading && !user) {
     return null;
   }
