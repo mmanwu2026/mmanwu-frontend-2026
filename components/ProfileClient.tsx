@@ -10,42 +10,30 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const { user, loading } = useUser();
   const router = useRouter();
 
+  // -----------------------------
+  // ALL HOOKS MUST RUN UNCONDITIONALLY
+  // -----------------------------
   const [hydrated, setHydrated] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // ⭐ Ensure hydration before running any client logic
+  // Hydration guard (runs once)
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // ⭐ If hydration hasn't happened yet, render placeholder
-  if (!hydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading…</p>
-      </div>
-    );
-  }
-
-  // ⭐ SAFE: redirect instead of returning null (null breaks hydration)
+  // Redirect AFTER hydration + AFTER hooks
   useEffect(() => {
-    if (!loading && !user) {
+    if (hydrated && !loading && !user) {
       router.replace("/login");
     }
-  }, [loading, user, router]);
+  }, [hydrated, loading, user, router]);
 
-  if (!loading && !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Redirecting…</p>
-      </div>
-    );
-  }
-
-  // ⭐ Fetch profile + posts
+  // Fetch profile + posts AFTER hydration
   useEffect(() => {
+    if (!hydrated) return;
+
     async function load() {
       setLoadingProfile(true);
 
@@ -58,17 +46,37 @@ export default function ProfileClient({ userId }: { userId: string }) {
       setProfile(profileData);
 
       const { data: postsData } = await supabase
-  .from("posts")
-  .select("id, content, created_at")
-  .eq("creator_id", userId)
-  .order("created_at", { ascending: false });
+        .from("posts")
+        .select("id, content, created_at")
+        .eq("creator_id", userId)
+        .order("created_at", { ascending: false });
 
       setPosts(postsData || []);
       setLoadingProfile(false);
     }
 
-    if (hydrated) load();
+    load();
   }, [hydrated, supabase, userId]);
+
+  // -----------------------------
+  // SAFE CONDITIONAL RENDERING (AFTER HOOKS)
+  // -----------------------------
+
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!loading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Redirecting…</p>
+      </div>
+    );
+  }
 
   if (loadingProfile) {
     return (
@@ -86,6 +94,9 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
+  // -----------------------------
+  // MAIN RENDER
+  // -----------------------------
   return (
     <div className="max-w-2xl mx-auto p-6 text-white">
       <div className="flex items-center gap-4 mb-6">
