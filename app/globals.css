@@ -1,6 +1,6 @@
 /* vercel-sync-banner-002 */
 body::before {
-  content: "MMANWU VERCEL BUILD 001";
+  content: "MMANWU VERCEL BUILD 002";
   position: fixed;
   top: 0;
   left: 0;
