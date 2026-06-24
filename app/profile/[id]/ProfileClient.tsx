@@ -6,68 +6,71 @@ import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 
 export default function ProfileClient({ userId }: { userId: string }) {
-  const router = useRouter();
   const supabase = useSupabase();
   const { user, loading } = useUser();
+  const router = useRouter();
 
-  // ⭐ HYDRATION GUARD
-  const hydrated = typeof window !== "undefined";
-  if (!hydrated) return null;
+  const [hydrated, setHydrated] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // ⭐ PREFETCH GUARD — only block undefined/null, NOT empty string
-  if (userId === undefined || userId === null) {
-    return null;
+  // ⭐ Ensure hydration before running any client logic
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  // ⭐ If hydration hasn't happened yet, render placeholder
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading…</p>
+      </div>
+    );
   }
 
-  // ⭐ REDIRECT GUARD
-  if (!loading && !user) {
-    return null;
-  }
-
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [fetching, setFetching] = useState(true);
-
+  // ⭐ SAFE: redirect instead of returning null (null breaks hydration)
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
     }
   }, [loading, user, router]);
 
+  if (!loading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Redirecting…</p>
+      </div>
+    );
+  }
+
+  // ⭐ Fetch profile + posts
   useEffect(() => {
-    if (loading || !user) return;
-
-    const actualUserId = userId === "me" ? user.id : userId;
-
     async function load() {
-      try {
-        setFetching(true);
+      setLoadingProfile(true);
 
-        const { data: userData } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", actualUserId)
-          .maybeSingle();
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("id, username, avatar_url")
+        .eq("id", userId)
+        .single();
 
-        setProfile(userData);
+      setProfile(profileData);
 
-        const { data: postsData } = await supabase
-          .from("posts")
-          .select("*")
-          .eq("creator_id", actualUserId)
-          .order("created_at", { ascending: false });
+      const { data: postsData } = await supabase
+        .from("posts")
+        .select("id, content, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
-        setPosts(postsData ?? []);
-      } finally {
-        setFetching(false);
-      }
+      setPosts(postsData || []);
+      setLoadingProfile(false);
     }
 
-    load();
-  }, [loading, user, userId, supabase]);
+    if (hydrated) load();
+  }, [hydrated, supabase, userId]);
 
-  // ⭐ CORRECT RENDER LOGIC
-  if (loading || fetching) {
+  if (loadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
@@ -78,14 +81,41 @@ export default function ProfileClient({ userId }: { userId: string }) {
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-red-400">Profile not found.</p>
+        <p className="text-zinc-400 text-sm">Profile not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      {/* your UI */}
+    <div className="max-w-2xl mx-auto p-6 text-white">
+      <div className="flex items-center gap-4 mb-6">
+        <img
+          src={profile.avatar_url || "/default-avatar.png"}
+          alt="Avatar"
+          className="w-16 h-16 rounded-full"
+        />
+        <h1 className="text-2xl font-bold">{profile.username}</h1>
+      </div>
+
+      <h2 className="text-xl font-semibold mb-4">Posts</h2>
+
+      {posts.length === 0 ? (
+        <p className="text-zinc-400">No posts yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              className="p-4 bg-zinc-900 rounded-lg border border-zinc-800"
+            >
+              <p>{post.content}</p>
+              <p className="text-xs text-zinc-500 mt-2">
+                {new Date(post.created_at).toLocaleString()}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
