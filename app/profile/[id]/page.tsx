@@ -1,14 +1,7 @@
-// server component wrapper
-import dynamic from "next/dynamic";
+"use client";
 
-const ProfileClient = dynamic(() => import("@/components/ProfileClient"), {
-  ssr: false,
-});
+import ProfileClient from "@/components/ProfileClient";
 
 export default function Page({ params }: { params: { id: string } }) {
-  return (
-    <div className="w-full">
-      <ProfileClient userId={params.id} />
-    </div>
-  );
+  return <ProfileClient userId={params.id} />;
 }
