@@ -39,24 +39,39 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
   useEffect(() => {
     async function load() {
-      setFetching(true);
+      try {
+        setFetching(true);
 
-      const { data: userData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", actualUserId)
-        .maybeSingle();
+        // --- USER QUERY ---
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", actualUserId)
+          .maybeSingle();
 
-      setProfile(userData);
+        if (userError) {
+          console.error("❌ Supabase USER error:", userError);
+        }
 
-      const { data: postsData } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("creator_id", actualUserId)
-        .order("created_at", { ascending: false });
+        setProfile(userData);
 
-      setPosts(postsData ?? []);
-      setFetching(false);
+        // --- POSTS QUERY ---
+        const { data: postsData, error: postsError } = await supabase
+          .from("posts")
+          .select("*")
+          .eq("creator_id", actualUserId)
+          .order("created_at", { ascending: false });
+
+        if (postsError) {
+          console.error("❌ Supabase POSTS error:", postsError);
+        }
+
+        setPosts(postsData ?? []);
+      } catch (err) {
+        console.error("❌ Unexpected ProfileClient error:", err);
+      } finally {
+        setFetching(false);
+      }
     }
 
     load();
