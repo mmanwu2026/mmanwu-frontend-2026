@@ -10,15 +10,12 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const { user, loading } = useUser();
   const router = useRouter();
 
-  // -----------------------------
-  // ALL HOOKS MUST RUN UNCONDITIONALLY
-  // -----------------------------
   const [hydrated, setHydrated] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // Hydration guard (runs once)
+  // Hydration guard
   useEffect(() => {
     setHydrated(true);
   }, []);
@@ -30,13 +27,15 @@ export default function ProfileClient({ userId }: { userId: string }) {
     }
   }, [hydrated, loading, user, router]);
 
-  // Fetch profile + posts AFTER hydration
+  // ⭐ Prevent undefined Supabase queries
   useEffect(() => {
     if (!hydrated) return;
+    if (!userId) return; // <--- THE FIX
 
     async function load() {
       setLoadingProfile(true);
 
+      // Fetch profile
       const { data: profileData } = await supabase
         .from("users")
         .select("id, username, avatar_url")
@@ -45,11 +44,12 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
       setProfile(profileData);
 
+      // Fetch posts
       const { data: postsData } = await supabase
-  .from("posts")
-  .select("id, content, created_at")
-  .eq("creator_id", userId)
-  .order("created_at", { ascending: false });
+        .from("posts")
+        .select("id, content, created_at")
+        .eq("creator_id", userId)
+        .order("created_at", { ascending: false });
 
       setPosts(postsData || []);
       setLoadingProfile(false);
@@ -59,7 +59,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
   }, [hydrated, supabase, userId]);
 
   // -----------------------------
-  // SAFE CONDITIONAL RENDERING (AFTER HOOKS)
+  // SAFE CONDITIONAL RENDERING
   // -----------------------------
 
   if (!hydrated) {
