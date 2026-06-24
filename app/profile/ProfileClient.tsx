@@ -10,35 +10,30 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
-  // ⭐ HYDRATION GUARD — prevents early null-return before params load
+  // ⭐ HYDRATION GUARD
   const hydrated = typeof window !== "undefined";
   if (!hydrated) return null;
 
-  // ⭐ BLOCK PREFETCH MOUNTS (Next.js prefetch issue)
-  // Only block when userId is truly missing, not during hydration
-  if (userId === undefined || userId === null || userId === "") {
+  // ⭐ PREFETCH GUARD — only block undefined/null, NOT empty string
+  if (userId === undefined || userId === null) {
     return null;
   }
 
-  // ⭐ BLOCK REDIRECT REMOUNT (Next.js soft navigation issue)
+  // ⭐ REDIRECT GUARD
   if (!loading && !user) {
     return null;
   }
-
-  console.log("AUTH USER:", user);
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
-  // ⭐ Redirect MUST happen inside an effect
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
     }
   }, [loading, user, router]);
 
-  // ⭐ Load profile + posts
   useEffect(() => {
     if (loading || !user) return;
 
@@ -53,8 +48,6 @@ export default function ProfileClient({ userId }: { userId: string }) {
           .select("*")
           .eq("id", actualUserId)
           .maybeSingle();
-
-        console.log("QUERY USER DATA:", userData);
 
         setProfile(userData);
 
@@ -74,7 +67,6 @@ export default function ProfileClient({ userId }: { userId: string }) {
   }, [loading, user, userId, supabase]);
 
   // ⭐ CORRECT RENDER LOGIC
-  // Never show "Profile not found" until AFTER fetching finishes
   if (loading || fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
