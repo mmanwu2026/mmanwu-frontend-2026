@@ -10,7 +10,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
-  // ⭐ BLOCK PREFETCH MOUNTS (Plaza prefetch issue)
+  // ⭐ BLOCK PREFETCH MOUNTS (Next.js prefetch issue)
   if (!userId) {
     return null;
   }
@@ -68,8 +68,9 @@ export default function ProfileClient({ userId }: { userId: string }) {
     load();
   }, [loading, user, userId, supabase]);
 
-  // ⭐ Render logic AFTER hooks
-  if (loading || (!user && fetching)) {
+  // ⭐ CORRECT RENDER LOGIC
+  // Do NOT show "Profile not found" until AFTER fetching is done.
+  if (loading || fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
