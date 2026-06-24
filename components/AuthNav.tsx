@@ -12,7 +12,6 @@ export default function AuthNav() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
-  // ⭐ Always render the SAME HTML on server and client
   if (!hydrated) {
     return (
       <nav className="w-full flex justify-end p-4 text-white">
@@ -30,13 +29,15 @@ export default function AuthNav() {
     <nav className="w-full flex justify-end p-4 text-white">
       {!user ? (
         <div className="flex gap-4">
-          <Link href="/signup">Sign Up</Link>
-          <Link href="/login">Log In</Link>
+          <Link href="/signup" prefetch={false}>Sign Up</Link>
+          <Link href="/login" prefetch={false}>Log In</Link>
         </div>
       ) : (
         <div className="flex gap-4">
-          {/* ⭐ Correct dynamic profile link */}
-          <Link href={`/profile/${user.id}`}>My Profile</Link>
+          {/* ⭐ Prefetch disabled to prevent /profile/undefined */}
+          <Link href={`/profile/${user.id}`} prefetch={false}>
+            My Profile
+          </Link>
 
           <button onClick={handleLogout}>Logout</button>
         </div>

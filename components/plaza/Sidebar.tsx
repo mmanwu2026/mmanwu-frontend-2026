@@ -8,19 +8,18 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useUser();
 
-  // Build nav items *after* user is known
   const navItems = [
-    { label: "SoundSquare", href: "/sound-square/feed" },
-    { label: "VisionSquare", href: "/vision" },
-    { label: "SpiritSquare", href: "/spirit" },
-    { label: "Shrine", href: "/shrine" },
+    { label: "SoundSquare", href: "/sound-square/feed", prefetch: false },
+    { label: "VisionSquare", href: "/vision", prefetch: false },
+    { label: "SpiritSquare", href: "/spirit", prefetch: false },
+    { label: "Shrine", href: "/shrine", prefetch: false },
 
-    // Correct dynamic profile link
+    // ⭐ Prefetch disabled to prevent stale /profile/undefined
     user
-      ? { label: "Profile", href: `/profile/${user.id}` }
-      : { label: "Profile", href: "/login" },
+      ? { label: "Profile", href: `/profile/${user.id}`, prefetch: false }
+      : { label: "Profile", href: "/login", prefetch: false },
 
-    { label: "Settings", href: "/settings" },
+    { label: "Settings", href: "/settings", prefetch: false },
   ];
 
   return (
@@ -45,6 +44,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={item.prefetch}
               className={`
                 px-3 py-2 rounded-lg transition-all
                 ${active
