@@ -29,12 +29,10 @@ interface PlazaPostWithAggregates {
   content: string;
   created_at: string;
 
-  // DB fields (snake_case)
   spirit_score: number;
   positivity_ratio: number;
   automask: number;
 
-  // Aggregated
   reactions: ReactionCounts;
 }
 
@@ -62,8 +60,9 @@ function auraIntensity(score: number, positivity: number) {
 
 export default function PlazaPage() {
   const supabase = useSupabase();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
 
+  const [hydrated, setHydrated] = useState(false);
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
   const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
   const [loading, setLoading] = useState(true);
@@ -77,10 +76,21 @@ export default function PlazaPage() {
   const reloadGuardRef = useRef(false);
 
   // -----------------------------------------------------
+  // HYDRATION GUARD
+  // -----------------------------------------------------
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const sessionReady = hydrated && !userLoading && !!user;
+
+  // -----------------------------------------------------
   // FETCH POSTS
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
+      if (!sessionReady) return;
+
       if (!append) setLoading(true);
 
       const from = pageToLoad * PAGE_SIZE;
@@ -118,8 +128,6 @@ export default function PlazaPage() {
         return {
           ...post,
           reactions: counts,
-
-          // Normalize to snake_case only
           spirit_score: post.spirit_score ?? 0,
           positivity_ratio: post.positivity_ratio ?? 0.5,
           automask: post.automask ?? 2,
@@ -133,21 +141,28 @@ export default function PlazaPage() {
       if (!append) setLoading(false);
       setLoadingMore(false);
     },
-    [supabase]
+    [supabase, sessionReady]
   );
 
+  // -----------------------------------------------------
+  // INITIAL LOAD (GUARDED)
+  // -----------------------------------------------------
   useEffect(() => {
+    if (!sessionReady) return;
     fetchPosts(0, false);
-  }, [fetchPosts]);
+  }, [sessionReady, fetchPosts]);
 
   const reloadPosts = useCallback(() => {
+    if (!sessionReady) return;
     fetchPosts(0, false);
-  }, [fetchPosts]);
+  }, [sessionReady, fetchPosts]);
 
   // -----------------------------------------------------
-  // REALTIME SUBSCRIPTIONS
+  // REALTIME SUBSCRIPTIONS (GUARDED)
   // -----------------------------------------------------
   useEffect(() => {
+    if (!sessionReady) return;
+
     const channel = supabase
       .channel("plaza-realtime")
       .on(
@@ -183,12 +198,14 @@ export default function PlazaPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchPosts]);
+  }, [sessionReady, supabase, fetchPosts]);
 
   // -----------------------------------------------------
-  // CREATOR FETCH
+  // CREATOR FETCH (GUARDED)
   // -----------------------------------------------------
   async function fetchCreator(id: string) {
+    if (!sessionReady) return null;
+
     if (creators[id]) return creators[id];
 
     const { data, error } = await supabase
@@ -206,6 +223,8 @@ export default function PlazaPage() {
   }
 
   useEffect(() => {
+    if (!sessionReady) return;
+
     const missingCreatorIds = posts
       .map((p) => p.creator_id)
       .filter((id) => !creators[id]);
@@ -217,13 +236,14 @@ export default function PlazaPage() {
         await fetchCreator(id);
       }
     })();
-  }, [posts, creators]);
+  }, [sessionReady, posts, creators]);
 
   // -----------------------------------------------------
-  // DELETE POST
+  // DELETE POST (GUARDED)
   // -----------------------------------------------------
   async function handleDelete(postId: string) {
-    if (!user) return;
+    if (!sessionReady) return;
+
     setDeletingId(postId);
 
     await supabase.from("posts").delete().eq("id", postId);
@@ -233,10 +253,12 @@ export default function PlazaPage() {
   }
 
   // -----------------------------------------------------
-  // LOAD MORE
+  // LOAD MORE (GUARDED)
   // -----------------------------------------------------
   async function handleLoadMore() {
+    if (!sessionReady) return;
     if (!hasMore || loadingMore) return;
+
     setLoadingMore(true);
 
     const nextPage = page + 1;
@@ -247,6 +269,22 @@ export default function PlazaPage() {
   // -----------------------------------------------------
   // RENDER
   // -----------------------------------------------------
+  if (!hydrated || userLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading Plaza…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Please log in.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
       <Sidebar />
@@ -263,7 +301,7 @@ export default function PlazaPage() {
         <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
           <div className="w-full flex flex-col items-center mb-10">
             <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-              Mmanwu Plaza 
+              Mmanwu Plaza
             </h1>
           </div>
 
@@ -442,14 +480,14 @@ export default function PlazaPage() {
 
                         <div className="mt-6 w-full flex justify-center">
                           <ReactionBar
-  postType="plaza"
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={post.reactions}
-  spiritScore={post.spirit_score}
-  positivityRatio={post.positivity_ratio}
-  onReact={reloadPosts}
-/>
+                            postType="plaza"
+                            postId={post.id}
+                            creatorId={post.creator_id}
+                            reactions={post.reactions}
+                            spiritScore={post.spirit_score}
+                            positivityRatio={post.positivity_ratio}
+                            onReact={reloadPosts}
+                          />
                         </div>
                       </div>
                     </div>
