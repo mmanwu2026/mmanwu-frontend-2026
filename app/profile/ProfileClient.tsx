@@ -10,8 +10,13 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
+  // ⭐ HYDRATION GUARD — prevents early null-return before params load
+  const hydrated = typeof window !== "undefined";
+  if (!hydrated) return null;
+
   // ⭐ BLOCK PREFETCH MOUNTS (Next.js prefetch issue)
-  if (!userId) {
+  // Only block when userId is truly missing, not during hydration
+  if (userId === undefined || userId === null || userId === "") {
     return null;
   }
 
@@ -69,7 +74,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
   }, [loading, user, userId, supabase]);
 
   // ⭐ CORRECT RENDER LOGIC
-  // Do NOT show "Profile not found" until AFTER fetching is done.
+  // Never show "Profile not found" until AFTER fetching finishes
   if (loading || fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
