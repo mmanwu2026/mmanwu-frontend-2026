@@ -3,20 +3,17 @@
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { useSupabase } from "@/context/SupabaseContext";
+import { useState, useEffect } from "react";
 
 export default function AuthNav() {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
 
-  // ⭐ ALWAYS render the same HTML on server + client
-  // SSR: loading = true, user = null → this block runs
-  // CSR: loading = false, user = real → React updates safely
-  if (loading) {
+  // ⭐ Always render the SAME HTML on server and client
+  if (!hydrated) {
     return (
       <nav className="w-full flex justify-end p-4 text-white">
         <div className="text-zinc-400 text-sm">Loading…</div>
@@ -24,25 +21,22 @@ export default function AuthNav() {
     );
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
   return (
     <nav className="w-full flex justify-end p-4 text-white">
       {!user ? (
         <div className="flex gap-4">
-          <Link href="/signup" className="hover:underline">
-            Sign Up
-          </Link>
-          <Link href="/login" className="hover:underline">
-            Log In
-          </Link>
+          <Link href="/signup">Sign Up</Link>
+          <Link href="/login">Log In</Link>
         </div>
       ) : (
         <div className="flex gap-4">
-          <Link href={`/profile/${user.id}`} className="hover:underline">
-            My Profile
-          </Link>
-          <button onClick={handleLogout} className="hover:underline">
-            Logout
-          </button>
+          <Link href={`/profile/${user.id}`}>My Profile</Link>
+          <button onClick={handleLogout}>Logout</button>
         </div>
       )}
     </nav>
