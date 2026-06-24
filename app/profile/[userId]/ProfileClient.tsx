@@ -29,15 +29,16 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  const actualUserId = userId === "me" ? user.id : userId;
-
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    // ⭐ CRITICAL FIX — prevents undefined queries AND ensures effect runs again
-    if (!user || !actualUserId) return;
+    if (!user) return;
+
+    const actualUserId = userId === "me" ? user.id : userId;
+
+    if (!actualUserId) return;
 
     async function load() {
       try {
@@ -66,7 +67,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
     }
 
     load();
-  }, [user, actualUserId, supabase]); // ⭐ user MUST be here
+  }, [user, userId, supabase]); // ⭐ userId instead of actualUserId
 
   if (fetching) {
     return (
