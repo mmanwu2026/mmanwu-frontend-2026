@@ -17,7 +17,7 @@
 
 /* Auto‑inject on body for quick verification */
 body::after {
-  content: "CSS v2 active";
+  content: "CSS v2 active 001";
   display: inline-block;
   composes: mmanwu-css-banner;
 }
