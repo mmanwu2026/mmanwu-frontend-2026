@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
-  const { user, loading } = useUser();
+  const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
   const [hydrated, setHydrated] = useState(false);
@@ -15,62 +15,86 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // Hydration guard
+  // -----------------------------------------------------
+  // HYDRATION GUARD
+  // -----------------------------------------------------
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Redirect AFTER hydration + AFTER hooks
-  useEffect(() => {
-    if (hydrated && !loading && !user) {
-      router.replace("/login");
-    }
-  }, [hydrated, loading, user, router]);
+  // -----------------------------------------------------
+  // SESSION READY GUARD
+  // -----------------------------------------------------
+  const sessionReady = hydrated && !userLoading && !!user;
 
-  // ⭐ Prevent undefined Supabase queries
+  // -----------------------------------------------------
+  // REDIRECT IF NOT LOGGED IN
+  // -----------------------------------------------------
   useEffect(() => {
     if (!hydrated) return;
-    if (!userId) return; // <--- THE FIX
+    if (userLoading) return;
+    if (!user) router.replace("/login");
+  }, [hydrated, userLoading, user, router]);
+
+  // -----------------------------------------------------
+  // LOAD PROFILE + POSTS (GUARDED)
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!sessionReady) return;
+    if (!userId) return;
+
+    console.log("🔵 ProfileClient mounted with userId:", userId);
 
     async function load() {
       setLoadingProfile(true);
 
       // Fetch profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("users")
         .select("id, username, avatar_url")
         .eq("id", userId)
         .single();
 
+      if (profileError) {
+        console.error("❌ Error loading profile:", profileError);
+      } else {
+        console.log("🟢 Loaded profile:", profileData);
+      }
+
       setProfile(profileData);
 
       // Fetch posts
-      const { data: postsData } = await supabase
+      const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select("id, content, created_at")
         .eq("creator_id", userId)
         .order("created_at", { ascending: false });
+
+      if (postsError) {
+        console.error("❌ Error loading posts:", postsError);
+      } else {
+        console.log("🟢 Loaded posts:", postsData?.length || 0);
+      }
 
       setPosts(postsData || []);
       setLoadingProfile(false);
     }
 
     load();
-  }, [hydrated, supabase, userId]);
+  }, [sessionReady, userId, supabase]);
 
-  // -----------------------------
-  // SAFE CONDITIONAL RENDERING
-  // -----------------------------
-
-  if (!hydrated) {
+  // -----------------------------------------------------
+  // SAFE RENDERING
+  // -----------------------------------------------------
+  if (!hydrated || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading…</p>
+        <p className="text-zinc-400 text-sm">Loading profile…</p>
       </div>
     );
   }
 
-  if (!loading && !user) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Redirecting…</p>
@@ -94,9 +118,9 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  // -----------------------------
+  // -----------------------------------------------------
   // MAIN RENDER
-  // -----------------------------
+  // -----------------------------------------------------
   return (
     <div className="max-w-2xl mx-auto p-6 text-white">
       <div className="flex items-center gap-4 mb-6">
