@@ -12,7 +12,19 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
   console.log("AUTH USER:", user);
 
-  if (loading) {
+  const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [fetching, setFetching] = useState(true);
+
+  // ⭐ Redirect MUST happen inside an effect
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
+
+  // ⭐ While loading OR redirecting, show loading screen
+  if (loading || (!user && !fetching)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
@@ -20,25 +32,10 @@ export default function ProfileClient({ userId }: { userId: string }) {
     );
   }
 
-  if (!user) {
-    router.replace("/login");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Redirecting…</p>
-      </div>
-    );
-  }
-
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [fetching, setFetching] = useState(true);
-
   useEffect(() => {
     if (!user) return;
 
     const actualUserId = userId === "me" ? user.id : userId;
-
-    if (!actualUserId) return;
 
     async function load() {
       try {
@@ -54,7 +51,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
         setProfile(userData);
 
-        const { data: postsData, error: postsError } = await supabase
+        const { data: postsData } = await supabase
           .from("posts")
           .select("*")
           .eq("creator_id", actualUserId)
@@ -67,7 +64,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
     }
 
     load();
-  }, [user, userId, supabase]); // ⭐ userId instead of actualUserId
+  }, [user, userId, supabase]);
 
   if (fetching) {
     return (
