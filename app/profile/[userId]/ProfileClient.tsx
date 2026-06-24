@@ -14,7 +14,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
 
-  if (loading) {
+  if (loading || !supabase) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
@@ -42,29 +42,23 @@ export default function ProfileClient({ userId }: { userId: string }) {
       try {
         setFetching(true);
 
-        // --- USER QUERY ---
         const { data: userData, error: userError } = await supabase
           .from("users")
           .select("*")
           .eq("id", actualUserId)
           .maybeSingle();
 
-        if (userError) {
-          console.error("❌ Supabase USER error:", userError);
-        }
+        if (userError) console.error("❌ Supabase USER error:", userError);
 
         setProfile(userData);
 
-        // --- POSTS QUERY ---
         const { data: postsData, error: postsError } = await supabase
           .from("posts")
           .select("*")
           .eq("creator_id", actualUserId)
           .order("created_at", { ascending: false });
 
-        if (postsError) {
-          console.error("❌ Supabase POSTS error:", postsError);
-        }
+        if (postsError) console.error("❌ Supabase POSTS error:", postsError);
 
         setPosts(postsData ?? []);
       } catch (err) {
