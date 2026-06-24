@@ -10,6 +10,9 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
+  // ⭐ INSERTED LOG HERE
+  console.log("AUTH USER:", user);
+
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [fetching, setFetching] = useState(true);
