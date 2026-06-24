@@ -1,3 +1,17 @@
+/* === DEPLOYMENT TEST BANNER v3 === */
+body::after {
+  content: "CSS v3 active";
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  z-index: 999999;
+  pointer-events: none;
+}
 /* ------------------------------------------------------------ */
 /* 1. TAILwind BASE                                             */
 /* ------------------------------------------------------------ */
