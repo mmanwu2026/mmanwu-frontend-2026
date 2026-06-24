@@ -10,6 +10,11 @@ export default function ProfileClient({ userId }: { userId: string }) {
   const supabase = useSupabase();
   const { user, loading } = useUser();
 
+  // ⭐ Prevent second mount during redirect
+  if (!loading && !user) {
+    return null;
+  }
+
   console.log("AUTH USER:", user);
 
   const [profile, setProfile] = useState(null);
