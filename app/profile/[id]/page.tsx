@@ -1,5 +1,5 @@
 // rebuild 004
-import ProfileClient from "./ProfileClient";
+import ProfileClient from "@/components/ProfileClient";
 
 export default function Page({ params }: { params: { id: string } }) {
   return <ProfileClient userId={params.id} />;
