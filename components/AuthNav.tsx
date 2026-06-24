@@ -13,7 +13,9 @@ export default function AuthNav() {
     window.location.href = "/login";
   }
 
-  // ⭐ SAFE HYDRATION: never return null
+  // ⭐ ALWAYS render the same HTML on server + client
+  // SSR: loading = true, user = null → this block runs
+  // CSR: loading = false, user = real → React updates safely
   if (loading) {
     return (
       <nav className="w-full flex justify-end p-4 text-white">
@@ -35,13 +37,9 @@ export default function AuthNav() {
         </div>
       ) : (
         <div className="flex gap-4">
-          {/* ⭐ FIXED: prevent hydration crash by guarding user.id */}
-          {user && (
-            <Link href={`/profile/${user.id}`} className="hover:underline">
-              My Profile
-            </Link>
-          )}
-
+          <Link href={`/profile/${user.id}`} className="hover:underline">
+            My Profile
+          </Link>
           <button onClick={handleLogout} className="hover:underline">
             Logout
           </button>
