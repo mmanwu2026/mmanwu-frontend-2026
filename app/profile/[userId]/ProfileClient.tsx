@@ -40,6 +40,9 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
   // ⭐ 4. Load profile + posts
   useEffect(() => {
+    // ⭐ CRITICAL FIX — prevents undefined queries
+    if (!user || !actualUserId) return;
+
     async function load() {
       try {
         setFetching(true);
@@ -73,7 +76,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
     }
 
     load();
-  }, [actualUserId, supabase]);
+  }, [user, actualUserId, supabase]); // ⭐ user MUST be in deps
 
   // ⭐ 5. Show loading while fetching
   if (fetching) {
