@@ -23,17 +23,9 @@ export default function ProfileClient({ userId }: { userId: string }) {
     }
   }, [loading, user, router]);
 
-  // ⭐ While loading OR redirecting, show loading screen
-  if (loading || (!user && !fetching)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
-  }
-
+  // ⭐ Load profile + posts
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user) return;
 
     const actualUserId = userId === "me" ? user.id : userId;
 
@@ -41,13 +33,13 @@ export default function ProfileClient({ userId }: { userId: string }) {
       try {
         setFetching(true);
 
-        const { data: userData, error: userError } = await supabase
+        const { data: userData } = await supabase
           .from("users")
           .select("*")
           .eq("id", actualUserId)
           .maybeSingle();
 
-        console.log("QUERY USER DATA:", userData, "ERROR:", userError);
+        console.log("QUERY USER DATA:", userData);
 
         setProfile(userData);
 
@@ -64,9 +56,10 @@ export default function ProfileClient({ userId }: { userId: string }) {
     }
 
     load();
-  }, [user, userId, supabase]);
+  }, [loading, user, userId, supabase]);
 
-  if (fetching) {
+  // ⭐ Render logic AFTER hooks
+  if (loading || (!user && fetching)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile…</p>
