@@ -1,17 +1,20 @@
 import "./globals.css";
+import type { Metadata } from "next";
 import { Providers } from "./providers";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Mmanwu Reactions Plaza",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body className="bg-black text-white">
-        <div id="__next">
-          <Providers>{children}</Providers>
-        </div>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
