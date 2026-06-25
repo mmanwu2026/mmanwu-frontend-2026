@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const id = params.id; // ← DO NOT await, DO NOT wrap in Promise
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
 
