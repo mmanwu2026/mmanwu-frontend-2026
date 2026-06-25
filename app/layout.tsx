@@ -11,7 +11,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-black text-white">
         <ProvidersWrapper>
-          {children}
+          <main>
+            {children}
+          </main>
         </ProvidersWrapper>
       </body>
     </html>
