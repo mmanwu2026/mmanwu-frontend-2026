@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
