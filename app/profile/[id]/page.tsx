@@ -5,6 +5,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const supabase = await createSupabaseServerClient();
 
+  // Fetch profile
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, mask_tier, spirit_score, positivity_ratio, created_at")
@@ -24,7 +25,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="space-y-8">
-      
+
       {/* Profile Header */}
       <div className="flex items-center gap-4">
         <img
