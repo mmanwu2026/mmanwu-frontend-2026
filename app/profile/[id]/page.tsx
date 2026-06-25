@@ -24,43 +24,51 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     .order("created_at", { ascending: false });
 
   return (
-    <div className="w-full min-h-screen p-6 space-y-6">
-      {/* Header */}
+    <div className="space-y-8">
+
+      {/* Profile Header */}
       <div className="flex items-center gap-4">
         <img
           src={profile.avatar_url || "/default-avatar.png"}
-          className="w-20 h-20 rounded-full border border-white/20"
+          className="w-24 h-24 rounded-full border border-white/20"
         />
         <div>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+          <h1 className="text-3xl font-bold">{profile.display_name}</h1>
           <p className="text-white/60">@{profile.username}</p>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="flex gap-6 text-white/80">
+      <div className="flex gap-8 text-white/80 text-sm">
         <div><span className="font-bold">{profile.spirit_score}</span> Spirit</div>
         <div><span className="font-bold">{profile.mask_tier}</span> Mask Tier</div>
         <div><span className="font-bold">{profile.positivity_ratio}%</span> Positivity</div>
       </div>
 
       {/* Bio */}
-      <p className="text-white/80">{profile.bio}</p>
+      {profile.bio && (
+        <p className="text-white/80 leading-relaxed">{profile.bio}</p>
+      )}
 
       {/* Joined */}
-      <p className="text-white/40 text-sm">
+      <p className="text-white/40 text-xs">
         Joined {new Date(profile.created_at).toLocaleDateString()}
       </p>
 
-      {/* Posts */}
-      <div className="mt-10 space-y-4">
+      {/* Posts Feed */}
+      <div className="space-y-4">
         {posts && posts.length > 0 ? (
           posts.map((post) => (
-            <div key={post.id} className="p-4 border border-white/10 rounded-lg">
+            <div
+              key={post.id}
+              className="p-4 border border-white/10 rounded-lg bg-white/5"
+            >
               <p className="text-white">{post.content}</p>
-              <p className="text-white/40 text-sm mt-2">
-                {new Date(post.created_at).toLocaleString()}
-              </p>
+
+              <div className="flex justify-between items-center mt-3 text-white/40 text-xs">
+                <span>{new Date(post.created_at).toLocaleString()}</span>
+                <span>Mask {post.mask}</span>
+              </div>
             </div>
           ))
         ) : (
