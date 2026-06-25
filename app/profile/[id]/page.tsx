@@ -1,11 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const id = params.id; // ← DO NOT await, DO NOT wrap in Promise
 
   const supabase = await createSupabaseServerClient();
 
-  // Fetch profile
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, mask_tier, spirit_score, positivity_ratio, created_at")
