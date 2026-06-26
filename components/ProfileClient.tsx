@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/plaza/PostCard";
+import AvatarUploader from "@/components/AvatarUploader";
 
 type Profile = {
   id: string;
@@ -45,55 +46,50 @@ export default function ProfileClient({
   const [activeTab, setActiveTab] =
     useState<"posts" | "soundposts" | "reactions">("posts");
 
-  // ⭐ GRID MODE
   const [gridMode, setGridMode] = useState(false);
 
-  // ⭐ REACTION COUNTS
   const [reactionCounts, setReactionCounts] = useState<Record<string, any>>({});
 
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // ⭐ LOAD REACTION COUNTS FOR ALL POSTS
-useEffect(() => {
-  async function loadReactions() {
-    if (!posts || posts.length === 0) return;
+  // ⭐ Load reaction counts
+  useEffect(() => {
+    async function loadReactions() {
+      if (!posts || posts.length === 0) return;
 
-    const { data, error } = await supabase
-      .from("reactions")
-      .select('post_id, "maskTier"')
-      .in("post_id", posts.map((p) => p.id));
+      const { data, error } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .in("post_id", posts.map((p) => p.id));
 
-    if (error) {
-      console.error("Reaction load error:", error);
-      return;
-    }
-
-    const map: Record<string, any> = {};
-
-    data.forEach((r: { post_id: string; maskTier: number }) => {
-      if (!map[r.post_id]) {
-        map[r.post_id] = {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
+      if (error) {
+        console.error("Reaction load error:", error);
+        return;
       }
 
-      // ⭐ increment correct mask bucket
-      map[r.post_id][`mask${r.maskTier}`] += 1;
-    });
+      const map: Record<string, any> = {};
 
-    setReactionCounts(map);
-  }
+      data.forEach((r: { post_id: string; maskTier: number }) => {
+        if (!map[r.post_id]) {
+          map[r.post_id] = {
+            mask1: 0,
+            mask2: 0,
+            mask3: 0,
+            mask4: 0,
+            mask5: 0,
+            mask6: 0,
+          };
+        }
+        map[r.post_id][`mask${r.maskTier}`] += 1;
+      });
 
-  loadReactions();
-}, [posts, supabase]);
+      setReactionCounts(map);
+    }
 
+    loadReactions();
+  }, [posts, supabase]);
 
   if (!hydrated || userLoading) {
     return (
@@ -111,15 +107,27 @@ useEffect(() => {
     );
   }
 
+  const isOwnProfile = user.id === profile.id;
+
   return (
     <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
       {/* PROFILE HEADER */}
       <div className="flex items-center gap-4">
-        <img
-          src={profile.avatar_url || "/default-avatar.png"}
-          className="w-24 h-24 rounded-full border border-white/20"
-        />
+
+        {/* ⭐ AvatarUploader only for your own profile */}
+        {isOwnProfile ? (
+          <AvatarUploader
+            userId={profile.id}
+            currentAvatar={profile.avatar_url}
+          />
+        ) : (
+          <img
+            src={profile.avatar_url || "/fallback-avatar.png"}
+            className="w-24 h-24 rounded-full border border-white/20"
+          />
+        )}
+
         <div>
           <h1 className="text-3xl font-bold">{profile.display_name}</h1>
           <p className="text-white/60">@{profile.username}</p>
@@ -167,7 +175,7 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* ⭐ GRID MODE TOGGLE */}
+      {/* GRID MODE TOGGLE */}
       {activeTab === "posts" && (
         <div className="flex justify-end mt-2">
           <button
@@ -216,7 +224,7 @@ useEffect(() => {
                     }
                     positivityRatio={post.positivity_ratio}
                     onReact={() => {}}
-                    showDelete={true}
+                    showDelete={isOwnProfile}
                     onDelete={async (postId) => {
                       await supabase.from("posts").delete().eq("id", postId);
                       router.refresh();
