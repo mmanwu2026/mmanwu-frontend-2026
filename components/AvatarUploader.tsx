@@ -83,26 +83,42 @@ export default function AvatarUploader({
   }
 
   return (
-  <div className="relative inline-block">
+    <div className="flex flex-col items-center gap-2">
 
-    <img
-      src={preview || FALLBACK_AVATAR}
-      onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-      className="rounded-full border border-white/20 cursor-pointer"
-    />
+      {/* CLICKABLE AVATAR — NO SIZE WRAPPER (TEST MODE) */}
+      <div className="relative inline-block">
 
-    <input
-      type="file"
-      accept="image/*"
-      onChange={onFileChange}
-      className="absolute inset-0 opacity-0 cursor-pointer z-20"
-    />
+        <img
+          src={preview || FALLBACK_AVATAR}
+          onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+          className="rounded-full border border-white/20 cursor-pointer"
+        />
 
-    {loading && (
-      <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
-        <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+        {/* INVISIBLE INPUT ALWAYS ON TOP */}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={onFileChange}
+          className="absolute inset-0 opacity-0 cursor-pointer z-20"
+        />
+
+        {/* LOADING SPINNER */}
+        {loading && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
+            <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+          </div>
+        )}
       </div>
-    )}
-  </div>
-);
+
+      {/* REMOVE BUTTON */}
+      {preview && !loading && (
+        <button
+          onClick={removeAvatar}
+          className="text-xs text-red-400 hover:text-red-200 transition"
+        >
+          Remove Avatar
+        </button>
+      )}
+    </div>
+  );
 }
