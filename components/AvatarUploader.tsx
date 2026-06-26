@@ -83,7 +83,7 @@ export default function AvatarUploader({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2 flex-shrink-0">
 
       {/* FIXED-SIZE WRAPPER — REQUIRED FOR CLICK TO WORK */}
       <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">
