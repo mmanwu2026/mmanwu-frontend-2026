@@ -33,11 +33,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   }
 
   // Fetch posts
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("id, content, created_at, spirit_score, mask, automask, positivity_ratio")
-    .eq("creator_id", id)
-    .order("created_at", { ascending: false });
+ const { data: posts } = await supabase
+  .from("posts")
+  .select("id, creator_id, content, created_at, spirit_score, mask, automask, positivity_ratio")
+  .eq("creator_id", id)
+  .order("created_at", { ascending: false });
 
   return (
     <ProfileClient
