@@ -14,7 +14,7 @@ export default function Avatar({
   alt?: string;
   className?: string;
 }) {
-  const fallback = "/fallback-avatar.png";
+  const fallback = "/default-avatar.png";
 
   const [imgSrc, setImgSrc] = useState(src || fallback);
 

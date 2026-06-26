@@ -47,7 +47,6 @@ export default function ProfileClient({
     useState<"posts" | "soundposts" | "reactions">("posts");
 
   const [gridMode, setGridMode] = useState(false);
-
   const [reactionCounts, setReactionCounts] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -112,26 +111,30 @@ export default function ProfileClient({
   return (
     <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-      {/* PROFILE HEADER */}
-      <div className="flex items-center gap-4">
+      {/* ⭐ PROFILE HEADER (Corrected stacking context) */}
+      <div className="flex items-center gap-4 relative">
 
-        {/* ⭐ AvatarUploader only for your own profile */}
-        {isOwnProfile ? (
-          <AvatarUploader
-            userId={profile.id}
-            currentAvatar={profile.avatar_url}
-          />
-        ) : (
-          <img
-            src={profile.avatar_url || "/fallback-avatar.png"}
-            className="w-24 h-24 rounded-full border border-white/20"
-          />
-        )}
+        {/* Avatar isolated in its own stacking layer */}
+        <div className="relative z-10">
+          {isOwnProfile ? (
+            <AvatarUploader
+              userId={profile.id}
+              currentAvatar={profile.avatar_url}
+            />
+          ) : (
+            <img
+              src={profile.avatar_url || "/fallback-avatar.png"}
+              className="w-24 h-24 rounded-full border border-white/20"
+            />
+          )}
+        </div>
 
-        <div>
+        {/* Name block sits BELOW avatar */}
+        <div className="relative z-0">
           <h1 className="text-3xl font-bold">{profile.display_name}</h1>
           <p className="text-white/60">@{profile.username}</p>
         </div>
+
       </div>
 
       {/* STATS */}
