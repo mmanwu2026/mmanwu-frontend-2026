@@ -265,10 +265,10 @@ img {
   height: auto;
 }
 
-/* Plaza avatar override — forces Tailwind sizing to win */
+/* Plaza avatar override — better size */
 .plaza-avatar {
-  width: 1.75rem !important;   /* w-7 */
-  height: 1.75rem !important;  /* h-7 */
+  width: 2.25rem !important;   /* w-9 */
+  height: 2.25rem !important;  /* h-9 */
   max-width: none !important;
   max-height: none !important;
   flex-shrink: 0 !important;
