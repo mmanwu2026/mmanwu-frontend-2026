@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 import PostCard from "@/components/plaza/PostCard";
 import AvatarUploader from "@/components/AvatarUploader";
 
+const FALLBACK_AVATAR =
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback.png";
+
 type Profile = {
   id: string;
   username: string;
@@ -27,6 +30,15 @@ type Post = {
   mask: number;
   automask: number | null;
   positivity_ratio: number;
+};
+
+const EMPTY_REACTIONS = {
+  mask1: 0,
+  mask2: 0,
+  mask3: 0,
+  mask4: 0,
+  mask5: 0,
+  mask6: 0,
 };
 
 export default function ProfileClient({
@@ -71,16 +83,7 @@ export default function ProfileClient({
       const map: Record<string, any> = {};
 
       data.forEach((r: { post_id: string; maskTier: number }) => {
-        if (!map[r.post_id]) {
-          map[r.post_id] = {
-            mask1: 0,
-            mask2: 0,
-            mask3: 0,
-            mask4: 0,
-            mask5: 0,
-            mask6: 0,
-          };
-        }
+        if (!map[r.post_id]) map[r.post_id] = { ...EMPTY_REACTIONS };
         map[r.post_id][`mask${r.maskTier}`] += 1;
       });
 
@@ -90,6 +93,7 @@ export default function ProfileClient({
     loadReactions();
   }, [posts, supabase]);
 
+  // ⭐ Hydration guard
   if (!hydrated || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -111,34 +115,34 @@ export default function ProfileClient({
   return (
     <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-      {/* ⭐ PROFILE HEADER (Corrected stacking context) */}
+      {/* ⭐ PROFILE HEADER */}
       <div className="flex items-center gap-4 relative">
 
-        {/* Avatar isolated in its own stacking layer */}
-<div
-  className="relative z-10"
-  onClick={(e) => e.stopPropagation()}
-  onMouseDown={(e) => e.stopPropagation()}
->
-  {isOwnProfile ? (
-    <AvatarUploader
-      userId={profile.id}
-      currentAvatar={profile.avatar_url}
-    />
-  ) : (
-    <img
-      src={profile.avatar_url || "/fallback-avatar.png"}
-      className="w-24 h-24 rounded-full border border-white/20"
-    />
-  )}
-</div>
+        {/* Avatar */}
+        <div
+          className="relative z-10"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {isOwnProfile ? (
+            <AvatarUploader
+              userId={profile.id}
+              currentAvatar={profile.avatar_url}
+            />
+          ) : (
+            <img
+              src={profile.avatar_url || FALLBACK_AVATAR}
+              onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+              className="w-24 h-24 rounded-full border border-white/20"
+            />
+          )}
+        </div>
 
-        {/* Name block sits BELOW avatar */}
+        {/* Name */}
         <div className="relative z-0">
           <h1 className="text-3xl font-bold">{profile.display_name}</h1>
           <p className="text-white/60">@{profile.username}</p>
         </div>
-
       </div>
 
       {/* STATS */}
@@ -219,16 +223,7 @@ export default function ProfileClient({
                       spirit_score: post.spirit_score,
                       autoMask: post.automask ?? 0,
                     }}
-                    reactions={
-                      reactionCounts[post.id] ?? {
-                        mask1: 0,
-                        mask2: 0,
-                        mask3: 0,
-                        mask4: 0,
-                        mask5: 0,
-                        mask6: 0,
-                      }
-                    }
+                    reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
                     positivityRatio={post.positivity_ratio}
                     onReact={() => {}}
                     showDelete={isOwnProfile}
