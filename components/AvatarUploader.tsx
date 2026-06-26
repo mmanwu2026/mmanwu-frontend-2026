@@ -134,48 +134,49 @@ export default function AvatarUploader({
     <div className="flex flex-col items-center gap-2">
 
       {/* Avatar container */}
-      <div
-        onDrop={onDrop}
-        onDragOver={(e) => e.preventDefault()}
-        className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group"
-      >
-        <img
-          src={preview || "/fallback-avatar.png"}
-          className="w-full h-full object-cover"
-        />
+<div
+  onDrop={onDrop}
+  onDragOver={(e) => e.preventDefault()}
+  className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group"
+>
+  {/* Avatar image (lowest layer) */}
+  <img
+    src={preview || "/default-avatar.png"}
+    className="w-full h-full object-cover relative z-0"
+  />
 
-        {/* Invisible input */}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onFileChange}
-          className="absolute inset-0 opacity-0 cursor-pointer z-10"
-        />
+  {/* Invisible input (must be highest layer) */}
+  <input
+    type="file"
+    accept="image/*"
+    onChange={onFileChange}
+    className="absolute inset-0 opacity-0 cursor-pointer z-20"
+  />
 
-        {/* Hover overlay */}
-        {!loading && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition">
-            Change Avatar
-          </div>
-        )}
+  {/* Hover overlay (middle layer) */}
+  {!loading && (
+    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition z-10">
+      Change Avatar
+    </div>
+  )}
 
-        {/* Loading spinner */}
-        {loading && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
-          </div>
-        )}
-      </div>
+  {/* Loading spinner (middle layer) */}
+  {loading && (
+    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+      <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+    </div>
+  )}
+</div>
 
-      {/* Remove button */}
-      {preview && !loading && (
-        <button
-          onClick={removeAvatar}
-          className="text-xs text-red-400 hover:text-red-200 transition"
-        >
-          Remove Avatar
-        </button>
-      )}
+{/* Remove button */}
+{preview && !loading && (
+  <button
+    onClick={removeAvatar}
+    className="text-xs text-red-400 hover:text-red-200 transition"
+  >
+    Remove Avatar
+  </button>
+)}
     </div>
   );
 }
