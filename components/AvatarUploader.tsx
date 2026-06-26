@@ -39,8 +39,7 @@ export default function AvatarUploader({
       .from("avatars")
       .getPublicUrl(filePath);
 
-    const httpsUrl = publicUrlData.publicUrl.replace("http://", "https://");
-    return httpsUrl;
+    return publicUrlData.publicUrl.replace("http://", "https://");
   }
 
   async function handleFile(file: File) {
@@ -85,15 +84,17 @@ export default function AvatarUploader({
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group">
+
+      {/* FIXED-SIZE AVATAR CONTAINER */}
+      <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">
+
         <img
           src={preview || FALLBACK_AVATAR}
+          onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
           className="w-full h-full object-cover"
-          onError={(e) => {
-            e.currentTarget.src = FALLBACK_AVATAR;
-          }}
         />
 
+        {/* INVISIBLE CLICKABLE INPUT ALWAYS ON TOP */}
         <input
           type="file"
           accept="image/*"
@@ -101,19 +102,15 @@ export default function AvatarUploader({
           className="absolute inset-0 opacity-0 cursor-pointer z-20"
         />
 
-        {!loading && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition z-10">
-            Change Avatar
-          </div>
-        )}
-
+        {/* LOADING SPINNER */}
         {loading && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
             <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
           </div>
         )}
       </div>
 
+      {/* REMOVE BUTTON */}
       {preview && !loading && (
         <button
           onClick={removeAvatar}

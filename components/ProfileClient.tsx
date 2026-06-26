@@ -61,11 +61,9 @@ export default function ProfileClient({
   const [gridMode, setGridMode] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<Record<string, any>>({});
 
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  useEffect(() => setHydrated(true), []);
 
-  // ⭐ Load reaction counts
+  // Load reactions
   useEffect(() => {
     async function loadReactions() {
       if (!posts || posts.length === 0) return;
@@ -93,7 +91,6 @@ export default function ProfileClient({
     loadReactions();
   }, [posts, supabase]);
 
-  // ⭐ Hydration guard
   if (!hydrated || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -115,15 +112,11 @@ export default function ProfileClient({
   return (
     <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-      {/* ⭐ PROFILE HEADER */}
+      {/* PROFILE HEADER */}
       <div className="flex items-center gap-4 relative">
 
-        {/* Avatar */}
-        <div
-          className="relative z-10"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
+        {/* AvatarUploader handles its own sizing */}
+        <div className="relative z-10">
           {isOwnProfile ? (
             <AvatarUploader
               userId={profile.id}
@@ -133,7 +126,7 @@ export default function ProfileClient({
             <img
               src={profile.avatar_url || FALLBACK_AVATAR}
               onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-              className="w-24 h-24 rounded-full border border-white/20"
+              className="w-24 h-24 rounded-full object-cover border border-white/20"
             />
           )}
         </div>
