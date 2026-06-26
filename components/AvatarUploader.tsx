@@ -85,31 +85,33 @@ export default function AvatarUploader({
   return (
     <div className="flex flex-col items-center gap-2 flex-shrink-0 w-24">
 
-      {/* FIXED-SIZE WRAPPER — REQUIRED FOR CLICK TO WORK */}
-      <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">
+      {/* FIXED-SIZE WRAPPER — CLICKABLE AREA */}
+      <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20 z-40">
 
-        {/* IMAGE MUST BE INSIDE THIS WRAPPER */}
+        {/* AVATAR IMAGE */}
         <img
-  src={preview || FALLBACK_AVATAR}
-  onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-  className="!w-full !h-full object-cover"
-/>
+          src={preview || FALLBACK_AVATAR}
+          onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+          className="w-full h-full object-cover object-center"
+        />
 
-        {/* INPUT MUST BE ON TOP */}
+        {/* BULLETPROOF CLICKABLE INPUT */}
         <input
           type="file"
           accept="image/*"
           onChange={onFileChange}
-          className="absolute inset-0 opacity-0 cursor-pointer z-20"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50 block"
         />
 
+        {/* LOADING OVERLAY */}
         {loading && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-60">
             <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
           </div>
         )}
       </div>
 
+      {/* REMOVE BUTTON */}
       {preview && !loading && (
         <button
           onClick={removeAvatar}
