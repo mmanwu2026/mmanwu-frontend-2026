@@ -20,7 +20,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    async function load() {
+    async function loadInitialSession() {
+      // ⭐ Load session IMMEDIATELY on mount
       const { data } = await supabase.auth.getSession();
 
       if (!active) return;
@@ -29,8 +30,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
 
-    load();
+    loadInitialSession();
 
+    // ⭐ Listen for login/logout changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
         if (!active) return;
@@ -42,8 +44,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       active = false;
-
-      // ⭐ SAFE CLEANUP — prevents hydration crash
       listener?.subscription?.unsubscribe?.();
     };
   }, [supabase]);
