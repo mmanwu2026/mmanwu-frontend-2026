@@ -135,7 +135,7 @@ export default function ProfileClient({
     <p className="text-white/60">@{profile.username}</p>
   </div>
 
-</div>   {/* ← THIS is where the closing tag belongs */}
+</div>  {/* ← ONLY ONE closing tag */}
 
       {/* STATS */}
       <div className="flex gap-8 text-white/80 text-sm">
