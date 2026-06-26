@@ -27,11 +27,10 @@ interface PlazaPostWithAggregates {
   creator_id: string;
   content: string;
   created_at: string;
-
   spirit_score: number;
   positivity_ratio: number;
   automask: number;
-
+  mask: number;
   reactions: ReactionCounts;
 }
 
@@ -108,7 +107,8 @@ export default function PlazaPage() {
           reactions: counts,
           spirit_score: post.spirit_score ?? 0,
           positivity_ratio: post.positivity_ratio ?? 0.5,
-          automask: post.automask ?? 2,
+          automask: post.automask ?? 3,
+          mask: post.mask ?? 3,
         };
       });
 
@@ -193,8 +193,9 @@ export default function PlazaPage() {
       .single();
 
     if (!error && data) {
-      setCreators((prev) => ({ ...prev, [id]: data }));
-      return data as CreatorProfile;
+      const profile = data as CreatorProfile;
+      setCreators((prev) => ({ ...prev, [id]: profile }));
+      return profile;
     }
 
     return null;
@@ -244,7 +245,7 @@ export default function PlazaPage() {
     setPage(nextPage);
   }
 
-  // -----------------------------------------------------
+    // -----------------------------------------------------
   // RENDER
   // -----------------------------------------------------
   if (!hydrated || userLoading) {
@@ -290,16 +291,32 @@ export default function PlazaPage() {
           )}
 
           <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post) => (
-              <PlazaCard
-                key={post.id}
-                post={post}
-                creator={creators[post.creator_id]}
-                user={user}
-                onDelete={handleDelete}
-                onReact={reloadPosts}
-              />
-            ))}
+            {posts.map((post) => {
+              const creator = creators[post.creator_id];
+
+              // Prevent raw avatar / undefined creator issues
+              if (!creator) {
+                return (
+                  <div
+                    key={post.id}
+                    className="text-gray-500 text-xs italic"
+                  >
+                    Loading identity…
+                  </div>
+                );
+              }
+
+              return (
+                <PlazaCard
+                  key={post.id}
+                  post={post}
+                  creator={creator}
+                  user={user}
+                  onDelete={handleDelete}
+                  onReact={reloadPosts}
+                />
+              );
+            })}
           </div>
 
           {!loading && hasMore && (

@@ -27,6 +27,7 @@ interface PlazaPost {
   spirit_score: number;
   positivity_ratio: number;
   automask: number;
+  mask: number;
   reactions: ReactionCounts;
 }
 
@@ -38,18 +39,15 @@ export default function PlazaCard({
   onReact,
 }: {
   post: PlazaPost;
-  creator: CreatorProfile | undefined;
+  creator: CreatorProfile;
   user: any;
   onDelete: (id: string) => void;
   onReact: () => void;
 }) {
   const supabase = useSupabase();
-
   const isCreator = user?.id === post.creator_id;
 
-  // -----------------------------------------------------
   // FOLLOW STATE
-  // -----------------------------------------------------
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -104,9 +102,7 @@ export default function PlazaCard({
     }
   }
 
-  // -----------------------------------------------------
   // AURA + GLYPH LOGIC
-  // -----------------------------------------------------
   function auraIntensity(score: number, positivity: number) {
     let level =
       score < 6 ? 0 :
@@ -146,36 +142,17 @@ export default function PlazaCard({
   const floatY = Math.max(-20 - post.spirit_score * 0.25, -90);
 
   return (
-    <div
-      className={`
-        relative isolate z-0
-        transition-all duration-500
-        overflow-visible
-        w-[420px] h-[520px]
-        flex flex-col
-      `}
-    >
-      <div
-        className={`
-          aura-mask-${post.automask}
-          aura-intensity-${intensity}
-          rounded-2xl p-8 w-full h-full
-        `}
-      >
+    <div className="relative isolate z-0 transition-all duration-500 overflow-visible w-[420px] h-[520px] flex flex-col">
+      <div className={`aura-mask-${post.automask} aura-intensity-${intensity} rounded-2xl p-8 w-full h-full`}>
         <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
 
-          {/* -----------------------------------------------------
-              IDENTITY HEADER
-          ----------------------------------------------------- */}
+          {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-2 px-1">
             <div className="flex items-center gap-2">
-              {creator && (
-                <img
-                  src={creator.avatar_url || "/default-avatar.png"}
-                  alt="avatar"
-                  className="w-7 h-7 rounded-full border border-gray-700 object-cover"
-                />
-              )}
+              <img
+                src={creator?.avatar_url || "/default-avatar.png"}
+                className="w-7 h-7 rounded-full border border-gray-700 object-cover"
+              />
 
               <span className="text-white/90 text-sm font-semibold">
                 {creator?.username || "unknown"}
@@ -197,9 +174,7 @@ export default function PlazaCard({
             )}
           </div>
 
-          {/* -----------------------------------------------------
-              GLYPH + CONTENT
-          ----------------------------------------------------- */}
+          {/* GLYPH + CONTENT */}
           <div className="ritual-glyph-container mt-4 flex justify-center">
             <div className="ritual-glyph-levitate">
               <div className="ritual-flame-ring clean"></div>
@@ -223,16 +198,14 @@ export default function PlazaCard({
             {post.content}
           </p>
 
-          {/* -----------------------------------------------------
-              FOOTER
-          ----------------------------------------------------- */}
+          {/* FOOTER */}
           <div className="mt-auto w-full">
             <p className="text-sm text-gray-400 text-center">
               SpiritScore: {post.spirit_score} • Reactions: {totalReactions}
             </p>
 
             <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
-              <span>Mask: {post.automask}</span>
+              <span>Mask: {post.mask}</span>
               <span>{new Date(post.created_at).toLocaleString()}</span>
             </div>
 
