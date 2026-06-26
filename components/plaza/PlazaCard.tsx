@@ -154,10 +154,10 @@ export default function PlazaCard({
           <div className="flex items-center justify-between mb-2 px-1">
             <div className="flex items-center gap-2">
 
-              {/* ⭐ Correct fallback avatar */}
+              {/* ⭐ Avatar with shrink fix */}
               <img
                 src={creator?.avatar_url || FALLBACK_AVATAR}
-                className="w-7 h-7 rounded-full border border-gray-700 object-cover"
+                className="w-7 h-7 flex-shrink-0 rounded-full border border-gray-700 object-cover"
               />
 
               <span className="text-white/90 text-sm font-semibold">
