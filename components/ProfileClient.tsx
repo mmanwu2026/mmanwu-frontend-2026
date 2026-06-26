@@ -1,4 +1,3 @@
-// vercel rebuild 001
 "use client";
 
 import { useEffect, useState } from "react";
@@ -124,11 +123,11 @@ export default function ProfileClient({
 
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-        {/* ⭐ CENTERED PROFILE HEADER ⭐ */}
-        <div className="flex flex-col items-center mt-4">
+        {/* ⭐ PROFILE HEADER — Avatar Left, Identity Centered ⭐ */}
+        <div className="flex items-start gap-6">
 
-          {/* Avatar */}
-          <div className="w-28 h-28 rounded-full overflow-hidden border border-white/20 shadow-lg">
+          {/* Avatar stays left */}
+          <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
             {isOwnProfile ? (
               <AvatarUploader
                 userId={profile.id}
@@ -138,13 +137,14 @@ export default function ProfileClient({
               <img
                 src={profile.avatar_url || FALLBACK_AVATAR}
                 onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                className="w-full h-full object-cover"
+                className="w-24 h-24 rounded-full object-cover border border-white/20"
               />
             )}
           </div>
 
-          {/* Name + Username */}
-          <div className="flex flex-col items-center mt-4">
+          {/* Identity block centered */}
+          <div className="flex flex-col flex-1 items-center text-center">
+
             <h1 className="text-2xl font-semibold tracking-tight">
               {profile.display_name}
             </h1>
@@ -152,26 +152,26 @@ export default function ProfileClient({
             <p className="text-sm text-white/60 mt-1">
               @{profile.username}
             </p>
+
+            {/* Stats centered */}
+            <div className="flex gap-8 mt-4 text-center text-white/80 text-sm">
+              <div>
+                <p className="text-lg font-semibold">{profile.spirit_score}</p>
+                <p className="text-xs text-white/60">Spirit</p>
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold">{profile.mask_tier}</p>
+                <p className="text-xs text-white/60">Mask Tier</p>
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold">{profile.positivity_ratio}%</p>
+                <p className="text-xs text-white/60">Positivity</p>
+              </div>
+            </div>
+
           </div>
-
-          {/* Stats */}
-          <div className="flex gap-8 mt-4 text-center text-white/80 text-sm">
-            <div>
-              <p className="text-lg font-semibold">{profile.spirit_score}</p>
-              <p className="text-xs text-white/60">Spirit</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold">{profile.mask_tier}</p>
-              <p className="text-xs text-white/60">Mask Tier</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold">{profile.positivity_ratio}%</p>
-              <p className="text-xs text-white/60">Positivity</p>
-            </div>
-          </div>
-
         </div>
 
         {/* BIO */}
