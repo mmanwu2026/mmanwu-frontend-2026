@@ -114,21 +114,21 @@ export default function ProfileClient({
     <>
       {/* BUILD MARKER */}
       <div className="w-full bg-white/10 text-white py-1 px-3 flex items-center gap-3">
-  <button
-    onClick={() => document.getElementById("avatar-upload-input")?.click()}
-    className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition"
-  >
-    Upload Avatar
-  </button>
-</div>
+        <button
+          onClick={() => document.getElementById("avatar-upload-input")?.click()}
+          className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition"
+        >
+          Upload Avatar
+        </button>
+      </div>
 
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-        {/* PROFILE HEADER */}
-        <div className="flex items-center gap-4 relative">
+        {/* ⭐ CENTERED PROFILE HEADER ⭐ */}
+        <div className="flex flex-col items-center mt-4">
 
-          {/* FIXED AVATAR WRAPPER */}
-          <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+          {/* Avatar */}
+          <div className="w-28 h-28 rounded-full overflow-hidden border border-white/20 shadow-lg">
             {isOwnProfile ? (
               <AvatarUploader
                 userId={profile.id}
@@ -138,38 +138,56 @@ export default function ProfileClient({
               <img
                 src={profile.avatar_url || FALLBACK_AVATAR}
                 onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                className="w-24 h-24 rounded-full object-cover border border-white/20"
+                className="w-full h-full object-cover"
               />
             )}
           </div>
 
-          {/* NAME + USERNAME */}
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-bold">{profile.display_name}</h1>
-            <p className="text-white/60">@{profile.username}</p>
+          {/* Name + Username */}
+          <div className="flex flex-col items-center mt-4">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {profile.display_name}
+            </h1>
+
+            <p className="text-sm text-white/60 mt-1">
+              @{profile.username}
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="flex gap-8 mt-4 text-center text-white/80 text-sm">
+            <div>
+              <p className="text-lg font-semibold">{profile.spirit_score}</p>
+              <p className="text-xs text-white/60">Spirit</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">{profile.mask_tier}</p>
+              <p className="text-xs text-white/60">Mask Tier</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">{profile.positivity_ratio}%</p>
+              <p className="text-xs text-white/60">Positivity</p>
+            </div>
           </div>
 
         </div>
 
-        {/* STATS */}
-        <div className="flex gap-8 text-white/80 text-sm">
-          <div><span className="font-bold">{profile.spirit_score}</span> Spirit</div>
-          <div><span className="font-bold">{profile.mask_tier}</span> Mask Tier</div>
-          <div><span className="font-bold">{profile.positivity_ratio}%</span> Positivity</div>
-        </div>
-
         {/* BIO */}
         {profile.bio && (
-          <p className="text-white/80 leading-relaxed">{profile.bio}</p>
+          <p className="text-white/80 leading-relaxed text-center">
+            {profile.bio}
+          </p>
         )}
 
         {/* JOIN DATE */}
-        <p className="text-white/40 text-xs">
+        <p className="text-white/40 text-xs text-center">
           Joined {new Date(profile.created_at).toLocaleDateString()}
         </p>
 
         {/* TABS */}
-        <div className="flex gap-6 border-b border-white/10 pb-2 text-sm">
+        <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
           <button
             onClick={() => setActiveTab("posts")}
             className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
@@ -241,18 +259,18 @@ export default function ProfileClient({
                   </div>
                 ))
               ) : (
-                <p className="text-white/40">No posts yet…</p>
+                <p className="text-white/40 text-center">No posts yet…</p>
               )}
 
             </div>
           )}
 
           {activeTab === "soundposts" && (
-            <p className="text-white/40">No soundposts yet…</p>
+            <p className="text-white/40 text-center">No soundposts yet…</p>
           )}
 
           {activeTab === "reactions" && (
-            <p className="text-white/40">No reactions yet…</p>
+            <p className="text-white/40 text-center">No reactions yet…</p>
           )}
 
         </div>
