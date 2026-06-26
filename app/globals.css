@@ -265,10 +265,10 @@ img {
   height: auto;
 }
 
-/* Plaza avatar override — better size */
+/* Plaza avatar override — ROYAL size (48px) */
 .plaza-avatar {
-  width: 2.25rem !important;   /* w-9 */
-  height: 2.25rem !important;  /* h-9 */
+  width: 3rem !important;      /* w-12 = 48px */
+  height: 3rem !important;     /* h-12 = 48px */
   max-width: none !important;
   max-height: none !important;
   flex-shrink: 0 !important;
