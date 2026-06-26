@@ -96,12 +96,12 @@ export default function AvatarUploader({
         />
 
         {/* BULLETPROOF CLICKABLE INPUT */}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onFileChange}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50 block"
-        />
+<input
+  id="avatar-upload-input"
+  type="file"
+  accept="image/*"
+  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50 block"
+/>
 
         {/* LOADING OVERLAY */}
         {loading && (

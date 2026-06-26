@@ -113,9 +113,14 @@ export default function ProfileClient({
   return (
     <>
       {/* BUILD MARKER */}
-      <div className="w-full bg-red-600 text-white text-center py-1 text-xs">
-        BUILD MARKER 2: PROFILECLIENT ACTIVE
-      </div>
+      <div className="w-full bg-white/10 text-white py-1 px-3 flex items-center gap-3">
+  <button
+    onClick={() => document.getElementById("avatar-upload-input")?.click()}
+    className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition"
+  >
+    Upload Avatar
+  </button>
+</div>
 
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
