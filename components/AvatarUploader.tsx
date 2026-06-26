@@ -9,7 +9,6 @@ async function compressImage(file: File): Promise<File> {
   const bitmap = await createImageBitmap(file);
   const canvas = document.createElement("canvas");
 
-  // Force square crop
   const size = Math.min(bitmap.width, bitmap.height);
   canvas.width = size;
   canvas.height = size;
@@ -28,11 +27,7 @@ async function compressImage(file: File): Promise<File> {
   );
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(
-      (b) => resolve(b),
-      "image/jpeg",
-      0.8 // ⭐ compression quality
-    )
+    canvas.toBlob((b) => resolve(b), "image/jpeg", 0.8)
   );
 
   if (!blob) return file;
@@ -71,11 +66,14 @@ export default function AvatarUploader({
       return null;
     }
 
+    // ⭐ Force HTTPS to avoid mixed-content blocking
     const { data: publicUrlData } = supabase.storage
       .from("avatars")
       .getPublicUrl(filePath);
 
-    return publicUrlData.publicUrl;
+    const httpsUrl = publicUrlData.publicUrl.replace("http://", "https://");
+
+    return httpsUrl;
   }
 
   // ⭐ Handle file selection or drop
@@ -116,10 +114,8 @@ export default function AvatarUploader({
   async function removeAvatar() {
     setLoading(true);
 
-    // Remove from storage
     await supabase.storage.from("avatars").remove([`${userId}.jpg`]);
 
-    // Reset profile avatar_url
     await supabase
       .from("profiles")
       .update({ avatar_url: null })
@@ -134,49 +130,52 @@ export default function AvatarUploader({
     <div className="flex flex-col items-center gap-2">
 
       {/* Avatar container */}
-<div
-  onDrop={onDrop}
-  onDragOver={(e) => e.preventDefault()}
-  className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group"
->
-  {/* Avatar image (lowest layer) */}
-  <img
-    src={preview || "/default-avatar.png"}
-    className="w-full h-full object-cover relative z-0"
-  />
+      <div
+        onDrop={onDrop}
+        onDragOver={(e) => e.preventDefault()}
+        className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group"
+      >
+        {/* Avatar image (lowest layer) */}
+        <img
+          src={preview || "/default-avatar.png"}
+          className="w-full h-full object-cover relative z-0"
+          onError={(e) => {
+            e.currentTarget.src = "/default-avatar.png";
+          }}
+        />
 
-  {/* Invisible input (must be highest layer) */}
-  <input
-    type="file"
-    accept="image/*"
-    onChange={onFileChange}
-    className="absolute inset-0 opacity-0 cursor-pointer z-20"
-  />
+        {/* Invisible input (must be highest layer) */}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={onFileChange}
+          className="absolute inset-0 opacity-0 cursor-pointer z-20"
+        />
 
-  {/* Hover overlay (middle layer) */}
-  {!loading && (
-    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition z-10">
-      Change Avatar
-    </div>
-  )}
+        {/* Hover overlay (middle layer) */}
+        {!loading && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition z-10">
+            Change Avatar
+          </div>
+        )}
 
-  {/* Loading spinner (middle layer) */}
-  {loading && (
-    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
-      <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
-    </div>
-  )}
-</div>
+        {/* Loading spinner (middle layer) */}
+        {loading && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+            <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+          </div>
+        )}
+      </div>
 
-{/* Remove button */}
-{preview && !loading && (
-  <button
-    onClick={removeAvatar}
-    className="text-xs text-red-400 hover:text-red-200 transition"
-  >
-    Remove Avatar
-  </button>
-)}
+      {/* Remove button */}
+      {preview && !loading && (
+        <button
+          onClick={removeAvatar}
+          className="text-xs text-red-400 hover:text-red-200 transition"
+        >
+          Remove Avatar
+        </button>
+      )}
     </div>
   );
 }
