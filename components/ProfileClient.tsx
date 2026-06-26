@@ -119,11 +119,11 @@ export default function ProfileClient({
 
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-        {/* PROFILE HEADER — FIXED VERSION */}
+        {/* PROFILE HEADER */}
         <div className="flex items-center gap-4 relative">
 
-          {/* LEFT SIDE: AVATAR */}
-          <div className="flex-shrink-0">
+          {/* FIXED AVATAR WRAPPER */}
+          <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
             {isOwnProfile ? (
               <AvatarUploader
                 userId={profile.id}
@@ -138,7 +138,7 @@ export default function ProfileClient({
             )}
           </div>
 
-          {/* RIGHT SIDE: NAME + USERNAME */}
+          {/* NAME + USERNAME */}
           <div className="flex flex-col">
             <h1 className="text-3xl font-bold">{profile.display_name}</h1>
             <p className="text-white/60">@{profile.username}</p>
