@@ -5,7 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
 const FALLBACK_AVATAR =
-  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback.png";
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
 export default function AvatarUploader({
   userId,
@@ -83,7 +83,7 @@ export default function AvatarUploader({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 flex-shrink-0">
+    <div className="flex flex-col items-center gap-2 flex-shrink-0 w-24">
 
       {/* FIXED-SIZE WRAPPER — REQUIRED FOR CLICK TO WORK */}
       <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">

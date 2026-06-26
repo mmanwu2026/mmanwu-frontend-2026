@@ -8,7 +8,7 @@ import PostCard from "@/components/plaza/PostCard";
 import AvatarUploader from "@/components/AvatarUploader";
 
 const FALLBACK_AVATAR =
-  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback.png";
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
 type Profile = {
   id: string;
