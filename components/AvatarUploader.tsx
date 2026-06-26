@@ -85,16 +85,17 @@ export default function AvatarUploader({
   return (
     <div className="flex flex-col items-center gap-2">
 
-      {/* CLICKABLE AVATAR — NO SIZE WRAPPER (TEST MODE) */}
-      <div className="relative inline-block">
+      {/* FIXED-SIZE WRAPPER — REQUIRED FOR CLICK TO WORK */}
+      <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">
 
+        {/* IMAGE MUST BE INSIDE THIS WRAPPER */}
         <img
           src={preview || FALLBACK_AVATAR}
           onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-          className="rounded-full border border-white/20 cursor-pointer"
+          className="w-full h-full object-cover"
         />
 
-        {/* INVISIBLE INPUT ALWAYS ON TOP */}
+        {/* INPUT MUST BE ON TOP */}
         <input
           type="file"
           accept="image/*"
@@ -102,7 +103,6 @@ export default function AvatarUploader({
           className="absolute inset-0 opacity-0 cursor-pointer z-20"
         />
 
-        {/* LOADING SPINNER */}
         {loading && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
             <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
@@ -110,7 +110,6 @@ export default function AvatarUploader({
         )}
       </div>
 
-      {/* REMOVE BUTTON */}
       {preview && !loading && (
         <button
           onClick={removeAvatar}
