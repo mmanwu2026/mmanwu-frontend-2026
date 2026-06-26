@@ -21,18 +21,81 @@ export default function AvatarUploader({
 
   const [preview, setPreview] = useState<string | null>(currentAvatar);
   const [loading, setLoading] = useState(false);
-
   const [cropSrc, setCropSrc] = useState<string | null>(null);
 
+  // -----------------------------
+  // SAFE MODE: Auto-upload if ≤300x300
+  // -----------------------------
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reject huge files
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image too large. Please upload an image under 5MB.");
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => setCropSrc(reader.result as string);
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+
+        // Auto-upload if already small enough
+        if (width <= 300 && height <= 300) {
+          uploadDirectly(file);
+        } else {
+          // Otherwise open cropper
+          setCropSrc(reader.result as string);
+        }
+      };
+      img.src = reader.result as string;
+    };
+
     reader.readAsDataURL(file);
   }
 
+  // -----------------------------
+  // DIRECT UPLOAD (≤300x300)
+  // -----------------------------
+  async function uploadDirectly(file: File) {
+    setLoading(true);
+
+    const filePath = `${userId}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, {
+        upsert: true,
+        contentType: "image/jpeg",
+      });
+
+    if (uploadError) {
+      console.error(uploadError);
+      setLoading(false);
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filePath);
+
+    const publicUrl = data.publicUrl + "?t=" + Date.now();
+
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: publicUrl })
+      .eq("id", userId);
+
+    setPreview(publicUrl);
+    setLoading(false);
+    router.refresh();
+  }
+
+  // -----------------------------
+  // CROPPED UPLOAD (>300x300)
+  // -----------------------------
   async function handleCrop(crop: any, zoom: number) {
     if (!cropSrc) return;
 

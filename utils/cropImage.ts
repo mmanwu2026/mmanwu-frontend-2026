@@ -1,21 +1,34 @@
-export async function getCroppedImg(imageSrc: string, crop: any, zoom: number) {
+export async function getCroppedImg(
+  imageSrc: string,
+  crop: { x: number; y: number },
+  zoom: number
+): Promise<Blob> {
   const image = await createImage(imageSrc);
+
+  // Final enforced output size
+  const OUTPUT_SIZE = 300;
+
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
 
-  const size = Math.min(image.width, image.height);
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
 
-  const scale = image.width / image.naturalWidth;
+  const naturalWidth = image.naturalWidth;
+  const naturalHeight = image.naturalHeight;
 
+  // Scale factor between displayed image and natural image
+  const scale = naturalWidth / image.width;
+
+  // Convert crop values into natural pixel coordinates
   const pixelCrop = {
     x: crop.x * scale,
     y: crop.y * scale,
-    width: size * scale / zoom,
-    height: size * scale / zoom,
+    width: naturalWidth / zoom,
+    height: naturalHeight / zoom,
   };
 
+  // Draw the cropped area into a fixed 300x300 canvas
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -24,19 +37,23 @@ export async function getCroppedImg(imageSrc: string, crop: any, zoom: number) {
     pixelCrop.height,
     0,
     0,
-    size,
-    size
+    OUTPUT_SIZE,
+    OUTPUT_SIZE
   );
 
-  return new Promise<Blob>((resolve) => {
-    canvas.toBlob((blob) => resolve(blob!), "image/jpeg");
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => resolve(blob!),
+      "image/jpeg",
+      0.9 // high quality
+    );
   });
 }
 
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.addEventListener("load", () => resolve(img));
+    img.onload = () => resolve(img);
     img.src = url;
   });
 }

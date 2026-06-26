@@ -19,17 +19,19 @@ export default function CropModal({
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
       <div className="bg-black p-4 rounded-lg w-[90vw] max-w-md space-y-4">
 
-        {/* FIXED HEIGHT + HIGH Z-INDEX */}
-        <div className="relative w-full h-[300px] bg-black z-[99999]">
+        {/* Guaranteed visible cropper viewport */}
+        <div className="relative w-full h-[320px] bg-black z-[99999] touch-none">
           <Cropper
             image={src}
             crop={crop}
             zoom={zoom}
             aspect={1}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
+            minZoom={1}
+            maxZoom={4}
             restrictPosition={false}
             showGrid={false}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
           />
         </div>
 
