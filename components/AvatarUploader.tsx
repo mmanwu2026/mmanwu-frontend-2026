@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
+import CropModal from "./CropModal";
+import { getCroppedImg } from "@/utils/cropImage";
 
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
@@ -16,77 +18,88 @@ export default function AvatarUploader({
 }) {
   const supabase = useSupabase();
   const router = useRouter();
-  const [uploading, setUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentAvatar);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const [preview, setPreview] = useState<string | null>(currentAvatar);
+  const [loading, setLoading] = useState(false);
+
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  }
 
-    try {
-      // Local preview
-      const localUrl = URL.createObjectURL(file);
-      setPreviewUrl(localUrl);
+  async function handleCrop(crop: any, zoom: number) {
+    if (!cropSrc) return;
 
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${userId}.${fileExt}`;
+    setLoading(true);
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { upsert: true });
+    const croppedBlob = await getCroppedImg(cropSrc, crop, zoom);
+    const filePath = `${userId}.jpg`;
 
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        return;
-      }
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, croppedBlob, {
+        upsert: true,
+        contentType: "image/jpeg",
+      });
 
-      const { data } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
-      const publicUrl = data.publicUrl;
-
-      // Update profile row
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("id", userId);
-
-      if (updateError) {
-        console.error("Profile update error:", updateError);
-        return;
-      }
-
-      // Force UI refresh
-      router.refresh();
-    } finally {
-      setUploading(false);
+    if (uploadError) {
+      console.error(uploadError);
+      setLoading(false);
+      return;
     }
+
+    const { data } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filePath);
+
+    const publicUrl = data.publicUrl + "?t=" + Date.now();
+
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: publicUrl })
+      .eq("id", userId);
+
+    setPreview(publicUrl);
+    setCropSrc(null);
+    setLoading(false);
+    router.refresh();
   }
 
   return (
     <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">
+
       <img
-        src={previewUrl || currentAvatar || FALLBACK_AVATAR}
+        src={preview || FALLBACK_AVATAR}
         onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-        className="w-full h-full object-cover object-center"
+        className="w-full h-full object-cover"
       />
 
       <input
         id="avatar-upload-input"
         type="file"
         accept="image/*"
-        onChange={handleUpload}
+        onChange={onFileChange}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
       />
 
-      {uploading && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-xs">
-          Uploading…
+      {loading && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+          <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
         </div>
+      )}
+
+      {cropSrc && (
+        <CropModal
+          src={cropSrc}
+          cancel={() => setCropSrc(null)}
+          cropDone={handleCrop}
+        />
       )}
     </div>
   );
