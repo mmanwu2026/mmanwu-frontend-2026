@@ -123,56 +123,56 @@ export default function ProfileClient({
 
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-        {/* ⭐ PROFILE HEADER — Avatar Left, Identity Centered ⭐ */}
-        <div className="flex items-start gap-6">
+{/* ⭐ PROFILE HEADER — Avatar Left, Identity Slightly Left ⭐ */}
+<div className="flex items-start gap-6">
 
-          {/* Avatar stays left */}
-          <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
-            {isOwnProfile ? (
-              <AvatarUploader
-                userId={profile.id}
-                currentAvatar={profile.avatar_url}
-              />
-            ) : (
-              <img
-                src={profile.avatar_url || FALLBACK_AVATAR}
-                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                className="w-24 h-24 rounded-full object-cover border border-white/20"
-              />
-            )}
-          </div>
+  {/* Avatar stays left */}
+  <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+    {isOwnProfile ? (
+      <AvatarUploader
+        userId={profile.id}
+        currentAvatar={profile.avatar_url}
+      />
+    ) : (
+      <img
+        src={profile.avatar_url || FALLBACK_AVATAR}
+        onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+        className="w-24 h-24 rounded-full object-cover border border-white/20"
+      />
+    )}
+  </div>
 
-          {/* Identity block centered */}
-          <div className="flex flex-col flex-1 items-center text-center">
+  {/* Identity block — shifted slightly left */}
+  <div className="flex flex-col flex-1 items-start text-left ml-4">
 
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {profile.display_name}
-            </h1>
+    <h1 className="text-2xl font-semibold tracking-tight">
+      {profile.display_name}
+    </h1>
 
-            <p className="text-sm text-white/60 mt-1">
-              @{profile.username}
-            </p>
+    <p className="text-sm text-white/60 mt-1">
+      @{profile.username}
+    </p>
 
-            {/* Stats centered */}
-            <div className="flex gap-8 mt-4 text-center text-white/80 text-sm">
-              <div>
-                <p className="text-lg font-semibold">{profile.spirit_score}</p>
-                <p className="text-xs text-white/60">Spirit</p>
-              </div>
+    {/* Stats */}
+    <div className="flex gap-8 mt-4 text-white/80 text-sm">
+      <div>
+        <p className="text-lg font-semibold">{profile.spirit_score}</p>
+        <p className="text-xs text-white/60">Spirit</p>
+      </div>
 
-              <div>
-                <p className="text-lg font-semibold">{profile.mask_tier}</p>
-                <p className="text-xs text-white/60">Mask Tier</p>
-              </div>
+      <div>
+        <p className="text-lg font-semibold">{profile.mask_tier}</p>
+        <p className="text-xs text-white/60">Mask Tier</p>
+      </div>
 
-              <div>
-                <p className="text-lg font-semibold">{profile.positivity_ratio}%</p>
-                <p className="text-xs text-white/60">Positivity</p>
-              </div>
-            </div>
+      <div>
+        <p className="text-lg font-semibold">{profile.positivity_ratio}%</p>
+        <p className="text-xs text-white/60">Positivity</p>
+      </div>
+    </div>
 
-          </div>
-        </div>
+  </div>
+</div>
 
         {/* BIO */}
         {profile.bio && (
