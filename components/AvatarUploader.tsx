@@ -4,6 +4,44 @@ import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
+// ⭐ Utility: compress image before upload
+async function compressImage(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+
+  // Force square crop
+  const size = Math.min(bitmap.width, bitmap.height);
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(
+    bitmap,
+    (bitmap.width - size) / 2,
+    (bitmap.height - size) / 2,
+    size,
+    size,
+    0,
+    0,
+    size,
+    size
+  );
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(
+      (b) => resolve(b),
+      "image/jpeg",
+      0.8 // ⭐ compression quality
+    )
+  );
+
+  if (!blob) return file;
+
+  return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
+    type: "image/jpeg",
+  });
+}
+
 export default function AvatarUploader({
   userId,
   currentAvatar,
@@ -15,12 +53,12 @@ export default function AvatarUploader({
   const router = useRouter();
 
   const [preview, setPreview] = useState(currentAvatar);
+  const [loading, setLoading] = useState(false);
 
   // ⭐ Upload avatar to Supabase Storage
   async function uploadAvatar(file: File) {
-    const filePath = `${userId}.png`;
+    const filePath = `${userId}.jpg`;
 
-    // Upload to storage
     const { error: uploadError } = await supabase.storage
       .from("avatars")
       .upload(filePath, file, {
@@ -33,7 +71,6 @@ export default function AvatarUploader({
       return null;
     }
 
-    // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from("avatars")
       .getPublicUrl(filePath);
@@ -43,56 +80,102 @@ export default function AvatarUploader({
 
   // ⭐ Handle file selection or drop
   async function handleFile(file: File) {
-    const publicUrl = await uploadAvatar(file);
-    if (!publicUrl) return;
+    setLoading(true);
+
+    const compressed = await compressImage(file);
+    const publicUrl = await uploadAvatar(compressed);
+
+    if (!publicUrl) {
+      setLoading(false);
+      return;
+    }
 
     setPreview(publicUrl);
 
-    // Update profile
     await supabase
       .from("profiles")
       .update({ avatar_url: publicUrl })
       .eq("id", userId);
 
+    setLoading(false);
     router.refresh();
   }
 
-  // ⭐ Input change
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
   }
 
-  // ⭐ Drag-and-drop
   function onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
   }
 
+  // ⭐ Remove avatar
+  async function removeAvatar() {
+    setLoading(true);
+
+    // Remove from storage
+    await supabase.storage.from("avatars").remove([`${userId}.jpg`]);
+
+    // Reset profile avatar_url
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", userId);
+
+    setPreview(null);
+    setLoading(false);
+    router.refresh();
+  }
+
   return (
-    <div
-      onDrop={onDrop}
-      onDragOver={(e) => e.preventDefault()}
-      className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group"
-    >
-      <img
-        src={preview || "/fallback-avatar.png"}
-        className="w-full h-full object-cover"
-      />
+    <div className="flex flex-col items-center gap-2">
 
-      {/* Invisible file input */}
-      <input
-        type="file"
-        accept="image/*"
-        onChange={onFileChange}
-        className="absolute inset-0 opacity-0 cursor-pointer"
-      />
+      {/* Avatar container */}
+      <div
+        onDrop={onDrop}
+        onDragOver={(e) => e.preventDefault()}
+        className="relative w-24 h-24 rounded-full overflow-hidden border border-white/20 cursor-pointer group"
+      >
+        <img
+          src={preview || "/fallback-avatar.png"}
+          className="w-full h-full object-cover"
+        />
 
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition">
-        Change Avatar
+        {/* Invisible input */}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={onFileChange}
+          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+        />
+
+        {/* Hover overlay */}
+        {!loading && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white transition">
+            Change Avatar
+          </div>
+        )}
+
+        {/* Loading spinner */}
+        {loading && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+          </div>
+        )}
       </div>
+
+      {/* Remove button */}
+      {preview && !loading && (
+        <button
+          onClick={removeAvatar}
+          className="text-xs text-red-400 hover:text-red-200 transition"
+        >
+          Remove Avatar
+        </button>
+      )}
     </div>
   );
 }
