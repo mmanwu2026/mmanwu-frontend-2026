@@ -90,10 +90,10 @@ export default function AvatarUploader({
 
         {/* IMAGE MUST BE INSIDE THIS WRAPPER */}
         <img
-          src={preview || FALLBACK_AVATAR}
-          onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-          className="w-full h-full object-cover"
-        />
+  src={preview || FALLBACK_AVATAR}
+  onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+  className="!w-full !h-full object-cover"
+/>
 
         {/* INPUT MUST BE ON TOP */}
         <input
