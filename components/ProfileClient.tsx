@@ -112,31 +112,30 @@ export default function ProfileClient({
   return (
     <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-      {/* PROFILE HEADER */}
-      <div className="flex items-center gap-4 relative">
+ {/* PROFILE HEADER */}
+<div className="flex items-center gap-4 relative">
 
-        {/* AvatarUploader handles its own sizing */}
-        <div className="relative z-10">
-          {isOwnProfile ? (
-            <AvatarUploader
-              userId={profile.id}
-              currentAvatar={profile.avatar_url}
-            />
-          ) : (
-            <img
-              src={profile.avatar_url || FALLBACK_AVATAR}
-              onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-              className="w-24 h-24 rounded-full object-cover border border-white/20"
-            />
-          )}
-        </div>
+  {/* AvatarUploader handles its own sizing */}
+  {isOwnProfile ? (
+    <AvatarUploader
+      userId={profile.id}
+      currentAvatar={profile.avatar_url}
+    />
+  ) : (
+    <img
+      src={profile.avatar_url || FALLBACK_AVATAR}
+      onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+      className="w-24 h-24 rounded-full object-cover border border-white/20"
+    />
+  )}
 
-        {/* Name */}
-        <div className="relative z-0">
-          <h1 className="text-3xl font-bold">{profile.display_name}</h1>
-          <p className="text-white/60">@{profile.username}</p>
-        </div>
-      </div>
+  {/* Name */}
+  <div className="relative z-0">
+    <h1 className="text-3xl font-bold">{profile.display_name}</h1>
+    <p className="text-white/60">@{profile.username}</p>
+  </div>
+
+</div>   {/* ← THIS is where the closing tag belongs */}
 
       {/* STATS */}
       <div className="flex gap-8 text-white/80 text-sm">
