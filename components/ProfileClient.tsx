@@ -111,140 +111,147 @@ export default function ProfileClient({
   const isOwnProfile = user.id === profile.id;
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 space-y-8">
+    <>
+      {/* BUILD MARKER */}
+      <div className="w-full bg-red-600 text-white text-center py-1 text-xs">
+        BUILD MARKER: PROFILECLIENT ACTIVE
+      </div>
 
-      {/* PROFILE HEADER — FIXED VERSION */}
-      <div className="flex items-center gap-4 relative">
+      <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
-        {/* LEFT SIDE: AVATAR */}
-        <div className="flex-shrink-0">
-          {isOwnProfile ? (
-            <AvatarUploader
-              userId={profile.id}
-              currentAvatar={profile.avatar_url}
-            />
-          ) : (
-            <img
-              src={profile.avatar_url || FALLBACK_AVATAR}
-              onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-              className="w-24 h-24 rounded-full object-cover border border-white/20"
-            />
-          )}
+        {/* PROFILE HEADER — FIXED VERSION */}
+        <div className="flex items-center gap-4 relative">
+
+          {/* LEFT SIDE: AVATAR */}
+          <div className="flex-shrink-0">
+            {isOwnProfile ? (
+              <AvatarUploader
+                userId={profile.id}
+                currentAvatar={profile.avatar_url}
+              />
+            ) : (
+              <img
+                src={profile.avatar_url || FALLBACK_AVATAR}
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+                className="w-24 h-24 rounded-full object-cover border border-white/20"
+              />
+            )}
+          </div>
+
+          {/* RIGHT SIDE: NAME + USERNAME */}
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-bold">{profile.display_name}</h1>
+            <p className="text-white/60">@{profile.username}</p>
+          </div>
+
         </div>
 
-        {/* RIGHT SIDE: NAME + USERNAME */}
-        <div className="flex flex-col">
-          <h1 className="text-3xl font-bold">{profile.display_name}</h1>
-          <p className="text-white/60">@{profile.username}</p>
+        {/* STATS */}
+        <div className="flex gap-8 text-white/80 text-sm">
+          <div><span className="font-bold">{profile.spirit_score}</span> Spirit</div>
+          <div><span className="font-bold">{profile.mask_tier}</span> Mask Tier</div>
+          <div><span className="font-bold">{profile.positivity_ratio}%</span> Positivity</div>
         </div>
 
-      </div>
+        {/* BIO */}
+        {profile.bio && (
+          <p className="text-white/80 leading-relaxed">{profile.bio}</p>
+        )}
 
-      {/* STATS */}
-      <div className="flex gap-8 text-white/80 text-sm">
-        <div><span className="font-bold">{profile.spirit_score}</span> Spirit</div>
-        <div><span className="font-bold">{profile.mask_tier}</span> Mask Tier</div>
-        <div><span className="font-bold">{profile.positivity_ratio}%</span> Positivity</div>
-      </div>
+        {/* JOIN DATE */}
+        <p className="text-white/40 text-xs">
+          Joined {new Date(profile.created_at).toLocaleDateString()}
+        </p>
 
-      {/* BIO */}
-      {profile.bio && (
-        <p className="text-white/80 leading-relaxed">{profile.bio}</p>
-      )}
-
-      {/* JOIN DATE */}
-      <p className="text-white/40 text-xs">
-        Joined {new Date(profile.created_at).toLocaleDateString()}
-      </p>
-
-      {/* TABS */}
-      <div className="flex gap-6 border-b border-white/10 pb-2 text-sm">
-        <button
-          onClick={() => setActiveTab("posts")}
-          className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
-        >
-          Posts
-        </button>
-
-        <button
-          onClick={() => setActiveTab("soundposts")}
-          className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
-        >
-          Soundposts
-        </button>
-
-        <button
-          onClick={() => setActiveTab("reactions")}
-          className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
-        >
-          Reactions
-        </button>
-      </div>
-
-      {/* GRID MODE TOGGLE */}
-      {activeTab === "posts" && (
-        <div className="flex justify-end mt-2">
+        {/* TABS */}
+        <div className="flex gap-6 border-b border-white/10 pb-2 text-sm">
           <button
-            onClick={() => setGridMode((prev) => !prev)}
-            className="text-xs text-white/60 hover:text-white transition"
+            onClick={() => setActiveTab("posts")}
+            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
           >
-            {gridMode ? "List View" : "Grid View"}
+            Posts
+          </button>
+
+          <button
+            onClick={() => setActiveTab("soundposts")}
+            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
+          >
+            Soundposts
+          </button>
+
+          <button
+            onClick={() => setActiveTab("reactions")}
+            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+          >
+            Reactions
           </button>
         </div>
-      )}
 
-      {/* CONTENT */}
-      <div className="mt-4">
-
+        {/* GRID MODE TOGGLE */}
         {activeTab === "posts" && (
-          <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-
-            {posts && posts.length > 0 ? (
-              posts.map((post) => (
-                <div
-                  key={post.id}
-                  className={
-                    gridMode
-                      ? "animate-fadeInUp"
-                      : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
-                  }
-                >
-                  <PostCard
-                    post={{
-                      id: post.id,
-                      creator_id: profile.id,
-                      content: post.content,
-                      created_at: post.created_at,
-                      spirit_score: post.spirit_score,
-                      autoMask: post.automask ?? 0,
-                    }}
-                    reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
-                    positivityRatio={post.positivity_ratio}
-                    onReact={() => {}}
-                    showDelete={isOwnProfile}
-                    onDelete={async (postId) => {
-                      await supabase.from("posts").delete().eq("id", postId);
-                      router.refresh();
-                    }}
-                  />
-                </div>
-              ))
-            ) : (
-              <p className="text-white/40">No posts yet…</p>
-            )}
-
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={() => setGridMode((prev) => !prev)}
+              className="text-xs text-white/60 hover:text-white transition"
+            >
+              {gridMode ? "List View" : "Grid View"}
+            </button>
           </div>
         )}
 
-        {activeTab === "soundposts" && (
-          <p className="text-white/40">No soundposts yet…</p>
-        )}
+        {/* CONTENT */}
+        <div className="mt-4">
 
-        {activeTab === "reactions" && (
-          <p className="text-white/40">No reactions yet…</p>
-        )}
+          {activeTab === "posts" && (
+            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
 
+              {posts && posts.length > 0 ? (
+                posts.map((post) => (
+                  <div
+                    key={post.id}
+                    className={
+                      gridMode
+                        ? "animate-fadeInUp"
+                        : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
+                    }
+                  >
+                    <PostCard
+                      post={{
+                        id: post.id,
+                        creator_id: profile.id,
+                        content: post.content,
+                        created_at: post.created_at,
+                        spirit_score: post.spirit_score,
+                        autoMask: post.automask ?? 0,
+                      }}
+                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+                      positivityRatio={post.positivity_ratio}
+                      onReact={() => {}}
+                      showDelete={isOwnProfile}
+                      onDelete={async (postId) => {
+                        await supabase.from("posts").delete().eq("id", postId);
+                        router.refresh();
+                      }}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="text-white/40">No posts yet…</p>
+              )}
+
+            </div>
+          )}
+
+          {activeTab === "soundposts" && (
+            <p className="text-white/40">No soundposts yet…</p>
+          )}
+
+          {activeTab === "reactions" && (
+            <p className="text-white/40">No reactions yet…</p>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   );
 }
