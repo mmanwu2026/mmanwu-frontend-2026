@@ -48,6 +48,7 @@ type Profile = {
 
 type Post = {
   id: string;
+  creator_id: string;   // ⭐ REQUIRED FIX
   content: string;
   created_at: string;
   spirit_score: number;
@@ -430,28 +431,24 @@ export default function ProfileClient({
                     }
                   >
                     <PostCard
-                      post={{
-                        id: post.id,
-                        creator_id: profile.id,
-                        content: post.content,
-                        created_at: post.created_at,
-                        spirit_score: post.spirit_score,
-                        autoMask: post.automask ?? 0,
-                      }}
-                      reactions={
-                        reactionCounts[post.id] ?? EMPTY_REACTIONS
-                      }
-                      positivityRatio={post.positivity_ratio}
-                      onReact={() => {}}
-                      showDelete={isOwnProfile}
-                      onDelete={async (postId) => {
-                        await supabase
-                          .from("posts")
-                          .delete()
-                          .eq("id", postId);
-                        router.refresh();
-                      }}
-                    />
+  post={{
+    id: post.id,
+    creator_id: post.creator_id,   // ✔ FIXED
+    content: post.content,
+    created_at: post.created_at,
+    spirit_score: post.spirit_score,
+    autoMask: post.automask ?? 0,
+  }}
+  reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+  positivityRatio={post.positivity_ratio}
+  onReact={() => {}}
+  showDelete={isOwnProfile}
+  onDelete={async (postId) => {
+    await supabase.from("posts").delete().eq("id", postId);
+    router.refresh();
+  }}
+/>
+
                   </div>
                 ))
               ) : (

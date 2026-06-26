@@ -143,7 +143,7 @@ export default function PlazaPage() {
     },
     [supabase, sessionReady]
   );
-
+  
   // -----------------------------------------------------
   // INITIAL LOAD (GUARDED)
   // -----------------------------------------------------
@@ -201,7 +201,7 @@ export default function PlazaPage() {
   }, [sessionReady, supabase, fetchPosts]);
 
   // -----------------------------------------------------
-  // CREATOR FETCH (GUARDED)
+  // CREATOR FETCH (profiles table)
   // -----------------------------------------------------
   async function fetchCreator(id: string) {
     if (!sessionReady) return null;
@@ -209,7 +209,7 @@ export default function PlazaPage() {
     if (creators[id]) return creators[id];
 
     const { data, error } = await supabase
-      .from("users")
+      .from("profiles")
       .select("id, username, avatar_url")
       .eq("id", id)
       .single();
@@ -239,7 +239,7 @@ export default function PlazaPage() {
   }, [sessionReady, posts, creators]);
 
   // -----------------------------------------------------
-  // DELETE POST (GUARDED)
+  // DELETE POST
   // -----------------------------------------------------
   async function handleDelete(postId: string) {
     if (!sessionReady) return;
@@ -253,7 +253,7 @@ export default function PlazaPage() {
   }
 
   // -----------------------------------------------------
-  // LOAD MORE (GUARDED)
+  // LOAD MORE
   // -----------------------------------------------------
   async function handleLoadMore() {
     if (!sessionReady) return;
@@ -396,6 +396,61 @@ export default function PlazaPage() {
               const isTrending = trendingScore > 100;
               const isCreator = user?.id === post.creator_id;
 
+              // -----------------------------------------------------
+              // FOLLOW STATE (per-post)
+              // -----------------------------------------------------
+              const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+              const [busy, setBusy] = useState(false);
+
+              useEffect(() => {
+                let active = true;
+
+                async function loadFollowState() {
+                  if (!user || isCreator) {
+                    if (active) setIsFollowing(null);
+                    return;
+                  }
+
+                  const { data } = await supabase
+                    .from("follows")
+                    .select("id")
+                    .eq("follower_id", user.id)
+                    .eq("following_id", post.creator_id)
+                    .maybeSingle();
+
+                  if (active) setIsFollowing(!!data);
+                }
+
+                loadFollowState();
+                return () => { active = false };
+              }, [user, post.creator_id, isCreator, supabase]);
+
+              async function toggleFollow() {
+                if (!user || isCreator || busy) return;
+
+                setBusy(true);
+
+                try {
+                  if (!isFollowing) {
+                    await supabase.from("follows").insert({
+                      follower_id: user.id,
+                      following_id: post.creator_id,
+                    });
+                    setIsFollowing(true);
+                  } else {
+                    await supabase
+                      .from("follows")
+                      .delete()
+                      .eq("follower_id", user.id)
+                      .eq("following_id", post.creator_id);
+
+                    setIsFollowing(false);
+                  }
+                } finally {
+                  setBusy(false);
+                }
+              }
+
               return (
                 <div
                   key={post.id}
@@ -418,18 +473,43 @@ export default function PlazaPage() {
                     `}
                   >
                     <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
-                      {creator && (
-                        <img
-                          src={creator.avatar_url || "/default-avatar.png"}
-                          alt="avatar"
-                          className="
-                            absolute top-3 left-3
-                            w-8 h-8 rounded-full
-                            border border-gray-700
-                            object-cover z-[30]
-                          "
-                        />
-                      )}
+
+                      {/* -----------------------------------------------------
+                          IDENTITY HEADER (A1)
+                      ----------------------------------------------------- */}
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center gap-2">
+                          {creator && (
+                            <img
+                              src={creator.avatar_url || "/default-avatar.png"}
+                              alt="avatar"
+                              className="w-7 h-7 rounded-full border border-gray-700 object-cover"
+                            />
+                          )}
+
+                          <span className="text-white/90 text-sm font-semibold">
+                            {creator?.username || "unknown"}
+                          </span>
+                        </div>
+
+                        {!isCreator && isFollowing !== null && (
+                          <button
+                            onClick={toggleFollow}
+                            disabled={busy}
+                            className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                              isFollowing
+                                ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
+                                : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                            } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
+                          >
+                            {isFollowing ? "Following" : "Follow"}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* -----------------------------------------------------
+                          GLYPH + CONTENT + REACTIONS (unchanged)
+                      ----------------------------------------------------- */}
 
                       <div className="ritual-glyph-container mt-4 flex justify-center">
                         <div className="ritual-glyph-levitate">
