@@ -115,19 +115,23 @@ export default function ProfileClient({
       <div className="flex items-center gap-4 relative">
 
         {/* Avatar isolated in its own stacking layer */}
-        <div className="relative z-10">
-          {isOwnProfile ? (
-            <AvatarUploader
-              userId={profile.id}
-              currentAvatar={profile.avatar_url}
-            />
-          ) : (
-            <img
-              src={profile.avatar_url || "/fallback-avatar.png"}
-              className="w-24 h-24 rounded-full border border-white/20"
-            />
-          )}
-        </div>
+<div
+  className="relative z-10"
+  onClick={(e) => e.stopPropagation()}
+  onMouseDown={(e) => e.stopPropagation()}
+>
+  {isOwnProfile ? (
+    <AvatarUploader
+      userId={profile.id}
+      currentAvatar={profile.avatar_url}
+    />
+  ) : (
+    <img
+      src={profile.avatar_url || "/fallback-avatar.png"}
+      className="w-24 h-24 rounded-full border border-white/20"
+    />
+  )}
+</div>
 
         {/* Name block sits BELOW avatar */}
         <div className="relative z-0">
