@@ -8,10 +8,25 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   // Fetch profile
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, mask_tier, spirit_score, positivity_ratio, created_at")
-    .eq("id", id)
-    .single();
+  .from("profiles")
+  .select(`
+    id,
+    username,
+    display_name,
+    avatar_url,
+    bio,
+    mask_tier,
+    spirit_score,
+    positivity_ratio,
+    created_at,
+    verified,
+    location,
+    website_url,
+    followers_count,
+    following_count
+  `)
+  .eq("id", id)
+  .single();
 
   if (!profile) {
     return <div className="p-6">Profile not found</div>;

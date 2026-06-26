@@ -39,7 +39,6 @@ type Profile = {
   positivity_ratio: number;
   created_at: string;
 
-  // NEW FIELDS
   verified?: boolean;
   location?: string | null;
   website_url?: string | null;
@@ -77,7 +76,6 @@ export default function ProfileClient({
   const [gridMode, setGridMode] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<Record<string, any>>({});
 
-  // NEW STATE
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [followersCount, setFollowersCount] = useState(
     profile.followers_count ?? 0
@@ -87,16 +85,12 @@ export default function ProfileClient({
   );
   const [busy, setBusy] = useState(false);
 
-  const isOwnProfile = useMemo(
-    () => !!user && user.id === profile.id,
-    [user, profile.id]
-  );
+  const isOwnProfile = user?.id === profile.id;
 
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
 
-  // Load follow state
   useEffect(() => {
     let active = true;
 
@@ -131,7 +125,6 @@ export default function ProfileClient({
     };
   }, [supabase, user, userLoading, profile.id, isOwnProfile]);
 
-  // Follow/unfollow
   async function handleFollowToggle() {
     if (!user || userLoading || isOwnProfile || busy) return;
 
@@ -165,7 +158,6 @@ export default function ProfileClient({
     }
   }
 
-  // Load reactions
   useEffect(() => {
     async function loadReactions() {
       if (!posts || posts.length === 0) return;
@@ -211,7 +203,7 @@ export default function ProfileClient({
 
   return (
     <>
-      {/* NEW HEADER */}
+      {/* HEADER */}
       <div className="w-full bg-black text-white">
 
         {/* Banner */}
@@ -220,14 +212,14 @@ export default function ProfileClient({
           style={{ backgroundColor: bannerColor }}
         />
 
-        {/* Header content */}
-        <div className="px-6 -mt-12 flex flex-col gap-4">
+        {/* NEW HEADER WRAPPER */}
+        <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
 
-          {/* Avatar + follow */}
-          <div className="flex justify-between items-start">
+          {/* LEFT SIDE — AVATAR + UPLOAD BUTTON */}
+          <div className="flex flex-col items-center gap-2">
 
             {/* Avatar */}
-            <div className="w-24 h-24 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
+            <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
               {isOwnProfile ? (
                 <AvatarUploader
                   userId={profile.id}
@@ -242,39 +234,36 @@ export default function ProfileClient({
               )}
             </div>
 
-            {/* Follow button */}
-            {!isOwnProfile && (
+            {/* Upload button */}
+            {isOwnProfile && (
               <button
-                onClick={handleFollowToggle}
-                disabled={busy}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
-                  isFollowing
-                    ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
-                    : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
-                } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
+                onClick={() =>
+                  document.getElementById("avatar-upload-input")?.click()
+                }
+                className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition text-white"
               >
-                {isFollowing ? "Following" : "Follow"}
+                Upload Avatar
               </button>
             )}
           </div>
 
-          {/* Name + badges */}
-          <div className="flex flex-col">
+          {/* RIGHT SIDE — USER IDENTITY */}
+          <div className="flex flex-col flex-1">
+
+            {/* Name + badges */}
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
 
-              {/* Verified */}
               {profile.verified && (
                 <span className="inline-flex items-center justify-center rounded-full bg-yellow-500 text-black text-xs px-2 py-0.5 font-semibold">
                   ✔
                 </span>
               )}
 
-              {/* Mask-tier badge */}
               <span
-                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40 shadow-[0_0_8px_rgba(255,255,255,0.6)] animate-pulse"
+                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40 shadow-[0_0_8px_rgba(255,255,255,0.6)]"
                 style={{
-                  backgroundColor: bannerColor,
+                  backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
                   color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
                 }}
               >
@@ -282,93 +271,129 @@ export default function ProfileClient({
               </span>
             </div>
 
+            {/* Username */}
             <p className="text-white/60">@{profile.username}</p>
+
+            {/* Stats */}
+            <div className="flex flex-row flex-wrap gap-6 mt-3 text-sm text-white/80">
+
+              <div>
+                <p className="text-lg font-semibold">{followersCount}</p>
+                <p className="text-xs text-white/60">Followers</p>
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold">{followingCount}</p>
+                <p className="text-xs text-white/60">Following</p>
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold">{profile.spirit_score}</p>
+                <p className="text-xs text-white/60">Spirit</p>
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold">
+                  {Math.round(profile.positivity_ratio)}%
+                </p>
+                <p className="text-xs text-white/60">Positivity</p>
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold">
+                  {new Date(profile.created_at).toLocaleDateString()}
+                </p>
+                <p className="text-xs text-white/60">Joined</p>
+              </div>
+            </div>
+
+            {/* Follow button */}
+            {!isOwnProfile && (
+              <div className="mt-4">
+                <button
+                  onClick={handleFollowToggle}
+                  disabled={busy}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                    isFollowing
+                      ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
+                      : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                  } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </button>
+              </div>
+            )}
+
           </div>
-
-          {/* Location + website */}
-          {(profile.location || profile.website_url) && (
-            <div className="flex flex-row flex-wrap gap-4 text-sm text-neutral-300 mt-1">
-              {profile.location && (
-                <div className="flex items-center gap-1">
-                  <span>📍</span>
-                  <span>{profile.location}</span>
-                </div>
-              )}
-              {profile.website_url && (
-                <div className="flex items-center gap-1">
-                  <span>🌐</span>
-                  <a
-                    href={profile.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline"
-                  >
-                    {profile.website_url}
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Bio */}
-          {profile.bio && (
-            <p className="text-white/80 leading-relaxed">{profile.bio}</p>
-          )}
-
-          {/* Stats */}
-          <div className="flex gap-8 mt-2 text-white/80 text-sm">
-            <div>
-              <p className="text-lg font-semibold">{followersCount}</p>
-              <p className="text-xs text-white/60">Followers</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold">{followingCount}</p>
-              <p className="text-xs text-white/60">Following</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold">{profile.spirit_score}</p>
-              <p className="text-xs text-white/60">Spirit</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold">
-                {Math.round(profile.positivity_ratio)}%
-              </p>
-              <p className="text-xs text-white/60">Positivity</p>
-            </div>
-          </div>
-
-          {/* Join date */}
-          <p className="text-white/40 text-xs">
-            Joined {new Date(profile.created_at).toLocaleDateString()}
-          </p>
         </div>
+
+        {/* Location + website */}
+        {(profile.location || profile.website_url) && (
+          <div className="px-6 mt-4 flex flex-row flex-wrap gap-4 text-sm text-neutral-300">
+            {profile.location && (
+              <div className="flex items-center gap-1">
+                <span>📍</span>
+                <span>{profile.location}</span>
+              </div>
+            )}
+            {profile.website_url && (
+              <div className="flex items-center gap-1">
+                <span>🌐</span>
+                <a
+                  href={profile.website_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline"
+                >
+                  {profile.website_url}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bio */}
+        {profile.bio && (
+          <p className="px-6 mt-3 text-white/80 leading-relaxed">
+            {profile.bio}
+          </p>
+        )}
       </div>
 
-      {/* ORIGINAL CONTENT BELOW (unchanged) */}
+      {/* ORIGINAL CONTENT BELOW */}
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
 
         {/* Tabs */}
         <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
           <button
             onClick={() => setActiveTab("posts")}
-            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
+            className={
+              activeTab === "posts"
+                ? "text-white font-semibold"
+                : "text-white/50"
+            }
           >
             Posts
           </button>
 
           <button
             onClick={() => setActiveTab("soundposts")}
-            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
+            className={
+              activeTab === "soundposts"
+                ? "text-white font-semibold"
+                : "text-white/50"
+            }
           >
             Soundposts
           </button>
 
           <button
             onClick={() => setActiveTab("reactions")}
-            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+            className={
+              activeTab === "reactions"
+                ? "text-white font-semibold"
+                : "text-white/50"
+            }
           >
             Reactions
           </button>
@@ -389,7 +414,11 @@ export default function ProfileClient({
         {/* Content */}
         <div className="mt-4">
           {activeTab === "posts" && (
-            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+            <div
+              className={
+                gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"
+              }
+            >
               {posts && posts.length > 0 ? (
                 posts.map((post) => (
                   <div
@@ -409,29 +438,40 @@ export default function ProfileClient({
                         spirit_score: post.spirit_score,
                         autoMask: post.automask ?? 0,
                       }}
-                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+                      reactions={
+                        reactionCounts[post.id] ?? EMPTY_REACTIONS
+                      }
                       positivityRatio={post.positivity_ratio}
                       onReact={() => {}}
                       showDelete={isOwnProfile}
                       onDelete={async (postId) => {
-                        await supabase.from("posts").delete().eq("id", postId);
+                        await supabase
+                          .from("posts")
+                          .delete()
+                          .eq("id", postId);
                         router.refresh();
                       }}
                     />
                   </div>
                 ))
               ) : (
-                <p className="text-white/40 text-center">No posts yet…</p>
+                <p className="text-white/40 text-center">
+                  No posts yet…
+                </p>
               )}
             </div>
           )}
 
           {activeTab === "soundposts" && (
-            <p className="text-white/40 text-center">No soundposts yet…</p>
+            <p className="text-white/40 text-center">
+              No soundposts yet…
+            </p>
           )}
 
           {activeTab === "reactions" && (
-            <p className="text-white/40 text-center">No reactions yet…</p>
+            <p className="text-white/40 text-center">
+              No reactions yet…
+            </p>
           )}
         </div>
       </div>
