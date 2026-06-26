@@ -5,14 +5,13 @@ import React, {
   useState,
   useRef,
   useCallback,
-  type CSSProperties,
 } from "react";
 
 import { useSupabase } from "@/context/SupabaseContext";
 import Sidebar from "@/components/plaza/Sidebar";
-import ReactionBar from "@/components/plaza/ReactionBar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
 import { useUser } from "@/context/UserContext";
+import PlazaCard from "@/components/plaza/PlazaCard";
 
 interface ReactionCounts {
   mask1: number;
@@ -44,20 +43,6 @@ interface CreatorProfile {
 
 const PAGE_SIZE = 20;
 
-function auraIntensity(score: number, positivity: number) {
-  let level =
-    score < 6 ? 0 :
-    score < 16 ? 1 :
-    score < 31 ? 2 :
-    score < 51 ? 3 :
-    4;
-
-  if (positivity > 0.6) level++;
-  if (positivity < 0.3) level--;
-
-  return Math.max(0, Math.min(4, level));
-}
-
 export default function PlazaPage() {
   const supabase = useSupabase();
   const { user, loading: userLoading } = useUser();
@@ -71,16 +56,9 @@ export default function PlazaPage() {
   const [hasMore, setHasMore] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const prevPositivityMap = useRef<Record<string, number>>({});
-  const prevPositiveReactionsMap = useRef<Record<string, number>>({});
   const reloadGuardRef = useRef(false);
 
-  // -----------------------------------------------------
-  // HYDRATION GUARD
-  // -----------------------------------------------------
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  useEffect(() => setHydrated(true), []);
 
   const sessionReady = hydrated && !userLoading && !!user;
 
@@ -143,9 +121,9 @@ export default function PlazaPage() {
     },
     [supabase, sessionReady]
   );
-  
+
   // -----------------------------------------------------
-  // INITIAL LOAD (GUARDED)
+  // INITIAL LOAD
   // -----------------------------------------------------
   useEffect(() => {
     if (!sessionReady) return;
@@ -158,7 +136,7 @@ export default function PlazaPage() {
   }, [sessionReady, fetchPosts]);
 
   // -----------------------------------------------------
-  // REALTIME SUBSCRIPTIONS (GUARDED)
+  // REALTIME SUBSCRIPTIONS
   // -----------------------------------------------------
   useEffect(() => {
     if (!sessionReady) return;
@@ -201,7 +179,7 @@ export default function PlazaPage() {
   }, [sessionReady, supabase, fetchPosts]);
 
   // -----------------------------------------------------
-  // CREATOR FETCH (profiles table)
+  // FETCH CREATOR PROFILES
   // -----------------------------------------------------
   async function fetchCreator(id: string) {
     if (!sessionReady) return null;
@@ -312,269 +290,16 @@ export default function PlazaPage() {
           )}
 
           <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post) => {
-              const key = post.id;
-
-              const creator = creators[post.creator_id];
-
-              const prevPos =
-                prevPositivityMap.current[key] ?? post.positivity_ratio;
-              const prevPosReacts =
-                prevPositiveReactionsMap.current[key] ??
-                post.reactions.mask3;
-
-              const positivitySpike =
-                post.positivity_ratio - prevPos > 0.25;
-              const newPositiveReaction =
-                post.reactions.mask3 > prevPosReacts;
-
-              const surge = positivitySpike || newPositiveReaction;
-
-              prevPositivityMap.current[key] = post.positivity_ratio;
-              prevPositiveReactionsMap.current[key] =
-                post.reactions.mask3;
-
-              const ascensionClass =
-                post.spirit_score > 500
-                  ? "ascend-tier-5"
-                  : post.spirit_score > 200
-                  ? "ascend-tier-4"
-                  : post.spirit_score > 150
-                  ? "ascend-tier-3"
-                  : post.spirit_score > 100
-                  ? "ascend-tier-2"
-                  : "ascend-tier-1";
-
-              const surgeClass =
-                surge && post.spirit_score > 200
-                  ? "surge-strong"
-                  : surge && post.spirit_score > 150
-                  ? "surge-medium"
-                  : surge && post.spirit_score > 100
-                  ? "surge-weak"
-                  : "";
-
-              const emotionClass =
-                post.positivity_ratio > 0.75
-                  ? "emotion-boost"
-                  : post.positivity_ratio > 0.55
-                  ? "emotion-intense"
-                  : post.positivity_ratio < 0.25
-                  ? "emotion-soft"
-                  : "emotion-calm";
-
-              const floatY = Math.max(
-                -20 - post.spirit_score * 0.25,
-                -90
-              );
-
-              const glyphEmoji =
-                post.automask === 1 ? "😶‍🌫️" :
-                post.automask === 2 ? "😤" :
-                post.automask === 3 ? "😊" :
-                post.automask === 4 ? "🤩" :
-                post.automask === 5 ? "😇" :
-                post.automask === 6 ? "🔱" :
-                "😤";
-
-              const intensity = auraIntensity(
-                post.spirit_score,
-                post.positivity_ratio
-              );
-
-              const totalReactions =
-                post.reactions.mask1 +
-                post.reactions.mask2 +
-                post.reactions.mask3 +
-                post.reactions.mask4 +
-                post.reactions.mask5 +
-                post.reactions.mask6;
-
-              const trendingScore =
-                post.spirit_score + totalReactions * 5;
-
-              const isTrending = trendingScore > 100;
-              const isCreator = user?.id === post.creator_id;
-
-              // -----------------------------------------------------
-              // FOLLOW STATE (per-post)
-              // -----------------------------------------------------
-              const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
-              const [busy, setBusy] = useState(false);
-
-              useEffect(() => {
-                let active = true;
-
-                async function loadFollowState() {
-                  if (!user || isCreator) {
-                    if (active) setIsFollowing(null);
-                    return;
-                  }
-
-                  const { data } = await supabase
-                    .from("follows")
-                    .select("id")
-                    .eq("follower_id", user.id)
-                    .eq("following_id", post.creator_id)
-                    .maybeSingle();
-
-                  if (active) setIsFollowing(!!data);
-                }
-
-                loadFollowState();
-                return () => { active = false };
-              }, [user, post.creator_id, isCreator, supabase]);
-
-              async function toggleFollow() {
-                if (!user || isCreator || busy) return;
-
-                setBusy(true);
-
-                try {
-                  if (!isFollowing) {
-                    await supabase.from("follows").insert({
-                      follower_id: user.id,
-                      following_id: post.creator_id,
-                    });
-                    setIsFollowing(true);
-                  } else {
-                    await supabase
-                      .from("follows")
-                      .delete()
-                      .eq("follower_id", user.id)
-                      .eq("following_id", post.creator_id);
-
-                    setIsFollowing(false);
-                  }
-                } finally {
-                  setBusy(false);
-                }
-              }
-
-              return (
-                <div
-                  key={post.id}
-                  className={`
-                    relative isolate z-0
-                    transition-all duration-500
-                    overflow-visible
-                    w-[420px] h-[520px]
-                    flex flex-col
-                    ${ascensionClass}
-                    ${surgeClass}
-                    ${emotionClass}
-                  `}
-                >
-                  <div
-                    className={`
-                      aura-mask-${post.automask}
-                      aura-intensity-${intensity}
-                      rounded-2xl p-8 w-full h-full
-                    `}
-                  >
-                    <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
-
-                      {/* -----------------------------------------------------
-                          IDENTITY HEADER (A1)
-                      ----------------------------------------------------- */}
-                      <div className="flex items-center justify-between mb-2 px-1">
-                        <div className="flex items-center gap-2">
-                          {creator && (
-                            <img
-                              src={creator.avatar_url || "/default-avatar.png"}
-                              alt="avatar"
-                              className="w-7 h-7 rounded-full border border-gray-700 object-cover"
-                            />
-                          )}
-
-                          <span className="text-white/90 text-sm font-semibold">
-                            {creator?.username || "unknown"}
-                          </span>
-                        </div>
-
-                        {!isCreator && isFollowing !== null && (
-                          <button
-                            onClick={toggleFollow}
-                            disabled={busy}
-                            className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                              isFollowing
-                                ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
-                                : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
-                            } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
-                          >
-                            {isFollowing ? "Following" : "Follow"}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* -----------------------------------------------------
-                          GLYPH + CONTENT + REACTIONS (unchanged)
-                      ----------------------------------------------------- */}
-
-                      <div className="ritual-glyph-container mt-4 flex justify-center">
-                        <div className="ritual-glyph-levitate">
-                          <div className="ritual-flame-ring clean"></div>
-                          <div className="ritual-shadow-floor clean"></div>
-                          <div
-                            className="emoji-glyph clean"
-                            style={
-                              { "--float-y": `${floatY}px` } as CSSProperties
-                            }
-                          >
-                            {glyphEmoji}
-                          </div>
-                        </div>
-                      </div>
-
-                      {isTrending && (
-                        <p className="mt-2 text-xs text-yellow-400 text-center">
-                          Trending • Score {trendingScore}
-                        </p>
-                      )}
-
-                      <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4 overflow-y-auto max-h-[200px]">
-                        {post.content}
-                      </p>
-
-                      <div className="mt-auto w-full">
-                        <p className="text-sm text-gray-400 text-center">
-                          SpiritScore: {post.spirit_score} • Reactions: {totalReactions}
-                        </p>
-
-                        <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
-                          <span>Mask: {post.automask}</span>
-                          <span>{new Date(post.created_at).toLocaleString()}</span>
-                        </div>
-
-                        <div className="relative w-full h-0">
-                          {isCreator && (
-                            <button
-                              onClick={() => handleDelete(post.id)}
-                              disabled={deletingId === post.id}
-                              className="absolute bottom-3 left-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 z-[20]"
-                            >
-                              {deletingId === post.id ? "Deleting…" : "Delete"}
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="mt-6 w-full flex justify-center">
-                          <ReactionBar
-                            postType="plaza"
-                            postId={post.id}
-                            creatorId={post.creator_id}
-                            reactions={post.reactions}
-                            spiritScore={post.spirit_score}
-                            positivityRatio={post.positivity_ratio}
-                            onReact={reloadPosts}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {posts.map((post) => (
+              <PlazaCard
+                key={post.id}
+                post={post}
+                creator={creators[post.creator_id]}
+                user={user}
+                onDelete={handleDelete}
+                onReact={reloadPosts}
+              />
+            ))}
           </div>
 
           {!loading && hasMore && (
