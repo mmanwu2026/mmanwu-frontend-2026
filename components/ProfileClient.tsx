@@ -114,7 +114,7 @@ export default function ProfileClient({
     <>
       {/* BUILD MARKER */}
       <div className="w-full bg-red-600 text-white text-center py-1 text-xs">
-        BUILD MARKER: PROFILECLIENT ACTIVE
+        BUILD MARKER 2: PROFILECLIENT ACTIVE
       </div>
 
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
