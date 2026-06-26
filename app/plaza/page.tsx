@@ -42,6 +42,10 @@ interface CreatorProfile {
 
 const PAGE_SIZE = 20;
 
+// ⭐ Shared fallback avatar (same as PlazaCard)
+const FALLBACK_AVATAR =
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
+
 export default function PlazaPage() {
   const supabase = useSupabase();
   const { user, loading: userLoading } = useUser();
@@ -194,6 +198,12 @@ export default function PlazaPage() {
 
     if (!error && data) {
       const profile = data as CreatorProfile;
+
+      // ⭐ Ensure fallback avatar is applied if avatar_url is null
+      if (!profile.avatar_url) {
+        profile.avatar_url = FALLBACK_AVATAR;
+      }
+
       setCreators((prev) => ({ ...prev, [id]: profile }));
       return profile;
     }
@@ -245,7 +255,7 @@ export default function PlazaPage() {
     setPage(nextPage);
   }
 
-    // -----------------------------------------------------
+  // -----------------------------------------------------
   // RENDER
   // -----------------------------------------------------
   if (!hydrated || userLoading) {
@@ -294,7 +304,6 @@ export default function PlazaPage() {
             {posts.map((post) => {
               const creator = creators[post.creator_id];
 
-              // Prevent raw avatar / undefined creator issues
               if (!creator) {
                 return (
                   <div

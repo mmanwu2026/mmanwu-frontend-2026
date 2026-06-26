@@ -47,6 +47,10 @@ export default function PlazaCard({
   const supabase = useSupabase();
   const isCreator = user?.id === post.creator_id;
 
+  // ⭐ Your correct fallback avatar
+  const FALLBACK_AVATAR =
+    "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
+
   // FOLLOW STATE
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -149,8 +153,10 @@ export default function PlazaCard({
           {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-2 px-1">
             <div className="flex items-center gap-2">
+
+              {/* ⭐ Correct fallback avatar */}
               <img
-                src={creator?.avatar_url || "/default-avatar.png"}
+                src={creator?.avatar_url || FALLBACK_AVATAR}
                 className="w-7 h-7 rounded-full border border-gray-700 object-cover"
               />
 
