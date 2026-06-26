@@ -9,7 +9,7 @@ interface PostCardProps {
     content: string;
     created_at: string;
     spirit_score: number;
-    autoMask: number;   // unified naming
+    autoMask: number;
   };
   reactions: {
     mask1: number;
@@ -21,6 +21,10 @@ interface PostCardProps {
   };
   positivityRatio: number;
   onReact: () => void;
+
+  // ⭐ DELETE SUPPORT
+  showDelete?: boolean;
+  onDelete?: (postId: string) => void;
 }
 
 export default function PostCard({
@@ -28,6 +32,8 @@ export default function PostCard({
   reactions,
   positivityRatio,
   onReact,
+  showDelete = false,
+  onDelete,
 }: PostCardProps) {
 
   const spiritScore = post.spirit_score;
@@ -46,8 +52,9 @@ export default function PostCard({
       `}
     >
       {/* ⭐ REQUIRED WRAPPER FOR GLOW ENGINE */}
-      <div className="plaza-card-base p-5 rounded-2xl">
+      <div className="plaza-card-base p-5 rounded-2xl relative">
 
+        {/* ⭐ HEADER */}
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">
             {post.autoMask === 2 && "😤"}
@@ -67,19 +74,33 @@ export default function PostCard({
           </div>
         </div>
 
+        {/* ⭐ CONTENT */}
         <p className="text-white/90 whitespace-pre-wrap mb-4">
           {post.content}
         </p>
 
+        {/* ⭐ REACTIONS */}
         <ReactionBar
-  postType="plaza"
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={reactions}
-  spiritScore={spiritScore}
-  positivityRatio={positivityRatio}
-  onReact={onReact}
-/>
+          postType="plaza"
+          postId={post.id}
+          creatorId={post.creator_id}
+          reactions={reactions}
+          spiritScore={spiritScore}
+          positivityRatio={positivityRatio}
+          onReact={onReact}
+        />
+
+        {/* ⭐ DELETE BUTTON — bottom-right, stable */}
+        {showDelete && (
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => onDelete?.(post.id)}
+              className="text-red-400 text-xs hover:text-red-300 transition"
+            >
+              Delete
+            </button>
+          </div>
+        )}
 
       </div>
     </div>
