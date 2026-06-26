@@ -15,12 +15,15 @@ export default function CropModal({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
 
+  // NEW: Track when cropper is ready
+  const [cropReady, setCropReady] = useState(false);
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
       <div className="bg-black p-4 rounded-lg w-[90vw] max-w-md space-y-4">
 
-        {/* Guaranteed visible cropper viewport */}
-        <div className="relative w-full h-[320px] bg-black z-[99999] touch-none">
+        {/* Visible cropper viewport — pinch-to-zoom enabled */}
+        <div className="relative w-full h-[320px] bg-black z-[99999]">
           <Cropper
             image={src}
             crop={crop}
@@ -32,6 +35,7 @@ export default function CropModal({
             showGrid={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
+            onMediaLoaded={() => setCropReady(true)}   // enables Save
           />
         </div>
 
@@ -44,8 +48,13 @@ export default function CropModal({
           </button>
 
           <button
+            disabled={!cropReady}
             onClick={() => cropDone(crop, zoom)}
-            className="px-3 py-1 bg-blue-500 rounded text-sm"
+            className={`px-3 py-1 rounded text-sm ${
+              cropReady
+                ? "bg-blue-500"
+                : "bg-blue-500/40 cursor-not-allowed"
+            }`}
           >
             Save
           </button>
