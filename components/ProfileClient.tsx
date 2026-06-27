@@ -284,7 +284,7 @@ export default function ProfileClient({
             )}
 
             {/* Stats */}
-            <div className="flex flex-row flex-wrap gap-x-10 gap-y-4 mt-4 text-sm text-white/80">
+            <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-white/80 max-w-xl">
 
               <div>
                 <p className="text-lg font-semibold">{followersCount}</p>
@@ -316,6 +316,40 @@ export default function ProfileClient({
               </div>
             </div>
 
+            {/* Location + Website (A3 layout) */}
+            <div className="mt-4 flex flex-row justify-end w-full">
+              <div className="flex flex-col items-end gap-1 text-sm text-neutral-300">
+
+                {/* Location */}
+                <div className="flex items-center gap-1">
+                  <span>📍</span>
+                  {profile.location ? (
+                    <span>{profile.location}</span>
+                  ) : (
+                    <span className="text-white/40 italic">Add location</span>
+                  )}
+                </div>
+
+                {/* Website */}
+                <div className="flex items-center gap-1">
+                  <span>🌐</span>
+                  {profile.website_url ? (
+                    <a
+                      href={profile.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      {profile.website_url}
+                    </a>
+                  ) : (
+                    <span className="text-white/40 italic">Add website</span>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
             {/* Edit Profile (only for owner) */}
             {isOwnProfile && (
               <Link
@@ -342,38 +376,6 @@ export default function ProfileClient({
                 </button>
               </div>
             )}
-
-            {/* Location + Website */}
-<div className="mt-4 flex flex-row flex-wrap gap-4 text-sm text-neutral-300">
-
-  {/* Location */}
-  <div className="flex items-center gap-1">
-    <span>📍</span>
-    {profile.location ? (
-      <span>{profile.location}</span>
-    ) : (
-      <span className="text-white/40 italic">Add location</span>
-    )}
-  </div>
-
-  {/* Website */}
-  <div className="flex items-center gap-1">
-    <span>🌐</span>
-    {profile.website_url ? (
-      <a
-        href={profile.website_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-400 hover:underline"
-      >
-        {profile.website_url}
-      </a>
-    ) : (
-      <span className="text-white/40 italic">Add website</span>
-    )}
-  </div>
-
-</div>
 
           </div>
         </div>
@@ -474,6 +476,14 @@ export default function ProfileClient({
                 </p>
               )}
             </div>
+          )}
+
+          {activeTab === "soundposts" && (
+            <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
+          )}
+
+          {activeTab === "reactions" && (
+            <p className="text-white/40 text-center mt-6">No reactions yet…</p>
           )}
         </div>
       </div>
