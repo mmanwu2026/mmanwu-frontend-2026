@@ -26,7 +26,7 @@ interface PlazaPost {
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
-  autoMask: number;
+  autoMask: number; // camelCase field used everywhere in React
   reactions: ReactionCounts;
 }
 
@@ -52,6 +52,7 @@ export default function PlazaCard({
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // FOLLOW STATE
   useEffect(() => {
     let active = true;
 
@@ -103,6 +104,7 @@ export default function PlazaCard({
     }
   }
 
+  // AURA INTENSITY
   function auraIntensity(score: number, positivity: number) {
     let level =
       score < 6 ? 0 :
@@ -117,6 +119,7 @@ export default function PlazaCard({
     return Math.max(0, Math.min(4, level));
   }
 
+  // GLYPH EMOJI
   const glyphEmoji =
     post.autoMask === 1 ? "😶‍🌫️" :
     post.autoMask === 2 ? "😤" :
@@ -195,6 +198,7 @@ export default function PlazaCard({
             </p>
           )}
 
+          {/* CONTENT */}
           <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4 overflow-y-auto max-h-[200px]">
             {post.content}
           </p>

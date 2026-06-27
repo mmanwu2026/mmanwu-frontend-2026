@@ -29,7 +29,7 @@ interface PlazaPostWithAggregates {
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
-  autoMask: number;
+  autoMask: number; // camelCase for React
   reactions: ReactionCounts;
 }
 
@@ -61,7 +61,7 @@ export default function PlazaPage() {
   const sessionReady = hydrated && !userLoading && !!user;
 
   // -----------------------------------------------------
-  // FETCH POSTS (FIXED: autoMask included)
+  // FETCH POSTS (correct automask → autoMask mapping)
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
@@ -81,7 +81,7 @@ export default function PlazaPage() {
           created_at,
           spirit_score,
           positivity_ratio,
-          autoMask,
+          automask,                 -- DB column
           reactions:reactions(maskTier)
         `)
         .order("created_at", { ascending: false })
@@ -112,7 +112,7 @@ export default function PlazaPage() {
           reactions: counts,
           spirit_score: post.spirit_score ?? 0,
           positivity_ratio: post.positivity_ratio ?? 0.5,
-          autoMask: post.autoMask ?? 2, // default mask 2
+          autoMask: post.automask ?? 2,   // map DB → React
         };
       });
 
