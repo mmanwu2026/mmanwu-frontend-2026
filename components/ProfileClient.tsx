@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/plaza/PostCard";
 import AvatarUploader from "@/components/AvatarUploader";
+import Modal from "@/components/ui/Modal";
+import EditProfileForm from "@/components/profile/EditProfileForm";
 
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
@@ -39,7 +41,6 @@ type Profile = {
   spirit_score: number;
   positivity_ratio: number;
   created_at: string;
-
   verified?: boolean;
   location?: string | null;
   website_url?: string | null;
@@ -53,10 +54,11 @@ type Post = {
   content: string;
   created_at: string;
   spirit_score: number;
-  mask: number;
   automask: number | null;
   positivity_ratio: number;
 };
+
+type ReactionCountsMap = Record<string, typeof EMPTY_REACTIONS>;
 
 export default function ProfileClient({
   userId,
@@ -71,24 +73,17 @@ export default function ProfileClient({
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
-  const [hydrated, setHydrated] = useState(false);
-  const [activeTab, setActiveTab] =
-    useState<"posts" | "soundposts" | "reactions">("posts");
-
-  const [gridMode, setGridMode] = useState(false);
-  const [reactionCounts, setReactionCounts] = useState<Record<string, any>>({});
-
+  const [hydrated, setHydrated] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"posts" | "soundposts" | "reactions">("posts");
+  const [gridMode, setGridMode] = useState<boolean>(false);
+  const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
-  const [followersCount, setFollowersCount] = useState(
-    profile.followers_count ?? 0
-  );
-  const [followingCount, setFollowingCount] = useState(
-    profile.following_count ?? 0
-  );
-  const [busy, setBusy] = useState(false);
+  const [followersCount, setFollowersCount] = useState<number>(profile.followers_count ?? 0);
+  const [followingCount, setFollowingCount] = useState<number>(profile.following_count ?? 0);
+  const [busy, setBusy] = useState<boolean>(false);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
 
   const isOwnProfile = user?.id === profile.id;
-
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
@@ -141,7 +136,7 @@ export default function ProfileClient({
 
         if (!error) {
           setIsFollowing(true);
-          setFollowersCount((c) => c + 1);
+          setFollowersCount((c: number) => c + 1);
         }
       } else {
         const { error } = await supabase
@@ -152,7 +147,7 @@ export default function ProfileClient({
 
         if (!error) {
           setIsFollowing(false);
-          setFollowersCount((c) => Math.max(0, c - 1));
+          setFollowersCount((c: number) => Math.max(0, c - 1));
         }
       }
     } finally {
@@ -167,18 +162,21 @@ export default function ProfileClient({
       const { data, error } = await supabase
         .from("reactions")
         .select('post_id, "maskTier"')
-        .in("post_id", posts.map((p) => p.id));
+        .in(
+          "post_id",
+          posts.map((p: Post) => p.id),
+        );
 
       if (error) {
         console.error("Reaction load error:", error);
         return;
       }
 
-      const map: Record<string, any> = {};
+      const map: ReactionCountsMap = {};
 
       data.forEach((r: { post_id: string; maskTier: number }) => {
         if (!map[r.post_id]) map[r.post_id] = { ...EMPTY_REACTIONS };
-        map[r.post_id][`mask${r.maskTier}`] += 1;
+        map[r.post_id][`mask${r.maskTier}` as keyof typeof EMPTY_REACTIONS] += 1;
       });
 
       setReactionCounts(map);
@@ -207,26 +205,14 @@ export default function ProfileClient({
     <>
       {/* HEADER */}
       <div className="w-full bg-black text-white">
+        <div className="h-32 w-full" style={{ backgroundColor: bannerColor }} />
 
-        {/* Banner */}
-        <div
-          className="h-32 w-full"
-          style={{ backgroundColor: bannerColor }}
-        />
-
-        {/* HEADER WRAPPER */}
         <div className="px-6 -mt-12 flex flex-row gap-8 items-start">
-
-          {/* LEFT COLUMN — AVATAR + UPLOAD BUTTON */}
+          {/* LEFT COLUMN — AVATAR */}
           <div className="flex flex-col items-center gap-3">
-
-            {/* Avatar */}
             <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
               {isOwnProfile ? (
-                <AvatarUploader
-                  userId={profile.id}
-                  currentAvatar={profile.avatar_url}
-                />
+                <AvatarUploader userId={profile.id} currentAvatar={profile.avatar_url} />
               ) : (
                 <img
                   src={profile.avatar_url || FALLBACK_AVATAR}
@@ -236,12 +222,9 @@ export default function ProfileClient({
               )}
             </div>
 
-            {/* Upload Avatar */}
             {isOwnProfile && (
               <button
-                onClick={() =>
-                  document.getElementById("avatar-upload-input")?.click()
-                }
+                onClick={() => document.getElementById("avatar-upload-input")?.click()}
                 className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition text-white"
               >
                 Upload Avatar
@@ -249,10 +232,8 @@ export default function ProfileClient({
             )}
           </div>
 
-          {/* RIGHT COLUMN — IDENTITY INFO */}
+          {/* RIGHT COLUMN — INFO */}
           <div className="flex flex-col flex-1">
-
-            {/* Display Name + Badges */}
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
 
@@ -263,7 +244,7 @@ export default function ProfileClient({
               )}
 
               <span
-                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40 shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40"
                 style={{
                   backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
                   color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
@@ -273,19 +254,14 @@ export default function ProfileClient({
               </span>
             </div>
 
-            {/* Username */}
             <p className="text-white/60">@{profile.username}</p>
 
-            {/* Bio */}
             {profile.bio && (
-              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">
-                {profile.bio}
-              </p>
+              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">{profile.bio}</p>
             )}
 
             {/* Stats */}
             <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-white/80 max-w-xl">
-
               <div>
                 <p className="text-lg font-semibold">{followersCount}</p>
                 <p className="text-xs text-white/60">Followers</p>
@@ -316,11 +292,9 @@ export default function ProfileClient({
               </div>
             </div>
 
-            {/* Location + Website (A3 layout) */}
+            {/* Location + Website */}
             <div className="mt-4 flex flex-row justify-end w-full">
               <div className="flex flex-col items-end gap-1 text-sm text-neutral-300">
-
-                {/* Location */}
                 <div className="flex items-center gap-1">
                   <span>📍</span>
                   {profile.location ? (
@@ -330,7 +304,6 @@ export default function ProfileClient({
                   )}
                 </div>
 
-                {/* Website */}
                 <div className="flex items-center gap-1">
                   <span>🌐</span>
                   {profile.website_url ? (
@@ -346,21 +319,20 @@ export default function ProfileClient({
                     <span className="text-white/40 italic">Add website</span>
                   )}
                 </div>
-
               </div>
             </div>
 
-            {/* Edit Profile (only for owner) */}
+            {/* Edit Profile */}
             {isOwnProfile && (
-              <Link
-                href={`/profile/${profile.id}/edit`}
+              <button
+                onClick={() => setShowEditModal(true)}
                 className="mt-4 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
               >
                 Edit Profile
-              </Link>
+              </button>
             )}
 
-            {/* Follow button (only for visitors) */}
+            {/* Follow button */}
             {!isOwnProfile && (
               <div className="mt-4">
                 <button
@@ -376,45 +348,31 @@ export default function ProfileClient({
                 </button>
               </div>
             )}
-
           </div>
         </div>
       </div>
 
-      {/* ORIGINAL CONTENT BELOW */}
+      {/* CONTENT BELOW */}
       <div className="min-h-screen bg-black text-white p-6 space-y-8">
-
         {/* Tabs */}
         <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
           <button
             onClick={() => setActiveTab("posts")}
-            className={
-              activeTab === "posts"
-                ? "text-white font-semibold"
-                : "text-white/50"
-            }
+            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
           >
             Posts
           </button>
 
           <button
             onClick={() => setActiveTab("soundposts")}
-            className={
-              activeTab === "soundposts"
-                ? "text-white font-semibold"
-                : "text-white/50"
-            }
+            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
           >
             Soundposts
           </button>
 
           <button
             onClick={() => setActiveTab("reactions")}
-            className={
-              activeTab === "reactions"
-                ? "text-white font-semibold"
-                : "text-white/50"
-            }
+            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
           >
             Reactions
           </button>
@@ -424,7 +382,7 @@ export default function ProfileClient({
         {activeTab === "posts" && (
           <div className="flex justify-end mt-2">
             <button
-              onClick={() => setGridMode((prev) => !prev)}
+              onClick={() => setGridMode((prev: boolean) => !prev)}
               className="text-xs text-white/60 hover:text-white transition"
             >
               {gridMode ? "List View" : "Grid View"}
@@ -435,13 +393,9 @@ export default function ProfileClient({
         {/* Content */}
         <div className="mt-4">
           {activeTab === "posts" && (
-            <div
-              className={
-                gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"
-              }
-            >
+            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
               {posts && posts.length > 0 ? (
-                posts.map((post) => (
+                posts.map((post: Post) => (
                   <div
                     key={post.id}
                     className={
@@ -463,7 +417,7 @@ export default function ProfileClient({
                       positivityRatio={post.positivity_ratio}
                       onReact={() => {}}
                       showDelete={isOwnProfile}
-                      onDelete={async (postId) => {
+                      onDelete={async (postId: string) => {
                         await supabase.from("posts").delete().eq("id", postId);
                         router.refresh();
                       }}
@@ -471,9 +425,7 @@ export default function ProfileClient({
                   </div>
                 ))
               ) : (
-                <p className="text-white/40 text-center">
-                  No posts yet…
-                </p>
+                <p className="text-white/40 text-center">No posts yet…</p>
               )}
             </div>
           )}
@@ -487,6 +439,13 @@ export default function ProfileClient({
           )}
         </div>
       </div>
+
+      {/* MODAL */}
+      {showEditModal && (
+        <Modal onClose={() => setShowEditModal(false)}>
+          <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
+        </Modal>
+      )}
     </>
   );
 }
