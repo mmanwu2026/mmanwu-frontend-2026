@@ -284,7 +284,7 @@ export default function ProfileClient({
             )}
 
             {/* Stats */}
-            <div className="flex flex-row flex-wrap gap-6 mt-4 text-sm text-white/80">
+            <div className="flex flex-row flex-wrap gap-x-10 gap-y-4 mt-4 text-sm text-white/80">
 
               <div>
                 <p className="text-lg font-semibold">{followersCount}</p>
@@ -344,29 +344,36 @@ export default function ProfileClient({
             )}
 
             {/* Location + Website */}
-            {(profile.location || profile.website_url) && (
-              <div className="mt-4 flex flex-row flex-wrap gap-4 text-sm text-neutral-300">
-                {profile.location && (
-                  <div className="flex items-center gap-1">
-                    <span>📍</span>
-                    <span>{profile.location}</span>
-                  </div>
-                )}
-                {profile.website_url && (
-                  <div className="flex items-center gap-1">
-                    <span>🌐</span>
-                    <a
-                      href={profile.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
-                    >
-                      {profile.website_url}
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
+<div className="mt-4 flex flex-row flex-wrap gap-4 text-sm text-neutral-300">
+
+  {/* Location */}
+  <div className="flex items-center gap-1">
+    <span>📍</span>
+    {profile.location ? (
+      <span>{profile.location}</span>
+    ) : (
+      <span className="text-white/40 italic">Add location</span>
+    )}
+  </div>
+
+  {/* Website */}
+  <div className="flex items-center gap-1">
+    <span>🌐</span>
+    {profile.website_url ? (
+      <a
+        href={profile.website_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 hover:underline"
+      >
+        {profile.website_url}
+      </a>
+    ) : (
+      <span className="text-white/40 italic">Add website</span>
+    )}
+  </div>
+
+</div>
 
           </div>
         </div>
