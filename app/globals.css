@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------ */
-/* 1. TAILwind BASE                                             */
+/* 1. TAILWIND BASE                                             */
 /* ------------------------------------------------------------ */
 
 @tailwind base;
@@ -223,15 +223,11 @@
 html, body {
   background-color: #000 !important;
   color: #e5e7eb !important;
+  pointer-events: auto;
 }
 
 * {
   color-scheme: dark;
-}
-
-/* FIX: Restore pointer events */
-* {
-  pointer-events: auto !important;
 }
 
 img {
@@ -251,7 +247,7 @@ img {
 }
 
 /* ------------------------------------------------------------ */
-/* 11. FINAL MODAL OVERRIDES — CLEAN + CORRECT                  */
+/* 11. FINAL MODAL OVERRIDES — BULLETPROOF                      */
 /* ------------------------------------------------------------ */
 
 #modal-root {
