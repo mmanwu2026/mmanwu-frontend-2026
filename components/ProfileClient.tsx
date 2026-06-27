@@ -212,251 +212,251 @@ if (!user && !userLoading) {
   );
 }
 
-  return (
-    <>
-      {/* HEADER */}
-      <div className="w-full bg-black text-white">
-        <div className="h-32 w-full" style={{ backgroundColor: bannerColor }} />
+ return (
+  <>
+    {/* HEADER */}
+    <div className="w-full bg-black text-white">
+      <div className="h-32 w-full" style={{ backgroundColor: bannerColor }} />
 
-        <div className="px-6 -mt-12 flex flex-row gap-8 items-start">
-          {/* LEFT COLUMN — AVATAR */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
-              {isOwnProfile ? (
-                <AvatarUploader userId={profile.id} currentAvatar={profile.avatar_url} />
-              ) : (
-                <img
-                  src={profile.avatar_url || FALLBACK_AVATAR}
-                  onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-
-            {isOwnProfile && (
-              <button
-                onClick={() => document.getElementById("avatar-upload-input")?.click()}
-                className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition text-white"
-              >
-                Upload Avatar
-              </button>
+      <div className="px-6 -mt-12 flex flex-row gap-8 items-start">
+        {/* LEFT COLUMN — AVATAR */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
+            {isOwnProfile ? (
+              <AvatarUploader userId={profile.id} currentAvatar={profile.avatar_url} />
+            ) : (
+              <img
+                src={profile.avatar_url || FALLBACK_AVATAR}
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+                className="w-full h-full object-cover"
+              />
             )}
           </div>
 
-          {/* RIGHT COLUMN — INFO */}
-          <div className="flex flex-col flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
+          {isOwnProfile && (
+            <button
+              onClick={() => document.getElementById("avatar-upload-input")?.click()}
+              className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition text-white"
+            >
+              Upload Avatar
+            </button>
+          )}
+        </div>
 
-              {profile.verified && (
-                <span className="inline-flex items-center justify-center rounded-full bg-yellow-500 text-black text-xs px-2 py-0.5 font-semibold">
-                  ✔
-                </span>
-              )}
+        {/* RIGHT COLUMN — INFO */}
+        <div className="flex flex-col flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
 
-              <span
-                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40"
-                style={{
-                  backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
-                  color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
-                }}
-              >
-                Tier {profile.mask_tier}
+            {profile.verified && (
+              <span className="inline-flex items-center justify-center rounded-full bg-yellow-500 text-black text-xs px-2 py-0.5 font-semibold">
+                ✔
               </span>
-            </div>
-
-            <p className="text-white/60">@{profile.username}</p>
-
-            {profile.bio && (
-              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">{profile.bio}</p>
             )}
 
-            {/* Stats */}
-            <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-white/80 max-w-xl">
-              <div>
-                <p className="text-lg font-semibold">{followersCount}</p>
-                <p className="text-xs text-white/60">Followers</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">{followingCount}</p>
-                <p className="text-xs text-white/60">Following</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">{profile.spirit_score}</p>
-                <p className="text-xs text-white/60">Spirit</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">
-                  {Math.round(profile.positivity_ratio)}%
-                </p>
-                <p className="text-xs text-white/60">Positivity</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">
-                  {new Date(profile.created_at).toLocaleDateString()}
-                </p>
-                <p className="text-xs text-white/60">Joined</p>
-              </div>
-            </div>
-
-            {/* Location + Website */}
-            <div className="mt-4 flex flex-row justify-end w-full">
-              <div className="flex flex-col items-end gap-1 text-sm text-neutral-300">
-                <div className="flex items-center gap-1">
-                  <span>📍</span>
-                  {profile.location ? (
-                    <span>{profile.location}</span>
-                  ) : (
-                    <span className="text-white/40 italic">Add location</span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span>🌐</span>
-                  {profile.website_url ? (
-                    <a
-                      href={profile.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
-                    >
-                      {profile.website_url}
-                    </a>
-                  ) : (
-                    <span className="text-white/40 italic">Add website</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Edit Profile */}
-            {isOwnProfile && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="mt-4 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
-              >
-                Edit Profile
-              </button>
-            )}
-
-            {/* Follow button */}
-            {!isOwnProfile && (
-              <div className="mt-4">
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={busy}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
-                    isFollowing
-                      ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
-                      : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
-                  } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </button>
-              </div>
-            )}
+            <span
+              className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40"
+              style={{
+                backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
+                color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
+              }}
+            >
+              Tier {profile.mask_tier}
+            </span>
           </div>
+
+          <p className="text-white/60">@{profile.username}</p>
+
+          {profile.bio && (
+            <p className="mt-2 text-white/80 max-w-xl leading-relaxed">{profile.bio}</p>
+          )}
+
+          {/* Stats */}
+          <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-white/80 max-w-xl">
+            <div>
+              <p className="text-lg font-semibold">{followersCount}</p>
+              <p className="text-xs text-white/60">Followers</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">{followingCount}</p>
+              <p className="text-xs text-white/60">Following</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">{profile.spirit_score}</p>
+              <p className="text-xs text-white/60">Spirit</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">
+                {Math.round(profile.positivity_ratio)}%
+              </p>
+              <p className="text-xs text-white/60">Positivity</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">
+                {new Date(profile.created_at).toLocaleDateString()}
+              </p>
+              <p className="text-xs text-white/60">Joined</p>
+            </div>
+          </div>
+
+          {/* Location + Website */}
+          <div className="mt-4 flex flex-row justify-end w-full">
+            <div className="flex flex-col items-end gap-1 text-sm text-neutral-300">
+              <div className="flex items-center gap-1">
+                <span>📍</span>
+                {profile.location ? (
+                  <span>{profile.location}</span>
+                ) : (
+                  <span className="text-white/40 italic">Add location</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <span>🌐</span>
+                {profile.website_url ? (
+                  <a
+                    href={profile.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline"
+                  >
+                    {profile.website_url}
+                  </a>
+                ) : (
+                  <span className="text-white/40 italic">Add website</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Edit Profile */}
+          {isOwnProfile && (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="mt-4 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
+            >
+              Edit Profile
+            </button>
+          )}
+
+          {/* Follow button */}
+          {!isOwnProfile && (
+            <div className="mt-4">
+              <button
+                onClick={handleFollowToggle}
+                disabled={busy}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                  isFollowing
+                    ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
+                    : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                {isFollowing ? "Following" : "Follow"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
+    </div>
 
-      {/* CONTENT BELOW */}
-      <div className="min-h-screen bg-black text-white p-6 space-y-8">
-        {/* Tabs */}
-        <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
-          <button
-            onClick={() => setActiveTab("posts")}
-            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
-          >
-            Posts
-          </button>
+    {/* CONTENT BELOW */}
+    <div className="min-h-screen bg-black text-white p-6 space-y-8">
+      {/* Tabs */}
+      <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
+        <button
+          onClick={() => setActiveTab("posts")}
+          className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
+        >
+          Posts
+        </button>
 
-          <button
-            onClick={() => setActiveTab("soundposts")}
-            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
-          >
-            Soundposts
-          </button>
+        <button
+          onClick={() => setActiveTab("soundposts")}
+          className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
+        >
+          Soundposts
+        </button>
 
+        <button
+          onClick={() => setActiveTab("reactions")}
+          className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+        >
+          Reactions
+        </button>
+      </div>
+
+      {/* Grid toggle */}
+      {activeTab === "posts" && (
+        <div className="flex justify-end mt-2">
           <button
-            onClick={() => setActiveTab("reactions")}
-            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+            onClick={() => setGridMode((prev: boolean) => !prev)}
+            className="text-xs text-white/60 hover:text-white transition"
           >
-            Reactions
+            {gridMode ? "List View" : "Grid View"}
           </button>
         </div>
+      )}
 
-        {/* Grid toggle */}
+      {/* Content */}
+      <div className="mt-4">
         {activeTab === "posts" && (
-          <div className="flex justify-end mt-2">
-            <button
-              onClick={() => setGridMode((prev: boolean) => !prev)}
-              className="text-xs text-white/60 hover:text-white transition"
-            >
-              {gridMode ? "List View" : "Grid View"}
-            </button>
+          <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+            {posts && posts.length > 0 ? (
+              posts.map((post: Post) => (
+                <div
+                  key={post.id}
+                  className={
+                    gridMode
+                      ? "animate-fadeInUp"
+                      : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
+                  }
+                >
+                  <PostCard
+                    post={{
+                      id: post.id,
+                      creator_id: post.creator_id,
+                      content: post.content,
+                      created_at: post.created_at,
+                      spirit_score: post.spirit_score,
+                      autoMask: post.automask ?? 0,
+                    }}
+                    reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+                    positivityRatio={post.positivity_ratio}
+                    onReact={() => {}}
+                    showDelete={isOwnProfile}
+                    onDelete={async (postId: string) => {
+                      await supabase.from("posts").delete().eq("id", postId);
+                      router.refresh();
+                    }}
+                  />
+                </div>
+              ))
+            ) : (
+              <p className="text-white/40 text-center">No posts yet…</p>
+            )}
           </div>
         )}
 
-        {/* Content */}
-        <div className="mt-4">
-          {activeTab === "posts" && (
-            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-              {posts && posts.length > 0 ? (
-                posts.map((post: Post) => (
-                  <div
-                    key={post.id}
-                    className={
-                      gridMode
-                        ? "animate-fadeInUp"
-                        : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
-                    }
-                  >
-                    <PostCard
-                      post={{
-                        id: post.id,
-                        creator_id: post.creator_id,
-                        content: post.content,
-                        created_at: post.created_at,
-                        spirit_score: post.spirit_score,
-                        autoMask: post.automask ?? 0,
-                      }}
-                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
-                      positivityRatio={post.positivity_ratio}
-                      onReact={() => {}}
-                      showDelete={isOwnProfile}
-                      onDelete={async (postId: string) => {
-                        await supabase.from("posts").delete().eq("id", postId);
-                        router.refresh();
-                      }}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-white/40 text-center">No posts yet…</p>
-              )}
-            </div>
-          )}
+        {activeTab === "soundposts" && (
+          <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
+        )}
 
-          {activeTab === "soundposts" && (
-            <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
-          )}
-
-          {activeTab === "reactions" && (
-            <p className="text-white/40 text-center mt-6">No reactions yet…</p>
-          )}
-        </div>
+        {activeTab === "reactions" && (
+          <p className="text-white/40 text-center mt-6">No reactions yet…</p>
+        )}
       </div>
+    </div>
 
-      {/* MODAL */}
-      {showEditModal && (
-        <Modal onClose={() => setShowEditModal(false)}>
-          <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
-        </Modal>
-      )}
-    </>
-  );
+    {/* MODAL */}
+    {showEditModal && (
+      <Modal onClose={() => setShowEditModal(false)}>
+        <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
+      </Modal>
+    )}
+  </>
+);
 }
