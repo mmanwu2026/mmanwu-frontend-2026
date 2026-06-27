@@ -456,12 +456,14 @@ export default function ProfileClient({
         </div>
       </div>
 
-      {/* MODAL */}
-      {showEditModal && (
+      {/* ⭐ Move modal OUTSIDE the constrained container */}
+    {showEditModal && (
+      <div className="fixed inset-0 z-[2147483647]">
         <Modal onClose={() => setShowEditModal(false)}>
           <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
         </Modal>
-      )}
-    </>
-  );
+      </div>
+    )}
+  </>
+);
 }
