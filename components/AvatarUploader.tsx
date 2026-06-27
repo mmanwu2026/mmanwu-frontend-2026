@@ -118,7 +118,7 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
       onClick={() => fileInputRef.current?.click()}
     >
       <img
-        src={preview || currentAvatar || "/avatar-fallback-256.png"}
+        src={preview || currentAvatar || "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"}
         alt="Avatar"
         className="w-full h-full object-cover"
       />
