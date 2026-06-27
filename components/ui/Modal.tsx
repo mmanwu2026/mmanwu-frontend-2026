@@ -12,7 +12,6 @@ export default function Modal({ children, onClose }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
 
-  // Debug: confirm modal component loads
   console.log("🔥 MODAL COMPONENT ACTIVE");
 
   useEffect(() => {
@@ -49,11 +48,28 @@ export default function Modal({ children, onClose }: ModalProps) {
 
   return createPortal(
     <div
-      className="portal-modal fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-md"
+      className="
+        fixed inset-0 
+        bg-black/80 
+        backdrop-blur-[2px] 
+        flex items-center justify-center 
+        z-[2147483647]
+      "
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg md:max-w-2xl md:rounded-xl bg-black border border-white/10 shadow-xl md:mx-0 mx-4 md:max-h-[80vh] max-h-screen overflow-y-auto"
+        className="
+          w-full 
+          max-w-2xl 
+          bg-[#0d0d0f] 
+          border border-white/10 
+          shadow-2xl 
+          rounded-xl 
+          p-6 
+          mx-4 
+          max-h-[85vh] 
+          overflow-y-auto
+        "
         onClick={(e) => e.stopPropagation()}
       >
         {children}
