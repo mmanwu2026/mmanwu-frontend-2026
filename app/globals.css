@@ -295,6 +295,22 @@ img {
   pointer-events: auto !important;
 }
 
+/* Force modal to escape all transforms, filters, and isolation contexts */
+#modal-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  isolation: auto !important;
+}
+
+#modal-root > * {
+  pointer-events: auto !important;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */

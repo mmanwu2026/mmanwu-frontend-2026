@@ -12,10 +12,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-black text-white">
         <ProvidersWrapper>
           <main>{children}</main>
-        </ProvidersWrapper>
 
-        {/* ⭐ MUST be inside <body>, AFTER ProvidersWrapper */}
-        <div id="modal-root"></div>
+          {/* ⭐ Modal root MUST be inside ProvidersWrapper */}
+          <div id="modal-root"></div>
+        </ProvidersWrapper>
       </body>
     </html>
   );
