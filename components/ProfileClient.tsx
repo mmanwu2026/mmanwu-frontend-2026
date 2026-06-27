@@ -49,7 +49,7 @@ type Profile = {
 
 type Post = {
   id: string;
-  creator_id: string;   // ⭐ REQUIRED FIX
+  creator_id: string;
   content: string;
   created_at: string;
   spirit_score: number;
@@ -214,57 +214,29 @@ export default function ProfileClient({
           style={{ backgroundColor: bannerColor }}
         />
 
-        {/* NEW HEADER WRAPPER */}
-        <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
+        {/* HEADER WRAPPER */}
+        <div className="px-6 -mt-12 flex flex-row gap-8 items-start">
 
-          {/* LEFT SIDE — AVATAR + UPLOAD BUTTON */}
-          <div className="flex flex-col items-center gap-2">
+          {/* LEFT COLUMN — AVATAR + UPLOAD BUTTON */}
+          <div className="flex flex-col items-center gap-3">
 
-           {/* Identity Header */}
-<div className="flex items-start gap-4 w-full">
+            {/* Avatar */}
+            <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
+              {isOwnProfile ? (
+                <AvatarUploader
+                  userId={profile.id}
+                  currentAvatar={profile.avatar_url}
+                />
+              ) : (
+                <img
+                  src={profile.avatar_url || FALLBACK_AVATAR}
+                  onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
 
-  {/* Avatar stays LEFT */}
-  <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900 flex-shrink-0">
-    {isOwnProfile ? (
-      <AvatarUploader
-        userId={profile.id}
-        currentAvatar={profile.avatar_url}
-      />
-    ) : (
-      <img
-        src={profile.avatar_url || FALLBACK_AVATAR}
-        onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-        className="w-full h-full object-cover"
-      />
-    )}
-  </div>
-
-  {/* USER INFO — slightly left, not centered */}
-  <div className="flex flex-col justify-center">
-
-    <h1 className="text-2xl font-semibold tracking-tight">
-      {profile.username}
-    </h1>
-
-    {profile.bio && (
-      <p className="text-sm text-white/70 mt-1 max-w-md">
-        {profile.bio}
-      </p>
-    )}
-
-    {isOwnProfile && (
-      <Link
-        href={`/profile/${profile.id}/edit`}
-        className="mt-3 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
-      >
-        Edit Profile
-      </Link>
-    )}
-
-  </div>
-</div>
-
-            {/* Upload button */}
+            {/* Upload Avatar */}
             {isOwnProfile && (
               <button
                 onClick={() =>
@@ -277,10 +249,10 @@ export default function ProfileClient({
             )}
           </div>
 
-          {/* RIGHT SIDE — USER IDENTITY */}
+          {/* RIGHT COLUMN — IDENTITY INFO */}
           <div className="flex flex-col flex-1">
 
-            {/* Name + badges */}
+            {/* Display Name + Badges */}
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
 
@@ -304,8 +276,15 @@ export default function ProfileClient({
             {/* Username */}
             <p className="text-white/60">@{profile.username}</p>
 
+            {/* Bio */}
+            {profile.bio && (
+              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">
+                {profile.bio}
+              </p>
+            )}
+
             {/* Stats */}
-            <div className="flex flex-row flex-wrap gap-6 mt-3 text-sm text-white/80">
+            <div className="flex flex-row flex-wrap gap-6 mt-4 text-sm text-white/80">
 
               <div>
                 <p className="text-lg font-semibold">{followersCount}</p>
@@ -337,7 +316,17 @@ export default function ProfileClient({
               </div>
             </div>
 
-            {/* Follow button */}
+            {/* Edit Profile (only for owner) */}
+            {isOwnProfile && (
+              <Link
+                href={`/profile/${profile.id}/edit`}
+                className="mt-4 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
+              >
+                Edit Profile
+              </Link>
+            )}
+
+            {/* Follow button (only for visitors) */}
             {!isOwnProfile && (
               <div className="mt-4">
                 <button
@@ -354,40 +343,33 @@ export default function ProfileClient({
               </div>
             )}
 
+            {/* Location + Website */}
+            {(profile.location || profile.website_url) && (
+              <div className="mt-4 flex flex-row flex-wrap gap-4 text-sm text-neutral-300">
+                {profile.location && (
+                  <div className="flex items-center gap-1">
+                    <span>📍</span>
+                    <span>{profile.location}</span>
+                  </div>
+                )}
+                {profile.website_url && (
+                  <div className="flex items-center gap-1">
+                    <span>🌐</span>
+                    <a
+                      href={profile.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      {profile.website_url}
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
-
-        {/* Location + website */}
-        {(profile.location || profile.website_url) && (
-          <div className="px-6 mt-4 flex flex-row flex-wrap gap-4 text-sm text-neutral-300">
-            {profile.location && (
-              <div className="flex items-center gap-1">
-                <span>📍</span>
-                <span>{profile.location}</span>
-              </div>
-            )}
-            {profile.website_url && (
-              <div className="flex items-center gap-1">
-                <span>🌐</span>
-                <a
-                  href={profile.website_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline"
-                >
-                  {profile.website_url}
-                </a>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Bio */}
-        {profile.bio && (
-          <p className="px-6 mt-3 text-white/80 leading-relaxed">
-            {profile.bio}
-          </p>
-        )}
       </div>
 
       {/* ORIGINAL CONTENT BELOW */}
@@ -460,24 +442,23 @@ export default function ProfileClient({
                     }
                   >
                     <PostCard
-  post={{
-    id: post.id,
-    creator_id: post.creator_id,   // ✔ FIXED
-    content: post.content,
-    created_at: post.created_at,
-    spirit_score: post.spirit_score,
-    autoMask: post.automask ?? 0,
-  }}
-  reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
-  positivityRatio={post.positivity_ratio}
-  onReact={() => {}}
-  showDelete={isOwnProfile}
-  onDelete={async (postId) => {
-    await supabase.from("posts").delete().eq("id", postId);
-    router.refresh();
-  }}
-/>
-
+                      post={{
+                        id: post.id,
+                        creator_id: post.creator_id,
+                        content: post.content,
+                        created_at: post.created_at,
+                        spirit_score: post.spirit_score,
+                        autoMask: post.automask ?? 0,
+                      }}
+                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+                      positivityRatio={post.positivity_ratio}
+                      onReact={() => {}}
+                      showDelete={isOwnProfile}
+                      onDelete={async (postId) => {
+                        await supabase.from("posts").delete().eq("id", postId);
+                        router.refresh();
+                      }}
+                    />
                   </div>
                 ))
               ) : (
@@ -486,18 +467,6 @@ export default function ProfileClient({
                 </p>
               )}
             </div>
-          )}
-
-          {activeTab === "soundposts" && (
-            <p className="text-white/40 text-center">
-              No soundposts yet…
-            </p>
-          )}
-
-          {activeTab === "reactions" && (
-            <p className="text-white/40 text-center">
-              No reactions yet…
-            </p>
           )}
         </div>
       </div>
