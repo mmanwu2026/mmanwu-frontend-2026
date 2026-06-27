@@ -130,6 +130,7 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
       )}
 
       <input
+        id="avatar-upload-input"
         type="file"
         accept="image/*"
         ref={fileInputRef}
