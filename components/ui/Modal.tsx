@@ -1,5 +1,7 @@
 "use client";
 
+console.log("🔥 MODAL FILE LOADED — THIS IS THE PORTAL VERSION");
+
 import { useEffect, useState, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -36,6 +38,8 @@ export default function Modal({ children, onClose }: ModalProps) {
   }, [mounted, onClose]);
 
   if (!mounted) return null;
+
+  console.log("🔥 MODAL PORTAL RENDERED");
 
   return createPortal(
     <div
