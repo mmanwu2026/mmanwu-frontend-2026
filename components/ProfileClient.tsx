@@ -185,21 +185,32 @@ export default function ProfileClient({
     loadReactions();
   }, [posts, supabase]);
 
-  if (!hydrated || userLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
-  }
+  // 1 — Hydration gate (client-only)
+if (!hydrated) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <p className="text-zinc-400 text-sm">Loading profile…</p>
+    </div>
+  );
+}
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Redirecting…</p>
-      </div>
-    );
-  }
+// 2 — User still loading AND no user yet
+if (userLoading && !user) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <p className="text-zinc-400 text-sm">Loading profile…</p>
+    </div>
+  );
+}
+
+// 3 — User finished loading but is not logged in
+if (!user && !userLoading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <p className="text-zinc-400 text-sm">Redirecting…</p>
+    </div>
+  );
+}
 
   return (
     <>

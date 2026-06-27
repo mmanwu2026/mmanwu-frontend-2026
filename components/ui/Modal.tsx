@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type ModalProps = {
   children: ReactNode;
@@ -8,47 +9,37 @@ type ModalProps = {
 };
 
 export default function Modal({ children, onClose }: ModalProps) {
-  // ⭐ Prevent hydration freeze
-  const [hydrated, setHydrated] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setHydrated(true);
+    setMounted(true);
   }, []);
 
-  // ⭐ Only lock scroll AFTER hydration
+  // Lock scroll
   useEffect(() => {
-    if (!hydrated) return;
-
+    if (!mounted) return;
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
       document.body.style.overflow = original;
     };
-  }, [hydrated]);
+  }, [mounted]);
 
-  // ⭐ Escape key close (only after hydration)
+  // Escape key
   useEffect(() => {
-    if (!hydrated) return;
-
+    if (!mounted) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [hydrated, onClose]);
+  }, [mounted, onClose]);
 
-  if (!hydrated) {
-    // Render a safe placeholder backdrop during hydration
-    return (
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md" />
-    );
-  }
+  if (!mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
       <div
@@ -57,6 +48,7 @@ export default function Modal({ children, onClose }: ModalProps) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
