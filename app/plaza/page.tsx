@@ -73,19 +73,20 @@ export default function PlazaPage() {
       const to = from + PAGE_SIZE - 1;
 
       const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select(`
-          id,
-          creator_id,
-          content,
-          created_at,
-          spirit_score,
-          positivity_ratio,
-          automask,                 -- DB column
-          reactions:reactions(maskTier)
-        `)
-        .order("created_at", { ascending: false })
-        .range(from, to);
+  .from("posts")
+  .select(`
+    id,
+    creator_id,
+    content,
+    created_at,
+    spirit_score,
+    positivity_ratio,
+    automask,
+    reactions:reactions(maskTier)
+  `)
+  .order("created_at", { ascending: false })
+  .range(from, to);
+
 
       if (postsError || !postsData) {
         console.error("Error fetching posts:", postsError);
@@ -97,24 +98,24 @@ export default function PlazaPage() {
 
       const typedPosts = postsData as any[];
 
-      const merged: PlazaPostWithAggregates[] = typedPosts.map((post: any) => {
-        const counts: ReactionCounts = {
-          mask1: post.reactions.filter((r: any) => r.maskTier === 1).length,
-          mask2: post.reactions.filter((r: any) => r.maskTier === 2).length,
-          mask3: post.reactions.filter((r: any) => r.maskTier === 3).length,
-          mask4: post.reactions.filter((r: any) => r.maskTier === 4).length,
-          mask5: post.reactions.filter((r: any) => r.maskTier === 5).length,
-          mask6: post.reactions.filter((r: any) => r.maskTier === 6).length,
-        };
+const merged: PlazaPostWithAggregates[] = typedPosts.map((post: any) => {
+  const counts: ReactionCounts = {
+    mask1: post.reactions.filter((r: any) => r.maskTier === 1).length,
+    mask2: post.reactions.filter((r: any) => r.maskTier === 2).length,
+    mask3: post.reactions.filter((r: any) => r.maskTier === 3).length,
+    mask4: post.reactions.filter((r: any) => r.maskTier === 4).length,
+    mask5: post.reactions.filter((r: any) => r.maskTier === 5).length,
+    mask6: post.reactions.filter((r: any) => r.maskTier === 6).length,
+  };
 
-        return {
-          ...post,
-          reactions: counts,
-          spirit_score: post.spirit_score ?? 0,
-          positivity_ratio: post.positivity_ratio ?? 0.5,
-          autoMask: post.automask ?? 2,   // map DB → React
-        };
-      });
+  return {
+    ...post,
+    reactions: counts,
+    spirit_score: post.spirit_score ?? 0,
+    positivity_ratio: post.positivity_ratio ?? 0.5,
+    autoMask: post.automask ?? 2,
+  };
+});
 
       setPosts((prev) => (append ? [...prev, ...merged] : merged));
 
