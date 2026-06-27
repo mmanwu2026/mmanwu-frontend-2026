@@ -105,7 +105,7 @@ export default function EditProfileForm({ profile, onClose }: EditProfileFormPro
       <div className="flex flex-col items-center mb-6">
         <div className="w-24 h-24 rounded-full overflow-hidden border border-white/20 bg-neutral-900 mb-3">
           <img
-            src={profile.avatar_url || "/default-avatar.png"}
+            src={profile.avatar_url || "/avatar-fallback-256.png"}
             className="w-full h-full object-cover"
           />
         </div>
