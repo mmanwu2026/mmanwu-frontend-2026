@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { useEffect, useState, ReactNode } from "react";
 
 type ModalProps = {
   children: ReactNode;
@@ -8,17 +8,43 @@ type ModalProps = {
 };
 
 export default function Modal({ children, onClose }: ModalProps) {
+  // ⭐ Prevent hydration freeze
+  const [hydrated, setHydrated] = useState(false);
+
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
+    setHydrated(true);
+  }, []);
+
+  // ⭐ Only lock scroll AFTER hydration
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [hydrated]);
+
+  // ⭐ Escape key close (only after hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("keydown", handleKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [hydrated, onClose]);
+
+  if (!hydrated) {
+    // Render a safe placeholder backdrop during hydration
+    return (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md" />
+    );
+  }
 
   return (
     <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import AvatarUploader from "@/components/AvatarUploader";
@@ -23,6 +23,10 @@ type EditProfileFormProps = {
 export default function EditProfileForm({ profile, onClose }: EditProfileFormProps) {
   const supabase = useSupabase();
   const router = useRouter();
+
+  // ⭐ Prevents modal freeze by delaying AvatarUploader
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
 
   const [displayName, setDisplayName] = useState(profile.display_name || "");
   const [username, setUsername] = useState(profile.username || "");
@@ -102,9 +106,14 @@ export default function EditProfileForm({ profile, onClose }: EditProfileFormPro
         </button>
       </div>
 
+      {/* ⭐ Hydration-safe AvatarUploader */}
       <div className="flex flex-col items-center mb-6">
         <div className="w-24 h-24 rounded-full overflow-hidden border border-white/20 bg-neutral-900 mb-3">
-          <AvatarUploader userId={profile.id} currentAvatar={profile.avatar_url} />
+          {hydrated ? (
+            <AvatarUploader userId={profile.id} currentAvatar={profile.avatar_url} />
+          ) : (
+            <div className="w-full h-full bg-neutral-800 animate-pulse" />
+          )}
         </div>
         <p className="text-xs text-white/50">Tap to change avatar</p>
       </div>

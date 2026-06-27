@@ -1,106 +1,103 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useRouter } from "next/navigation";
-import { resizeTo256 } from "@/utils/resizeTo256";
 
-const FALLBACK_AVATAR =
-  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
-
-export default function AvatarUploader({
-  userId,
-  currentAvatar,
-}: {
+type AvatarUploaderProps = {
   userId: string;
   currentAvatar: string | null;
-}) {
+};
+
+export default function AvatarUploader({ userId, currentAvatar }: AvatarUploaderProps) {
   const supabase = useSupabase();
-  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ⭐ Prevent hydration freeze
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
 
   const [preview, setPreview] = useState<string | null>(currentAvatar);
-  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  // -----------------------------
-  // AUTO-RESIZE ONLY (256x256)
-  // -----------------------------
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reject huge files
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image too large. Please upload an image under 5MB.");
-      return;
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${userId}-${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, {
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        setUploading(false);
+        return;
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId);
+
+      if (updateError) {
+        console.error("Profile update error:", updateError);
+        setUploading(false);
+        return;
+      }
+
+      // Update preview
+      setPreview(publicUrl);
+    } finally {
+      setUploading(false);
     }
+  };
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const resizedBlob = await resizeTo256(reader.result as string);
-      uploadResized(resizedBlob);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // -----------------------------
-  // UPLOAD RESIZED 256x256 IMAGE
-  // -----------------------------
-  async function uploadResized(blob: Blob) {
-    setLoading(true);
-
-    const filePath = `${userId}.jpg`;
-
-    const { error } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, blob, {
-        upsert: true,
-        contentType: "image/jpeg",
-      });
-
-    if (error) {
-      console.error(error);
-      setLoading(false);
-      return;
-    }
-
-    const { data } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(filePath);
-
-    const publicUrl = data.publicUrl + "?t=" + Date.now();
-
-    await supabase
-      .from("profiles")
-      .update({ avatar_url: publicUrl })
-      .eq("id", userId);
-
-    setPreview(publicUrl);
-    setLoading(false);
-    router.refresh();
+  if (!hydrated) {
+    return (
+      <div className="w-full h-full bg-neutral-800 animate-pulse rounded-full" />
+    );
   }
 
   return (
-    <div className="relative w-24 h-24 overflow-hidden rounded-full border border-white/20">
-
+    <div
+      className="relative w-full h-full cursor-pointer"
+      onClick={() => fileInputRef.current?.click()}
+    >
       <img
-        src={preview || FALLBACK_AVATAR}
-        onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+        src={preview || currentAvatar || "/default-avatar.png"}
+        alt="Avatar"
         className="w-full h-full object-cover"
       />
 
-      <input
-        id="avatar-upload-input"
-        type="file"
-        accept="image/*"
-        onChange={onFileChange}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
-      />
-
-      {loading && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-          <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+      {uploading && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs">
+          Uploading…
         </div>
       )}
+
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </div>
   );
 }
