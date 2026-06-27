@@ -15,7 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
         </ProvidersWrapper>
-      </body>
+      {/* ⭐ Add this */}
+  <div id="modal-root"></div>
+</body>
     </html>
   );
 }

@@ -10,12 +10,15 @@ type ModalProps = {
 
 export default function Modal({ children, onClose }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
 
-  // Debug: confirm modal is loading
+  // Debug: confirm modal component loads
   console.log("🔥 MODAL COMPONENT ACTIVE");
 
   useEffect(() => {
     setMounted(true);
+    const root = document.getElementById("modal-root");
+    setModalRoot(root);
   }, []);
 
   // Lock scroll
@@ -38,7 +41,7 @@ export default function Modal({ children, onClose }: ModalProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [mounted, onClose]);
 
-  if (!mounted) return null;
+  if (!mounted || !modalRoot) return null;
 
   return createPortal(
     <div
@@ -52,6 +55,6 @@ export default function Modal({ children, onClose }: ModalProps) {
         {children}
       </div>
     </div>,
-    document.body
+    modalRoot
   );
 }
