@@ -17,7 +17,11 @@ export default function Modal({ children, onClose }: ModalProps) {
 
   useEffect(() => {
     setMounted(true);
+
     const root = document.getElementById("modal-root");
+    if (!root) {
+      console.error("❌ modal-root NOT FOUND");
+    }
     setModalRoot(root);
   }, []);
 

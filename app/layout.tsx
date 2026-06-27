@@ -11,13 +11,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-black text-white">
         <ProvidersWrapper>
-          <main>
-            {children}
-          </main>
+          <main>{children}</main>
         </ProvidersWrapper>
-      {/* ⭐ Add this */}
-  <div id="modal-root"></div>
-</body>
+
+        {/* ⭐ MUST be inside <body>, AFTER ProvidersWrapper */}
+        <div id="modal-root"></div>
+      </body>
     </html>
   );
 }
