@@ -1,7 +1,5 @@
 "use client";
 
-console.log("🔥 MODAL FILE LOADED — THIS IS THE PORTAL VERSION");
-
 import { useEffect, useState, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -12,6 +10,9 @@ type ModalProps = {
 
 export default function Modal({ children, onClose }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+
+  // Debug: confirm modal is loading
+  console.log("🔥 MODAL COMPONENT ACTIVE");
 
   useEffect(() => {
     setMounted(true);
@@ -27,7 +28,7 @@ export default function Modal({ children, onClose }: ModalProps) {
     };
   }, [mounted]);
 
-  // Escape key
+  // Escape key closes modal
   useEffect(() => {
     if (!mounted) return;
     const handler = (e: KeyboardEvent) => {
@@ -39,11 +40,9 @@ export default function Modal({ children, onClose }: ModalProps) {
 
   if (!mounted) return null;
 
-  console.log("🔥 MODAL PORTAL RENDERED");
-
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md"
+      className="portal-modal fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
       <div

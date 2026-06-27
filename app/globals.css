@@ -276,6 +276,14 @@ img {
   border-radius: 9999px !important;
 }
 
+/* Force portal modals to escape all stacking contexts */
+#modal-root,
+.portal-modal {
+  position: fixed !important;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
