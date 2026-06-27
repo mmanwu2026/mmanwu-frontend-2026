@@ -284,6 +284,17 @@ img {
   pointer-events: auto !important;
 }
 
+#modal-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important; /* max 32-bit int */
+  pointer-events: none !important;
+}
+
+#modal-root > * {
+  pointer-events: auto !important;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
