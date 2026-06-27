@@ -26,8 +26,7 @@ interface PlazaPost {
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
-  automask: number;
-  mask: number;
+  autoMask: number;
   reactions: ReactionCounts;
 }
 
@@ -119,12 +118,12 @@ export default function PlazaCard({
   }
 
   const glyphEmoji =
-    post.automask === 1 ? "😶‍🌫️" :
-    post.automask === 2 ? "😤" :
-    post.automask === 3 ? "😊" :
-    post.automask === 4 ? "🤩" :
-    post.automask === 5 ? "😇" :
-    post.automask === 6 ? "🔱" :
+    post.autoMask === 1 ? "😶‍🌫️" :
+    post.autoMask === 2 ? "😤" :
+    post.autoMask === 3 ? "😊" :
+    post.autoMask === 4 ? "🤩" :
+    post.autoMask === 5 ? "😇" :
+    post.autoMask === 6 ? "🔱" :
     "😤";
 
   const intensity = auraIntensity(post.spirit_score, post.positivity_ratio);
@@ -144,19 +143,18 @@ export default function PlazaCard({
 
   return (
     <div className="relative isolate z-0 transition-all duration-500 overflow-visible w-[420px] h-[520px] flex flex-col">
-      <div className={`aura-mask-${post.automask} aura-intensity-${intensity} rounded-2xl p-8 w-full h-full`}>
+      <div
+        className={`aura-mask-${post.autoMask} aura-intensity-${intensity} rounded-2xl p-8 w-full h-full`}
+      >
         <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
 
           {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-2 px-1">
             <div className="flex items-center gap-2">
-
-              {/* ⭐ Avatar with plaza-avatar override */}
               <img
                 src={creator?.avatar_url || FALLBACK_AVATAR}
                 className="plaza-avatar border border-gray-700"
               />
-
               <span className="text-white/90 text-sm font-semibold">
                 {creator?.username || "unknown"}
               </span>
@@ -208,7 +206,7 @@ export default function PlazaCard({
             </p>
 
             <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
-              <span>Mask: {post.mask}</span>
+              <span>Mask: {post.autoMask}</span>
               <span>{new Date(post.created_at).toLocaleString()}</span>
             </div>
 

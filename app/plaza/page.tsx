@@ -29,8 +29,7 @@ interface PlazaPostWithAggregates {
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
-  automask: number;
-  mask: number;
+  autoMask: number;
   reactions: ReactionCounts;
 }
 
@@ -62,7 +61,7 @@ export default function PlazaPage() {
   const sessionReady = hydrated && !userLoading && !!user;
 
   // -----------------------------------------------------
-  // FETCH POSTS
+  // FETCH POSTS (FIXED: autoMask included)
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
@@ -76,7 +75,13 @@ export default function PlazaPage() {
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select(`
-          *,
+          id,
+          creator_id,
+          content,
+          created_at,
+          spirit_score,
+          positivity_ratio,
+          autoMask,
           reactions:reactions(maskTier)
         `)
         .order("created_at", { ascending: false })
@@ -107,8 +112,7 @@ export default function PlazaPage() {
           reactions: counts,
           spirit_score: post.spirit_score ?? 0,
           positivity_ratio: post.positivity_ratio ?? 0.5,
-          automask: post.automask ?? 3,
-          mask: post.mask ?? 3,
+          autoMask: post.autoMask ?? 2, // default mask 2
         };
       });
 
@@ -122,9 +126,7 @@ export default function PlazaPage() {
     [supabase, sessionReady]
   );
 
-  // -----------------------------------------------------
   // INITIAL LOAD
-  // -----------------------------------------------------
   useEffect(() => {
     if (!sessionReady) return;
     fetchPosts(0, false);
@@ -194,8 +196,6 @@ export default function PlazaPage() {
 
     if (!error && data) {
       const profile = data as CreatorProfile;
-
-      // PlazaCard handles fallback avatar
       setCreators((prev) => ({ ...prev, [id]: profile }));
       return profile;
     }

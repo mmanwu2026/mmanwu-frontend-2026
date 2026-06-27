@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
+import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/plaza/PostCard";
@@ -219,21 +220,49 @@ export default function ProfileClient({
           {/* LEFT SIDE — AVATAR + UPLOAD BUTTON */}
           <div className="flex flex-col items-center gap-2">
 
-            {/* Avatar */}
-            <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
-              {isOwnProfile ? (
-                <AvatarUploader
-                  userId={profile.id}
-                  currentAvatar={profile.avatar_url}
-                />
-              ) : (
-                <img
-                  src={profile.avatar_url || FALLBACK_AVATAR}
-                  onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
+           {/* Identity Header */}
+<div className="flex items-start gap-4 w-full">
+
+  {/* Avatar stays LEFT */}
+  <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900 flex-shrink-0">
+    {isOwnProfile ? (
+      <AvatarUploader
+        userId={profile.id}
+        currentAvatar={profile.avatar_url}
+      />
+    ) : (
+      <img
+        src={profile.avatar_url || FALLBACK_AVATAR}
+        onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+        className="w-full h-full object-cover"
+      />
+    )}
+  </div>
+
+  {/* USER INFO — slightly left, not centered */}
+  <div className="flex flex-col justify-center">
+
+    <h1 className="text-2xl font-semibold tracking-tight">
+      {profile.username}
+    </h1>
+
+    {profile.bio && (
+      <p className="text-sm text-white/70 mt-1 max-w-md">
+        {profile.bio}
+      </p>
+    )}
+
+    {isOwnProfile && (
+      <Link
+        href={`/profile/${profile.id}/edit`}
+        className="mt-3 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
+      >
+        Edit Profile
+      </Link>
+    )}
+
+  </div>
+</div>
 
             {/* Upload button */}
             {isOwnProfile && (

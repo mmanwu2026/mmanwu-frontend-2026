@@ -1,201 +1,242 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSupabase } from "@/context/SupabaseContext";
+import { useUser } from "@/context/UserContext";
 
-interface UserProfile {
+interface Profile {
   id: string;
   username: string | null;
   bio: string | null;
   avatar_url: string | null;
 }
 
-export default function EditProfilePage({ params }: { params: { userId: string } }) {
+export default function EditProfilePage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const router = useRouter();
   const supabase = useSupabase();
+  const { user, loading: userLoading } = useUser();
 
-  // ⭐ CRITICAL FIX: Prevent accidental rendering on /profile/self or /profile/<id>
-  if (params.userId === "self" || params.userId === "edit") {
-    return null;
-  }
-
-  const [sessionReady, setSessionReady] = useState(false);
-  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
-
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // ⭐ Reliable session resolver
+  useEffect(() => setHydrated(true), []);
+
+  // Guard: only owner can edit
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event: string, session: { user: { id: string } } | null) => {
-        setSessionReady(true);
+    if (!hydrated || userLoading) return;
+    if (!user) return;
 
-        if (!session?.user) {
-          router.replace("/login");
-          return;
-        }
+    if (params.id !== user.id) {
+      router.replace(`/profile/${user.id}`);
+    }
+  }, [hydrated, userLoading, user, params.id, router]);
 
-        if (params.userId === "self") {
-          setResolvedUserId(session.user.id);
-        } else {
-          setResolvedUserId(params.userId);
-        }
+  // Load profile
+  useEffect(() => {
+    if (!hydrated || userLoading) return;
+    if (!user) return;
+    if (params.id !== user.id) return;
+
+    (async () => {
+      setLoadingProfile(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, username, bio, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (error || !data) {
+        setError("Failed to load profile.");
+        setLoadingProfile(false);
+        return;
       }
-    );
 
-    return () => authListener.subscription.unsubscribe();
-  }, [params.userId, supabase, router]);
+      const p = data as Profile;
+      setProfile(p);
+      setUsername(p.username ?? "");
+      setBio(p.bio ?? "");
+      setAvatarUrl(p.avatar_url ?? null);
+      setLoadingProfile(false);
+    })();
+  }, [hydrated, userLoading, user, params.id, supabase]);
 
-  // ⭐ Load Profile
-  const loadProfile = useCallback(async () => {
-    if (!resolvedUserId) return;
-
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData?.user) return;
-
-    // Prevent editing another user's profile
-    if (authData.user.id !== resolvedUserId) {
-      router.replace(`/profile/${authData.user.id}/edit`);
-      return;
-    }
-
-    const { data: userData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", resolvedUserId)
-      .maybeSingle();
-
-    if (!userData) return;
-
-    const typed = userData as UserProfile;
-
-    setProfile(typed);
-    setUsername(typed.username || "");
-    setBio(typed.bio || "");
-    setAvatarUrl(typed.avatar_url || null);
-  }, [supabase, resolvedUserId, router]);
-
-  // ⭐ Load after session ready
-  useEffect(() => {
-    if (sessionReady && resolvedUserId) {
-      loadProfile();
-    }
-  }, [sessionReady, resolvedUserId, loadProfile]);
-
-  // ⭐ Avatar Upload
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !resolvedUserId) return;
+    if (!file || !user) return;
 
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${resolvedUserId}.${fileExt}`;
-    const filePath = `${fileName}`;
+    setError(null);
+
+    const filePath = `${user.id}/${Date.now()}-${file.name}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(filePath, file, { upsert: true });
+      .upload(filePath, file, {
+        upsert: true,
+      });
 
     if (uploadError) {
-      console.error("Avatar upload error:", uploadError);
+      setError("Failed to upload avatar.");
       return;
     }
 
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicData } = supabase.storage
       .from("avatars")
       .getPublicUrl(filePath);
 
-    const publicUrl = publicUrlData.publicUrl;
+    if (!publicData?.publicUrl) {
+      setError("Failed to get avatar URL.");
+      return;
+    }
 
-    await supabase.from("users").update({ avatar_url: publicUrl }).eq("id", resolvedUserId);
-
-    setAvatarUrl(publicUrl);
+    setAvatarUrl(publicData.publicUrl);
   }
 
-  // ⭐ Save Profile
-  async function handleSave() {
-    if (!resolvedUserId) return;
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!user) return;
 
     setSaving(true);
+    setError(null);
 
-    await supabase
-      .from("users")
+    const { error: updateError } = await supabase
+      .from("profiles")
       .update({
-        username,
-        bio,
+        username: username.trim() || null,
+        bio: bio.trim() || null,
+        avatar_url: avatarUrl,
       })
-      .eq("id", resolvedUserId);
+      .eq("id", user.id);
 
     setSaving(false);
-    router.push(`/profile/${resolvedUserId}`);
+
+    if (updateError) {
+      setError("Failed to save profile.");
+      return;
+    }
+
+    router.push(`/profile/${user.id}`);
   }
 
-  // ⭐ Loading state
-  if (!sessionReady || !resolvedUserId || !profile) {
+  if (!hydrated || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile...</p>
+        <p className="text-zinc-400 text-sm">Loading profile editor…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Please log in to edit your profile.</p>
+      </div>
+    );
+  }
+
+  if (loadingProfile || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading your profile…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-6">Edit Profile</h1>
+    <div className="min-h-screen bg-black text-gray-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900/80 p-6 shadow-lg">
+        <h1 className="text-xl font-semibold text-purple-200 mb-4">
+          Edit Profile
+        </h1>
 
-        {/* Avatar */}
-        <div className="flex items-center gap-4 mb-6">
-          <img
-            src={avatarUrl || "/default-avatar.png"}
-            alt="avatar"
-            className="w-20 h-20 rounded-full object-cover bg-zinc-800"
-          />
+        {error && (
+          <p className="mb-3 text-sm text-red-400">
+            {error}
+          </p>
+        )}
 
-          <label className="cursor-pointer text-purple-400 hover:text-purple-300 text-sm">
-            Change Avatar
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Avatar */}
+          <div className="flex items-center gap-4">
+            <div className="plaza-avatar border border-gray-700 overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                  No avatar
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">
+                Change avatar
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="text-xs text-gray-300"
+              />
+            </div>
+          </div>
+
+          {/* Username */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              Username
+            </label>
             <input
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarUpload}
-              className="hidden"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              placeholder="Your display name"
             />
-          </label>
-        </div>
+          </div>
 
-        {/* Username */}
-        <div className="mb-4">
-          <label className="block text-sm text-zinc-400 mb-1">Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
-          />
-        </div>
+          {/* Bio */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              Bio
+            </label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[80px]"
+              placeholder="Tell the Plaza who you are…"
+            />
+          </div>
 
-        {/* Bio */}
-        <div className="mb-6">
-          <label className="block text-sm text-zinc-400 mb-1">Bio</label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white h-24"
-          />
-        </div>
-
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full bg-purple-600 hover:bg-purple-500 py-2 rounded text-sm disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => router.push(`/profile/${user.id}`)}
+              className="px-3 py-2 text-xs rounded-md border border-neutral-700 text-gray-300 hover:bg-neutral-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-xs rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
