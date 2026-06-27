@@ -12,12 +12,49 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
   const supabase = useSupabase();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ⭐ Prevent hydration freeze
+  // Hydration-safe
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
   const [preview, setPreview] = useState<string | null>(currentAvatar);
   const [uploading, setUploading] = useState(false);
+
+  // ⭐ Resize + compress to 256x256
+  const resizeImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 256;
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject("Canvas error");
+
+        // Draw image centered & cover
+        const ratio = Math.max(size / img.width, size / img.height);
+        const newWidth = img.width * ratio;
+        const newHeight = img.height * ratio;
+        const offsetX = (size - newWidth) / 2;
+        const offsetY = (size - newHeight) / 2;
+
+        ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject("Compression failed");
+            resolve(blob);
+          },
+          "image/jpeg",
+          0.85 // compression quality
+        );
+      };
+
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -26,14 +63,17 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
     setUploading(true);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${userId}-${Date.now()}.${fileExt}`;
+      // ⭐ Resize + compress
+      const resizedBlob = await resizeImage(file);
 
-      // Upload to Supabase Storage
+      const filePath = `${userId}-${Date.now()}.jpg`;
+
+      // Upload resized image
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, {
+        .upload(filePath, resizedBlob, {
           upsert: true,
+          contentType: "image/jpeg",
         });
 
       if (uploadError) {
@@ -69,9 +109,7 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
   };
 
   if (!hydrated) {
-    return (
-      <div className="w-full h-full bg-neutral-800 animate-pulse rounded-full" />
-    );
+    return <div className="w-full h-full bg-neutral-800 animate-pulse rounded-full" />;
   }
 
   return (
