@@ -20,7 +20,6 @@
 /* 3. AURA ENGINE — ACTIVE                                      */
 /* ------------------------------------------------------------ */
 
-/* Aura color map (mask-based) */
 .aura-mask-1 { --aura-color: #7C3AED; }
 .aura-mask-2 { --aura-color: #DC2626; }
 .aura-mask-3 { --aura-color: #22C55E; }
@@ -28,14 +27,12 @@
 .aura-mask-5 { --aura-color: #3B82F6; }
 .aura-mask-6 { --aura-color: #F97316; }
 
-/* Aura intensity levels */
 .aura-intensity-0 { animation: none; }
 .aura-intensity-1 { animation: aura-breathe 3s ease-in-out infinite; }
 .aura-intensity-2 { animation: aura-breathe 2.4s ease-in-out infinite; }
 .aura-intensity-3 { animation: aura-pulse 2s ease-in-out infinite; }
 .aura-intensity-4 { animation: aura-pulse 1.6s ease-in-out infinite; }
 
-/* Aura border glow scaling */
 .aura-intensity-0 .plaza-card-base {
   box-shadow:
     0 0 6px var(--aura-color, rgba(255,255,255,0.15)),
@@ -66,7 +63,6 @@
     inset 0 0 10px rgba(255,255,255,0.1);
 }
 
-/* Aura animations */
 @keyframes aura-breathe {
   0%   { box-shadow: 0 0 8px var(--aura-color); }
   50%  { box-shadow: 0 0 16px var(--aura-color); }
@@ -91,7 +87,6 @@
   backdrop-filter: blur(4px);
 }
 
-/* Clean variant */
 .plaza-card-base.clean {
   border: 1.5px solid rgba(255,255,255,0.15);
   backdrop-filter: blur(6px);
@@ -102,7 +97,7 @@
 }
 
 /* ------------------------------------------------------------ */
-/* 5. PLAZA BACKGROUND (Option B — Purple Top)                  */
+/* 5. PLAZA BACKGROUND                                          */
 /* ------------------------------------------------------------ */
 
 .plaza-background {
@@ -152,18 +147,8 @@
   50% { transform: translateY(-12px); }
 }
 
-/* Clean glyph variant */
-.emoji-glyph.clean {
-  font-size: 3.2rem;
-  filter:
-    drop-shadow(0 0 8px rgba(255, 0, 80, 0.45))
-    drop-shadow(0 0 14px rgba(140, 0, 255, 0.35))
-    drop-shadow(0 0 20px rgba(255, 0, 80, 0.25));
-  animation: d4-levitate 2.8s ease-in-out infinite;
-}
-
 /* ------------------------------------------------------------ */
-/* 7. FLOATING COMPOSER — POLISH                                */
+/* 7. FLOATING COMPOSER                                         */
 /* ------------------------------------------------------------ */
 
 .floating-composer-container {
@@ -173,7 +158,7 @@
   box-shadow:
     0 0 12px rgba(140, 0, 255, 0.35),
     inset 0 0 6px rgba(255, 255, 255, 0.08) !important;
-  position: relative; /* ⭐ Sidebar invisibility fix */
+  position: relative;
 }
 
 .floating-composer-textarea {
@@ -232,7 +217,7 @@
 }
 
 /* ------------------------------------------------------------ */
-/* 10. GLOBAL DARK THEME (G1)                                   */
+/* 10. GLOBAL DARK THEME                                        */
 /* ------------------------------------------------------------ */
 
 html, body {
@@ -242,17 +227,6 @@ html, body {
 
 * {
   color-scheme: dark;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* FIX: Restore pointer events */
@@ -265,10 +239,10 @@ img {
   height: auto;
 }
 
-/* Plaza avatar override — ROYAL size (48px) */
+/* Plaza avatar override */
 .plaza-avatar {
-  width: 3rem !important;      /* w-12 = 48px */
-  height: 3rem !important;     /* h-12 = 48px */
+  width: 3rem !important;
+  height: 3rem !important;
   max-width: none !important;
   max-height: none !important;
   flex-shrink: 0 !important;
@@ -276,26 +250,10 @@ img {
   border-radius: 9999px !important;
 }
 
-/* Force portal modals to escape all stacking contexts */
-#modal-root,
-.portal-modal {
-  position: fixed !important;
-  z-index: 999999 !important;
-  pointer-events: auto !important;
-}
+/* ------------------------------------------------------------ */
+/* 11. FINAL MODAL OVERRIDES — CLEAN + CORRECT                  */
+/* ------------------------------------------------------------ */
 
-#modal-root {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 2147483647 !important; /* max 32-bit int */
-  pointer-events: none !important;
-}
-
-#modal-root > * {
-  pointer-events: auto !important;
-}
-
-/* Force modal to escape all transforms, filters, and isolation contexts */
 #modal-root {
   position: fixed !important;
   inset: 0 !important;
