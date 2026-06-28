@@ -131,12 +131,14 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
+  // ⭐ FIXED — unified reactions table + post_type filter
   async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
     const postIds = rawPosts.map((p) => p.id);
 
     const { data: reactionsData } = await supabase
-      .from("sound_reactions")
+      .from("reactions")
       .select("post_id, maskTier, value")
+      .eq("post_type", "sound")
       .in("post_id", postIds);
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
@@ -173,7 +175,7 @@ export default function SoundSquareFeed() {
         id: post.id,
         title: post.title,
         audio_url: post.audio_url,
-        creator_id: post.creator_id,               // ⭐ FIXED
+        creator_id: post.creator_id,
         creator_name: post.users?.username ?? "Unknown",
         created_at: post.created_at,
 

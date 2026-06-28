@@ -20,6 +20,7 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
 
   const [intensity, setIntensity] = useState(0);
 
+  // AUDIO INTENSITY VISUALIZER
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -55,6 +56,7 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     };
   }, []);
 
+  // WAVEFORM VISUALIZER
   useEffect(() => {
     if (!canvasRef.current || !audioRef.current) return;
 
@@ -125,11 +127,13 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
     };
   }, []);
 
+  // ⭐ REFRESH REACTIONS — FIXED (post_type = "sound")
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
       .select("maskTier, value")
-      .eq("post_id", post.id);
+      .eq("post_id", post.id)
+      .eq("post_type", "sound");
 
     const newCounts: ReactionCounts = {
       mask1: 0,
