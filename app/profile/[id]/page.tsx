@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import ProfileClient from "@/components/ProfileClient";
+import TopBar from "@/components/navigation/TopBar";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,10 +39,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   }
 
   // Compute SpiritScore = sum of all post.spirit_score
-  const spirit_score = profileRaw.posts?.reduce(
-    (sum: number, p: any) => sum + (p.spirit_score ?? 0),
-    0
-  ) ?? 0;
+  const spirit_score =
+    profileRaw.posts?.reduce(
+      (sum: number, p: any) => sum + (p.spirit_score ?? 0),
+      0
+    ) ?? 0;
 
   // Compute positivity = average of all post.positivity_ratio
   const positivity_ratio =
@@ -50,7 +52,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           (sum: number, p: any) => sum + (p.positivity_ratio ?? 0),
           0
         ) / profileRaw.posts.length
-      : 0.5; // default baseline
+      : 0.5;
 
   // Normalize follower/following counts
   const profile = {
@@ -77,9 +79,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     .order("created_at", { ascending: false });
 
   return (
-    <ProfileClient
-      profile={profile}
-      posts={posts || []}
-    />
+    <div className="min-h-screen text-white p-6">
+      {/* ⭐ TopBar goes HERE */}
+      <TopBar />
+
+      <ProfileClient
+        profile={profile}
+        posts={posts || []}
+      />
+    </div>
   );
 }

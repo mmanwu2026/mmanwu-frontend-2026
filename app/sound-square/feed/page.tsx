@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
+import TopBar from "@/components/navigation/TopBar";
 import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
 
 type ReactionCounts = {
@@ -189,6 +190,7 @@ export default function SoundSquareFeed() {
 
   return (
     <div className="min-h-screen text-white p-6">
+      <TopBar />
       <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
 
       {loading && <p>Loading sounds...</p>}
