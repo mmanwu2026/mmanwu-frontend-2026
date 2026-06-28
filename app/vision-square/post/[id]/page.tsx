@@ -84,6 +84,13 @@ export default function VisionPostPage() {
         )}
       </div>
 
+      {/* ⭐ TITLE HEADER */}
+      {post.title && (
+        <h1 className="text-3xl font-bold mb-6 text-purple-200">
+          {post.title}
+        </h1>
+      )}
+
       {/* Main post card */}
       <VisionCard post={post} />
 

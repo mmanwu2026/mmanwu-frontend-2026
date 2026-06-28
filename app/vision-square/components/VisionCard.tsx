@@ -41,7 +41,12 @@ export default function VisionCard({ post }: { post: any }) {
   return (
     <div className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg">
 
-      <h2 className="text-xl font-semibold mb-3">{post.title}</h2>
+      {/* ⭐ TITLE (conditionally rendered + Plaza styling) */}
+      {post.title && (
+        <h2 className="text-xl font-semibold mb-3 text-purple-200">
+          {post.title}
+        </h2>
+      )}
 
       <div className="mb-4">
         {isVideo ? (

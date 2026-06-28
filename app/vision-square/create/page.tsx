@@ -132,10 +132,9 @@ export default function VisionSquareUpload() {
       title,
       media_url: publicUrl,
       creator_id: user.id,
-      post_type: "vision",
       spirit_score: 0,
       positivity_ratio: 0.5,
-      automask: 3,
+      automask: 2, // ⭐ match SoundSquare + Plaza defaults
     });
 
     if (dbError) {
@@ -155,18 +154,35 @@ export default function VisionSquareUpload() {
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
 
-      {/* Back */}
-      <div className="mb-6">
+      {/* Navigation */}
+      <div className="mb-6 flex justify-between items-center">
         <Link
           href="/vision-square/feed"
           className="text-gray-300 hover:text-purple-300 transition font-medium"
         >
           ← Back to VisionSquare
         </Link>
+
+        <Link
+          href="/plaza"
+          className="text-gray-300 hover:text-purple-300 transition font-medium"
+        >
+          Plaza →
+        </Link>
+
+        {user && (
+          <Link
+            href={`/profile/${user.id}`}
+            className="text-gray-300 hover:text-purple-300 transition font-medium"
+          >
+            Profile →
+          </Link>
+        )}
       </div>
 
       <h1 className="text-3xl font-bold mb-6">Upload to VisionSquare</h1>
 
+      {/* Title */}
       <input
         type="text"
         placeholder="Title"
@@ -175,6 +191,7 @@ export default function VisionSquareUpload() {
         onChange={(e) => setTitle(e.target.value)}
       />
 
+      {/* Drag & Drop */}
       <div
         ref={dropRef}
         onDrop={handleDrop}

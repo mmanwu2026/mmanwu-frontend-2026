@@ -74,14 +74,6 @@ export default function VisionSquareFeed() {
           ← Plaza
         </Link>
 
-        {/* Back to Profile */}
-        <Link
-          href={`/profile/${user?.id ?? ""}`}
-          className="text-gray-300 hover:text-purple-300 transition"
-        >
-          Profile →
-        </Link>
-
         {/* Upload Vision */}
         <Link
           href="/vision-square/create"
@@ -109,6 +101,14 @@ export default function VisionSquareFeed() {
           You’ve reached the end of Vision Square.
         </p>
       )}
+
+      {/* ⭐ FLOATING COMPOSER */}
+      <Link
+        href="/vision-square/create"
+        className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-full shadow-lg transition"
+      >
+        + Vision Composer
+      </Link>
     </div>
   );
 }
