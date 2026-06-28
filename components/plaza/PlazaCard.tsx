@@ -26,7 +26,7 @@ interface PlazaPost {
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
-  autoMask: number; // camelCase field used everywhere in React
+  autoMask: number;
   reactions: ReactionCounts;
 }
 
@@ -119,7 +119,6 @@ export default function PlazaCard({
     return Math.max(0, Math.min(4, level));
   }
 
-  // GLYPH EMOJI
   const glyphEmoji =
     post.autoMask === 1 ? "😶‍🌫️" :
     post.autoMask === 2 ? "😤" :
