@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import OpenAI from "openai";
 
+// ⭐ Gatekeeper API — SSR Compatible
 export async function POST(req: Request) {
-  // ⭐ FIX: Create client INSIDE handler so it does NOT run at build time
+  // ⭐ FIX: Create OpenAI client inside handler
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
   });

@@ -2,14 +2,18 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
+import Link from "next/link";
 import TopBar from "@/components/navigation/TopBar";
 import ReactionBar from "@/components/plaza/ReactionBar";
-import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
-import Link from "next/link";
+
+// ⭐ NEW — Comments + Share
+import SoundComments from "@/components/sound-square/SoundComments";
+import SoundCommentList from "@/components/sound-square/SoundCommentList";
+import SoundShareButton from "@/components/sound-square/SoundShareButton";
 
 export default function SoundSquarePostDetail({ params }: { params: { id: string } }) {
   const supabase = useSupabase();
-  const [post, setPost] = useState<CardSoundPost | null>(null);
+  const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -20,12 +24,10 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       const { data, error } = await supabase
         .from("sound_posts")
-        .select(
-          `
+        .select(`
           *,
           users:creator_id ( username )
-        `
-        )
+        `)
         .eq("id", params.id)
         .single();
 
@@ -37,14 +39,13 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       const raw = data;
 
-      const card: CardSoundPost = {
+      const card = {
         id: raw.id,
         title: raw.title,
         audio_url: raw.audio_url,
         creator_id: raw.creator_id,
         creator_name: raw.users?.username ?? "Unknown",
         created_at: raw.created_at,
-
         reactions: {
           mask1: 0,
           mask2: 0,
@@ -53,7 +54,6 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
           mask5: 0,
           mask6: 0,
         },
-
         spiritScore: raw.spirit_score ?? 0,
         positivityRatio: raw.positivity_ratio ?? 0.5,
         autoMask: raw.automask ?? 2,
@@ -86,20 +86,30 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
     <div className="min-h-screen text-white p-6">
       <TopBar />
 
-      <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
+      {/* Title */}
+      <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
+
+      {/* Creator */}
       <p className="text-gray-400 mb-4">
-  Uploaded by{" "}
-  <Link
-    href={`/profile/${post.creator_id}`}
-    className="text-purple-300 hover:text-purple-400 underline"
-  >
-    {post.creator_name}
-  </Link>
-  {" "}• {post.created_at}
-</p>
+        Uploaded by{" "}
+        <Link
+          href={`/profile/${post.creator_id}`}
+          className="text-purple-300 hover:text-purple-400 underline"
+        >
+          {post.creator_name}
+        </Link>
+        {" "}• {new Date(post.created_at).toLocaleString()}
+      </p>
 
-      <audio ref={audioRef} src={post.audio_url} controls className="w-full mb-6" />
+      {/* Audio Player */}
+      <audio
+        ref={audioRef}
+        src={post.audio_url}
+        controls
+        className="w-full mb-6 rounded-lg bg-neutral-900"
+      />
 
+      {/* Reactions */}
       <ReactionBar
         postType="sound"
         postId={post.id}
@@ -110,9 +120,12 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         onReact={() => {}}
       />
 
-      <p className="text-gray-500 mt-6 text-sm">
-        More features coming soon: comments, waveform, share link, creator profile.
-      </p>
+      {/* ⭐ Share Button */}
+      <SoundShareButton postId={post.id} />
+
+      {/* ⭐ Comments */}
+      <SoundComments postId={post.id} onSubmitted={() => {}} />
+      <SoundCommentList postId={post.id} />
     </div>
   );
 }
