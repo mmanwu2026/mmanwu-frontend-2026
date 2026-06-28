@@ -55,6 +55,7 @@ export default function Modal({ children, onClose }: ModalProps) {
         className="
           w-full 
           max-w-2xl 
+          min-w-[90vw] md:min-w-[480px]   /* ⭐ THE REAL FIX */
           bg-[#0d0d0f] 
           border border-white/10 
           shadow-2xl 
@@ -63,7 +64,7 @@ export default function Modal({ children, onClose }: ModalProps) {
           mx-4 
           max-h-[85vh] 
           overflow-y-auto
-          overflow-x-hidden   /* ⭐ THE FIX */
+          overflow-x-hidden              /* ⭐ Prevents avatar glow overflow */
         "
         onClick={(e) => e.stopPropagation()}
       >
