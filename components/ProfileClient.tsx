@@ -81,16 +81,16 @@ export default function ProfileClient({
   const [busy, setBusy] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // ⭐ FIX: compute isOwnProfile only after hydration
-  const isOwnProfile = hydrated && user?.id === profile.id;
+  // ⭐ NEW: Reactions the user has GIVEN
+  const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
-  // Debug
-  console.log("isOwnProfile:", isOwnProfile, "user:", user);
+  const isOwnProfile = hydrated && user?.id === profile.id;
 
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
 
+  // Load follow state
   useEffect(() => {
     let active = true;
 
@@ -125,6 +125,7 @@ export default function ProfileClient({
     };
   }, [supabase, user, userLoading, profile.id, isOwnProfile]);
 
+  // Follow toggle
   async function handleFollowToggle() {
     if (!user || userLoading || isOwnProfile || busy) return;
 
@@ -158,6 +159,7 @@ export default function ProfileClient({
     }
   }
 
+  // Load reactions ON posts
   useEffect(() => {
     async function loadReactions() {
       if (!posts || posts.length === 0) return;
@@ -189,6 +191,38 @@ export default function ProfileClient({
 
     loadReactions();
   }, [posts, supabase]);
+
+  // ⭐ NEW: Load reactions GIVEN by this user
+  useEffect(() => {
+    async function loadGivenReactions() {
+      const { data, error } = await supabase
+        .from("reactions")
+        .select(`
+          id,
+          maskTier,
+          created_at,
+          post_id,
+          posts (
+            id,
+            content,
+            creator_id,
+            profiles (
+              username,
+              display_name,
+              avatar_url
+            )
+          )
+        `)
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setGivenReactions(data);
+      }
+    }
+
+    loadGivenReactions();
+  }, [profile.id, supabase]);
 
   // Hydration gate
   if (!hydrated) {
@@ -316,7 +350,12 @@ export default function ProfileClient({
                   {profile.location ? (
                     <span>{profile.location}</span>
                   ) : (
-                    <span className="text-white/40 italic">Add location</span>
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="text-white/40 italic hover:text-white/70 transition"
+                    >
+                      Add location
+                    </button>
                   )}
                 </div>
 
@@ -332,13 +371,18 @@ export default function ProfileClient({
                       {profile.website_url}
                     </a>
                   ) : (
-                    <span className="text-white/40 italic">Add website</span>
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="text-white/40 italic hover:text-white/70 transition"
+                    >
+                      Add website
+                    </button>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ⭐ FIXED: Edit Profile button ALWAYS binds once user loads */}
+            {/* Edit Profile */}
             {user?.id === profile.id && (
               <button
                 onClick={() => setShowEditModal(true)}
@@ -451,19 +495,49 @@ export default function ProfileClient({
           )}
 
           {activeTab === "reactions" && (
-            <p className="text-white/40 text-center mt-6">No reactions yet…</p>
+            <div className="space-y-4">
+              {givenReactions.length === 0 ? (
+                <p className="text-white/40 text-center mt-6">No reactions yet…</p>
+              ) : (
+                givenReactions.map((r) => (
+                  <div
+                    key={r.id}
+                    className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+                  >
+                    <p className="text-sm text-white/70 mb-2">
+                      You reacted{" "}
+                      <span className="font-semibold text-white">
+                        Mask {r.maskTier}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-semibold">
+                        @{r.posts.profiles.username}
+                      </span>
+                    </p>
+
+                    <p className="text-white/90 mb-2 italic">
+                      “{r.posts.content.slice(0, 120)}…”
+                    </p>
+
+                    <p className="text-xs text-white/40">
+                      {new Date(r.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* ⭐ Move modal OUTSIDE the constrained container */}
-    {showEditModal && (
-      <div className="fixed inset-0 z-[2147483647]">
-        <Modal onClose={() => setShowEditModal(false)}>
-          <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
-        </Modal>
-      </div>
-    )}
-  </>
-);
+      {/* Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-[2147483647]">
+          <Modal onClose={() => setShowEditModal(false)}>
+            <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
+          </Modal>
+        </div>
+      )}
+    </>
+  );
 }
