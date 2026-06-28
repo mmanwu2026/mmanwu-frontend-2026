@@ -3,10 +3,12 @@
 import { useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
+import { useRouter } from "next/navigation";
 
 export default function SoundSquareUpload() {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -111,12 +113,15 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // Insert DB row
+    // ⭐ Insert DB row — corrected
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title,
       audio_url: publicUrl,
       creator_id: user.id,
-      creator_name: user.user_metadata?.full_name || user.email,
+      post_type: "sound", // ⭐ REQUIRED
+      spirit_score: 0,
+      positivity_ratio: 0.5,
+      automask: 3,
     });
 
     if (dbError) {
@@ -129,6 +134,9 @@ export default function SoundSquareUpload() {
     setUploading(false);
     setFile(null);
     setTitle("");
+
+    // ⭐ Redirect to feed
+    router.push("/sound-square/feed");
   }
 
   return (
