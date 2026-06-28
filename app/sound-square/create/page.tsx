@@ -4,7 +4,6 @@ import { useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
-
 import Link from "next/link";
 
 export default function SoundSquareUpload() {
@@ -21,6 +20,18 @@ export default function SoundSquareUpload() {
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
+  // ⭐ NEW — Supabase bucket rules
+  const MAX_FILE_SIZE_MB = 10;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+  const ALLOWED_MIME_TYPES = [
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/ogg",
+    "audio/flac",
+  ];
+
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
@@ -32,27 +43,29 @@ export default function SoundSquareUpload() {
 
     if (!f) return;
 
-    const allowed = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/x-m4a"];
-    if (!allowed.includes(f.type)) {
-      setError("Unsupported audio format.");
+    // ⭐ MIME validation
+    if (!ALLOWED_MIME_TYPES.includes(f.type)) {
+      setError("Unsupported audio format. Allowed: MP3, WAV, OGG, FLAC.");
       return;
     }
 
-    if (f.size > 20 * 1024 * 1024) {
-      setError("File too large. Max 20MB.");
+    // ⭐ File size validation (10MB)
+    if (f.size > MAX_FILE_SIZE_BYTES) {
+      setError(`File too large. Maximum allowed size is ${MAX_FILE_SIZE_MB}MB.`);
       return;
     }
 
     setFile(f);
   }
 
+  // ⭐ Updated to use correct bucket name: sound_files
   async function uploadWithProgress(file: File, path: string) {
     return new Promise<{ publicUrl: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
       xhr.open(
         "POST",
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/sound-audio/${path}`
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/sound_files/${path}`
       );
 
       xhr.setRequestHeader(
@@ -69,7 +82,7 @@ export default function SoundSquareUpload() {
 
       xhr.onload = () => {
         if (xhr.status < 300) {
-          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound-audio/${path}`;
+          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/${path}`;
           resolve({ publicUrl });
         } else {
           reject(new Error(xhr.responseText));
@@ -115,15 +128,15 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // ⭐ Insert DB row — corrected
+    // ⭐ Insert DB row — matches your Sound schema
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title,
       audio_url: publicUrl,
       creator_id: user.id,
       post_type: "sound",
-      spirit_score: 0,
-      positivity_ratio: 0.5,
-      automask: 3,
+      spiritScore: 0,
+      positivityRatio: 0.5,
+      autoMask: 3,
     });
 
     if (dbError) {
@@ -137,14 +150,12 @@ export default function SoundSquareUpload() {
     setFile(null);
     setTitle("");
 
-    // ⭐ Redirect to feed
     router.push("/sound-square/feed");
   }
 
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
 
-      {/* ⭐ Back to SoundSquare */}
       <div className="mb-6">
         <Link
           href="/sound-square/feed"
