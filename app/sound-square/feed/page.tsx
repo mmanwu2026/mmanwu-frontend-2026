@@ -6,6 +6,10 @@ import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
 import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
 
+// ⭐ ADD THIS IMPORT
+import FloatingComposer from "@/components/sound-square/FloatingComposer";
+import FeedToggle from "@/components/sound-square/FeedToggle";
+
 type ReactionCounts = {
   mask1: number;
   mask2: number;
@@ -189,29 +193,35 @@ export default function SoundSquareFeed() {
   }
 
   return (
-    <div className="min-h-screen text-white p-6">
-      <TopBar />
-      <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
+  <div className="min-h-screen text-white p-6">
+    <TopBar />
 
-      {loading && <p>Loading sounds...</p>}
+    {/* ⭐ Trending Toggle */}
+    <FeedToggle />
 
-      <div className="flex flex-col gap-6 mb-6">
-        {posts.map((post) => (
-          <SoundPostCard key={post.id} post={post} />
-        ))}
+    <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
+
+    {loading && <p>Loading sounds...</p>}
+
+    <div className="flex flex-col gap-6 mb-6">
+  {posts.map((post) => (
+    <SoundPostCard key={post.id} post={post} isTrending={false} />
+  ))}
+</div>
+
+    {hasMore && (
+      <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
+        {loadingMore && <p className="text-gray-400">Loading more...</p>}
       </div>
+    )}
 
-      {hasMore && (
-        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
-          {loadingMore && <p className="text-gray-400">Loading more...</p>}
-        </div>
-      )}
+    {!hasMore && (
+      <p className="text-gray-500 text-sm mt-4 text-center">
+        You’ve reached the end of the feed.
+      </p>
+    )}
 
-      {!hasMore && (
-        <p className="text-gray-500 text-sm mt-4 text-center">
-          You’ve reached the end of the feed.
-        </p>
-      )}
-    </div>
-  );
+    <FloatingComposer />
+  </div>
+);
 }

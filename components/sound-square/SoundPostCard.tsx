@@ -6,7 +6,13 @@ import { useUser } from "@/context/UserContext";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
 
-export default function SoundPostCard({ post }: { post: CardSoundPost }) {
+export default function SoundPostCard({
+  post,
+  isTrending = false,   // ⭐ NEW PROP
+}: {
+  post: CardSoundPost;
+  isTrending?: boolean;
+}) {
   const supabase = useSupabase();
   const { user } = useUser();
 
@@ -177,7 +183,18 @@ export default function SoundPostCard({ post }: { post: CardSoundPost }) {
   const scale = 1 + intensity * 0.2;
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+    <div
+      className={`
+        bg-gray-800 p-6 rounded-lg shadow-lg transition-all
+        ${isTrending ? "shadow-[0_0_25px_rgba(168,85,247,0.7)] border border-purple-500 animate-pulse" : ""}
+      `}
+    >
+      {isTrending && (
+        <span className="text-xs bg-purple-600 px-2 py-1 rounded-full mb-2 inline-block">
+          Trending
+        </span>
+      )}
+
       <h2 className="text-xl font-semibold">{post.title}</h2>
       <p className="text-gray-400 text-sm mb-4">
         Uploaded by {post.creator_name} • {post.created_at}
