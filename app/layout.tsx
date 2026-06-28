@@ -11,9 +11,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-black text-white">
         <ProvidersWrapper>
-          <main>{children}</main>
+          {/* ⭐ Remove <main> as a layout box — it was the containing block */}
+          <div className="contents">
+            {children}
+          </div>
 
-          {/* ⭐ Modal root MUST be inside ProvidersWrapper */}
+          {/* ⭐ Modal root stays inside ProvidersWrapper */}
           <div id="modal-root"></div>
         </ProvidersWrapper>
       </body>
