@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import TopBar from "@/components/navigation/TopBar";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
+import Link from "next/link";
 
 export default function SoundSquarePostDetail({ params }: { params: { id: string } }) {
   const supabase = useSupabase();
@@ -87,8 +88,15 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
       <p className="text-gray-400 mb-4">
-        Uploaded by {post.creator_name} • {post.created_at}
-      </p>
+  Uploaded by{" "}
+  <Link
+    href={`/profile/${post.creator_id}`}
+    className="text-purple-300 hover:text-purple-400 underline"
+  >
+    {post.creator_name}
+  </Link>
+  {" "}• {post.created_at}
+</p>
 
       <audio ref={audioRef} src={post.audio_url} controls className="w-full mb-6" />
 

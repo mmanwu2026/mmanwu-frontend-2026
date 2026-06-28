@@ -10,6 +10,9 @@ import AvatarUploader from "@/components/AvatarUploader";
 import Modal from "@/components/ui/Modal";
 import EditProfileForm from "@/components/profile/EditProfileForm";
 
+// ⭐ NEW — Import SoundPostCard
+import SoundPostCard from "@/components/sound-square/SoundPostCard";
+
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
@@ -83,11 +86,57 @@ export default function ProfileClient({
 
   const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
+  // ⭐ NEW — Sound-Square posts state
+  const [soundPosts, setSoundPosts] = useState<any[]>([]);
+
   const isOwnProfile = hydrated && user?.id === profile.id;
 
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
+
+  // ⭐ NEW — Load Sound-Square posts
+  useEffect(() => {
+    async function loadSoundPosts() {
+      const { data, error } = await supabase
+        .from("sound_posts")
+        .select(`
+          *,
+          users:creator_id ( username )
+        `)
+        .eq("creator_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("SoundPosts load error:", error);
+        return;
+      }
+
+      const mapped = (data || []).map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        audio_url: p.audio_url,
+        creator_id: p.creator_id,
+        creator_name: p.users?.username ?? "Unknown",
+        created_at: p.created_at,
+        reactions: {
+          mask1: 0,
+          mask2: 0,
+          mask3: 0,
+          mask4: 0,
+          mask5: 0,
+          mask6: 0,
+        },
+        spiritScore: p.spirit_score ?? 0,
+        positivityRatio: 0.5,
+        autoMask: p.automask ?? 2,
+      }));
+
+      setSoundPosts(mapped);
+    }
+
+    loadSoundPosts();
+  }, [profile.id, supabase]);
 
   // Load follow state
   useEffect(() => {
@@ -190,7 +239,7 @@ export default function ProfileClient({
     loadReactions();
   }, [posts, supabase]);
 
-  // ⭐ Load reactions GIVEN by this user (fixed FK joins)
+  // Load reactions GIVEN by this user
   useEffect(() => {
     async function loadGivenReactions() {
       const { data, error } = await supabase
@@ -407,135 +456,151 @@ export default function ProfileClient({
         </div>
       </div>
 
-      {/* CONTENT BELOW */}
-      <div className="min-h-screen bg-black text-white p-6 space-y-8">
-        {/* Tabs */}
-        <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
-          <button
-            onClick={() => setActiveTab("posts")}
-            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
-          >
-            Posts
-          </button>
+ {/* CONTENT BELOW */}
+<div className="min-h-screen bg-black text-white p-6 space-y-8">
+  {/* Tabs */}
+  <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
+    <button
+      onClick={() => setActiveTab("posts")}
+      className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
+    >
+      Posts
+    </button>
 
-          <button
-            onClick={() => setActiveTab("soundposts")}
-            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
-          >
-            Soundposts
-          </button>
+    <button
+      onClick={() => setActiveTab("soundposts")}
+      className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
+    >
+      Soundposts
+    </button>
 
-          <button
-            onClick={() => setActiveTab("reactions")}
-            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
-          >
-            Reactions
-          </button>
-        </div>
+    <button
+      onClick={() => setActiveTab("reactions")}
+      className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+    >
+      Reactions
+    </button>
+  </div>
 
-        {/* Grid toggle */}
-        {activeTab === "posts" && (
-          <div className="flex justify-end mt-2">
-            <button
-              onClick={() => setGridMode((prev) => !prev)}
-              className="text-xs text-white/60 hover:text-white transition"
+  {/* Grid toggle */}
+  {activeTab === "posts" && (
+    <div className="flex justify-end mt-2">
+      <button
+        onClick={() => setGridMode((prev) => !prev)}
+        className="text-xs text-white/60 hover:text-white transition"
+      >
+        {gridMode ? "List View" : "Grid View"}
+      </button>
+    </div>
+  )}
+
+  {/* Content */}
+  <div className="mt-4">
+    {/* PLAZA POSTS */}
+    {activeTab === "posts" && (
+      <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+        {posts && posts.length > 0 ? (
+          posts.map((post) => (
+            <div
+              key={post.id}
+              className={
+                gridMode
+                  ? "animate-fadeInUp"
+                  : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
+              }
             >
-              {gridMode ? "List View" : "Grid View"}
-            </button>
-          </div>
+              <PostCard
+                post={{
+                  id: post.id,
+                  creator_id: post.creator_id,
+                  content: post.content,
+                  created_at: post.created_at,
+                  spirit_score: post.spirit_score,
+                  autoMask: post.automask ?? 0,
+                }}
+                reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+                positivityRatio={post.positivity_ratio}
+                onReact={() => {}}
+                showDelete={user?.id === profile.id}
+                onDelete={async (postId) => {
+                  await supabase.from("posts").delete().eq("id", postId);
+                  router.refresh();
+                }}
+              />
+            </div>
+          ))
+        ) : (
+          <p className="text-white/40 text-center">No posts yet…</p>
         )}
-
-        {/* Content */}
-        <div className="mt-4">
-          {activeTab === "posts" && (
-            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-              {posts && posts.length > 0 ? (
-                posts.map((post) => (
-                  <div
-                    key={post.id}
-                    className={
-                      gridMode
-                        ? "animate-fadeInUp"
-                        : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
-                    }
-                  >
-                    <PostCard
-                      post={{
-                        id: post.id,
-                        creator_id: post.creator_id,
-                        content: post.content,
-                        created_at: post.created_at,
-                        spirit_score: post.spirit_score,
-                        autoMask: post.automask ?? 0,
-                      }}
-                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
-                      positivityRatio={post.positivity_ratio}
-                      onReact={() => {}}
-                      showDelete={user?.id === profile.id}
-                      onDelete={async (postId) => {
-                        await supabase.from("posts").delete().eq("id", postId);
-                        router.refresh();
-                      }}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-white/40 text-center">No posts yet…</p>
-              )}
-            </div>
-          )}
-
-          {activeTab === "soundposts" && (
-            <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
-          )}
-
-          {activeTab === "reactions" && (
-            <div className="space-y-4">
-              {givenReactions.length === 0 ? (
-                <p className="text-white/40 text-center mt-6">No reactions yet…</p>
-              ) : (
-                givenReactions.map((r) => (
-                  <div
-                    key={r.id}
-                    className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-                  >
-                    <p className="text-sm text-white/70 mb-2">
-                      You reacted{" "}
-                      <span className="font-semibold text-white">
-                        Mask {r.maskTier}
-                      </span>{" "}
-                      to{" "}
-                      <span className="font-semibold">
-                        @{r.posts.profiles.username}
-                      </span>
-                    </p>
-
-                    <p className="text-white/90 mb-2 italic">
-                      “{r.posts.content.slice(0, 120)}…”
-                    </p>
-
-                    <p className="text-xs text-white/40">
-                      {new Date(r.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
       </div>
+    )}
 
-      {/* Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-[2147483647]">
-          <Modal onClose={() => setShowEditModal(false)}>
-            <EditProfileForm
-              profile={profile}
-              onClose={() => setShowEditModal(false)}
+    {/* ⭐ SOUND-SQUARE POSTS — PATCHED */}
+    {activeTab === "soundposts" && (
+      <div className="space-y-6">
+        {soundPosts && soundPosts.length > 0 ? (
+          soundPosts.map((post) => (
+            <SoundPostCard
+              key={post.id}
+              post={post}
+              isTrending={false}   // no glow inside profile
             />
-          </Modal>
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
+        )}
+      </div>
+    )}
+
+    {/* REACTIONS */}
+    {activeTab === "reactions" && (
+      <div className="space-y-4">
+        {givenReactions.length === 0 ? (
+          <p className="text-white/40 text-center mt-6">No reactions yet…</p>
+        ) : (
+          givenReactions.map((r) => (
+            <div
+              key={r.id}
+              className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+            >
+              <p className="text-sm text-white/70 mb-2">
+                You reacted{" "}
+                <span className="font-semibold text-white">
+                  Mask {r.maskTier}
+                </span>{" "}
+                to{" "}
+                <span className="font-semibold">
+                  @{r.posts.profiles.username}
+                </span>
+              </p>
+
+              <p className="text-white/90 mb-2 italic">
+                “{r.posts.content.slice(0, 120)}…”
+              </p>
+
+              <p className="text-xs text-white/40">
+                {new Date(r.created_at).toLocaleString()}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    )}
+  </div>
+</div>
+
+{/* Modal */}
+{showEditModal && (
+  <div className="fixed inset-0 z-[2147483647]">
+    <Modal onClose={() => setShowEditModal(false)}>
+      <EditProfileForm
+        profile={profile}
+        onClose={() => setShowEditModal(false)}
+      />
+    </Modal>
+  </div>
+)}
+
     </>
   );
 }

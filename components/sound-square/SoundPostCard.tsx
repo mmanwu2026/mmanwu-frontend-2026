@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
+import Link from "next/link"
 
 export default function SoundPostCard({
   post,
@@ -197,8 +198,15 @@ export default function SoundPostCard({
 
       <h2 className="text-xl font-semibold">{post.title}</h2>
       <p className="text-gray-400 text-sm mb-4">
-        Uploaded by {post.creator_name} • {post.created_at}
-      </p>
+  Uploaded by{" "}
+  <Link
+    href={`/profile/${post.creator_id}`}
+    className="text-purple-300 hover:text-purple-400 underline"
+  >
+    {post.creator_name}
+  </Link>
+  {" "}• {post.created_at}
+</p>
 
       <audio ref={audioRef} src={post.audio_url} preload="metadata" />
 
