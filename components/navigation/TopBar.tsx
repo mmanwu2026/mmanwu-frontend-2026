@@ -13,7 +13,7 @@ export default function TopBar() {
     <div className="w-full flex items-center justify-between mb-6 px-2">
       {/* Back to Plaza */}
       <Link
-        href="/plaza/feed"
+        href="/plaza/feed"   // ⭐ Correct route based on your real URL
         className="text-gray-300 hover:text-purple-300 transition font-medium"
       >
         ← Back to Plaza
@@ -33,9 +33,7 @@ export default function TopBar() {
       )}
 
       {isProfile && (
-        <div className="text-gray-500 text-sm">
-          {/* Profile has no right-side action for now */}
-        </div>
+        <div className="text-gray-500 text-sm"></div>
       )}
     </div>
   );
