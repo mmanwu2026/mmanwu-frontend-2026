@@ -44,8 +44,8 @@ type Profile = {
   verified?: boolean;
   location?: string | null;
   website_url?: string | null;
-  followers_count?: number;
-  following_count?: number;
+  followers_count: number;
+  following_count: number;
 };
 
 type Post = {
@@ -76,12 +76,11 @@ export default function ProfileClient({
   const [gridMode, setGridMode] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
-  const [followersCount, setFollowersCount] = useState(profile.followers_count ?? 0);
-  const [followingCount, setFollowingCount] = useState(profile.following_count ?? 0);
+  const [followersCount, setFollowersCount] = useState(profile.followers_count);
+  const [followingCount, setFollowingCount] = useState(profile.following_count);
   const [busy, setBusy] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // ⭐ NEW: Reactions the user has GIVEN
   const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
   const isOwnProfile = hydrated && user?.id === profile.id;
@@ -89,30 +88,6 @@ export default function ProfileClient({
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
-
-  useEffect(() => {
-  async function testBrowserClient() {
-    console.log("🔍 Testing browser Supabase client…");
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id")
-      .limit(1);
-
-    console.log("🔍 Browser test result:", { data, error });
-  }
-
-  testBrowserClient();
-}, []);
-
-// 🔍 ENV DEBUGGER — runs only in the browser
-useEffect(() => {
-  console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log(
-    "SUPABASE KEY:",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10)
-  );
-}, []);
 
   // Load follow state
   useEffect(() => {
@@ -129,7 +104,6 @@ useEffect(() => {
         .select("id")
         .eq("follower_id", user.id)
         .eq("following_id", profile.id)
-        .limit(1)
         .maybeSingle();
 
       if (!active) return;
@@ -216,7 +190,7 @@ useEffect(() => {
     loadReactions();
   }, [posts, supabase]);
 
-  // ⭐ NEW: Load reactions GIVEN by this user
+  // ⭐ Load reactions GIVEN by this user (fixed FK joins)
   useEffect(() => {
     async function loadGivenReactions() {
       const { data, error } = await supabase
@@ -226,11 +200,11 @@ useEffect(() => {
           maskTier,
           created_at,
           post_id,
-          posts (
+          posts:posts!reactions_post_id_fkey (
             id,
             content,
             creator_id,
-            profiles (
+            profiles:profiles!posts_creator_id_fkey (
               username,
               display_name,
               avatar_url
@@ -248,7 +222,6 @@ useEffect(() => {
     loadGivenReactions();
   }, [profile.id, supabase]);
 
-  // Hydration gate
   if (!hydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -257,7 +230,6 @@ useEffect(() => {
     );
   }
 
-  // User still loading
   if (userLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -266,7 +238,6 @@ useEffect(() => {
     );
   }
 
-  // User not logged in
   if (!user && !userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -353,7 +324,7 @@ useEffect(() => {
 
               <div>
                 <p className="text-lg font-semibold">
-                  {Math.round(profile.positivity_ratio)}%
+                  {Math.round(profile.positivity_ratio * 100)}%
                 </p>
                 <p className="text-xs text-white/60">Positivity</p>
               </div>
@@ -558,7 +529,10 @@ useEffect(() => {
       {showEditModal && (
         <div className="fixed inset-0 z-[2147483647]">
           <Modal onClose={() => setShowEditModal(false)}>
-            <EditProfileForm profile={profile} onClose={() => setShowEditModal(false)} />
+            <EditProfileForm
+              profile={profile}
+              onClose={() => setShowEditModal(false)}
+            />
           </Modal>
         </div>
       )}
