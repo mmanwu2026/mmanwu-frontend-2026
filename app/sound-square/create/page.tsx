@@ -20,7 +20,6 @@ export default function SoundSquareUpload() {
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
-  // ⭐ NEW — Supabase bucket rules
   const MAX_FILE_SIZE_MB = 10;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -43,13 +42,11 @@ export default function SoundSquareUpload() {
 
     if (!f) return;
 
-    // ⭐ MIME validation
     if (!ALLOWED_MIME_TYPES.includes(f.type)) {
       setError("Unsupported audio format. Allowed: MP3, WAV, OGG, FLAC.");
       return;
     }
 
-    // ⭐ File size validation (10MB)
     if (f.size > MAX_FILE_SIZE_BYTES) {
       setError(`File too large. Maximum allowed size is ${MAX_FILE_SIZE_MB}MB.`);
       return;
@@ -58,9 +55,16 @@ export default function SoundSquareUpload() {
     setFile(f);
   }
 
-  // ⭐ Updated to use correct bucket name: sound_files
   async function uploadWithProgress(file: File, path: string) {
-    return new Promise<{ publicUrl: string }>((resolve, reject) => {
+    return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      if (!token) {
+        reject(new Error("Authentication error. Please log in again."));
+        return;
+      }
+
       const xhr = new XMLHttpRequest();
 
       xhr.open(
@@ -68,10 +72,7 @@ export default function SoundSquareUpload() {
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/sound_files/${path}`
       );
 
-      xhr.setRequestHeader(
-        "Authorization",
-        `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-      );
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
       xhr.upload.onprogress = (e: ProgressEvent) => {
         if (e.lengthComputable) {
@@ -115,7 +116,7 @@ export default function SoundSquareUpload() {
     setError("");
 
     const fileExt = file.name.split(".").pop();
-    const filePath = `sounds/${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
@@ -128,15 +129,14 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // ⭐ Insert DB row — matches your Sound schema
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title,
       audio_url: publicUrl,
       creator_id: user.id,
       post_type: "sound",
-      spiritScore: 0,
-      positivityRatio: 0.5,
-      autoMask: 3,
+      spirit_score: 0,
+      positivity_ratio: 0.5,
+      automask: 3,
     });
 
     if (dbError) {

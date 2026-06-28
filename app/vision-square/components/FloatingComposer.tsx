@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
@@ -49,7 +49,15 @@ export default function FloatingComposerVision() {
   }
 
   async function uploadWithProgress(file: File, path: string) {
-    return new Promise<{ publicUrl: string }>((resolve, reject) => {
+    return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      if (!token) {
+        reject(new Error("Authentication error. Please log in again."));
+        return;
+      }
+
       const xhr = new XMLHttpRequest();
 
       xhr.open(
@@ -57,10 +65,7 @@ export default function FloatingComposerVision() {
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
       );
 
-      xhr.setRequestHeader(
-        "Authorization",
-        `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-      );
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
       xhr.upload.onprogress = (e: ProgressEvent) => {
         if (e.lengthComputable) {
@@ -104,7 +109,7 @@ export default function FloatingComposerVision() {
     setError("");
 
     const fileExt = file.name.split(".").pop();
-    const filePath = `vision/${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
@@ -145,7 +150,6 @@ export default function FloatingComposerVision() {
         open ? "h-48" : "h-12"
       }`}
     >
-      {/* Toggle */}
       <div
         className="w-full text-center py-2 cursor-pointer text-gray-300 hover:text-purple-300"
         onClick={() => setOpen(!open)}
@@ -156,7 +160,6 @@ export default function FloatingComposerVision() {
       {open && (
         <div className="px-4 pb-4">
 
-          {/* Title */}
           <input
             type="text"
             placeholder="Title"
@@ -165,7 +168,6 @@ export default function FloatingComposerVision() {
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          {/* File Input */}
           <input
             type="file"
             accept="image/*,video/*"
@@ -179,7 +181,6 @@ export default function FloatingComposerVision() {
 
           {error && <p className="text-red-400 mb-2">{error}</p>}
 
-          {/* Progress */}
           {uploading && (
             <div className="w-full bg-gray-700 rounded h-3 mb-3">
               <div
@@ -189,7 +190,6 @@ export default function FloatingComposerVision() {
             </div>
           )}
 
-          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={uploading}

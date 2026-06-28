@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
+import Link from "next/link";
 
 export default function VisionCard({ post }: { post: any }) {
   const supabase = useSupabase();
@@ -65,7 +66,7 @@ export default function VisionCard({ post }: { post: any }) {
     const { data, error } = await supabase.rpc("apply_reaction", {
       post_id: post.id,
       post_type: "vision",
-      masktier: maskTier,
+      maskTier: maskTier,
       user_id: user.id,
     });
 
@@ -74,9 +75,9 @@ export default function VisionCard({ post }: { post: any }) {
       return;
     }
 
-    setLocalMask(data.newmask);
-    setLocalSpirit(data.spirit);
-    setLocalPositivity(data.ratio);
+    setLocalMask(data.updated_mask);
+    setLocalSpirit(data.new_spirit);
+    setLocalPositivity(data.new_ratio);
   }
 
   return (
@@ -85,12 +86,29 @@ export default function VisionCard({ post }: { post: any }) {
       data-vision-card
       className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg"
     >
+      {/* Title */}
       {post.title && (
-        <h2 className="text-xl font-semibold mb-3 text-purple-200">
+        <h2 className="text-xl font-semibold mb-2 text-purple-200">
           {post.title}
         </h2>
       )}
 
+      {/* ⭐ Hashtags */}
+      {post.tags?.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-3">
+          {post.tags.map((tag: string) => (
+            <Link
+              key={tag}
+              href={`/vision-square/search?tag=${tag}`}
+              className="text-purple-300 text-sm hover:text-purple-400 transition"
+            >
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Media */}
       <div className="mb-4 relative">
         {isVideo ? (
           <>
@@ -103,7 +121,7 @@ export default function VisionCard({ post }: { post: any }) {
               className="rounded-lg w-full"
             />
 
-            {/* Mute / Unmute button */}
+            {/* Mute / Unmute */}
             <button
               onClick={() => setMuted(!muted)}
               className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
@@ -118,12 +136,14 @@ export default function VisionCard({ post }: { post: any }) {
         )}
       </div>
 
+      {/* Emotional Engine */}
       <div className="text-gray-300 mb-2">
         <p>SpiritScore: {localSpirit}</p>
         <p>Positivity: {Math.round(localPositivity * 100)}%</p>
         <p>Mask: {localMask}</p>
       </div>
 
+      {/* Reaction Bar */}
       <div className="flex gap-3 text-xl mt-3">
         <button onClick={() => react(3)}>😊</button>
         <button onClick={() => react(4)}>🤩</button>

@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import SoundSquareUpload from "@/app/sound-square/create/page"; // reuse your existing uploader
+import SoundSquareUpload from "@/app/sound-square/create/page";
 
 export default function FloatingComposer() {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      {/* Floating Upload Button */}
       <button
         onClick={() => setOpen(true)}
         className="
@@ -22,7 +21,6 @@ export default function FloatingComposer() {
         + Upload Sound
       </button>
 
-      {/* Modal */}
       {open && (
         <div
           className="
@@ -40,7 +38,6 @@ export default function FloatingComposer() {
             "
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
             <button
               onClick={() => setOpen(false)}
               className="text-gray-400 hover:text-white mb-4"
@@ -48,7 +45,6 @@ export default function FloatingComposer() {
               Close ✕
             </button>
 
-            {/* Your existing uploader UI */}
             <SoundSquareUpload />
           </div>
         </div>

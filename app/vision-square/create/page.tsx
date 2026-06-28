@@ -13,6 +13,7 @@ export default function VisionSquareUpload() {
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
+  const [hashtags, setHashtags] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
@@ -20,7 +21,6 @@ export default function VisionSquareUpload() {
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
-  // ⭐ Vision Square limits
   const MAX_FILE_SIZE_MB = 50;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -59,7 +59,15 @@ export default function VisionSquareUpload() {
   }
 
   async function uploadWithProgress(file: File, path: string) {
-    return new Promise<{ publicUrl: string }>((resolve, reject) => {
+    return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      if (!token) {
+        reject(new Error("Authentication error. Please log in again."));
+        return;
+      }
+
       const xhr = new XMLHttpRequest();
 
       xhr.open(
@@ -67,10 +75,7 @@ export default function VisionSquareUpload() {
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
       );
 
-      xhr.setRequestHeader(
-        "Authorization",
-        `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-      );
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
       xhr.upload.onprogress = (e: ProgressEvent) => {
         if (e.lengthComputable) {
@@ -93,6 +98,13 @@ export default function VisionSquareUpload() {
     });
   }
 
+  function parseTags(input: string): string[] {
+    return input
+      .split(/\s+/)
+      .map((tag) => tag.replace("#", "").trim().toLowerCase())
+      .filter((tag) => tag.length > 0);
+  }
+
   async function handleUpload() {
     if (!user) {
       setError("You must be logged in.");
@@ -109,12 +121,14 @@ export default function VisionSquareUpload() {
       return;
     }
 
+    const parsedTags = parseTags(hashtags);
+
     setUploading(true);
     setProgress(0);
     setError("");
 
     const fileExt = file.name.split(".").pop();
-    const filePath = `vision/${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
@@ -127,14 +141,14 @@ export default function VisionSquareUpload() {
       return;
     }
 
-    // ⭐ Insert into Vision table
     const { error: dbError } = await supabase.from("vision_posts").insert({
       title,
       media_url: publicUrl,
       creator_id: user.id,
       spirit_score: 0,
       positivity_ratio: 0.5,
-      automask: 2, // ⭐ match SoundSquare + Plaza defaults
+      automask: 2,
+      tags: parsedTags,
     });
 
     if (dbError) {
@@ -147,6 +161,7 @@ export default function VisionSquareUpload() {
     setUploading(false);
     setFile(null);
     setTitle("");
+    setHashtags("");
 
     router.push("/vision-square/feed");
   }
@@ -182,7 +197,6 @@ export default function VisionSquareUpload() {
 
       <h1 className="text-3xl font-bold mb-6">Upload to VisionSquare</h1>
 
-      {/* Title */}
       <input
         type="text"
         placeholder="Title"
@@ -191,7 +205,14 @@ export default function VisionSquareUpload() {
         onChange={(e) => setTitle(e.target.value)}
       />
 
-      {/* Drag & Drop */}
+      <input
+        type="text"
+        placeholder="#lagos #dance #fashion"
+        className="w-full p-2 rounded bg-gray-700 mb-4"
+        value={hashtags}
+        onChange={(e) => setHashtags(e.target.value)}
+      />
+
       <div
         ref={dropRef}
         onDrop={handleDrop}

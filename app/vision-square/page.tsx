@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TrendingHashtags from "./components/TrendingHashtags";
 
 export default function VisionSquareIndex() {
   return (
@@ -32,6 +33,9 @@ export default function VisionSquareIndex() {
       <p className="text-gray-400 mb-8">
         Explore visual stories, trending videos, and powerful moments shared by the community.
       </p>
+
+      {/* ⭐ Trending Hashtags */}
+      <TrendingHashtags />
 
       {/* Main Links */}
       <div className="space-y-4">
