@@ -90,6 +90,21 @@ export default function ProfileClient({
 
   useEffect(() => setHydrated(true), []);
 
+  useEffect(() => {
+  async function testBrowserClient() {
+    console.log("🔍 Testing browser Supabase client…");
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .limit(1);
+
+    console.log("🔍 Browser test result:", { data, error });
+  }
+
+  testBrowserClient();
+}, []);
+
 // 🔍 ENV DEBUGGER — runs only in the browser
 useEffect(() => {
   console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
