@@ -44,8 +44,8 @@ export default function Modal({ children, onClose }: ModalProps) {
     <div
       className="
         fixed inset-0 
-        bg-black/80 
-        backdrop-blur-[2px] 
+        bg-black/70 
+        backdrop-blur-sm 
         flex items-center justify-center 
         z-[2147483647]
       "
@@ -55,16 +55,19 @@ export default function Modal({ children, onClose }: ModalProps) {
         className="
           w-full 
           max-w-2xl 
-          min-w-[90vw] md:min-w-[480px]   /* ⭐ THE REAL FIX */
-          bg-[#0d0d0f] 
-          border border-white/10 
-          shadow-2xl 
+          min-w-[90vw] md:min-w-[480px]
+
+          bg-gray-100              /* ⭐ Light card background */
+          text-black               /* ⭐ Black text */
+          border border-gray-300   /* ⭐ Clean card border */
+          shadow-xl shadow-black/30 /* ⭐ Soft depth shadow */
           rounded-xl 
           p-6 
-          mx-4 
+
+          mx-4 md:mx-0             /* ⭐ Full width on desktop */
           max-h-[85vh] 
           overflow-y-auto
-          overflow-x-hidden              /* ⭐ Prevents avatar glow overflow */
+          overflow-x-hidden        /* ⭐ Prevents avatar glow overflow */
         "
         onClick={(e) => e.stopPropagation()}
       >
