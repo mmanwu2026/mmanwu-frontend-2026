@@ -5,11 +5,20 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
-import Link from "next/link"
+import Link from "next/link";
+
+const MASK_EMOJI: Record<number, string> = {
+  1: "😶‍🌫️",
+  2: "😤",
+  3: "😊",
+  4: "🤩",
+  5: "😇",
+  6: "🔱",
+};
 
 export default function SoundPostCard({
   post,
-  isTrending = false,   // ⭐ NEW PROP
+  isTrending = false,
 }: {
   post: CardSoundPost;
   isTrending?: boolean;
@@ -24,7 +33,7 @@ export default function SoundPostCard({
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
   const [spiritScore, setSpiritScore] = useState(post.spiritScore);
   const [positivityRatio, setPositivityRatio] = useState(post.positivityRatio);
-
+  const [autoMask, setAutoMask] = useState(post.autoMask);
   const [intensity, setIntensity] = useState(0);
 
   // AUDIO INTENSITY VISUALIZER
@@ -134,7 +143,7 @@ export default function SoundPostCard({
     };
   }, []);
 
-  // ⭐ REFRESH REACTIONS — FIXED (post_type = "sound")
+  // REFRESH REACTIONS — post_type = "sound"
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -152,23 +161,31 @@ export default function SoundPostCard({
     };
 
     let newSpirit = 0;
-    let weightedPositive = 0;
+    let positiveCount = 0;
+    let totalCount = 0;
 
     reactionRows?.forEach((r: { maskTier: number; value: number | null }) => {
       const key = `mask${r.maskTier}` as keyof ReactionCounts;
       newCounts[key] += 1;
       const v = r.value ?? 0;
       newSpirit += v;
-      if (v > 0) weightedPositive += v;
+      totalCount += 1;
+      if (r.maskTier >= 3) positiveCount += 1;
     });
 
-    const weightedTotal = Math.abs(newSpirit);
     const newPositivity =
-      weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      totalCount > 0 ? positiveCount / totalCount : 0.5;
+
+    let newAutoMask = 2;
+    if (newSpirit > 20) newAutoMask = 3;
+    if (newSpirit > 100) newAutoMask = 4;
+    if (newSpirit > 300) newAutoMask = 5;
+    if (newSpirit > 500) newAutoMask = 6;
 
     setReactions(newCounts);
     setSpiritScore(newSpirit);
     setPositivityRatio(newPositivity);
+    setAutoMask(newAutoMask);
   };
 
   function handlePlay() {
@@ -191,22 +208,29 @@ export default function SoundPostCard({
       `}
     >
       {isTrending && (
-        <span className="text-xs bg-purple-600 px-2 py-1 rounded-full mb-2 inline-block">
-          Trending
-        </span>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs bg-purple-600 px-2 py-1 rounded-full">
+            Trending
+          </span>
+          <span className="text-xl">{MASK_EMOJI[autoMask]}</span>
+        </div>
       )}
 
-      <h2 className="text-xl font-semibold">{post.title}</h2>
-      <p className="text-gray-400 text-sm mb-4">
-  Uploaded by{" "}
-  <Link
-    href={`/profile/${post.creator_id}`}
-    className="text-purple-300 hover:text-purple-400 underline"
-  >
-    {post.creator_name}
-  </Link>
-  {" "}• {post.created_at}
-</p>
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex flex-col">
+          <h2 className="text-xl font-semibold">{post.title}</h2>
+          <p className="text-gray-400 text-sm">
+            Uploaded by{" "}
+            <Link
+              href={`/profile/${post.creator_id}`}
+              className="text-purple-300 hover:text-purple-400 underline"
+            >
+              {post.creator_name}
+            </Link>{" "}
+            • {post.created_at}
+          </p>
+        </div>
+      </div>
 
       <audio ref={audioRef} src={post.audio_url} preload="metadata" />
 

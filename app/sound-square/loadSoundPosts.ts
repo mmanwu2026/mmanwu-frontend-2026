@@ -30,20 +30,18 @@ export async function loadSoundPosts(
     .select("id, title, audio_url, creator_id, creator_name, created_at")
     .order("created_at", { ascending: false });
 
-  if (error || !posts) {
-    console.error("loadSoundPosts error:", error);
-    return [];
-  }
+  if (error || !posts) return [];
 
   const ids = posts.map((p) => p.id);
 
-  const { data: reactions } = await supabase
+  const { data: reactionsRows } = await supabase
     .from("reactions")
-    .select("post_id, maskTier, value")
-    .in("post_id", ids);
+    .select('post_id, "maskTier"')
+    .in("post_id", ids)
+    .eq("post_type", "sound");
 
   return posts.map((post) => {
-    const postReactions = (reactions ?? []).filter(
+    const postReactions = (reactionsRows ?? []).filter(
       (r) => r.post_id === post.id
     );
 
@@ -57,30 +55,20 @@ export async function loadSoundPosts(
     };
 
     const spiritScore = postReactions.reduce(
-      (sum, r) => sum + (r.value ?? 0),
+      (sum, r) => sum + r.maskTier,
       0
     );
 
-    const weightedPositive = postReactions
-      .filter((r) => (r.value ?? 0) > 0)
-      .reduce((sum, r) => sum + (r.value ?? 0), 0);
-
-    const weightedTotal = Math.abs(spiritScore);
+    const positiveCount = postReactions.filter((r) => r.maskTier >= 3).length;
+    const totalCount = postReactions.length;
     const positivityRatio =
-      weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      totalCount > 0 ? positiveCount / totalCount : 0.5;
 
-    const autoMask =
-      spiritScore <= -10
-        ? 1
-        : spiritScore <= -3
-        ? 2
-        : spiritScore < 5
-        ? 3
-        : spiritScore < 15
-        ? 4
-        : spiritScore < 40
-        ? 5
-        : 6;
+    let autoMask = 2;
+    if (spiritScore > 20) autoMask = 3;
+    if (spiritScore > 100) autoMask = 4;
+    if (spiritScore > 300) autoMask = 5;
+    if (spiritScore > 500) autoMask = 6;
 
     return {
       id: post.id,

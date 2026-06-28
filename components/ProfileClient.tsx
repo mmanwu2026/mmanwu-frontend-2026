@@ -63,6 +63,19 @@ type Post = {
 
 type ReactionCountsMap = Record<string, typeof EMPTY_REACTIONS>;
 
+type SoundProfilePost = {
+  id: string;
+  title: string;
+  audio_url: string;
+  creator_id: string;
+  creator_name: string;
+  created_at: string;
+  reactions: typeof EMPTY_REACTIONS;
+  spiritScore: number;
+  positivityRatio: number;
+  autoMask: number;
+};
+
 export default function ProfileClient({
   profile,
   posts,
@@ -83,11 +96,10 @@ export default function ProfileClient({
   const [followingCount, setFollowingCount] = useState(profile.following_count);
   const [busy, setBusy] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-
   const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
   // ⭐ NEW — Sound-Square posts state
-  const [soundPosts, setSoundPosts] = useState<any[]>([]);
+  const [soundPosts, setSoundPosts] = useState<SoundProfilePost[]>([]);
 
   const isOwnProfile = hydrated && user?.id === profile.id;
 
@@ -95,14 +107,18 @@ export default function ProfileClient({
 
   useEffect(() => setHydrated(true), []);
 
-  // ⭐ NEW — Load Sound-Square posts
+   // ⭐ Load Sound-Square posts with real emotional engine
   useEffect(() => {
     async function loadSoundPosts() {
       const { data, error } = await supabase
         .from("sound_posts")
         .select(`
-          *,
-          users:creator_id ( username )
+          id,
+          title,
+          audio_url,
+          creator_id,
+          creator_name,
+          created_at
         `)
         .eq("creator_id", profile.id)
         .order("created_at", { ascending: false });
@@ -112,25 +128,64 @@ export default function ProfileClient({
         return;
       }
 
-      const mapped = (data || []).map((p: any) => ({
-        id: p.id,
-        title: p.title,
-        audio_url: p.audio_url,
-        creator_id: p.creator_id,
-        creator_name: p.users?.username ?? "Unknown",
-        created_at: p.created_at,
-        reactions: {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        },
-        spiritScore: p.spirit_score ?? 0,
-        positivityRatio: 0.5,
-        autoMask: p.automask ?? 2,
-      }));
+      // Collect IDs
+      const ids = (data || []).map((p: any) => p.id);
+
+      // Fetch reactions for these sound posts
+      const { data: reactionsRows, error: reactionsError } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .in("post_id", ids)
+        .eq("post_type", "sound");
+
+      if (reactionsError) {
+        console.error("SoundPosts reactions load error:", reactionsError);
+      }
+
+      // Map posts with emotional engine
+      const mapped: SoundProfilePost[] = (data || []).map((p: any) => {
+        const postReactions = (reactionsRows ?? []).filter(
+          (r: any) => r.post_id === p.id
+        );
+
+        const counts = {
+          mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
+          mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
+          mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
+          mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
+          mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
+          mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
+        };
+
+        const spiritScore = postReactions.reduce(
+          (sum: number, r: any) => sum + r.maskTier,
+          0
+        );
+
+        const positiveCount = postReactions.filter((r: any) => r.maskTier >= 3).length;
+        const totalCount = postReactions.length;
+        const positivityRatio =
+          totalCount > 0 ? positiveCount / totalCount : 0.5;
+
+        let autoMask = 2;
+        if (spiritScore > 20) autoMask = 3;
+        if (spiritScore > 100) autoMask = 4;
+        if (spiritScore > 300) autoMask = 5;
+        if (spiritScore > 500) autoMask = 6;
+
+        return {
+          id: p.id,
+          title: p.title ?? "",
+          audio_url: p.audio_url ?? "",
+          creator_id: p.creator_id ?? "",
+          creator_name: p.creator_name ?? "Unknown",
+          created_at: p.created_at ?? "",
+          reactions: counts,
+          spiritScore,
+          positivityRatio,
+          autoMask,
+        };
+      });
 
       setSoundPosts(mapped);
     }
@@ -206,7 +261,7 @@ export default function ProfileClient({
     }
   }
 
-  // Load reactions ON posts
+  // Load reactions ON plaza posts
   useEffect(() => {
     async function loadReactions() {
       if (!posts || posts.length === 0) return;
@@ -217,7 +272,8 @@ export default function ProfileClient({
         .in(
           "post_id",
           posts.map((p) => p.id),
-        );
+        )
+        .eq("post_type", "plaza");
 
       if (error) {
         console.error("Reaction load error:", error);
@@ -456,151 +512,150 @@ export default function ProfileClient({
         </div>
       </div>
 
- {/* CONTENT BELOW */}
-<div className="min-h-screen bg-black text-white p-6 space-y-8">
-  {/* Tabs */}
-  <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
-    <button
-      onClick={() => setActiveTab("posts")}
-      className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
-    >
-      Posts
-    </button>
+      {/* CONTENT BELOW */}
+      <div className="min-h-screen bg-black text-white p-6 space-y-8">
+        {/* Tabs */}
+        <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
+          <button
+            onClick={() => setActiveTab("posts")}
+            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
+          >
+            Posts
+          </button>
 
-    <button
-      onClick={() => setActiveTab("soundposts")}
-      className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
-    >
-      Soundposts
-    </button>
+          <button
+            onClick={() => setActiveTab("soundposts")}
+            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
+          >
+            Soundposts
+          </button>
 
-    <button
-      onClick={() => setActiveTab("reactions")}
-      className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
-    >
-      Reactions
-    </button>
-  </div>
+          <button
+            onClick={() => setActiveTab("reactions")}
+            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+          >
+            Reactions
+          </button>
+        </div>
 
-  {/* Grid toggle */}
-  {activeTab === "posts" && (
-    <div className="flex justify-end mt-2">
-      <button
-        onClick={() => setGridMode((prev) => !prev)}
-        className="text-xs text-white/60 hover:text-white transition"
-      >
-        {gridMode ? "List View" : "Grid View"}
-      </button>
-    </div>
-  )}
-
-  {/* Content */}
-  <div className="mt-4">
-    {/* PLAZA POSTS */}
-    {activeTab === "posts" && (
-      <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-        {posts && posts.length > 0 ? (
-          posts.map((post) => (
-            <div
-              key={post.id}
-              className={
-                gridMode
-                  ? "animate-fadeInUp"
-                  : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
-              }
+        {/* Grid toggle */}
+        {activeTab === "posts" && (
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={() => setGridMode((prev) => !prev)}
+              className="text-xs text-white/60 hover:text-white transition"
             >
-              <PostCard
-                post={{
-                  id: post.id,
-                  creator_id: post.creator_id,
-                  content: post.content,
-                  created_at: post.created_at,
-                  spirit_score: post.spirit_score,
-                  autoMask: post.automask ?? 0,
-                }}
-                reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
-                positivityRatio={post.positivity_ratio}
-                onReact={() => {}}
-                showDelete={user?.id === profile.id}
-                onDelete={async (postId) => {
-                  await supabase.from("posts").delete().eq("id", postId);
-                  router.refresh();
-                }}
-              />
-            </div>
-          ))
-        ) : (
-          <p className="text-white/40 text-center">No posts yet…</p>
+              {gridMode ? "List View" : "Grid View"}
+            </button>
+          </div>
         )}
-      </div>
-    )}
 
-    {/* ⭐ SOUND-SQUARE POSTS — PATCHED */}
-    {activeTab === "soundposts" && (
-      <div className="space-y-6">
-        {soundPosts && soundPosts.length > 0 ? (
-          soundPosts.map((post) => (
-            <SoundPostCard
-              key={post.id}
-              post={post}
-              isTrending={false}   // no glow inside profile
+        {/* Content */}
+        <div className="mt-4">
+          {/* PLAZA POSTS */}
+          {activeTab === "posts" && (
+            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+              {posts && posts.length > 0 ? (
+                posts.map((post) => (
+                  <div
+                    key={post.id}
+                    className={
+                      gridMode
+                        ? "animate-fadeInUp"
+                        : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
+                    }
+                  >
+                    <PostCard
+                      post={{
+                        id: post.id,
+                        creator_id: post.creator_id,
+                        content: post.content,
+                        created_at: post.created_at,
+                        spirit_score: post.spirit_score,
+                        autoMask: post.automask ?? 0,
+                      }}
+                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
+                      positivityRatio={post.positivity_ratio}
+                      onReact={() => {}}
+                      showDelete={user?.id === profile.id}
+                      onDelete={async (postId) => {
+                        await supabase.from("posts").delete().eq("id", postId);
+                        router.refresh();
+                      }}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="text-white/40 text-center">No posts yet…</p>
+              )}
+            </div>
+          )}
+
+          {/* SOUND-SQUARE POSTS */}
+          {activeTab === "soundposts" && (
+            <div className="space-y-6">
+              {soundPosts && soundPosts.length > 0 ? (
+                soundPosts.map((post) => (
+                  <SoundPostCard
+                    key={post.id}
+                    post={post}
+                    isTrending={false}   // ⭐ No glyph inside profile
+                  />
+                ))
+              ) : (
+                <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
+              )}
+            </div>
+          )}
+
+          {/* REACTIONS */}
+          {activeTab === "reactions" && (
+            <div className="space-y-4">
+              {givenReactions.length === 0 ? (
+                <p className="text-white/40 text-center mt-6">No reactions yet…</p>
+              ) : (
+                givenReactions.map((r) => (
+                  <div
+                    key={r.id}
+                    className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+                  >
+                    <p className="text-sm text-white/70 mb-2">
+                      You reacted{" "}
+                      <span className="font-semibold text-white">
+                        Mask {r.maskTier}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-semibold">
+                        @{r.posts.profiles.username}
+                      </span>
+                    </p>
+
+                    <p className="text-white/90 mb-2 italic">
+                      “{r.posts.content.slice(0, 120)}…”
+                    </p>
+
+                    <p className="text-xs text-white/40">
+                      {new Date(r.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-[2147483647]">
+          <Modal onClose={() => setShowEditModal(false)}>
+            <EditProfileForm
+              profile={profile}
+              onClose={() => setShowEditModal(false)}
             />
-          ))
-        ) : (
-          <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
-        )}
-      </div>
-    )}
-
-    {/* REACTIONS */}
-    {activeTab === "reactions" && (
-      <div className="space-y-4">
-        {givenReactions.length === 0 ? (
-          <p className="text-white/40 text-center mt-6">No reactions yet…</p>
-        ) : (
-          givenReactions.map((r) => (
-            <div
-              key={r.id}
-              className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-            >
-              <p className="text-sm text-white/70 mb-2">
-                You reacted{" "}
-                <span className="font-semibold text-white">
-                  Mask {r.maskTier}
-                </span>{" "}
-                to{" "}
-                <span className="font-semibold">
-                  @{r.posts.profiles.username}
-                </span>
-              </p>
-
-              <p className="text-white/90 mb-2 italic">
-                “{r.posts.content.slice(0, 120)}…”
-              </p>
-
-              <p className="text-xs text-white/40">
-                {new Date(r.created_at).toLocaleString()}
-              </p>
-            </div>
-          ))
-        )}
-      </div>
-    )}
-  </div>
-</div>
-
-{/* Modal */}
-{showEditModal && (
-  <div className="fixed inset-0 z-[2147483647]">
-    <Modal onClose={() => setShowEditModal(false)}>
-      <EditProfileForm
-        profile={profile}
-        onClose={() => setShowEditModal(false)}
-      />
-    </Modal>
-  </div>
-)}
-
+          </Modal>
+        </div>
+      )}
     </>
   );
 }
