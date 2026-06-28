@@ -90,6 +90,15 @@ export default function ProfileClient({
 
   useEffect(() => setHydrated(true), []);
 
+// 🔍 ENV DEBUGGER — runs only in the browser
+useEffect(() => {
+  console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log(
+    "SUPABASE KEY:",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10)
+  );
+}, []);
+
   // Load follow state
   useEffect(() => {
     let active = true;
