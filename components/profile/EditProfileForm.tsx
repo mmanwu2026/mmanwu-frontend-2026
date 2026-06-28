@@ -23,10 +23,6 @@ export default function EditProfileForm({ profile, onClose }: EditProfileFormPro
   const supabase = useSupabase();
   const router = useRouter();
 
-  // Debug: confirm Supabase client and profile ID
-  console.log("SUPABASE CLIENT:", supabase);
-  console.log("PROFILE ID:", profile.id);
-
   const [displayName, setDisplayName] = useState(profile.display_name || "");
   const [username, setUsername] = useState(profile.username || "");
   const [bio, setBio] = useState(profile.bio || "");
@@ -57,9 +53,6 @@ export default function EditProfileForm({ profile, onClose }: EditProfileFormPro
         .neq("id", profile.id)
         .limit(1);
 
-      console.log("USERNAME CHECK ERROR:", usernameError);
-      console.log("USERNAME EXISTS:", existing);
-
       if (usernameError) {
         setError("Error checking username. Please try again.");
         setSaving(false);
@@ -82,8 +75,6 @@ export default function EditProfileForm({ profile, onClose }: EditProfileFormPro
           website_url: website.trim() || null,
         })
         .eq("id", profile.id);
-
-      console.log("UPDATE ERROR:", updateError);
 
       if (updateError) {
         setError("Failed to save changes. Please try again.");
@@ -110,11 +101,14 @@ export default function EditProfileForm({ profile, onClose }: EditProfileFormPro
         </button>
       </div>
 
-      {/* Avatar preview only */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="w-24 h-24 rounded-full overflow-hidden border border-white/20 bg-neutral-900 mb-3">
+      {/* ⭐ SAFE AVATAR WRAPPER — prevents modal shrink */}
+      <div className="flex flex-col items-center mb-6 w-full overflow-hidden">
+        <div className="w-24 h-24 rounded-full overflow-hidden border border-white/20 bg-neutral-900 mb-3 shrink-0">
           <img
-            src={profile.avatar_url || "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"}
+            src={
+              profile.avatar_url ||
+              "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"
+            }
             className="w-full h-full object-cover"
           />
         </div>

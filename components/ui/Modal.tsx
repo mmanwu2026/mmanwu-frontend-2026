@@ -12,15 +12,9 @@ export default function Modal({ children, onClose }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
 
-  console.log("🔥 MODAL COMPONENT ACTIVE");
-
   useEffect(() => {
     setMounted(true);
-
     const root = document.getElementById("modal-root");
-    if (!root) {
-      console.error("❌ modal-root NOT FOUND");
-    }
     setModalRoot(root);
   }, []);
 
@@ -69,6 +63,7 @@ export default function Modal({ children, onClose }: ModalProps) {
           mx-4 
           max-h-[85vh] 
           overflow-y-auto
+          overflow-x-hidden   /* ⭐ THE FIX */
         "
         onClick={(e) => e.stopPropagation()}
       >
