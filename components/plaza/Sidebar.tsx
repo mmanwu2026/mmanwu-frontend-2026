@@ -16,10 +16,21 @@ export default function Sidebar() {
       children: [
         { label: "Feed", href: "/sound-square/feed" },
         { label: "Upload Sound", href: "/sound-square/create" },
+        { label: "Trending", href: "/sound-square/trending" },
       ],
     },
 
-    { label: "VisionSquare", href: "/vision", prefetch: false },
+    {
+      label: "VisionSquare",
+      href: "/vision-square/feed",
+      prefetch: false,
+      children: [
+        { label: "Feed", href: "/vision-square/feed" },
+        { label: "Upload Vision", href: "/vision-square/create" },
+        { label: "Trending", href: "/vision-square/trending" },
+      ],
+    },
+
     { label: "SpiritSquare", href: "/spirit", prefetch: false },
     { label: "Shrine", href: "/shrine", prefetch: false },
 
@@ -64,7 +75,7 @@ export default function Sidebar() {
                 {item.label}
               </Link>
 
-              {/* ⭐ Sub-links for SoundSquare only */}
+              {/* ⭐ Sub-links for SoundSquare & VisionSquare */}
               {item.children && active && (
                 <div className="ml-3 flex flex-col space-y-1">
                   {item.children.map((child) => {
