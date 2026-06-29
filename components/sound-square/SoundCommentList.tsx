@@ -5,13 +5,27 @@ import Link from "next/link";
 
 export default function SoundCommentList({ postId }: { postId: string }) {
   const [comments, setComments] = useState<any[]>([]);
+  const [creatorId, setCreatorId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       const res = await fetch(`/api/sound-comments?post_id=${postId}`);
       const data = await res.json();
-      setComments(data.comments || []);
+
+      // Normalize users relationship
+      const normalized = (data.comments || []).map((c: any) => ({
+        ...c,
+        users: Array.isArray(c.users) ? c.users[0] : c.users,
+      }));
+
+      setComments(normalized);
+
+      // Capture creator_id for creator badge
+      if (data.creator_id) {
+        setCreatorId(data.creator_id);
+      }
     }
+
     load();
   }, [postId]);
 
@@ -22,14 +36,49 @@ export default function SoundCommentList({ postId }: { postId: string }) {
   return (
     <div className="mt-8 space-y-4">
       {comments.map((c) => (
-        <div key={c.id} className="border border-white/10 p-4 rounded bg-neutral-900/40">
-          <Link href={`/profile/${c.user_id}`} className="text-purple-300 hover:text-purple-400 underline">
-            @{c.username}
-          </Link>
+        <div
+          key={c.id}
+          className="
+            border border-white/10 p-4 rounded 
+            bg-neutral-900/40 
+            animate-[fadeIn_0.4s_ease-out_forwards] opacity-0
+          "
+        >
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            {c.users?.avatar_url ? (
+              <img
+                src={c.users.avatar_url}
+                alt="avatar"
+                className="w-10 h-10 rounded-full object-cover border border-white/10"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-neutral-700 border border-white/10" />
+            )}
 
-          <p className="mt-2 text-white">{c.content}</p>
+            <div className="flex flex-col">
+              {/* Username */}
+              <Link
+                href={`/profile/${c.user_id}`}
+                className="text-purple-300 hover:text-purple-400 underline"
+              >
+                @{c.users?.username ?? "Unknown"}
+              </Link>
 
-          <p className="text-xs text-white/40 mt-1">
+              {/* Creator badge */}
+              {creatorId && c.user_id === creatorId && (
+                <span className="text-xs text-purple-400">
+                  Creator
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Comment text */}
+          <p className="mt-3 text-white leading-relaxed">{c.final_text}</p>
+
+          {/* Timestamp */}
+          <p className="text-xs text-white/40 mt-2">
             {new Date(c.created_at).toLocaleString()}
           </p>
         </div>

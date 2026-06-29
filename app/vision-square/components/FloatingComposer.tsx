@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
+import SpiritToast from "@/components/SpiritToast";
 
 export default function FloatingComposerVision() {
   const supabase = useSupabase();
@@ -16,6 +17,7 @@ export default function FloatingComposerVision() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const MAX_FILE_SIZE_MB = 50;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -29,6 +31,11 @@ export default function FloatingComposerVision() {
     "video/webm",
     "video/quicktime",
   ];
+
+  function extractTags(text: string): string[] {
+    const matches = text.match(/#(\w+)/g);
+    return matches ? matches.map((t) => t.replace("#", "").toLowerCase()) : [];
+  }
 
   function validateFile(f: File | null) {
     setError("");
@@ -88,6 +95,29 @@ export default function FloatingComposerVision() {
     });
   }
 
+  async function runGatekeeper(text: string) {
+    try {
+      const res = await fetch("/api/gatekeeper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error("Gatekeeper failed");
+
+      return await res.json();
+    } catch (err) {
+      console.error(err);
+      return {
+        rewriteNeeded: false,
+        autoApprove: true,
+        finalText: text,
+        automask: 3,
+        positivityRatio: 0.5,
+      };
+    }
+  }
+
   async function handleSubmit() {
     if (!user) {
       setError("You must be logged in.");
@@ -108,6 +138,19 @@ export default function FloatingComposerVision() {
     setProgress(0);
     setError("");
 
+    const tags = extractTags(title);
+
+    const gate = await runGatekeeper(title.trim());
+
+    if (gate.autoApprove && !gate.rewriteNeeded) {
+      setToastMessage("The spirits approve your vision ✨");
+    }
+
+    const finalTitle = gate.finalText;
+    const automask = gate.automask;
+    const positivity = gate.positivityRatio;
+    const spirit = automask;
+
     const fileExt = file.name.split(".").pop();
     const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
@@ -123,13 +166,13 @@ export default function FloatingComposerVision() {
     }
 
     const { error: dbError } = await supabase.from("vision_posts").insert({
-      title,
+      title: finalTitle,
       media_url: publicUrl,
       creator_id: user.id,
-      post_type: "vision",
-      spirit_score: 0,
-      positivity_ratio: 0.5,
-      automask: 3,
+      spirit_score: spirit,
+      positivity_ratio: positivity,
+      automask,
+      tags,
     });
 
     if (dbError) {
@@ -141,6 +184,7 @@ export default function FloatingComposerVision() {
     setUploading(false);
     setTitle("");
     setFile(null);
+
     router.push("/vision-square/feed");
   }
 
@@ -150,6 +194,10 @@ export default function FloatingComposerVision() {
         open ? "h-48" : "h-12"
       }`}
     >
+      {toastMessage && (
+        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
       <div
         className="w-full text-center py-2 cursor-pointer text-gray-300 hover:text-purple-300"
         onClick={() => setOpen(!open)}

@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SpiritToast from "@/components/SpiritToast";
 
 export default function VisionSquareUpload() {
   const supabase = useSupabase();
@@ -17,7 +18,9 @@ export default function VisionSquareUpload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [rewriteOptions, setRewriteOptions] = useState<string[]>([]);
+  const [showRewriteModal, setShowRewriteModal] = useState(false);
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
@@ -98,11 +101,42 @@ export default function VisionSquareUpload() {
     });
   }
 
-  function parseTags(input: string): string[] {
+  function extractTagsFromTitle(text: string): string[] {
+    const matches = text.match(/#(\w+)/g);
+    return matches ? matches.map((t) => t.replace("#", "").toLowerCase()) : [];
+  }
+
+  function parseHashtagInput(input: string): string[] {
     return input
       .split(/\s+/)
       .map((tag) => tag.replace("#", "").trim().toLowerCase())
       .filter((tag) => tag.length > 0);
+  }
+
+  // ⭐ Corrected Gatekeeper Logic
+  async function runGatekeeper(text: string) {
+    try {
+      const res = await fetch("/api/gatekeeper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error("Gatekeeper failed");
+
+      return await res.json();
+    } catch (err) {
+      console.error("Gatekeeper fallback:", err);
+
+      // ⭐ Neutral fallback — does NOT break Vision Square logic
+      return {
+        rewriteNeeded: false,
+        autoApprove: true,
+        finalText: text,
+        automask: 2,          // neutral baseline
+        positivityRatio: 0.5, // neutral baseline
+      };
+    }
   }
 
   async function handleUpload() {
@@ -121,19 +155,33 @@ export default function VisionSquareUpload() {
       return;
     }
 
-    const parsedTags = parseTags(hashtags);
+    const gate = await runGatekeeper(title.trim());
+
+    if (gate.rewriteNeeded) {
+      setRewriteOptions(gate.rewrites || []);
+      setShowRewriteModal(true);
+      return;
+    }
+
+    await finalizeUpload(gate.finalText, gate.automask, gate.positivityRatio);
+  }
+
+  async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
+    const parsedTitleTags = extractTagsFromTitle(finalTitle);
+    const parsedHashtags = parseHashtagInput(hashtags);
+    const allTags = [...parsedTitleTags, ...parsedHashtags];
 
     setUploading(true);
     setProgress(0);
     setError("");
 
-    const fileExt = file.name.split(".").pop();
-    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+    const fileExt = file!.name.split(".").pop();
+    const filePath = `${user!.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
     try {
-      const result = await uploadWithProgress(file, filePath);
+      const result = await uploadWithProgress(file!, filePath);
       publicUrl = result.publicUrl;
     } catch (err: any) {
       setError(err.message);
@@ -142,13 +190,13 @@ export default function VisionSquareUpload() {
     }
 
     const { error: dbError } = await supabase.from("vision_posts").insert({
-      title,
+      title: finalTitle,
       media_url: publicUrl,
-      creator_id: user.id,
-      spirit_score: 0,
-      positivity_ratio: 0.5,
-      automask: 2,
-      tags: parsedTags,
+      creator_id: user!.id,
+      spirit_score: automask,
+      positivity_ratio: positivity,
+      automask,
+      tags: allTags,
     });
 
     if (dbError) {
@@ -157,7 +205,11 @@ export default function VisionSquareUpload() {
       return;
     }
 
-    setSuccess(true);
+    // ⭐ SpiritToast for positive posts
+    if (positivity >= 0.6) {
+      setToastMessage("The spirits approve your vision ✨");
+    }
+
     setUploading(false);
     setFile(null);
     setTitle("");
@@ -168,6 +220,41 @@ export default function VisionSquareUpload() {
 
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
+
+      {toastMessage && (
+        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
+      {showRewriteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Rewrite Suggested</h2>
+            <p className="text-gray-300 mb-4">
+              The spirits suggest a more uplifting version of your title:
+            </p>
+
+            {rewriteOptions.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setShowRewriteModal(false);
+                  finalizeUpload(opt, 4, 0.8);
+                }}
+                className="block w-full text-left bg-gray-700 hover:bg-gray-600 p-3 rounded mb-2"
+              >
+                {opt}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setShowRewriteModal(false)}
+              className="mt-4 text-gray-400 hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
@@ -244,10 +331,6 @@ export default function VisionSquareUpload() {
             style={{ width: `${progress}%` }}
           />
         </div>
-      )}
-
-      {success && (
-        <p className="text-green-400 mb-4">Upload successful!</p>
       )}
 
       <button

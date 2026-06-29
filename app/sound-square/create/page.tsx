@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SpiritToast from "@/components/SpiritToast";
 
 export default function SoundSquareUpload() {
   const supabase = useSupabase();
@@ -16,7 +17,10 @@ export default function SoundSquareUpload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const [rewriteOptions, setRewriteOptions] = useState<string[]>([]);
+  const [showRewriteModal, setShowRewriteModal] = useState(false);
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
@@ -95,6 +99,29 @@ export default function SoundSquareUpload() {
     });
   }
 
+  async function runGatekeeper(text: string) {
+    try {
+      const res = await fetch("/api/gatekeeper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error("Gatekeeper failed");
+
+      return await res.json();
+    } catch (err) {
+      console.error(err);
+      return {
+        rewriteNeeded: false,
+        autoApprove: true,
+        finalText: text,
+        automask: 3,
+        positivityRatio: 0.5,
+      };
+    }
+  }
+
   async function handleUpload() {
     if (!user) {
       setError("You must be logged in.");
@@ -102,7 +129,7 @@ export default function SoundSquareUpload() {
     }
 
     if (!file) {
-      setError("No file selected.");
+      setError("No audio selected.");
       return;
     }
 
@@ -111,17 +138,29 @@ export default function SoundSquareUpload() {
       return;
     }
 
+    const gate = await runGatekeeper(title.trim());
+
+    if (gate.rewriteNeeded) {
+      setRewriteOptions(gate.rewrites || []);
+      setShowRewriteModal(true);
+      return;
+    }
+
+    await finalizeUpload(gate.finalText, gate.automask, gate.positivityRatio);
+  }
+
+  async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
     setUploading(true);
     setProgress(0);
     setError("");
 
-    const fileExt = file.name.split(".").pop();
-    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+    const fileExt = file!.name.split(".").pop();
+    const filePath = `${user!.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
     try {
-      const result = await uploadWithProgress(file, filePath);
+      const result = await uploadWithProgress(file!, filePath);
       publicUrl = result.publicUrl;
     } catch (err: any) {
       setError(err.message);
@@ -130,13 +169,14 @@ export default function SoundSquareUpload() {
     }
 
     const { error: dbError } = await supabase.from("sound_posts").insert({
-      title,
+      title: finalTitle,
       audio_url: publicUrl,
-      creator_id: user.id,
-      post_type: "sound",
+      creator_id: user!.id,
+
+      // ⭐ Emotional engine baseline
       spirit_score: 0,
       positivity_ratio: 0.5,
-      automask: 3,
+      automask,
     });
 
     if (dbError) {
@@ -145,7 +185,10 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    setSuccess(true);
+    if (positivity >= 0.6) {
+      setToastMessage("The spirits approve your sound ✨");
+    }
+
     setUploading(false);
     setFile(null);
     setTitle("");
@@ -155,6 +198,41 @@ export default function SoundSquareUpload() {
 
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
+
+      {toastMessage && (
+        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
+      {showRewriteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Rewrite Suggested</h2>
+            <p className="text-gray-300 mb-4">
+              The spirits suggest a more uplifting version of your title:
+            </p>
+
+            {rewriteOptions.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setShowRewriteModal(false);
+                  finalizeUpload(opt, 4, 0.8);
+                }}
+                className="block w-full text-left bg-gray-700 hover:bg-gray-600 p-3 rounded mb-2"
+              >
+                {opt}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setShowRewriteModal(false)}
+              className="mt-4 text-gray-400 hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <Link
@@ -206,10 +284,6 @@ export default function SoundSquareUpload() {
             style={{ width: `${progress}%` }}
           />
         </div>
-      )}
-
-      {success && (
-        <p className="text-green-400 mb-4">Upload successful!</p>
       )}
 
       <button

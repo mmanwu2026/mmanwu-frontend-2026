@@ -21,7 +21,13 @@ export default function TrendingHashtags() {
         return;
       }
 
-      setTags(data || []);
+      // Normalize tag casing
+      const normalized = (data || []).map((t: any) => ({
+        tag: t.tag.toLowerCase(),
+        usage_count: t.usage_count,
+      }));
+
+      setTags(normalized);
       setLoading(false);
     }
 
@@ -29,11 +35,35 @@ export default function TrendingHashtags() {
   }, [supabase]);
 
   if (loading) {
-    return <p className="text-gray-400">Loading trending hashtags…</p>;
+    return (
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-3 text-purple-200">
+          Trending Hashtags
+        </h2>
+
+        <div className="flex gap-3 flex-wrap">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="px-3 py-1 bg-gray-800 rounded-full text-gray-600 animate-pulse"
+            >
+              ######
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (tags.length === 0) {
-    return <p className="text-gray-500">No trending hashtags yet.</p>;
+    return (
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-3 text-purple-200">
+          Trending Hashtags
+        </h2>
+        <p className="text-gray-500">No trending hashtags yet.</p>
+      </div>
+    );
   }
 
   return (

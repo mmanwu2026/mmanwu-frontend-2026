@@ -6,11 +6,40 @@ import { useUser } from "@/context/UserContext";
 import Link from "next/link";
 import VisionCard from "@/app/vision-square/components/VisionCard";
 
+interface ReactionRow {
+  maskTier: number;
+}
+
+interface VisionPost {
+  id: string;
+  title: string;
+  media_url: string | null;
+  creator_id: string;
+  created_at: string;
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
+  tags: string[];
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+    mask6: number;
+  };
+  total_reactions: number;
+}
+
 export default function VisionSquareFeed() {
   const supabase = useSupabase();
   const { user } = useUser();
 
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<VisionPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [endReached, setEndReached] = useState(false);
@@ -21,11 +50,34 @@ export default function VisionSquareFeed() {
     if (initial) setLoading(true);
     else setFetchingMore(true);
 
-    const { data, error } = await supabase
+    const lastCreatedAt =
+      posts.length > 0 ? posts[posts.length - 1].created_at : null;
+
+    let query = supabase
       .from("vision_posts")
-      .select("*")
+      .select(`
+        id,
+        title,
+        media_url,
+        creator_id,
+        created_at,
+        spirit_score,
+        positivity_ratio,
+        automask,
+        tags,
+        users:creator_id (
+          username,
+          avatar_url
+        )
+      `)
       .order("created_at", { ascending: false })
-      .range(posts.length, posts.length + PAGE_SIZE - 1);
+      .limit(PAGE_SIZE);
+
+    if (lastCreatedAt) {
+      query = query.lt("created_at", lastCreatedAt);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error(error);
@@ -36,7 +88,72 @@ export default function VisionSquareFeed() {
 
     if (data.length < PAGE_SIZE) setEndReached(true);
 
-    setPosts((prev) => [...prev, ...data]);
+    const normalized = data.map((post: any) => {
+      const userObj = Array.isArray(post.users) ? post.users[0] : post.users;
+
+      return {
+        ...post,
+        media_url: post.media_url || null,
+        users: {
+          username: userObj?.username ?? "unknown",
+          avatar_url: userObj?.avatar_url || null,
+        },
+      };
+    });
+
+    const enriched: VisionPost[] = [];
+
+    for (const post of normalized) {
+      const { data: reactionRows } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .eq("post_id", post.id)
+        .eq("post_type", "vision");
+
+      const rows: ReactionRow[] = reactionRows ?? [];
+
+      const counts = {
+        mask1: rows.filter((r) => r.maskTier === 1).length,
+        mask2: rows.filter((r) => r.maskTier === 2).length,
+        mask3: rows.filter((r) => r.maskTier === 3).length,
+        mask4: rows.filter((r) => r.maskTier === 4).length,
+        mask5: rows.filter((r) => r.maskTier === 5).length,
+        mask6: rows.filter((r) => r.maskTier === 6).length,
+      };
+
+      const total = rows.length;
+
+      // ⭐ Correct positivity calculation
+      const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
+      const positivity =
+        total > 0 ? positiveCount / total : 0.5; // neutral baseline
+
+      // ⭐ Correct spiritScore calculation
+      const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
+
+      // ⭐ Correct automask calculation
+      let autoMask = 2;
+      if (spirit > 20) autoMask = 3;
+      if (spirit > 100) autoMask = 4;
+      if (spirit > 300) autoMask = 5;
+      if (spirit > 500) autoMask = 6;
+
+      enriched.push({
+        ...post,
+        reactions: counts,
+        spirit_score: spirit,
+        positivity_ratio: positivity,
+        automask: autoMask,
+        total_reactions: total,
+      });
+    }
+
+    setPosts(() => {
+      const map = new Map<string, VisionPost>();
+      for (const p of enriched) map.set(p.id, p);
+      return Array.from(map.values());
+    });
+
     setLoading(false);
     setFetchingMore(false);
   }
@@ -62,19 +179,11 @@ export default function VisionSquareFeed() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 text-white">
-
-      {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
-
-        {/* Back to Plaza */}
-        <Link
-          href="/plaza"
-          className="text-gray-300 hover:text-purple-300 transition"
-        >
+        <Link href="/plaza" className="text-gray-300 hover:text-purple-300 transition">
           ← Plaza
         </Link>
 
-        {/* Upload Vision */}
         <Link
           href="/vision-square/create"
           className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
@@ -87,9 +196,11 @@ export default function VisionSquareFeed() {
 
       {loading && <p className="text-gray-400">Loading Vision posts…</p>}
 
-      {/* VisionCard integration */}
       {posts.map((post) => (
-        <VisionCard key={post.id} post={post} />
+        <VisionCard
+          key={`${post.id}-${post.total_reactions}`}
+          post={post}
+        />
       ))}
 
       {fetchingMore && (
@@ -102,7 +213,6 @@ export default function VisionSquareFeed() {
         </p>
       )}
 
-      {/* ⭐ FLOATING COMPOSER */}
       <Link
         href="/vision-square/create"
         className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-full shadow-lg transition"

@@ -6,7 +6,6 @@ import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
 import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
 
-// ⭐ ADD THIS IMPORT
 import FloatingComposer from "@/components/sound-square/FloatingComposer";
 import FeedToggle from "@/components/sound-square/FeedToggle";
 
@@ -32,7 +31,7 @@ type RawSoundPost = {
   creator_id: string;
   created_at: string;
   spirit_score: number;
-  users?: { username: string | null } | null;
+  users?: { username: string | null; avatar_url?: string | null } | null;
 };
 
 const PAGE_SIZE = 20;
@@ -57,12 +56,10 @@ export default function SoundSquareFeed() {
 
     const { data, error } = await supabase
       .from("sound_posts")
-      .select(
-        `
+      .select(`
         *,
-        users:creator_id ( username )
-      `
-      )
+        users:creator_id ( username, avatar_url )
+      `)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
 
@@ -89,12 +86,10 @@ export default function SoundSquareFeed() {
 
     const { data, error } = await supabase
       .from("sound_posts")
-      .select(
-        `
+      .select(`
         *,
-        users:creator_id ( username )
-      `
-      )
+        users:creator_id ( username, avatar_url )
+      `)
       .lt("created_at", cursor)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
@@ -136,7 +131,6 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  // ⭐ FIXED — unified reactions table + post_type filter
   async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
     const postIds = rawPosts.map((p) => p.id);
 
@@ -181,47 +175,50 @@ export default function SoundSquareFeed() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
-        creator_name: post.users?.username ?? "Unknown",
         created_at: post.created_at,
 
+        spirit_score: spiritScore,
+        positivity_ratio: positivityRatio,
+        automask: autoMask,
+
+        users: {
+          username: post.users?.username ?? "Unknown",
+          avatar_url: post.users?.avatar_url ?? null,
+        },
+
         reactions: counts,
-        spiritScore,
-        positivityRatio,
-        autoMask,
       };
     });
   }
 
   return (
-  <div className="min-h-screen text-white p-6">
-    <TopBar />
+    <div className="min-h-screen text-white p-6">
+      <TopBar />
+      <FeedToggle />
 
-    {/* ⭐ Trending Toggle */}
-    <FeedToggle />
+      <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
 
-    <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
+      {loading && <p>Loading sounds...</p>}
 
-    {loading && <p>Loading sounds...</p>}
-
-    <div className="flex flex-col gap-6 mb-6">
-  {posts.map((post) => (
-    <SoundPostCard key={post.id} post={post} isTrending={false} />
-  ))}
-</div>
-
-    {hasMore && (
-      <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
-        {loadingMore && <p className="text-gray-400">Loading more...</p>}
+      <div className="flex flex-col gap-6 mb-6">
+        {posts.map((post) => (
+          <SoundPostCard key={post.id} post={post} isTrending={false} />
+        ))}
       </div>
-    )}
 
-    {!hasMore && (
-      <p className="text-gray-500 text-sm mt-4 text-center">
-        You’ve reached the end of the feed.
-      </p>
-    )}
+      {hasMore && (
+        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
+          {loadingMore && <p className="text-gray-400">Loading more...</p>}
+        </div>
+      )}
 
-    <FloatingComposer />
-  </div>
-);
+      {!hasMore && (
+        <p className="text-gray-500 text-sm mt-4 text-center">
+          You’ve reached the end of the feed.
+        </p>
+      )}
+
+      <FloatingComposer />
+    </div>
+  );
 }

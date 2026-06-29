@@ -15,10 +15,23 @@ export default function VisionSquareTrending() {
     async function fetchTrending() {
       setLoading(true);
 
-      // ⭐ Trending logic: highest spirit_score first
       const { data, error } = await supabase
         .from("vision_posts")
-        .select("*")
+        .select(`
+          id,
+          title,
+          media_url,
+          creator_id,
+          created_at,
+          spirit_score,
+          positivity_ratio,
+          automask,
+          tags,
+          users:creator_id (
+            username,
+            avatar_url
+          )
+        `)
         .order("spirit_score", { ascending: false })
         .limit(25);
 
@@ -28,7 +41,37 @@ export default function VisionSquareTrending() {
         return;
       }
 
-      setPosts(data || []);
+      // Normalize relationship arrays
+      const normalized = (data || []).map((post: any) => ({
+        ...post,
+        users: Array.isArray(post.users) ? post.users[0] : post.users,
+      }));
+
+      // Fetch reactions for each post
+      const enriched = [];
+      for (const post of normalized) {
+        const { data: reactionRows } = await supabase
+          .from("reactions")
+          .select('post_id, "maskTier"')
+          .eq("post_id", post.id)
+          .eq("post_type", "vision");
+
+        const counts = {
+          mask1: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 1).length ?? 0,
+          mask2: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 2).length ?? 0,
+          mask3: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 3).length ?? 0,
+          mask4: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 4).length ?? 0,
+          mask5: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 5).length ?? 0,
+          mask6: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 6).length ?? 0,
+        };
+
+        enriched.push({
+          ...post,
+          reactions: counts,
+        });
+      }
+
+      setPosts(enriched);
       setLoading(false);
     }
 
@@ -40,8 +83,6 @@ export default function VisionSquareTrending() {
 
       {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
-
-        {/* Back to Plaza */}
         <Link
           href="/plaza"
           className="text-gray-300 hover:text-purple-300 transition"
@@ -49,7 +90,6 @@ export default function VisionSquareTrending() {
           ← Plaza
         </Link>
 
-        {/* Upload Vision */}
         <Link
           href="/vision-square/create"
           className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
@@ -66,7 +106,6 @@ export default function VisionSquareTrending() {
         <p className="text-gray-500">No trending posts yet.</p>
       )}
 
-      {/* Render trending posts */}
       {posts.map((post) => (
         <VisionCard key={post.id} post={post} />
       ))}

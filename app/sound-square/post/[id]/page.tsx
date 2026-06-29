@@ -4,9 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 import TopBar from "@/components/navigation/TopBar";
-import ReactionBar from "@/components/plaza/ReactionBar";
 
-// ⭐ NEW — Comments + Share
+// ❌ REMOVE Plaza ReactionBar
+// import ReactionBar from "@/components/plaza/ReactionBar";
+
+// ⭐ USE SoundReactionBar
+import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
+
 import SoundComments from "@/components/sound-square/SoundComments";
 import SoundCommentList from "@/components/sound-square/SoundCommentList";
 import SoundShareButton from "@/components/sound-square/SoundShareButton";
@@ -22,11 +26,12 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
     (async () => {
       setLoading(true);
 
+      // Load base post
       const { data, error } = await supabase
         .from("sound_posts")
         .select(`
           *,
-          users:creator_id ( username )
+          users:creator_id ( username, avatar_url )
         `)
         .eq("id", params.id)
         .single();
@@ -39,24 +44,60 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       const raw = data;
 
+      // Load reactions for this post
+      const { data: reactionRows } = await supabase
+        .from("reactions")
+        .select("maskTier")
+        .eq("post_id", raw.id)
+        .eq("post_type", "sound");
+
+      const counts = {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+        mask6: 0,
+      };
+
+      let spirit = 0;
+      let positive = 0;
+      let total = 0;
+
+      (reactionRows || []).forEach((r: any) => {
+        const key = `mask${r.maskTier}` as keyof typeof counts;
+        counts[key] += 1;
+
+        spirit += r.maskTier;
+        total += 1;
+        if (r.maskTier >= 3) positive += 1;
+      });
+
+      const positivity = total > 0 ? positive / total : 0.5;
+
+      let automask = 2;
+      if (spirit > 20) automask = 3;
+      if (spirit > 100) automask = 4;
+      if (spirit > 300) automask = 5;
+      if (spirit > 500) automask = 6;
+
       const card = {
         id: raw.id,
         title: raw.title,
         audio_url: raw.audio_url,
         creator_id: raw.creator_id,
-        creator_name: raw.users?.username ?? "Unknown",
         created_at: raw.created_at,
-        reactions: {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
+
+        spirit_score: spirit,
+        positivity_ratio: positivity,
+        automask,
+
+        users: {
+          username: raw.users?.username ?? "Unknown",
+          avatar_url: raw.users?.avatar_url ?? null,
         },
-        spiritScore: raw.spirit_score ?? 0,
-        positivityRatio: raw.positivity_ratio ?? 0.5,
-        autoMask: raw.automask ?? 2,
+
+        reactions: counts,
       };
 
       setPost(card);
@@ -86,22 +127,19 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
     <div className="min-h-screen text-white p-6">
       <TopBar />
 
-      {/* Title */}
       <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
 
-      {/* Creator */}
       <p className="text-gray-400 mb-4">
         Uploaded by{" "}
         <Link
           href={`/profile/${post.creator_id}`}
           className="text-purple-300 hover:text-purple-400 underline"
         >
-          {post.creator_name}
+          {post.users.username}
         </Link>
         {" "}• {new Date(post.created_at).toLocaleString()}
       </p>
 
-      {/* Audio Player */}
       <audio
         ref={audioRef}
         src={post.audio_url}
@@ -109,21 +147,61 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         className="w-full mb-6 rounded-lg bg-neutral-900"
       />
 
-      {/* Reactions */}
-      <ReactionBar
-        postType="sound"
+      {/* ⭐ FIXED — use SoundReactionBar */}
+      <SoundReactionBar
         postId={post.id}
         creatorId={post.creator_id}
         reactions={post.reactions}
-        spiritScore={post.spiritScore}
-        positivityRatio={post.positivityRatio}
-        onReact={() => {}}
+        onReact={async () => {
+          // Refresh reactions after reacting
+          const { data: reactionRows } = await supabase
+            .from("reactions")
+            .select("maskTier")
+            .eq("post_id", post.id)
+            .eq("post_type", "sound");
+
+          const counts = {
+            mask1: 0,
+            mask2: 0,
+            mask3: 0,
+            mask4: 0,
+            mask5: 0,
+            mask6: 0,
+          };
+
+          let spirit = 0;
+          let positive = 0;
+          let total = 0;
+
+          (reactionRows || []).forEach((r: any) => {
+            const key = `mask${r.maskTier}` as keyof typeof counts;
+            counts[key] += 1;
+
+            spirit += r.maskTier;
+            total += 1;
+            if (r.maskTier >= 3) positive += 1;
+          });
+
+          const positivity = total > 0 ? positive / total : 0.5;
+
+          let automask = 2;
+          if (spirit > 20) automask = 3;
+          if (spirit > 100) automask = 4;
+          if (spirit > 300) automask = 5;
+          if (spirit > 500) automask = 6;
+
+          setPost({
+            ...post,
+            reactions: counts,
+            spirit_score: spirit,
+            positivity_ratio: positivity,
+            automask,
+          });
+        }}
       />
 
-      {/* ⭐ Share Button */}
       <SoundShareButton postId={post.id} />
 
-      {/* ⭐ Comments */}
       <SoundComments postId={post.id} onSubmitted={() => {}} />
       <SoundCommentList postId={post.id} />
     </div>

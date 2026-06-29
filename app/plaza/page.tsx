@@ -61,7 +61,7 @@ export default function PlazaPage() {
   const sessionReady = hydrated && !userLoading && !!user;
 
   // -----------------------------------------------------
-  // FETCH POSTS (correct FK join)
+  // FETCH POSTS (FK removed — reactions loaded separately)
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
@@ -81,10 +81,7 @@ export default function PlazaPage() {
           created_at,
           spirit_score,
           positivity_ratio,
-          automask,
-          reactions:reactions!reactions_post_id_fkey (
-            maskTier
-          )
+          automask
         `)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -99,24 +96,52 @@ export default function PlazaPage() {
 
       const typedPosts = postsData as any[];
 
-      const merged: PlazaPostWithAggregates[] = typedPosts.map((post: any) => {
-        const counts: ReactionCounts = {
-          mask1: post.reactions.filter((r: any) => r.maskTier === 1).length,
-          mask2: post.reactions.filter((r: any) => r.maskTier === 2).length,
-          mask3: post.reactions.filter((r: any) => r.maskTier === 3).length,
-          mask4: post.reactions.filter((r: any) => r.maskTier === 4).length,
-          mask5: post.reactions.filter((r: any) => r.maskTier === 5).length,
-          mask6: post.reactions.filter((r: any) => r.maskTier === 6).length,
-        };
+      const merged: PlazaPostWithAggregates[] = [];
 
-        return {
+      for (const post of typedPosts) {
+        // Fetch reactions for this post
+ const { data: reactionRows } = await supabase
+  .from("reactions")
+  .select('"maskTier"')
+  .eq("post_id", post.id)
+  .eq("post_type", "plaza");
+
+const rows = reactionRows ?? [];
+
+const counts: ReactionCounts = {
+  mask1: rows.filter((r: any) => r.maskTier === 1).length ?? 0,
+  mask2: rows.filter((r: any) => r.maskTier === 2).length ?? 0,
+  mask3: rows.filter((r: any) => r.maskTier === 3).length ?? 0,
+  mask4: rows.filter((r: any) => r.maskTier === 4).length ?? 0,
+  mask5: rows.filter((r: any) => r.maskTier === 5).length ?? 0,
+  mask6: rows.filter((r: any) => r.maskTier === 6).length ?? 0,
+};
+
+        // Recompute spirit_score + positivity + autoMask
+ const spirit =
+  rows.reduce((sum: number, r: any) => sum + r.maskTier, 0) ?? 0;
+
+const positiveCount =
+  rows.filter((r: any) => r.maskTier >= 3).length ?? 0;
+
+const totalCount = rows.length ?? 0;
+
+const positivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
+
+        let autoMask = 2;
+        if (spirit > 20) autoMask = 3;
+        if (spirit > 100) autoMask = 4;
+        if (spirit > 300) autoMask = 5;
+        if (spirit > 500) autoMask = 6;
+
+        merged.push({
           ...post,
           reactions: counts,
-          spirit_score: post.spirit_score ?? 0,
-          positivity_ratio: post.positivity_ratio ?? 0.5,
-          autoMask: post.automask ?? 2,
-        };
-      });
+          spirit_score: spirit,
+          positivity_ratio: positivity,
+          autoMask,
+        });
+      }
 
       setPosts((prev) => (append ? [...prev, ...merged] : merged));
 

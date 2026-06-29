@@ -3,7 +3,13 @@
 import { useRef, useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
-import ReactionBar from "@/components/plaza/ReactionBar";
+
+// ❌ REMOVE this:
+// import ReactionBar from "@/components/plaza/ReactionBar";
+
+// ⭐ ADD this:
+import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
+
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
 import Link from "next/link";
 
@@ -31,9 +37,9 @@ export default function SoundPostCard({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
-  const [spiritScore, setSpiritScore] = useState(post.spiritScore);
-  const [positivityRatio, setPositivityRatio] = useState(post.positivityRatio);
-  const [autoMask, setAutoMask] = useState(post.autoMask);
+  const [spiritScore, setSpiritScore] = useState(post.spirit_score);
+  const [positivityRatio, setPositivityRatio] = useState(post.positivity_ratio);
+  const [autoMask, setAutoMask] = useState(post.automask);
   const [intensity, setIntensity] = useState(0);
 
   // AUDIO INTENSITY VISUALIZER
@@ -147,7 +153,7 @@ export default function SoundPostCard({
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
-      .select("maskTier, value")
+      .select("maskTier")
       .eq("post_id", post.id)
       .eq("post_type", "sound");
 
@@ -164,12 +170,13 @@ export default function SoundPostCard({
     let positiveCount = 0;
     let totalCount = 0;
 
-    reactionRows?.forEach((r: { maskTier: number; value: number | null }) => {
+    reactionRows?.forEach((r: { maskTier: number }) => {
       const key = `mask${r.maskTier}` as keyof ReactionCounts;
       newCounts[key] += 1;
-      const v = r.value ?? 0;
-      newSpirit += v;
+
+      newSpirit += r.maskTier;
       totalCount += 1;
+
       if (r.maskTier >= 3) positiveCount += 1;
     });
 
@@ -225,7 +232,7 @@ export default function SoundPostCard({
               href={`/profile/${post.creator_id}`}
               className="text-purple-300 hover:text-purple-400 underline"
             >
-              {post.creator_name}
+              {post.users?.username ?? "Unknown"}
             </Link>{" "}
             • {post.created_at}
           </p>
@@ -258,13 +265,11 @@ export default function SoundPostCard({
         )}
       </div>
 
-      <ReactionBar
-        postType="sound"
+      {/* ⭐ FIXED — use SoundReactionBar instead of Plaza ReactionBar */}
+      <SoundReactionBar
         postId={post.id}
         creatorId={post.creator_id}
         reactions={reactions}
-        spiritScore={spiritScore}
-        positivityRatio={positivityRatio}
         onReact={refreshReactions}
       />
     </div>

@@ -14,7 +14,7 @@ interface ReactionCounts {
 }
 
 interface ReactionBarProps {
-  postType: "plaza" | "sound";   // ⭐ NEW
+  postType: "plaza" | "sound" | "vision";
   postId: string;
   creatorId: string;
   reactions: ReactionCounts;
@@ -24,7 +24,7 @@ interface ReactionBarProps {
 }
 
 export default function ReactionBar({
-  postType,        // ⭐ NEW
+  postType,
   postId,
   creatorId,
   reactions,
@@ -41,30 +41,26 @@ export default function ReactionBar({
   const isCreator = user?.id === creatorId;
 
   const handleReact = async (maskTier: number): Promise<void> => {
-    if (loading || loggedOut || !user) return;
+  if (loading || loggedOut || !user) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    const { data, error } = await supabase.rpc("apply_reaction", {
-      post_id: postId,
-      post_type: postType,   // ⭐ FIXED
-      masktier: maskTier,    // ⭐ CORRECT
-      user_id: user.id,
-    });
+  const { error } = await supabase.from("reactions").insert({
+    post_id: postId,
+    post_type: postType,   // plaza | sound | vision
+    user_id: user.id,
+    maskTier,
+  });
 
-    setLoading(false);
+  setLoading(false);
 
-    if (error) {
-      console.error("apply_reaction error:", error);
-      return;
-    }
+  if (error) {
+    console.error("apply_reaction error:", error);
+    return;
+  }
 
-    try {
-      onReact();
-    } catch (e) {
-      console.error("onReact crashed:", e);
-    }
-  };
+  onReact();
+};
 
   return (
     <div className="flex items-center justify-center gap-6 mt-4">

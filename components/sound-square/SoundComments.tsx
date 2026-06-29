@@ -1,20 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
+import { useSupabase } from "@/context/SupabaseContext";
+import { useUser } from "@/context/UserContext";
+import SpiritToast from "@/components/SpiritToast";
+import Link from "next/link";
 
-export default function SoundComments({ postId, onSubmitted }: { postId: string; onSubmitted: () => void }) {
+export default function SoundComments({
+  postId,
+  onSubmitted,
+}: {
+  postId: string;
+  onSubmitted: () => void;
+}) {
+  const supabase = useSupabase();
+  const { user } = useUser();
+
   const [text, setText] = useState("");
   const [gateData, setGateData] = useState<any>(null);
   const [showGateModal, setShowGateModal] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [creatorId, setCreatorId] = useState<string | null>(null);
+
+  // ⭐ Load creator_id for badge
+  useEffect(() => {
+    async function loadCreator() {
+      const { data } = await supabase
+        .from("sound_posts")
+        .select("creator_id")
+        .eq("id", postId)
+        .single();
+
+      if (data?.creator_id) setCreatorId(data.creator_id);
+    }
+
+    loadCreator();
+  }, [postId, supabase]);
 
   async function handleSubmit() {
     if (!text.trim()) return;
 
     setBusy(true);
 
-    // Call Gatekeeper
     const res = await fetch("/api/gatekeeper", {
       method: "POST",
       body: JSON.stringify({ text }),
@@ -23,18 +53,29 @@ export default function SoundComments({ postId, onSubmitted }: { postId: string;
     const gate = await res.json();
 
     // ⭐ Auto-approved positive content
-    if (gate.autoApprove) {
-      await submitFinal(text, 2, 0.8);
+    if (gate.autoApprove && !gate.rewriteNeeded) {
+      await submitFinal(gate.finalText, gate.automask, gate.positivityRatio);
+      setToastMessage("The spirits approve your message ✨");
       return;
     }
 
     // ⭐ Rewrite required
-    setGateData(gate);
-    setShowGateModal(true);
-    setBusy(false);
+    if (gate.rewriteNeeded) {
+      setGateData(gate);
+      setShowGateModal(true);
+      setBusy(false);
+      return;
+    }
+
+    // ⭐ Neutral comment → auto-approve silently
+    await submitFinal(gate.finalText, gate.automask, gate.positivityRatio);
   }
 
-  async function submitFinal(finalText: string, automask: number, positivityRatio: number) {
+  async function submitFinal(
+    finalText: string,
+    automask: number,
+    positivityRatio: number
+  ) {
     await fetch("/api/sound-comments", {
       method: "POST",
       body: JSON.stringify({
@@ -54,7 +95,12 @@ export default function SoundComments({ postId, onSubmitted }: { postId: string;
   }
 
   return (
-    <div className="mt-10">
+    <div className="mt-10 bg-neutral-900/40 p-4 rounded-lg border border-white/10 animate-[fadeIn_0.4s_ease-out_forwards] opacity-0">
+
+      {toastMessage && (
+        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -67,23 +113,35 @@ export default function SoundComments({ postId, onSubmitted }: { postId: string;
         disabled={busy}
         className="mt-3 px-4 py-2 bg-purple-600 rounded text-white hover:bg-purple-500 disabled:opacity-50"
       >
-        Comment
+        {busy ? "Posting…" : "Comment"}
       </button>
 
+      {/* ⭐ Gatekeeper Rewrite Modal */}
       {showGateModal && gateData && (
         <Modal onClose={() => setShowGateModal(false)}>
           <div className="p-4 text-white">
             <h2 className="text-lg font-semibold mb-3">Rewrite Required</h2>
 
+            <p className="text-yellow-300 text-sm mb-2">
+              The spirits suggest a more uplifting version:
+            </p>
+
             {gateData.rewrites.map((r: string, idx: number) => (
               <button
                 key={idx}
-                onClick={() => submitFinal(r, 2, 0.8)}
+                onClick={() => submitFinal(r, gateData.automask, gateData.positivityRatio)}
                 className="block w-full text-left p-3 mb-2 bg-neutral-800 rounded hover:bg-neutral-700"
               >
                 {r}
               </button>
             ))}
+
+            <button
+              onClick={() => setShowGateModal(false)}
+              className="bg-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-600"
+            >
+              Keep original
+            </button>
           </div>
         </Modal>
       )}

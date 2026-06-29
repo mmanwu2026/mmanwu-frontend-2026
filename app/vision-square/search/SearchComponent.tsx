@@ -40,15 +40,43 @@ export default function SearchComponent() {
     if (isHashtag) {
       ({ data, error } = await supabase
         .from("vision_posts")
-        .select("*, profiles(username)")
+        .select(`
+          id,
+          title,
+          media_url,
+          creator_id,
+          created_at,
+          spirit_score,
+          positivity_ratio,
+          automask,
+          tags,
+          users:creator_id (
+            username,
+            avatar_url
+          )
+        `)
         .contains("tags", [cleaned])
         .order("created_at", { ascending: false }));
     } else {
       ({ data, error } = await supabase
         .from("vision_posts")
-        .select("*, profiles(username)")
+        .select(`
+          id,
+          title,
+          media_url,
+          creator_id,
+          created_at,
+          spirit_score,
+          positivity_ratio,
+          automask,
+          tags,
+          users:creator_id (
+            username,
+            avatar_url
+          )
+        `)
         .or(
-          `title.ilike.%${cleaned}%, profiles.username.ilike.%${cleaned}%, tags.cs.{${cleaned}}`
+          `title.ilike.%${cleaned}%, users.username.ilike.%${cleaned}%, tags.cs.{${cleaned}}`
         )
         .order("created_at", { ascending: false }));
     }
@@ -59,7 +87,37 @@ export default function SearchComponent() {
       return;
     }
 
-    setResults(data || []);
+    // Normalize relationship arrays
+    const normalized = (data || []).map((post: any) => ({
+      ...post,
+      users: Array.isArray(post.users) ? post.users[0] : post.users,
+    }));
+
+    // Fetch reactions for each post
+    const enriched = [];
+    for (const post of normalized) {
+      const { data: reactionRows } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .eq("post_id", post.id)
+        .eq("post_type", "vision");
+
+      const counts = {
+        mask1: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 1).length ?? 0,
+        mask2: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 2).length ?? 0,
+        mask3: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 3).length ?? 0,
+        mask4: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 4).length ?? 0,
+        mask5: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 5).length ?? 0,
+        mask6: reactionRows?.filter((r: { maskTier: number }) => r.maskTier === 6).length ?? 0,
+      };
+
+      enriched.push({
+        ...post,
+        reactions: counts,
+      });
+    }
+
+    setResults(enriched);
     setLoading(false);
   }
 
