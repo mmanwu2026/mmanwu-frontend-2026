@@ -2,8 +2,8 @@ import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
 
