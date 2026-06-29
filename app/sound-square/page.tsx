@@ -1,24 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import { loadSoundPosts, CardSoundPost } from "./loadSoundPosts";
 
 export default function SoundSquarePage() {
-  const supabase = useSupabase();
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function run() {
       setLoading(true);
-      const data = await loadSoundPosts(supabase);
+      const data = await loadSoundPosts();   // ⭐ FIX: no supabase argument
       setPosts(data);
       setLoading(false);
     }
     run();
-  }, [supabase]);
+  }, []); // ⭐ FIX: no dependency on supabase
 
   if (loading) {
     return (

@@ -1,13 +1,12 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function Page({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const supabase = await createSupabaseServerClient();
 
-  // Fetch profile + follower counts + all posts for aggregation
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -38,14 +37,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     return <div className="p-6">Profile not found</div>;
   }
 
-  // Compute SpiritScore = sum of all post.spirit_score
   const spirit_score =
     profileRaw.posts?.reduce(
       (sum: number, p: any) => sum + (p.spirit_score ?? 0),
       0
     ) ?? 0;
 
-  // Compute positivity = average of all post.positivity_ratio
   const positivity_ratio =
     profileRaw.posts?.length > 0
       ? profileRaw.posts.reduce(
@@ -54,7 +51,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         ) / profileRaw.posts.length
       : 0.5;
 
-  // Normalize follower/following counts
   const profile = {
     ...profileRaw,
     followers_count: profileRaw.followers_count?.[0]?.count ?? 0,
@@ -63,7 +59,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     positivity_ratio,
   };
 
-  // Fetch posts for the Posts tab
   const { data: posts } = await supabase
     .from("posts")
     .select(`
@@ -80,13 +75,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="min-h-screen text-white p-6">
-      {/* ⭐ TopBar goes HERE */}
       <TopBar />
-
-      <ProfileClient
-        profile={profile}
-        posts={posts || []}
-      />
+      <ProfileClient profile={profile} posts={posts || []} />
     </div>
   );
 }

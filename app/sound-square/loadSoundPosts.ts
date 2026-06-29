@@ -1,6 +1,4 @@
-// app/sound-square/loadSoundPosts.ts
-
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createBrowserClient } from "@supabase/ssr";
 
 export type ReactionCounts = {
   mask1: number;
@@ -31,9 +29,12 @@ export type CardSoundPost = {
 };
 
 export async function loadSoundPosts() {
-  const supabase = await createSupabaseServerClient();
+  // ⭐ Browser Supabase client — SAFE for client components
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
-  // Load base sound posts
   const { data: posts, error } = await supabase
     .from("sound_posts")
     .select(`
@@ -56,7 +57,6 @@ export async function loadSoundPosts() {
 
   const ids = posts.map((p) => p.id);
 
-  // Load reactions for all sound posts
   const { data: reactionRows } = await supabase
     .from("reactions")
     .select("post_id, maskTier")
