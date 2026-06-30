@@ -241,13 +241,9 @@ export default function PlazaCard({
 
             {/* COMMENTS */}
             <PlazaComments
-              postId={post.id}
-              postCreatorId={post.creator_id}
-              creatorContent={post.content}
-              creatorAvatar={creator.avatar_url}
-              creatorUsername={creator.username}
-              creatorCreatedAt={post.created_at}
-            />
+  postId={post.id}
+  postCreatorId={post.creator_id}
+/>
 
           </div>
 
