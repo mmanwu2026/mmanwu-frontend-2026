@@ -17,7 +17,16 @@ interface ReactionRow {
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
-export default function VisionCard({ post }: { post: any }) {
+export default function VisionCard({
+  post,
+  smallAvatar,
+}: {
+  post: any;
+  smallAvatar?: boolean;
+}) {
+  const mainAvatarSize = smallAvatar ? "w-6 h-6" : "w-10 h-10";
+  const commentAvatarSize = smallAvatar ? "w-5 h-5" : "w-6 h-6";
+
   const supabase = useSupabase();
   const { user } = useUser();
   const router = useRouter();
@@ -312,7 +321,7 @@ export default function VisionCard({ post }: { post: any }) {
           <img
             src={safeAvatar}
             onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-            className="w-10 h-10 rounded-full border border-gray-700"
+            className={`${mainAvatarSize} rounded-full border border-gray-700`}
             alt="avatar"
           />
 
@@ -405,8 +414,7 @@ export default function VisionCard({ post }: { post: any }) {
               <div className="flex items-center gap-2">
                 <img
                   src={comment.profiles?.avatar_url || FALLBACK_AVATAR}
-                  className="w-6 h-6 rounded-full"
-                />
+                  className={`${commentAvatarSize} rounded-full`}                />
                 <span className="text-sm font-semibold text-purple-200">
                   {comment.profiles?.username || "unknown"}
                 </span>

@@ -847,7 +847,7 @@ export default function ProfileClient({
               )}
 
               {visionPosts.map((post) => (
-                <VisionCard key={post.id} post={post} />
+                <VisionCard key={post.id} post={post} smallAvatar />
               ))}
 
               {visionFetchingMore && (
