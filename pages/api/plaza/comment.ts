@@ -50,11 +50,11 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { postId, content, userId } = req.body;
+const { postId, content, userId, parentCommentId } = req.body;
 
-  if (!postId || !content || !userId) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
+if (!postId || !content || !userId) {
+  return res.status(400).json({ error: "Missing required fields" });
+}
 
   // Run Plaza AI Gatekeeper
   const spirit = evaluateSpirit(content);
@@ -67,13 +67,14 @@ export default async function handler(
   }
 
   // Insert approved comment
-  const { error } = await supabase
-    .from("plaza_post_comments")
-    .insert({
-      post_id: postId,
-      user_id: userId,
-      content: content.trim()
-    });
+ const { error } = await supabase
+  .from("plaza_post_comments")
+  .insert({
+    post_id: postId,
+    user_id: userId,
+    content: content.trim(),
+    parent_comment_id: parentCommentId || null
+  });
 
   if (error) {
     console.error("Supabase insert error:", error);

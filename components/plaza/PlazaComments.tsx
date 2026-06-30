@@ -17,35 +17,38 @@ interface PlazaComment {
   user_id: string;
   content: string;
   created_at: string;
+  parent_comment_id: string | null;
   profile: {
     username: string | null;
     avatar_url: string | null;
   };
 }
 
+interface PlazaCommentNode extends PlazaComment {
+  replies: PlazaCommentNode[];
+}
+
 export default function PlazaComments({
   postId,
-  postCreatorId,
-  creatorContent,
-  creatorAvatar,
-  creatorUsername,
-  creatorCreatedAt
+  postCreatorId
 }: {
   postId: string;
   postCreatorId: string;
-  creatorContent: string;
-  creatorAvatar: string | null;
-  creatorUsername: string | null;
-  creatorCreatedAt: string;
 }) {
   const supabase = useSupabase();
   const [comments, setComments] = useState<PlazaComment[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [text, setText] = useState("");
   const [rewriteMode, setRewriteMode] = useState(false);
   const [rewriteMessage, setRewriteMessage] = useState("");
   const [toast, setToast] = useState("");
+
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Threaded reply state
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   // -----------------------------
   // LOAD COMMENTS
@@ -61,6 +64,7 @@ export default function PlazaComments({
         user_id,
         content,
         created_at,
+        parent_comment_id,
         profiles (
           username,
           avatar_url
@@ -81,7 +85,7 @@ export default function PlazaComments({
   }
 
   // -----------------------------
-  // SUBMIT COMMENT
+  // SUBMIT TOP-LEVEL COMMENT
   // -----------------------------
   async function submitComment() {
     if (!text.trim()) return;
@@ -96,7 +100,8 @@ export default function PlazaComments({
       body: JSON.stringify({
         postId,
         content: text.trim(),
-        userId: uid
+        userId: uid,
+        parentCommentId: null
       }),
     });
 
@@ -109,6 +114,42 @@ export default function PlazaComments({
     }
 
     setText("");
+    setRewriteMode(false);
+    setToast(result.toast);
+    loadComments();
+  }
+
+  // -----------------------------
+  // SUBMIT REPLY
+  // -----------------------------
+  async function submitReply(parentId: string) {
+    if (!replyText.trim()) return;
+
+    const user = await supabase.auth.getUser();
+    const uid = user.data.user?.id;
+    if (!uid) return;
+
+    const response = await fetch("/api/plaza/comment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        postId,
+        content: replyText.trim(),
+        userId: uid,
+        parentCommentId: parentId
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!result.approved) {
+      setRewriteMode(true);
+      setRewriteMessage(result.toast);
+      return;
+    }
+
+    setReplyText("");
+    setReplyTargetId(null);
     setRewriteMode(false);
     setToast(result.toast);
     loadComments();
@@ -152,6 +193,121 @@ export default function PlazaComments({
 
   const isGatekeeper = userId === postCreatorId;
 
+  // -----------------------------
+  // BUILD COMMENT TREE (TS SAFE)
+  // -----------------------------
+  function buildCommentTree(flat: PlazaComment[]): PlazaCommentNode[] {
+    const lookup: Record<string, PlazaCommentNode> = {};
+    const roots: PlazaCommentNode[] = [];
+
+    flat.forEach((c) => {
+      lookup[c.id] = { ...c, replies: [] };
+    });
+
+    flat.forEach((c) => {
+      const node = lookup[c.id];
+      if (c.parent_comment_id) {
+        const parent = lookup[c.parent_comment_id];
+        if (parent) {
+          parent.replies.push(node);
+        } else {
+          roots.push(node);
+        }
+      } else {
+        roots.push(node);
+      }
+    });
+
+    return roots;
+  }
+
+  // -----------------------------
+  // RECURSIVE COMMENT NODE
+  // -----------------------------
+  function CommentNode({
+    node,
+    depth
+  }: {
+    node: PlazaCommentNode;
+    depth: number;
+  }) {
+    const isAuthor = node.user_id === userId;
+
+    return (
+      <div className="mb-2" style={{ marginLeft: depth * 16 }}>
+        <div className="flex items-start gap-2">
+          <img
+            src={getAvatar(node.profile?.avatar_url)}
+            className="rounded-full border border-gray-700"
+            style={{
+              width: "28px",
+              height: "28px",
+              minWidth: "28px",
+              minHeight: "28px",
+              objectFit: "cover"
+            }}
+          />
+
+          <div className="flex-1">
+            <p className="text-xs text-purple-200 font-semibold">
+              {node.profile?.username || "unknown"}
+            </p>
+            <p className="text-sm text-gray-200 whitespace-pre-line">
+              {node.content}
+            </p>
+            <p className="text-[10px] text-gray-500">
+              {new Date(node.created_at).toLocaleString()}
+            </p>
+
+            <div className="flex items-center gap-2 mt-1">
+              {(isAuthor || isGatekeeper) && (
+                <button
+                  onClick={() => deleteComment(node.id)}
+                  className="text-[10px] text-red-400 hover:text-red-300"
+                >
+                  Delete
+                </button>
+              )}
+
+              <button
+                onClick={() =>
+                  setReplyTargetId(replyTargetId === node.id ? null : node.id)
+                }
+                className="text-[10px] text-purple-300 hover:text-purple-200"
+              >
+                Reply
+              </button>
+            </div>
+
+            {replyTargetId === node.id && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write a reply…"
+                  className="flex-1 bg-neutral-800 text-gray-200 text-sm px-3 py-2 rounded"
+                />
+                <button
+                  onClick={() => submitReply(node.id)}
+                  className="px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-500"
+                >
+                  Reply
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {node.replies.map((child) => (
+          <CommentNode key={child.id} node={child} depth={depth + 1} />
+        ))}
+      </div>
+    );
+  }
+
+  // -----------------------------
+  // RENDER
+  // -----------------------------
   return (
     <div className="mt-6 w-full px-2">
 
@@ -160,48 +316,11 @@ export default function PlazaComments({
 
       {loading && <p className="text-gray-500 text-xs">Loading…</p>}
 
-      {/* COMMENT LIST */}
+      {/* COMMENT TREE */}
       <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1">
-        {comments.map((c) => {
-          const isAuthor = c.user_id === userId;
-
-          return (
-            <div key={c.id} className="flex items-start gap-2">
-              <img
-                src={getAvatar(c.profile?.avatar_url)}
-                className="rounded-full border border-gray-700"
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  minWidth: "28px",
-                  minHeight: "28px",
-                  objectFit: "cover"
-                }}
-              />
-
-              <div className="flex-1">
-                <p className="text-xs text-purple-200 font-semibold">
-                  {c.profile?.username || "unknown"}
-                </p>
-                <p className="text-sm text-gray-200 whitespace-pre-line">
-                  {c.content}
-                </p>
-                <p className="text-[10px] text-gray-500">
-                  {new Date(c.created_at).toLocaleString()}
-                </p>
-              </div>
-
-              {(isAuthor || isGatekeeper) && (
-                <button
-                  onClick={() => deleteComment(c.id)}
-                  className="text-[10px] text-red-400 hover:text-red-300 ml-2"
-                >
-                  Delete
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {buildCommentTree(comments).map((node) => (
+          <CommentNode key={node.id} node={node} depth={0} />
+        ))}
       </div>
 
       {/* REWRITE MODE */}
