@@ -199,7 +199,7 @@ export default function VisionCard({ post }: { post: any }) {
 
     const gate = await runGatekeeper(commentText.trim());
 
-    const safeFinalText = gate.finalText || "";
+    const safeFinalText = gate.finalText ?? commentText.trim();
     const safePositivity = gate.positivityRatio ?? 0.5;
     const safeAutomask = gate.automask ?? 2;
 

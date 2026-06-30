@@ -164,8 +164,8 @@ export default function VisionSquareUpload() {
       return;
     }
 
-    await finalizeUpload(gate.finalText || "", gate.automask, gate.positivityRatio);
-  }
+    await finalizeUpload(gate.finalText ?? title.trim(), gate.automask, gate.positivityRatio);
+       }
 
   // ⭐ FIXED FINAL UPLOAD
   async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
