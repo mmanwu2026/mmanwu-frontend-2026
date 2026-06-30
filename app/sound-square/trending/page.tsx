@@ -176,26 +176,31 @@ export default function SoundSquareTrending() {
         velocity * 2 +
         autoMask * 10;
 
-      return {
-        id: post.id,
-        title: post.title,
-        audio_url: post.audio_url,
-        creator_id: post.creator_id,
-        created_at: post.created_at,
+return {
+  id: post.id,
+  title: post.title,
+  audio_url: post.audio_url,
+  creator_id: post.creator_id,
+  created_at: post.created_at,
 
-        spirit_score: spiritScore,
-        positivity_ratio: positivityRatio,
-        automask: autoMask,
+  spirit_score: spiritScore,
+  positivity_ratio: positivityRatio,
+  automask: autoMask,
 
-        users: {
-          username: post.users?.username ?? "Unknown",
-          avatar_url: post.users?.avatar_url ?? null,
-        },
+  // ⭐ REQUIRED FIELDS FOR CardSoundPost
+  share_count: (post as any).share_count ?? 0,
+  share_score: (post as any).share_score ?? 0,
 
-        reactions: counts,
+  users: {
+    username: post.users?.username ?? "Unknown",
+    avatar_url: post.users?.avatar_url ?? null,
+  },
 
-        trending_score,
-      };
+  reactions: counts,
+
+  trending_score,
+};
+
     });
   }
 
