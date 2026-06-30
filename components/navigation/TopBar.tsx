@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export default function TopBar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
 
   const isSoundSquare = pathname.startsWith("/sound-square");
   const isProfile = pathname.startsWith("/profile");

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export default function FeedToggle() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const isTrending = pathname.includes("trending");
 
   return (

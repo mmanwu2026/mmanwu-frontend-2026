@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const { user } = useUser();
 
   const navItems = [
