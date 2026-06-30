@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
 import ReactionBar from "@/components/plaza/ReactionBar";
+import PlazaComments from "@/components/plaza/PlazaComments";
 
 interface ReactionCounts {
   mask1: number;
@@ -34,14 +36,14 @@ export default function PlazaCard({
   post,
   creator,
   user,
-  onDelete,
-  onReact,
+  onDeleteAction,
+  onReactAction,
 }: {
   post: PlazaPost;
   creator: CreatorProfile;
   user: any;
-  onDelete: (id: string) => void;
-  onReact: () => void;
+  onDeleteAction: (id: string) => void;
+  onReactAction: () => void;
 }) {
   const supabase = useSupabase();
   const isCreator = user?.id === post.creator_id;
@@ -152,7 +154,10 @@ export default function PlazaCard({
 
           {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-2 px-1">
-            <div className="flex items-center gap-2">
+            <Link
+              href={`/profile/${creator.id}`}
+              className="flex items-center gap-2 hover:opacity-80 transition"
+            >
               <img
                 src={creator?.avatar_url || FALLBACK_AVATAR}
                 className="plaza-avatar border border-gray-700"
@@ -160,7 +165,7 @@ export default function PlazaCard({
               <span className="text-white/90 text-sm font-semibold">
                 {creator?.username || "unknown"}
               </span>
-            </div>
+            </Link>
 
             {!isCreator && isFollowing !== null && (
               <button
@@ -215,7 +220,7 @@ export default function PlazaCard({
 
             {isCreator && (
               <button
-                onClick={() => onDelete(post.id)}
+                onClick={() => onDeleteAction(post.id)}
                 className="mt-3 ml-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 z-[20]"
               >
                 Delete
@@ -230,9 +235,20 @@ export default function PlazaCard({
                 reactions={post.reactions}
                 spiritScore={post.spirit_score}
                 positivityRatio={post.positivity_ratio}
-                onReact={onReact}
+                onReact={onReactAction}
               />
             </div>
+
+            {/* COMMENTS */}
+            <PlazaComments
+              postId={post.id}
+              postCreatorId={post.creator_id}
+              creatorContent={post.content}
+              creatorAvatar={creator.avatar_url}
+              creatorUsername={creator.username}
+              creatorCreatedAt={post.created_at}
+            />
+
           </div>
 
         </div>
