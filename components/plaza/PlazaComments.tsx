@@ -155,34 +155,6 @@ export default function PlazaComments({
   return (
     <div className="mt-6 w-full px-2">
 
-      {/* CREATOR'S INITIAL POST */}
-      <div className="mb-6 p-3 bg-neutral-900 rounded border border-neutral-700">
-        <div className="flex items-start gap-3">
-          <img
-            src={getAvatar(creatorAvatar)}
-            className="rounded-full border border-gray-700"
-            style={{
-              width: "32px",
-              height: "32px",
-              minWidth: "32px",
-              minHeight: "32px",
-              objectFit: "cover"
-            }}
-          />
-          <div className="flex-1">
-            <p className="text-sm text-purple-200 font-semibold">
-              {creatorUsername || "unknown"}
-            </p>
-            <p className="text-sm text-gray-200 whitespace-pre-line">
-              {creatorContent}
-            </p>
-            <p className="text-[10px] text-gray-500">
-              {new Date(creatorCreatedAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* COMMENTS HEADER */}
       <h3 className="text-sm text-gray-300 mb-2">Comments</h3>
 
