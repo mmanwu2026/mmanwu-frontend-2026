@@ -16,10 +16,12 @@ export default function VisionCommentList({ postId }: { postId: string }) {
       .select(`
         id,
         content,
+        raw_input,
         created_at,
         automask,
+        positivity_ratio,
         user_id,
-        profiles:profiles!vision_post_comments_user_id_fkey (
+        profiles:user_id (
           username,
           avatar_url
         )
@@ -34,7 +36,7 @@ export default function VisionCommentList({ postId }: { postId: string }) {
     }
 
     const normalized = (data || []).map((c: any) => {
-      const userObj =
+      const profile =
         Array.isArray(c.profiles) && c.profiles.length > 0
           ? c.profiles[0]
           : c.profiles;
@@ -42,11 +44,8 @@ export default function VisionCommentList({ postId }: { postId: string }) {
       return {
         ...c,
         profiles: {
-          username: userObj?.username ?? "unknown",
-          avatar_url:
-            userObj?.avatar_url && userObj.avatar_url.length > 0
-              ? userObj.avatar_url
-              : null,
+          username: profile?.username ?? "unknown",
+          avatar_url: profile?.avatar_url || null,
         },
       };
     });
@@ -112,7 +111,8 @@ export default function VisionCommentList({ postId }: { postId: string }) {
               )}
             </div>
 
-            <p className="text-gray-300">{c.comment_text}</p>
+            {/* ⭐ FIXED — correct field */}
+            <p className="text-gray-300">{c.content}</p>
 
             <p className="text-gray-500 text-xs mt-2">
               {new Date(c.created_at).toLocaleString()}

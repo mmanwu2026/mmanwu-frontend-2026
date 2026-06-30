@@ -61,47 +61,47 @@ export default function VisionSquareUpload() {
     setFile(f);
   }
 
-  async function uploadWithProgress(file: File, path: string) {
-    return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+async function uploadWithProgress(file: File, path: string) {
+  return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
 
-      if (!token) {
-        reject(new Error("Authentication error. Please log in again."));
-        return;
+    if (!token) {
+      reject(new Error("Authentication error. Please log in again."));
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+
+    // ⭐ Correct Supabase Storage upload endpoint
+    xhr.open(
+      "POST",
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
+    );
+
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (e: ProgressEvent) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setProgress(pct);
       }
+    };
 
-      const xhr = new XMLHttpRequest();
+    xhr.onload = () => {
+      if (xhr.status < 300) {
+        // ⭐ Correct public URL
+        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/vision_files/${path}`;
+        resolve({ publicUrl });
+      } else {
+        reject(new Error(xhr.responseText));
+      }
+    };
 
-      // ⭐ Correct Supabase Storage upload path
-      xhr.open(
-        "POST",
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
-      );
-
-      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-
-      xhr.upload.onprogress = (e: ProgressEvent) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          setProgress(pct);
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status < 300) {
-          // ⭐ Correct public URL
-          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/vision_files/${path}`;
-          resolve({ publicUrl });
-        } else {
-          reject(new Error(xhr.responseText));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error("Upload failed"));
-      xhr.send(file);
-    });
-  }
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.send(file);
+  });
+}
 
   function extractTagsFromTitle(text: string): string[] {
     const matches = text.match(/#(\w+)/g);

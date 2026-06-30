@@ -19,25 +19,33 @@ export default function VisionShareButton({
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // ⭐ Hydration-safe share URL
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/vision-square/post/${postId}`
       : "";
 
-  async function handleCopy() {
+  async function logShare(maskTier = 4) {
+    await fetch("/api/vision-share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        post_id: postId,
+        maskTier,
+        post_type: "vision",
+      }),
+    });
+
+    if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/vision-square/feed")) {
+        router.refresh();
+      }
+    }
+  }
+
+  async function handleCopyLink() {
     try {
       await navigator.clipboard.writeText(shareUrl);
-
-      // ⭐ Log share event to Supabase via API route
-      await fetch("/api/vision-share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post_id: postId }),
-      });
-
-      // ⭐ CRITICAL FIX: Refresh the FEED, not the Post page
-      router.refresh();
+      await logShare(4);
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -46,21 +54,70 @@ export default function VisionShareButton({
     }
   }
 
+  async function handleCopyImage() {
+    try {
+      const img = await fetch(imageUrl);
+      const blob = await img.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+
+      await logShare(4);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Copy image failed:", err);
+    }
+  }
+
+  function downloadShareCard() {
+    const link = document.createElement("a");
+    link.href = imageUrl;
+    link.download = `${title.replace(/\s+/g, "_")}.jpg`;
+    link.click();
+    logShare(4);
+  }
+
+  function shareToWhatsApp() {
+    const text = encodeURIComponent(`${title}\n${shareUrl}`);
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+    logShare(4);
+  }
+
+  function shareToTwitter() {
+    const text = encodeURIComponent(`${title} — by @${creatorUsername}\n${shareUrl}`);
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+    logShare(4);
+  }
+
+  function shareToThreads() {
+    const text = encodeURIComponent(`${title}\n${shareUrl}`);
+    window.open(`https://www.threads.net/intent/post?text=${text}`, "_blank");
+    logShare(4);
+  }
+
+  function shareToInstagramStories() {
+    window.open(`instagram://story-camera`, "_blank");
+    logShare(4);
+  }
+
+  function shareToTikTok() {
+    window.open(`https://www.tiktok.com/upload?lang=en`, "_blank");
+    logShare(4);
+  }
+
   return (
     <div className="mt-6">
-      {/* ⭐ Main Share Button */}
       <button
         onClick={() => setOpen(true)}
         className="
           px-4 py-2 bg-blue-600 hover:bg-blue-500 
-          text-white rounded shadow 
-          transition-all
+          text-white rounded shadow transition-all
         "
       >
         Share
       </button>
 
-      {/* ⭐ Share Modal */}
       {open && (
         <div
           className="
@@ -77,7 +134,6 @@ export default function VisionShareButton({
             "
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ⭐ Vision Share Card */}
             <VisionShareCard
               postId={postId}
               title={title}
@@ -85,24 +141,64 @@ export default function VisionShareButton({
               creatorUsername={creatorUsername}
             />
 
-            {/* ⭐ Copy Link Button */}
-            <button
-              onClick={handleCopy}
-              className={`
-                w-full px-4 py-2 rounded mt-4 
-                text-white transition-all
-                ${
-                  copied
-                    ? "bg-green-600 shadow-lg shadow-green-900/40"
-                    : "bg-blue-600 hover:bg-blue-500"
-                }
-              `}
-              aria-live="polite"
-            >
-              {copied ? "Copied!" : "Copy Share Link"}
-            </button>
+            <div className="grid grid-cols-2 gap-3 mt-6">
+              <button
+                onClick={handleCopyLink}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded"
+              >
+                Copy Link
+              </button>
 
-            {/* ⭐ Close */}
+              <button
+                onClick={handleCopyImage}
+                className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded"
+              >
+                Copy Image
+              </button>
+
+              <button
+                onClick={downloadShareCard}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded"
+              >
+                Download Card
+              </button>
+
+              <button
+                onClick={shareToWhatsApp}
+                className="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded"
+              >
+                WhatsApp
+              </button>
+
+              <button
+                onClick={shareToTwitter}
+                className="bg-blue-500 hover:bg-blue-400 text-white px-3 py-2 rounded"
+              >
+                Twitter/X
+              </button>
+
+              <button
+                onClick={shareToThreads}
+                className="bg-black hover:bg-gray-800 text-white px-3 py-2 rounded"
+              >
+                Threads
+              </button>
+
+              <button
+                onClick={shareToInstagramStories}
+                className="bg-pink-600 hover:bg-pink-500 text-white px-3 py-2 rounded"
+              >
+                Instagram Stories
+              </button>
+
+              <button
+                onClick={shareToTikTok}
+                className="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded"
+              >
+                TikTok
+              </button>
+            </div>
+
             <button
               onClick={() => setOpen(false)}
               className="mt-4 text-white/60 hover:text-white text-sm"

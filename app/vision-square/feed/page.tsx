@@ -12,9 +12,11 @@ interface ReactionRow {
 
 interface VisionComment {
   id: string;
-  comment_text: string;
+  content: string;
+  raw_input?: string | null;
   created_at: string;
   automask: number;
+  positivity_ratio?: number;
   user_id: string;
   profiles: {
     username: string;
@@ -85,18 +87,19 @@ export default function VisionSquareFeed() {
           avatar_url
         ),
 
- comments:vision_post_comments (
-  id,
-  content,
-  created_at,
-  automask,
-  user_id,
-  profiles:user_id (
-    username,
-    avatar_url
-  )
-)
-
+        comments:vision_post_comments (
+          id,
+          content,
+          raw_input,
+          created_at,
+          automask,
+          positivity_ratio,
+          user_id,
+          profiles:user_id (
+            username,
+            avatar_url
+          )
+        )
       `)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
@@ -122,7 +125,13 @@ export default function VisionSquareFeed() {
       const comments = post.comments?.map((c: any) => {
         const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
         return {
-          ...c,
+          id: c.id,
+          content: c.content,
+          raw_input: c.raw_input ?? null,
+          created_at: c.created_at,
+          automask: c.automask,
+          positivity_ratio: c.positivity_ratio ?? 0.5,
+          user_id: c.user_id,
           profiles: {
             username: profile?.username ?? "unknown",
             avatar_url: profile?.avatar_url || null,
@@ -163,10 +172,8 @@ export default function VisionSquareFeed() {
       };
 
       const total = rows.length;
-
       const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
-      const positivity =
-        total > 0 ? positiveCount / total : 0.5;
+      const positivity = total > 0 ? positiveCount / total : 0.5;
 
       const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
 

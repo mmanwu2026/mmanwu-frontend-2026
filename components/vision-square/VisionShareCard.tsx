@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";   // ⭐ ADDED
+import { useRouter } from "next/navigation";
 
 export default function VisionShareCard({
   postId,
@@ -14,34 +14,94 @@ export default function VisionShareCard({
   imageUrl: string;
   creatorUsername: string;
 }) {
-  const router = useRouter();                  // ⭐ ADDED
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
 
-  // ⭐ Hydration-safe share URL
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/vision-square/post/${postId}`
       : "";
 
-  async function handleCopy() {
+  async function logShare(maskTier = 4) {
+    await fetch("/api/vision-share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        post_id: postId,
+        maskTier,
+        post_type: "vision",
+      }),
+    });
+
+    if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/vision-square/feed")) {
+        router.refresh();
+      }
+    }
+  }
+
+  async function handleCopyLink() {
     try {
       await navigator.clipboard.writeText(shareUrl);
-
-      // ⭐ Log share event to Supabase via API route
-      await fetch("/api/vision-share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post_id: postId }),
-      });
-
-      // ⭐ CRITICAL FIX: Refresh FEED after share
-      router.refresh();
+      await logShare(4);
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Copy failed:", err);
     }
+  }
+
+  async function handleCopyImage() {
+    try {
+      const img = await fetch(imageUrl);
+      const blob = await img.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+
+      await logShare(4);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Copy image failed:", err);
+    }
+  }
+
+  function downloadShareCard() {
+    const link = document.createElement("a");
+    link.href = imageUrl;
+    link.download = `${title.replace(/\s+/g, "_")}.jpg`;
+    link.click();
+    logShare(4);
+  }
+
+  function shareToWhatsApp() {
+    const text = encodeURIComponent(`${title}\n${shareUrl}`);
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+    logShare(4);
+  }
+
+  function shareToTwitter() {
+    const text = encodeURIComponent(`${title} — by @${creatorUsername}\n${shareUrl}`);
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+    logShare(4);
+  }
+
+  function shareToThreads() {
+    const text = encodeURIComponent(`${title}\n${shareUrl}`);
+    window.open(`https://www.threads.net/intent/post?text=${text}`, "_blank");
+    logShare(4);
+  }
+
+  function shareToInstagramStories() {
+    window.open(`instagram://story-camera`, "_blank");
+    logShare(4);
+  }
+
+  function shareToTikTok() {
+    window.open(`https://www.tiktok.com/upload?lang=en`, "_blank");
+    logShare(4);
   }
 
   return (
@@ -52,24 +112,24 @@ export default function VisionShareCard({
         animate-[fadeIn_0.3s_ease-out_forwards] opacity-0
       "
     >
-      {/* ⭐ Vision Image */}
+      {/* Image */}
       <div className="w-full h-64 rounded-lg overflow-hidden border border-white/10 mb-4">
         <img
-          src={imageUrl || ""} // ⭐ Safe fallback
+          src={imageUrl || ""}
           alt="Vision"
           className="w-full h-full object-cover"
         />
       </div>
 
-      {/* ⭐ Title */}
+      {/* Title */}
       <h2 className="text-white text-xl font-semibold mb-2">{title}</h2>
 
-      {/* ⭐ Creator */}
+      {/* Creator */}
       <p className="text-purple-300 text-sm mb-4">@{creatorUsername}</p>
 
-      {/* ⭐ Copy Share Link */}
+      {/* Copy Link */}
       <button
-        onClick={handleCopy}
+        onClick={handleCopyLink}
         className={`
           w-full px-4 py-2 rounded mb-3 text-white transition-all
           ${
@@ -78,39 +138,60 @@ export default function VisionShareCard({
               : "bg-blue-600 hover:bg-blue-500"
           }
         `}
-        aria-live="polite"
       >
         {copied ? "Copied!" : "Copy Share Link"}
       </button>
 
-      {/* ⭐ Social Buttons */}
-      <div className="space-y-3">
-        <a
-          href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(
-            shareUrl
-          )}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full text-center px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded text-white"
+      {/* Share Options */}
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        <button
+          onClick={handleCopyImage}
+          className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded"
         >
-          Share on X (Twitter)
-        </a>
+          Copy Image
+        </button>
 
-        <a
-          href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full text-center px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded text-white"
+        <button
+          onClick={downloadShareCard}
+          className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded"
         >
-          Share on WhatsApp
-        </a>
+          Download Card
+        </button>
 
-        <a
-          href={`sms:?body=${encodeURIComponent(shareUrl)}`}
-          className="block w-full text-center px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded text-white"
+        <button
+          onClick={shareToWhatsApp}
+          className="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded"
         >
-          Share via SMS
-        </a>
+          WhatsApp
+        </button>
+
+        <button
+          onClick={shareToTwitter}
+          className="bg-blue-500 hover:bg-blue-400 text-white px-3 py-2 rounded"
+        >
+          Twitter/X
+        </button>
+
+        <button
+          onClick={shareToThreads}
+          className="bg-black hover:bg-gray-800 text-white px-3 py-2 rounded"
+        >
+          Threads
+        </button>
+
+        <button
+          onClick={shareToInstagramStories}
+          className="bg-pink-600 hover:bg-pink-500 text-white px-3 py-2 rounded"
+        >
+          Instagram Stories
+        </button>
+
+        <button
+          onClick={shareToTikTok}
+          className="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded"
+        >
+          TikTok
+        </button>
       </div>
     </div>
   );

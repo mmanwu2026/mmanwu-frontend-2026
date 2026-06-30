@@ -6,7 +6,8 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import Link from "next/link";
 import ReactionBar from "@/components/vision-square/ReactionBar";
-import { useRouter } from "next/navigation";   // ⭐ ADDED
+import SpiritToast from "@/components/SpiritToast";
+import { useRouter } from "next/navigation";
 
 interface ReactionRow {
   maskTier: number;
@@ -15,7 +16,7 @@ interface ReactionRow {
 export default function VisionCard({ post }: { post: any }) {
   const supabase = useSupabase();
   const { user } = useUser();
-  const router = useRouter();                  // ⭐ ADDED
+  const router = useRouter();
 
   // ⭐ Null-safe defaults
   const safeReactions = post.reactions ?? {
@@ -26,6 +27,8 @@ export default function VisionCard({ post }: { post: any }) {
     mask5: 0,
     mask6: 0,
   };
+
+  const [showAllComments, setShowAllComments] = useState(false);
 
   const safeAvatar = post.users?.avatar_url || undefined;
   const safeMedia = typeof post.media_url === "string" ? post.media_url : null;
@@ -76,6 +79,7 @@ export default function VisionCard({ post }: { post: any }) {
     return () => observer.disconnect();
   }, [isVideo]);
 
+  // ⭐ Refresh reactions after reacting or sharing
   async function refreshReactions() {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -113,24 +117,136 @@ export default function VisionCard({ post }: { post: any }) {
     setLocalPositivity(newPositivity);
     setLocalMask(newAutoMask);
 
-    // ⭐ CRITICAL FIX: Refresh FEED after reaction
     router.refresh();
   }
 
   const isCreator = user?.id === post.creator_id;
   const isPositive = localMask >= 3;
 
+  // ⭐ Inline Comment Composer
+  const [commentText, setCommentText] = useState("");
+  const [commentError, setCommentError] = useState("");
+  const [loadingComment, setLoadingComment] = useState(false);
+
+  const [gateData, setGateData] = useState<any | null>(null);
+  const [showGateModal, setShowGateModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  async function runGatekeeper(rawText: string) {
+    try {
+      const res = await fetch("/api/gatekeeper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText }),
+      });
+
+      if (!res.ok) throw new Error("Gatekeeper failed");
+      return await res.json();
+    } catch {
+      return {
+        rewriteNeeded: false,
+        autoApprove: true,
+        finalText: rawText,
+        automask: 2,
+        positivityRatio: 0.5,
+      };
+    }
+  }
+
+  async function insertComment(finalText: string, automask: number, positivity: number) {
+    const { error } = await supabase
+      .from("vision_post_comments")
+      .insert({
+        post_id: post.id,
+        user_id: user?.id,
+        content: finalText,
+        raw_input: commentText,
+        automask,
+        positivity_ratio: positivity,
+      });
+
+    if (error) {
+      console.error(error);
+      setCommentError("Failed to post comment.");
+      return false;
+    }
+
+    router.refresh();
+    return true;
+  }
+
+  async function submitComment() {
+    setCommentError("");
+
+    if (!user) {
+      setCommentError("You must be logged in to comment.");
+      return;
+    }
+
+    if (!commentText.trim()) {
+      setCommentError("Please enter a comment.");
+      return;
+    }
+
+    setLoadingComment(true);
+
+    const gate = await runGatekeeper(commentText.trim());
+
+    if (gate.autoApprove && !gate.rewriteNeeded) {
+      const ok = await insertComment(gate.finalText, gate.automask, gate.positivityRatio);
+      if (ok) {
+        setCommentText("");
+        if (gate.positivityRatio >= 0.6 || gate.automask >= 3) {
+          setToastMessage("Your words uplift the spirits ✨");
+        }
+      }
+      setLoadingComment(false);
+      return;
+    }
+
+    if (gate.rewriteNeeded) {
+      setGateData(gate);
+      setShowGateModal(true);
+      setLoadingComment(false);
+      return;
+    }
+
+    const ok = await insertComment(gate.finalText, gate.automask, gate.positivityRatio);
+    if (ok) setCommentText("");
+
+    setLoadingComment(false);
+  }
+
+  async function acceptRewrite(rewrite: string) {
+    setLoadingComment(true);
+
+    const ok = await insertComment(
+      rewrite,
+      gateData.automask,
+      gateData.positivityRatio
+    );
+
+    if (ok) {
+      setCommentText("");
+      setGateData(null);
+      setShowGateModal(false);
+      if (gateData.positivityRatio >= 0.6 || gateData.automask >= 3) {
+        setToastMessage("Your words uplift the spirits ✨");
+      }
+    }
+
+    setLoadingComment(false);
+  }
+
   return (
-    <div
-      ref={cardRef}
-      data-vision-card
-      className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg"
-    >
+    <div ref={cardRef} data-vision-card className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg">
+
+      {toastMessage && (
+        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
       <div className="flex items-center justify-between mb-3">
-        <Link
-          href={`/vision-square/post/${post.id}`}
-          className="flex items-center gap-2"
-        >
+        <Link href={`/vision-square/post/${post.id}`} className="flex items-center gap-2">
           {safeAvatar && (
             <img
               src={safeAvatar}
@@ -142,14 +258,12 @@ export default function VisionCard({ post }: { post: any }) {
             {post.users?.username ?? "unknown"}
           </span>
 
-          {/* ⭐ Creator Badge */}
           {isCreator && (
             <span className="text-xs bg-purple-700 px-2 py-1 rounded text-white">
               Creator
             </span>
           )}
 
-          {/* ⭐ Positive Mask Badge */}
           {isPositive && (
             <span className="text-xs bg-green-700 px-2 py-1 rounded text-white">
               ✨ Uplifting
@@ -202,35 +316,94 @@ export default function VisionCard({ post }: { post: any }) {
         reactions={localReactions}
         spiritScore={localSpirit}
         positivityRatio={localPositivity}
-        onReact={refreshReactions}   // ⭐ FEED refresh now included
+        onReact={refreshReactions}
       />
 
-{/* ⭐ COMMENTS SECTION */}
-{post.comments && post.comments.length > 0 && (
-  <div className="mt-4">
-    <p className="text-gray-300 text-sm font-medium mb-2">
-      💬 {post.comment_count} comments
-    </p>
+      {/* ⭐ COMMENTS SECTION */}
+      {post.comments && post.comments.length > 0 && (
+        <div className="mt-4">
+          <p className="text-gray-300 text-sm font-medium mb-2">
+            💬 {post.comment_count} comments
+          </p>
 
-    {post.comments.slice(0, 2).map((comment: any) => (
-      <div key={comment.id} className="mb-3">
-        <div className="flex items-center gap-2">
-          <img
-            src={comment.profiles?.avatar_url || "/default-avatar.png"}
-            className="w-6 h-6 rounded-full"
-          />
-          <span className="text-sm font-semibold text-purple-200">
-            {comment.profiles?.username || "unknown"}
-          </span>
+          {post.comments.slice(0, 2).map((comment: any) => (
+            <div key={comment.id} className="mb-3">
+              <div className="flex items-center gap-2">
+                <img
+                  src={comment.profiles?.avatar_url || "/default-avatar.png"}
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm font-semibold text-purple-200">
+                  {comment.profiles?.username || "unknown"}
+                </span>
+              </div>
+
+              <p className="ml-8 text-gray-400 text-sm">
+                {comment.content}
+              </p>
+            </div>
+          ))}
+
+          {/* ⭐ View All Comments Button */}
+          {post.comment_count > 2 && (
+            <button
+              onClick={() => setShowAllComments(true)}
+              className="text-purple-300 hover:text-purple-200 text-sm mt-2 underline"
+            >
+              View all comments →
+            </button>
+          )}
         </div>
+      )}
 
-        <p className="ml-8 text-gray-400 text-sm">
-          {comment.content}
-        </p>
+      {/* ⭐ INLINE COMMENT COMPOSER */}
+      <div className="mt-4 bg-gray-800 p-3 rounded-lg">
+        <textarea
+          className="w-full bg-gray-700 text-white rounded p-2 text-sm"
+          placeholder="Write a comment…"
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          rows={2}
+        />
+
+        {commentError && (
+          <p className="text-red-400 text-sm mt-1">{commentError}</p>
+        )}
+
+        {/* Gatekeeper Rewrite Modal */}
+        {showGateModal && gateData && (
+          <div className="bg-gray-700 p-3 rounded mt-3 border border-yellow-500/40">
+            <p className="text-yellow-300 text-sm mb-2">
+              The spirits suggest a more uplifting version:
+            </p>
+
+            {gateData.rewrites.map((r: string, idx: number) => (
+              <button
+                key={idx}
+                onClick={() => acceptRewrite(r)}
+                className="block w-full text-left p-2 mb-2 bg-neutral-600 rounded hover:bg-neutral-500"
+              >
+                {r}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setShowGateModal(false)}
+              className="bg-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-500"
+            >
+              Keep original
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={submitComment}
+          disabled={loadingComment}
+          className="mt-2 bg-purple-600 px-4 py-2 rounded text-sm hover:bg-purple-500 disabled:opacity-50"
+        >
+          {loadingComment ? "Posting…" : "Post comment"}
+        </button>
       </div>
-    ))}
-  </div>
-)}
 
       <p className="text-gray-400 text-sm mt-3">
         {post.created_at ? new Date(post.created_at).toLocaleString() : ""}
