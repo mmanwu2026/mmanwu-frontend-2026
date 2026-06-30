@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";   // ⭐ ADDED
+import { useRouter } from "next/navigation";
 
 export default function SoundShareButton({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
-  const router = useRouter();                  // ⭐ ADDED
+  const router = useRouter();
 
   const shareUrl =
     typeof window !== "undefined"
@@ -17,13 +17,14 @@ export default function SoundShareButton({ postId }: { postId: string }) {
     try {
       await navigator.clipboard.writeText(shareUrl);
 
-      // Analytics
+      // ⭐ Correct analytics POST
       await fetch("/api/sound-share", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ post_id: postId }),
       });
 
-      // ⭐ CRITICAL FIX: Refresh Sound Square feed
+      // ⭐ Refresh feed so share_count updates
       router.refresh();
 
       setCopied(true);
@@ -74,9 +75,11 @@ export default function SoundShareButton({ postId }: { postId: string }) {
               className={`
                 w-full px-4 py-2 rounded mb-3 
                 text-white transition-all
-                ${copied 
-                  ? "bg-green-600 shadow-lg shadow-green-900/40" 
-                  : "bg-blue-600 hover:bg-blue-500"}
+                ${
+                  copied
+                    ? "bg-green-600 shadow-lg shadow-green-900/40"
+                    : "bg-blue-600 hover:bg-blue-500"
+                }
               `}
             >
               {copied ? "Copied!" : "Copy Link"}

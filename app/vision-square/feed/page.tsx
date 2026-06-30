@@ -85,17 +85,18 @@ export default function VisionSquareFeed() {
           avatar_url
         ),
 
-        comments:vision_post_comments (
-          id,
-          comment_text,
-          created_at,
-          automask,
-          user_id,
-          profiles:user_id (
-            username,
-            avatar_url
-          )
-        )
+ comments:vision_post_comments (
+  id,
+  content,
+  created_at,
+  automask,
+  user_id,
+  profiles:user_id (
+    username,
+    avatar_url
+  )
+)
+
       `)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);

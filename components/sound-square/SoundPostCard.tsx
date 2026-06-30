@@ -279,6 +279,33 @@ export default function SoundPostCard({
         )}
       </div>
 
+{/* ⭐ COMMENTS PREVIEW */}
+{post.comments && post.comments.length > 0 && (
+  <div className="mt-4">
+    <p className="text-gray-300 text-sm font-medium mb-2">
+      💬 {post.comment_count} comments
+    </p>
+
+    {post.comments.slice(0, 2).map((comment: any) => (
+      <div key={comment.id} className="mb-3">
+        <div className="flex items-center gap-2">
+          <img
+            src={comment.profiles?.avatar_url || "/default-avatar.png"}
+            className="w-6 h-6 rounded-full"
+          />
+          <span className="text-sm font-semibold text-purple-200">
+            {comment.profiles?.username || "unknown"}
+          </span>
+        </div>
+
+        <p className="ml-8 text-gray-400 text-sm">
+          {comment.content}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
+
       <SoundReactionBar
         postId={post.id}
         creatorId={post.creator_id}

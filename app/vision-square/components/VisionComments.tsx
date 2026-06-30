@@ -68,27 +68,25 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     }
   }
 
-  async function insertComment(finalText: string, automask: number) {
-    const { error: dbError } = await supabase
-      .from("vision_post_comments")
-      .insert({
-        post_id: postId,
-        user_id: user?.id,
-        comment_text: finalText,
-        automask,
-      });
+async function insertComment(finalText: string, automask: number) {
+  const { error: dbError } = await supabase
+    .from("vision_post_comments")
+    .insert({
+      post_id: postId,
+      user_id: user?.id,
+      content: finalText,     // ⭐ FIXED
+      automask,
+    });
 
-    if (dbError) {
-      console.error(dbError);
-      setError("Failed to post comment.");
-      return false;
-    }
-
-    // ⭐ CRITICAL FIX: Refresh FEED after comment insert
-    router.refresh();
-
-    return true;
+  if (dbError) {
+    console.error(dbError);
+    setError("Failed to post comment.");
+    return false;
   }
+
+  router.refresh();
+  return true;
+}
 
   async function handleSubmit() {
     setError("");

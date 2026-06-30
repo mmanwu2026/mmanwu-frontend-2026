@@ -115,7 +115,7 @@ export default function SoundSquareUpload() {
       return {
         rewriteNeeded: false,
         autoApprove: true,
-        finalText: text,
+        content: text,
         automask: 3,
         positivityRatio: 0.5,
       };

@@ -15,7 +15,7 @@ export default function VisionCommentList({ postId }: { postId: string }) {
       .from("vision_post_comments")
       .select(`
         id,
-        comment_text,
+        content,
         created_at,
         automask,
         user_id,

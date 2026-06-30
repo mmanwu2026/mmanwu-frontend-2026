@@ -6,7 +6,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
-import { useRouter } from "next/navigation";   // ⭐ ADDED
+import { useRouter } from "next/navigation";
 
 export default function SoundComments({
   postId,
@@ -17,7 +17,7 @@ export default function SoundComments({
 }) {
   const supabase = useSupabase();
   const { user } = useUser();
-  const router = useRouter();                  // ⭐ ADDED
+  const router = useRouter();
 
   const [text, setText] = useState("");
   const [gateData, setGateData] = useState<any>(null);
@@ -27,7 +27,6 @@ export default function SoundComments({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  // ⭐ Load creator_id for badge
   useEffect(() => {
     async function loadCreator() {
       const { data } = await supabase
@@ -54,14 +53,12 @@ export default function SoundComments({
 
     const gate = await res.json();
 
-    // ⭐ Auto-approved positive content
     if (gate.autoApprove && !gate.rewriteNeeded) {
       await submitFinal(gate.finalText, gate.automask, gate.positivityRatio);
       setToastMessage("The spirits approve your message ✨");
       return;
     }
 
-    // ⭐ Rewrite required
     if (gate.rewriteNeeded) {
       setGateData(gate);
       setShowGateModal(true);
@@ -69,7 +66,6 @@ export default function SoundComments({
       return;
     }
 
-    // ⭐ Neutral comment → auto-approve silently
     await submitFinal(gate.finalText, gate.automask, gate.positivityRatio);
   }
 
@@ -83,7 +79,7 @@ export default function SoundComments({
       body: JSON.stringify({
         post_id: postId,
         raw_input: text,
-        final_text: finalText,
+        content: finalText,            // ⭐ FIXED
         automask,
         positivity_ratio: positivityRatio,
       }),
@@ -94,9 +90,7 @@ export default function SoundComments({
     setGateData(null);
     setBusy(false);
 
-    // ⭐ CRITICAL FIX: Refresh Sound Square feed
     router.refresh();
-
     onSubmitted();
   }
 
@@ -122,7 +116,6 @@ export default function SoundComments({
         {busy ? "Posting…" : "Comment"}
       </button>
 
-      {/* ⭐ Gatekeeper Rewrite Modal */}
       {showGateModal && gateData && (
         <Modal onClose={() => setShowGateModal(false)}>
           <div className="p-4 text-white">

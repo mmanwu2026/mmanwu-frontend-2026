@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
-import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
+import type { CardSoundPost, SoundComment } from "@/app/sound-square/loadSoundPosts";
 
 import FloatingComposer from "@/components/sound-square/FloatingComposer";
 import FeedToggle from "@/components/sound-square/FeedToggle";
@@ -70,7 +70,7 @@ export default function SoundSquareFeed() {
     }
 
     const typed = data as RawSoundPost[];
-    const merged = await mergeWithReactions(typed);
+    const merged = await mergeWithReactionsAndComments(typed);
     setPosts(merged);
 
     if (typed.length > 0) setCursor(typed[typed.length - 1].created_at);
@@ -108,7 +108,7 @@ export default function SoundSquareFeed() {
       return;
     }
 
-    const merged = await mergeWithReactions(typed);
+    const merged = await mergeWithReactionsAndComments(typed);
     setPosts((prev) => [...prev, ...merged]);
 
     setCursor(typed[typed.length - 1].created_at);
@@ -131,83 +131,123 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
-  const postIds = rawPosts.map((p) => p.id);
+  async function mergeWithReactionsAndComments(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
+    const postIds = rawPosts.map((p) => p.id);
 
-  // ⭐ Load reactions
-  const { data: reactionsData } = await supabase
-    .from("reactions")
-    .select("post_id, maskTier, value")
-    .eq("post_type", "sound")
-    .in("post_id", postIds);
+    // ⭐ Load reactions
+    const { data: reactionsData } = await supabase
+      .from("reactions")
+      .select("post_id, maskTier, value")
+      .eq("post_type", "sound")
+      .in("post_id", postIds);
 
-  const typedReactions = (reactionsData ?? []) as ReactionRow[];
+    const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-  // ⭐ Load share analytics
-  const { data: shareRows } = await supabase
-    .from("sound_share")
-    .select("post_id")
-    .in("post_id", postIds);
+    // ⭐ Load shares
+    const { data: shareRows } = await supabase
+      .from("sound_share")
+      .select("post_id")
+      .in("post_id", postIds);
 
-  return rawPosts.map((post) => {
-    const postReactions = typedReactions.filter((r) => r.post_id === post.id);
+    // ⭐ Load comments
+    const { data: commentRows } = await supabase
+      .from("sound_post_comments")
+      .select(`
+        id,
+        post_id,
+        content,
+        raw_input,
+        created_at,
+        automask,
+        positivity_ratio,
+        user_id,
+        profiles:user_id (
+          username,
+          avatar_url
+        )
+      `)
+      .in("post_id", postIds)
+      .order("created_at", { ascending: true });
 
-    const counts: ReactionCounts = {
-      mask1: postReactions.filter((r) => r.maskTier === 1).length,
-      mask2: postReactions.filter((r) => r.maskTier === 2).length,
-      mask3: postReactions.filter((r) => r.maskTier === 3).length,
-      mask4: postReactions.filter((r) => r.maskTier === 4).length,
-      mask5: postReactions.filter((r) => r.maskTier === 5).length,
-      mask6: postReactions.filter((r) => r.maskTier === 6).length,
-    };
+    return rawPosts.map((post) => {
+      const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
-    const spiritScore = post.spirit_score ?? 0;
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
 
-    const weightedPositive = postReactions
-      .filter((r) => (r.value ?? 0) > 0)
-      .reduce((sum, r) => sum + (r.value ?? 0), 0);
+      const spiritScore = post.spirit_score ?? 0;
 
-    const weightedTotal = Math.abs(spiritScore);
-    const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const weightedPositive = postReactions
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-    let autoMask = 2;
-    if (spiritScore <= 20) autoMask = 2;
-    else if (spiritScore <= 100) autoMask = 3;
-    else if (spiritScore <= 200) autoMask = 4;
-    else if (spiritScore <= 500) autoMask = 5;
-    else autoMask = 6;
+      const weightedTotal = Math.abs(spiritScore);
+      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-    // ⭐ Share aggregation
-    const share_count = (shareRows ?? []).filter(
-      (s: any) => s.post_id === post.id
-    ).length;
+      let autoMask = 2;
+      if (spiritScore <= 20) autoMask = 2;
+      else if (spiritScore <= 100) autoMask = 3;
+      else if (spiritScore <= 200) autoMask = 4;
+      else if (spiritScore <= 500) autoMask = 5;
+      else autoMask = 6;
 
-    const share_score = share_count * 5; // trending boost
+      // ⭐ Share aggregation
+      const share_count = (shareRows ?? []).filter(
+        (s: any) => s.post_id === post.id
+      ).length;
 
-    return {
-      id: post.id,
-      title: post.title,
-      audio_url: post.audio_url,
-      creator_id: post.creator_id,
-      created_at: post.created_at,
+      const share_score = share_count * 5;
 
-      spirit_score: spiritScore,
-      positivity_ratio: positivityRatio,
-      automask: autoMask,
+      // ⭐ Comment aggregation
+      const rawComments = (commentRows ?? []).filter(
+        (c: any) => c.post_id === post.id
+      );
 
-      users: {
-        username: post.users?.username ?? "Unknown",
-        avatar_url: post.users?.avatar_url ?? null,
-      },
+      const comments: SoundComment[] = rawComments.map((c: any) => ({
+        id: c.id,
+        content: c.content,
+        raw_input: c.raw_input,
+        created_at: c.created_at,
+        automask: c.automask,
+        positivity_ratio: c.positivity_ratio,
+        user_id: c.user_id,
+        profiles: Array.isArray(c.profiles) ? c.profiles[0] : c.profiles,
+      }));
 
-      reactions: counts,
+      const comment_count = comments.length;
 
-      // ⭐ REQUIRED FIELDS
-      share_count,
-      share_score,
-    };
-  });
-}
+      return {
+        id: post.id,
+        title: post.title,
+        audio_url: post.audio_url,
+        creator_id: post.creator_id,
+        created_at: post.created_at,
+
+        spirit_score: spiritScore,
+        positivity_ratio: positivityRatio,
+        automask: autoMask,
+
+        users: {
+          username: post.users?.username ?? "Unknown",
+          avatar_url: post.users?.avatar_url ?? null,
+        },
+
+        reactions: counts,
+
+        share_count,
+        share_score,
+
+        comments,
+        comment_count,
+      };
+    });
+  }
 
   return (
     <div className="min-h-screen text-white p-6">
