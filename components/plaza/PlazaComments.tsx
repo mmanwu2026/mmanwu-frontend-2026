@@ -190,9 +190,10 @@ export default function PlazaComments({
           return (
             <div key={c.id} className="flex items-start gap-2">
               <img
-                src={getAvatar(c.profile?.avatar_url)}
-                className="w-7 h-7 rounded-full border border-gray-700"
-              />
+  src={getAvatar(c.profile?.avatar_url)}
+  className="w-[28px] h-[28px] min-w-[28px] min-h-[28px] max-w-[28px] max-h-[28px] rounded-full border border-gray-700"
+  style={{ width: "28px", height: "28px" }}
+/>
               <div className="flex-1">
                 <p className="text-xs text-purple-200 font-semibold">
                   {c.profile?.username || "unknown"}
