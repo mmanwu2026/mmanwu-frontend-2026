@@ -19,15 +19,15 @@ export default function SearchComponent() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const tagParam = searchParams.get("tag");
+const tagParam = searchParams?.get("tag") ?? null;
 
-  useEffect(() => {
-    if (tagParam) {
-      const tagQuery = `#${tagParam}`;
-      setQuery(tagQuery);
-      handleSearch(tagQuery);
-    }
-  }, [tagParam]);
+useEffect(() => {
+  if (tagParam) {
+    const tagQuery = `#${tagParam}`;
+    setQuery(tagQuery);
+    handleSearch(tagQuery);
+  }
+}, [tagParam]);
 
   async function handleSearch(forcedQuery?: string) {
     const q = forcedQuery || query;
