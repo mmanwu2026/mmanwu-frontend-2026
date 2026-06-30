@@ -415,13 +415,13 @@ export default function PlazaPage() {
 
               return (
                 <PlazaCard
-                  key={post.id}
-                  post={post}
-                  creator={creator}
-                  user={user}
-                  onDelete={handleDelete}
-                  onReact={reloadPosts}
-                />
+  key={post.id}
+  post={post}
+  creator={creator}
+  user={user}
+  onDeleteAction={handleDelete}
+  onReactAction={reloadPosts}
+/>
               );
             })}
           </div>
