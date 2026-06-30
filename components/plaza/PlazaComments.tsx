@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -82,7 +81,7 @@ export default function PlazaComments({
   }
 
   // -----------------------------
-  // SUBMIT COMMENT (SERVER AI GATEKEEPER)
+  // SUBMIT COMMENT
   // -----------------------------
   async function submitComment() {
     if (!text.trim()) return;
@@ -116,7 +115,7 @@ export default function PlazaComments({
   }
 
   // -----------------------------
-  // DELETE COMMENT (Gatekeeper or Author)
+  // DELETE COMMENT
   // -----------------------------
   async function deleteComment(id: string) {
     await supabase
@@ -161,7 +160,14 @@ export default function PlazaComments({
         <div className="flex items-start gap-3">
           <img
             src={getAvatar(creatorAvatar)}
-            className="w-8 h-8 rounded-full border border-gray-700"
+            className="rounded-full border border-gray-700"
+            style={{
+              width: "32px",
+              height: "32px",
+              minWidth: "32px",
+              minHeight: "32px",
+              objectFit: "cover"
+            }}
           />
           <div className="flex-1">
             <p className="text-sm text-purple-200 font-semibold">
@@ -190,10 +196,17 @@ export default function PlazaComments({
           return (
             <div key={c.id} className="flex items-start gap-2">
               <img
-  src={getAvatar(c.profile?.avatar_url)}
-  className="w-[28px] h-[28px] min-w-[28px] min-h-[28px] max-w-[28px] max-h-[28px] rounded-full border border-gray-700"
-  style={{ width: "28px", height: "28px" }}
-/>
+                src={getAvatar(c.profile?.avatar_url)}
+                className="rounded-full border border-gray-700"
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  minWidth: "28px",
+                  minHeight: "28px",
+                  objectFit: "cover"
+                }}
+              />
+
               <div className="flex-1">
                 <p className="text-xs text-purple-200 font-semibold">
                   {c.profile?.username || "unknown"}
