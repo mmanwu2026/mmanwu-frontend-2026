@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
-import type { CardSoundPost } from "@/app/sound-square/loadSoundPosts";
-
-import FloatingComposer from "@/components/sound-square/FloatingComposer";
-import FeedToggle from "@/components/sound-square/FeedToggle";
+import type { CardSoundPost, SoundComment } from "@/app/sound-square/loadSoundPosts";
 
 type ReactionCounts = {
   mask1: number;
@@ -21,6 +18,7 @@ type ReactionCounts = {
 type ReactionRow = {
   post_id: string;
   maskTier: number;
+  value: number | null;
 };
 
 type RawSoundPost = {
@@ -29,114 +27,78 @@ type RawSoundPost = {
   audio_url: string;
   creator_id: string;
   created_at: string;
+  spirit_score: number;
   users?: { username: string | null; avatar_url?: string | null } | null;
 };
 
-const PAGE_SIZE = 20;
-
-export default function SoundSquareTrending() {
+export default function TrendingSoundSquare() {
   const supabase = useSupabase();
-
-  const [posts, setPosts] = useState<CardSoundPost[]>([]);
+  const [posts, setPosts] = useState<(CardSoundPost & { trending_score: number })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     loadTrending();
   }, []);
 
-  async function loadTrending(): Promise<void> {
+  async function loadTrending() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("sound_posts")
-      .select(`
-        *,
-        users:creator_id ( username, avatar_url )
-      `)
-      .order("created_at", { ascending: false }) // initial load
-      .limit(PAGE_SIZE * 3); // load more for trending calculation
-
-    if (error || !data) {
-      console.error(error);
-      setLoading(false);
-      return;
-    }
-
-    const typed = data as RawSoundPost[];
-    const merged = await mergeTrending(typed);
-
-    // sort by trending score
-    merged.sort((a, b) => b.trending_score - a.trending_score);
-
-    setPosts(merged.slice(0, PAGE_SIZE));
-
-    if (merged.length <= PAGE_SIZE) setHasMore(false);
-
-    setLoading(false);
-  }
-
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-
-    setLoadingMore(true);
-
-    const { data, error } = await supabase
+    // ⭐ Load posts
+    const { data: rawPosts, error } = await supabase
       .from("sound_posts")
       .select(`
         *,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE * 3);
+      .limit(50);
 
-    if (error || !data) {
+    if (error || !rawPosts) {
       console.error(error);
-      setLoadingMore(false);
+      setLoading(false);
       return;
     }
 
-    const typed = data as RawSoundPost[];
-    const merged = await mergeTrending(typed);
+    const typedPosts = rawPosts as RawSoundPost[];
+    const postIds = typedPosts.map((p) => p.id);
 
-    merged.sort((a, b) => b.trending_score - a.trending_score);
-
-    setPosts((prev) => [...prev, ...merged.slice(0, PAGE_SIZE)]);
-
-    if (merged.length <= PAGE_SIZE) setHasMore(false);
-
-    setLoadingMore(false);
-  }, [loadingMore, hasMore, supabase]);
-
-  useEffect(() => {
-    if (!loadMoreRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { threshold: 1 }
-    );
-
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
-  }, [loadMore]);
-
-  async function mergeTrending(rawPosts: RawSoundPost[]): Promise<(CardSoundPost & { trending_score: number })[]> {
-    const postIds = rawPosts.map((p) => p.id);
-
+    // ⭐ Load reactions
     const { data: reactionsData } = await supabase
       .from("reactions")
-      .select("post_id, maskTier")
+      .select("post_id, maskTier, value")
       .eq("post_type", "sound")
       .in("post_id", postIds);
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    return rawPosts.map((post) => {
+    // ⭐ Load shares
+    const { data: shareRows } = await supabase
+      .from("sound_share")
+      .select("post_id")
+      .in("post_id", postIds);
+
+    // ⭐ Load comments
+    const { data: commentRows } = await supabase
+      .from("sound_post_comments")
+      .select(`
+        id,
+        post_id,
+        content,
+        raw_input,
+        created_at,
+        automask,
+        positivity_ratio,
+        user_id,
+        profiles:user_id (
+          username,
+          avatar_url
+        )
+      `)
+      .in("post_id", postIds)
+      .order("created_at", { ascending: true });
+
+    // ⭐ Merge everything
+    const enriched = typedPosts.map((post: RawSoundPost) => {
       const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
       const counts: ReactionCounts = {
@@ -148,68 +110,99 @@ export default function SoundSquareTrending() {
         mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
-      const total = postReactions.length;
-      const positive = postReactions.filter((r) => r.maskTier >= 3).length;
+      const spiritScore = post.spirit_score ?? 0;
 
-      const spiritScore = postReactions.reduce(
-        (sum, r) => sum + r.maskTier,
-        0
-      );
+      const weightedPositive = postReactions
+        .filter((r) => (r.value ?? 0) > 0)
+        .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-      const positivityRatio = total > 0 ? positive / total : 0.5;
+      const weightedTotal = Math.abs(spiritScore);
+      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
       let autoMask = 2;
-      if (spiritScore > 20) autoMask = 3;
-      if (spiritScore > 100) autoMask = 4;
-      if (spiritScore > 300) autoMask = 5;
-      if (spiritScore > 500) autoMask = 6;
+      if (spiritScore <= 20) autoMask = 2;
+      else if (spiritScore <= 100) autoMask = 3;
+      else if (spiritScore <= 200) autoMask = 4;
+      else if (spiritScore <= 500) autoMask = 5;
+      else autoMask = 6;
+
+      // ⭐ Shares
+      const share_count = (shareRows ?? []).filter(
+        (s: any) => s.post_id === post.id
+      ).length;
+
+      const share_score = share_count * 5;
+
+      // ⭐ Comments
+      const rawComments = (commentRows ?? []).filter(
+        (c: any) => c.post_id === post.id
+      );
+
+      const comments: SoundComment[] = rawComments.map((c: any) => ({
+        id: c.id,
+        content: c.content,
+        raw_input: c.raw_input,
+        created_at: c.created_at,
+        automask: c.automask,
+        positivity_ratio: c.positivity_ratio,
+        user_id: c.user_id,
+        profiles: Array.isArray(c.profiles) ? c.profiles[0] : c.profiles,
+      }));
+
+      const comment_count = comments.length;
 
       // ⭐ Trending score formula
-      const hoursSincePost =
-        (Date.now() - new Date(post.created_at).getTime()) / 36e5;
-
-      const velocity = hoursSincePost > 0 ? total / hoursSincePost : total;
-
       const trending_score =
-        spiritScore * 1.5 +
-        positivityRatio * 50 +
-        velocity * 2 +
-        autoMask * 10;
+        spiritScore +
+        share_score +
+        comment_count * 2 +
+        positivityRatio * 10;
 
-return {
-  id: post.id,
-  title: post.title,
-  audio_url: post.audio_url,
-  creator_id: post.creator_id,
-  created_at: post.created_at,
+      return {
+        id: post.id,
+        title: post.title,
+        audio_url: post.audio_url,
+        creator_id: post.creator_id,
+        created_at: post.created_at,
 
-  spirit_score: spiritScore,
-  positivity_ratio: positivityRatio,
-  automask: autoMask,
+        spirit_score: spiritScore,
+        positivity_ratio: positivityRatio,
+        automask: autoMask,
 
-  // ⭐ REQUIRED FIELDS FOR CardSoundPost
-  share_count: (post as any).share_count ?? 0,
-  share_score: (post as any).share_score ?? 0,
+        users: {
+          username: post.users?.username ?? "Unknown",
+          avatar_url: post.users?.avatar_url ?? null,
+        },
 
-  users: {
-    username: post.users?.username ?? "Unknown",
-    avatar_url: post.users?.avatar_url ?? null,
-  },
+        reactions: counts,
 
-  reactions: counts,
+        share_count,
+        share_score,
 
-  trending_score,
-};
+        comments,
+        comment_count,
 
+        trending_score,
+      };
     });
+
+    // ⭐ FIXED — typed sort parameters
+    enriched.sort(
+      (
+        a: CardSoundPost & { trending_score: number },
+        b: CardSoundPost & { trending_score: number }
+      ) => b.trending_score - a.trending_score
+    );
+
+    setPosts(enriched);
+    setLoading(false);
   }
 
   return (
     <div className="min-h-screen text-white p-6">
       <TopBar />
-      <FeedToggle />
 
-      <h1 className="text-4xl font-bold mb-6">Trending on Sound Square</h1>
+      <h1 className="text-4xl font-bold mb-6">Trending Sounds</h1>
 
       {loading && <p>Loading trending sounds...</p>}
 
@@ -218,20 +211,6 @@ return {
           <SoundPostCard key={post.id} post={post} isTrending={true} />
         ))}
       </div>
-
-      {hasMore && (
-        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
-          {loadingMore && <p className="text-gray-400">Loading more...</p>}
-        </div>
-      )}
-
-      {!hasMore && (
-        <p className="text-gray-500 text-sm mt-4 text-center">
-          You’ve reached the end of trending sounds.
-        </p>
-      )}
-
-      <FloatingComposer />
     </div>
   );
 }
