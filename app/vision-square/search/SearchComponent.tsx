@@ -150,15 +150,16 @@ export default function SearchComponent() {
           };
         }) ?? [];
 
-      return {
-        ...post,
-        users: {
-          username: creator?.username ?? "unknown",
-          avatar_url: creator?.avatar_url ?? null,
-        },
-        comments,
-        comment_count: comments.length,
-      };
+return {
+  ...post,
+  tags: Array.isArray(post.tags) ? post.tags : [],   // ⭐ FIX
+  users: {
+    username: creator?.username ?? "unknown",
+    avatar_url: creator?.avatar_url ?? null,
+  },
+  comments,
+  comment_count: comments.length,
+};
     });
 
     // ⭐ Recalculate reactions + positivity + automask

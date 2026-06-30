@@ -151,36 +151,36 @@ export default function VisionCard({ post }: { post: any }) {
     }
   }
 
-async function insertComment(
-  finalText: string,
-  automask: number,
-  positivity: number
-) {
-  if (!finalText || finalText.trim().length === 0) {
-    setCommentError("Comment cannot be empty.");
-    return false;
+  async function insertComment(
+    finalText: string,
+    automask: number,
+    positivity: number
+  ) {
+    if (!finalText || finalText.trim().length === 0) {
+      setCommentError("Comment cannot be empty.");
+      return false;
+    }
+
+    const { error } = await supabase
+      .from("vision_post_comments")
+      .insert({
+        post_id: post.id,
+        user_id: user?.id,
+        content: finalText,
+        raw_input: commentText || "",
+        automask,
+        positivity_ratio: positivity,
+      });
+
+    if (error) {
+      console.error(error);
+      setCommentError("Failed to post comment.");
+      return false;
+    }
+
+    router.refresh();
+    return true;
   }
-
-  const { error } = await supabase
-    .from("vision_post_comments")
-    .insert({
-      post_id: post.id,
-      user_id: user?.id,
-      content: finalText,
-      raw_input: commentText || "",
-      automask,
-      positivity_ratio: positivity,
-    });
-
-  if (error) {
-    console.error(error);
-    setCommentError("Failed to post comment.");
-    return false;
-  }
-
-  router.refresh();
-  return true;
-}
 
   async function submitComment() {
     setCommentError("");
@@ -197,95 +197,98 @@ async function insertComment(
 
     setLoadingComment(true);
 
-const gate = await runGatekeeper(commentText.trim());
+    const gate = await runGatekeeper(commentText.trim());
 
-// ⭐ SAFETY GUARD — Gatekeeper must ALWAYS return a string
-const safeFinalText = gate.finalText || "";
-const safePositivity = gate.positivityRatio ?? 0.5;
-const safeAutomask = gate.automask ?? 2;
+    const safeFinalText = gate.finalText || "";
+    const safePositivity = gate.positivityRatio ?? 0.5;
+    const safeAutomask = gate.automask ?? 2;
 
-// ⭐ CASE 1 — Auto-approved, no rewrite needed
-if (gate.autoApprove && !gate.rewriteNeeded) {
-  if (!safeFinalText.trim()) {
-    setCommentError("Comment cannot be empty.");
+    // CASE 1 — Auto-approved, no rewrite needed
+    if (gate.autoApprove && !gate.rewriteNeeded) {
+      if (!safeFinalText.trim()) {
+        setCommentError("Comment cannot be empty.");
+        setLoadingComment(false);
+        return;
+      }
+
+      const ok = await insertComment(
+        safeFinalText,
+        safeAutomask,
+        safePositivity
+      );
+
+      if (ok) {
+        setCommentText("");
+
+        if (safePositivity >= 0.6 || safeAutomask >= 3) {
+          setToastMessage("Your words uplift the spirits ✨");
+        }
+      }
+
+      setLoadingComment(false);
+      return;
+    }
+
+    // CASE 2 — Rewrite required
+    if (gate.rewriteNeeded) {
+      setGateData({
+        ...gate,
+        finalText: safeFinalText,
+        positivityRatio: safePositivity,
+        automask: safeAutomask,
+      });
+      setShowGateModal(true);
+      setLoadingComment(false);
+      return;
+    }
+
+    // CASE 3 — Fallback
+    if (!safeFinalText.trim()) {
+      setCommentError("Comment cannot be empty.");
+      setLoadingComment(false);
+      return;
+    }
+
+    const ok = await insertComment(
+      safeFinalText,
+      safeAutomask,
+      safePositivity
+    );
+
+    if (ok) setCommentText("");
+
     setLoadingComment(false);
-    return;
   }
 
-  const ok = await insertComment(
-    safeFinalText,
-    safeAutomask,
-    safePositivity
-  );
-
-  if (ok) {
-    setCommentText("");
-
-    if (safePositivity >= 0.6 || safeAutomask >= 3) {
-      setToastMessage("Your words uplift the spirits ✨");
+  async function acceptRewrite(rewrite: string) {
+    if (!rewrite || rewrite.trim().length === 0) {
+      setCommentError("Rewrite cannot be empty.");
+      return;
     }
-  }
 
-  setLoadingComment(false);
-  return;
-}
+    setLoadingComment(true);
 
-// ⭐ CASE 2 — Rewrite required
-if (gate.rewriteNeeded) {
-  setGateData({
-    ...gate,
-    finalText: safeFinalText,
-    positivityRatio: safePositivity,
-    automask: safeAutomask,
-  });
-  setShowGateModal(true);
-  setLoadingComment(false);
-  return;
-}
+    const ok = await insertComment(
+      rewrite.trim(),
+      gateData?.automask ?? 2,
+      gateData?.positivityRatio ?? 0.5
+    );
 
-// ⭐ CASE 3 — Fallback (rare)
-if (!safeFinalText.trim()) {
-  setCommentError("Comment cannot be empty.");
-  setLoadingComment(false);
-  return;
-}
+    if (ok) {
+      setCommentText("");
+      setGateData(null);
+      setShowGateModal(false);
 
-const ok = await insertComment(
-  safeFinalText,
-  safeAutomask,
-  safePositivity
-);
+      const positivity = gateData?.positivityRatio ?? 0.5;
+      const automask = gateData?.automask ?? 2;
 
-if (ok) setCommentText("");
-
-setLoadingComment(false);
-
-async function acceptRewrite(rewrite: string) {
-  if (!rewrite || rewrite.trim().length === 0) {
-    setCommentError("Rewrite cannot be empty.");
-    return;
-  }
-
-  setLoadingComment(true);
-
-  const ok = await insertComment(
-    rewrite.trim(),
-    gateData.automask ?? 2,
-    gateData.positivityRatio ?? 0.5
-  );
-
-  if (ok) {
-    setCommentText("");
-    setGateData(null);
-    setShowGateModal(false);
-
-    if ((gateData.positivityRatio ?? 0.5) >= 0.6 || (gateData.automask ?? 2) >= 3) {
-      setToastMessage("Your words uplift the spirits ✨");
+      if (positivity >= 0.6 || automask >= 3) {
+        setToastMessage("Your words uplift the spirits ✨");
+      }
     }
-  }
 
-  setLoadingComment(false);
-}
+    setLoadingComment(false);
+  }
 
   return (
     <div
@@ -381,7 +384,6 @@ async function acceptRewrite(rewrite: string) {
         onReact={refreshReactions}
       />
 
-      {/* ⭐ INLINE SHARE BUTTON */}
       <div className="mt-3">
         <VisionShareButton
           postId={post.id}
@@ -391,7 +393,6 @@ async function acceptRewrite(rewrite: string) {
         />
       </div>
 
-      {/* ⭐ COMMENTS SECTION */}
       {post.comments && post.comments.length > 0 && (
         <div className="mt-4">
           <p className="text-gray-300 text-sm font-medium mb-2">
@@ -425,7 +426,6 @@ async function acceptRewrite(rewrite: string) {
         </div>
       )}
 
-      {/* ⭐ INLINE COMMENT COMPOSER */}
       <div className="mt-4 bg-gray-800 p-3 rounded-lg">
         <textarea
           className="w-full bg-gray-700 text-white rounded p-2 text-sm"
@@ -445,7 +445,7 @@ async function acceptRewrite(rewrite: string) {
               The spirits suggest a more uplifting version:
             </p>
 
-            {gateData.rewrites.map((r: string, idx: number) => (
+            {(gateData.rewrites || []).map((r: string, idx: number) => (
               <button
                 key={idx}
                 onClick={() => acceptRewrite(r)}
@@ -478,5 +478,4 @@ async function acceptRewrite(rewrite: string) {
       </p>
     </div>
   );
-}
 }
