@@ -2,32 +2,53 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSupabase } from "@/context/SupabaseContext";   // ⭐ ADDED
 
 export default function SoundCommentList({ postId }: { postId: string }) {
+  const supabase = useSupabase();                          // ⭐ ADDED
   const [comments, setComments] = useState<any[]>([]);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      const res = await fetch(`/api/sound-comments?post_id=${postId}`);
-      const data = await res.json();
+  async function loadComments() {
+    const res = await fetch(`/api/sound-comments?post_id=${postId}`);
+    const data = await res.json();
 
-      // Normalize users relationship
-      const normalized = (data.comments || []).map((c: any) => ({
-        ...c,
-        users: Array.isArray(c.users) ? c.users[0] : c.users,
-      }));
+    const normalized = (data.comments || []).map((c: any) => ({
+      ...c,
+      users: Array.isArray(c.users) ? c.users[0] : c.users,
+    }));
 
-      setComments(normalized);
+    setComments(normalized);
 
-      // Capture creator_id for creator badge
-      if (data.creator_id) {
-        setCreatorId(data.creator_id);
-      }
+    if (data.creator_id) {
+      setCreatorId(data.creator_id);
     }
+  }
 
-    load();
-  }, [postId]);
+  useEffect(() => {
+    loadComments();
+
+    // ⭐ REALTIME SUBSCRIPTION — Sound Square updates instantly
+    const channel = supabase
+      .channel(`sound-comments-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sound_comments",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          loadComments(); // ⭐ Refresh comments when new ones arrive
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId, supabase]);
 
   if (comments.length === 0) {
     return <p className="text-white/40 mt-6">No comments yet…</p>;

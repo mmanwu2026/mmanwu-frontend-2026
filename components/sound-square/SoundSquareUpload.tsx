@@ -4,37 +4,35 @@ import { useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import SpiritToast from "@/components/SpiritToast";
+import Link from "next/link";
 
-export default function VisionSquareUpload() {
+export default function SoundSquareUpload() {
   const supabase = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [hashtags, setHashtags] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const [rewriteOptions, setRewriteOptions] = useState<string[]>([]);
   const [showRewriteModal, setShowRewriteModal] = useState(false);
 
   const dropRef = useRef<HTMLDivElement | null>(null);
 
-  const MAX_FILE_SIZE_MB = 50;
+  const MAX_FILE_SIZE_MB = 10;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
   const ALLOWED_MIME_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/ogg",
+    "audio/flac",
   ];
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -49,7 +47,7 @@ export default function VisionSquareUpload() {
     if (!f) return;
 
     if (!ALLOWED_MIME_TYPES.includes(f.type)) {
-      setError("Unsupported file type. Upload an image or video.");
+      setError("Unsupported audio format. Allowed: MP3, WAV, OGG, FLAC.");
       return;
     }
 
@@ -75,7 +73,7 @@ export default function VisionSquareUpload() {
 
       xhr.open(
         "POST",
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/sound_files/${path}`
       );
 
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -89,7 +87,7 @@ export default function VisionSquareUpload() {
 
       xhr.onload = () => {
         if (xhr.status < 300) {
-          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/vision_files/${path}`;
+          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/${path}`;
           resolve({ publicUrl });
         } else {
           reject(new Error(xhr.responseText));
@@ -101,19 +99,6 @@ export default function VisionSquareUpload() {
     });
   }
 
-  function extractTagsFromTitle(text: string): string[] {
-    const matches = text.match(/#(\w+)/g);
-    return matches ? matches.map((t) => t.replace("#", "").toLowerCase()) : [];
-  }
-
-  function parseHashtagInput(input: string): string[] {
-    return input
-      .split(/\s+/)
-      .map((tag) => tag.replace("#", "").trim().toLowerCase())
-      .filter((tag) => tag.length > 0);
-  }
-
-  // ⭐ Corrected Gatekeeper Logic
   async function runGatekeeper(text: string) {
     try {
       const res = await fetch("/api/gatekeeper", {
@@ -126,15 +111,13 @@ export default function VisionSquareUpload() {
 
       return await res.json();
     } catch (err) {
-      console.error("Gatekeeper fallback:", err);
-
-      // ⭐ Neutral fallback — does NOT break Vision Square logic
+      console.error(err);
       return {
         rewriteNeeded: false,
         autoApprove: true,
         finalText: text,
-        automask: 2,          // neutral baseline
-        positivityRatio: 0.5, // neutral baseline
+        automask: 3,
+        positivityRatio: 0.5,
       };
     }
   }
@@ -146,7 +129,7 @@ export default function VisionSquareUpload() {
     }
 
     if (!file) {
-      setError("No file selected.");
+      setError("No audio selected.");
       return;
     }
 
@@ -167,10 +150,6 @@ export default function VisionSquareUpload() {
   }
 
   async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
-    const parsedTitleTags = extractTagsFromTitle(finalTitle);
-    const parsedHashtags = parseHashtagInput(hashtags);
-    const allTags = [...parsedTitleTags, ...parsedHashtags];
-
     setUploading(true);
     setProgress(0);
     setError("");
@@ -189,14 +168,13 @@ export default function VisionSquareUpload() {
       return;
     }
 
-    const { error: dbError } = await supabase.from("vision_posts").insert({
+    const { error: dbError } = await supabase.from("sound_posts").insert({
       title: finalTitle,
-      media_url: publicUrl,
+      audio_url: publicUrl,
       creator_id: user!.id,
-      spirit_score: automask,
-      positivity_ratio: positivity,
+      spirit_score: 0,
+      positivity_ratio: 0.5,
       automask,
-      tags: allTags,
     });
 
     if (dbError) {
@@ -205,29 +183,25 @@ export default function VisionSquareUpload() {
       return;
     }
 
-// ⭐ SpiritToast for positive posts
-if (positivity >= 0.6) {
-  setToastMessage("The spirits approve your vision ✨");
-}
+    if (positivity >= 0.6) {
+      setToastMessage("The spirits approve your sound ✨");
+    }
 
-setUploading(false);
-setFile(null);
-setTitle("");
-setHashtags("");
+    setUploading(false);
+    setFile(null);
+    setTitle("");
 
-// ⭐ CRITICAL FIX: Refresh FEED before redirect
-router.refresh();
-
-    router.push("/vision-square/feed");
+    router.refresh();
+    router.push("/sound-square/feed");
   }
 
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
-
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
+      {/* Rewrite Modal */}
       {showRewriteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
           <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
@@ -259,33 +233,16 @@ router.refresh();
         </div>
       )}
 
-      {/* Navigation */}
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6">
         <Link
-          href="/vision-square/feed"
+          href="/sound-square/feed"
           className="text-gray-300 hover:text-purple-300 transition font-medium"
         >
-          ← Back to VisionSquare
+          ← Back to SoundSquare
         </Link>
-
-        <Link
-          href="/plaza"
-          className="text-gray-300 hover:text-purple-300 transition font-medium"
-        >
-          Plaza →
-        </Link>
-
-        {user && (
-          <Link
-            href={`/profile/${user.id}`}
-            className="text-gray-300 hover:text-purple-300 transition font-medium"
-          >
-            Profile →
-          </Link>
-        )}
       </div>
 
-      <h1 className="text-3xl font-bold mb-6">Upload to VisionSquare</h1>
+      <h1 className="text-3xl font-bold mb-6">Upload to SoundSquare</h1>
 
       <input
         type="text"
@@ -295,32 +252,24 @@ router.refresh();
         onChange={(e) => setTitle(e.target.value)}
       />
 
-      <input
-        type="text"
-        placeholder="#lagos #dance #fashion"
-        className="w-full p-2 rounded bg-gray-700 mb-4"
-        value={hashtags}
-        onChange={(e) => setHashtags(e.target.value)}
-      />
-
       <div
         ref={dropRef}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         className="w-full h-32 border-2 border-dashed border-gray-500 rounded flex items-center justify-center mb-4 cursor-pointer"
-        onClick={() => document.getElementById("visionFileInput")?.click()}
+        onClick={() => document.getElementById("fileInput")?.click()}
       >
         {file ? (
           <p>{file.name}</p>
         ) : (
-          <p className="text-gray-400">Drag & drop image/video here or click to select</p>
+          <p className="text-gray-400">Drag & drop audio here or click to select</p>
         )}
       </div>
 
       <input
-        id="visionFileInput"
+        id="fileInput"
         type="file"
-        accept="image/*,video/*"
+        accept="audio/*"
         className="hidden"
         onChange={(e) => validateFile(e.target.files?.[0] || null)}
       />

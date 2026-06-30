@@ -131,65 +131,83 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
-    const postIds = rawPosts.map((p) => p.id);
+async function mergeWithReactions(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
+  const postIds = rawPosts.map((p) => p.id);
 
-    const { data: reactionsData } = await supabase
-      .from("reactions")
-      .select("post_id, maskTier, value")
-      .eq("post_type", "sound")
-      .in("post_id", postIds);
+  // ⭐ Load reactions
+  const { data: reactionsData } = await supabase
+    .from("reactions")
+    .select("post_id, maskTier, value")
+    .eq("post_type", "sound")
+    .in("post_id", postIds);
 
-    const typedReactions = (reactionsData ?? []) as ReactionRow[];
+  const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    return rawPosts.map((post) => {
-      const postReactions = typedReactions.filter((r) => r.post_id === post.id);
+  // ⭐ Load share analytics
+  const { data: shareRows } = await supabase
+    .from("sound_share")
+    .select("post_id")
+    .in("post_id", postIds);
 
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
-      };
+  return rawPosts.map((post) => {
+    const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
-      const spiritScore = post.spirit_score ?? 0;
+    const counts: ReactionCounts = {
+      mask1: postReactions.filter((r) => r.maskTier === 1).length,
+      mask2: postReactions.filter((r) => r.maskTier === 2).length,
+      mask3: postReactions.filter((r) => r.maskTier === 3).length,
+      mask4: postReactions.filter((r) => r.maskTier === 4).length,
+      mask5: postReactions.filter((r) => r.maskTier === 5).length,
+      mask6: postReactions.filter((r) => r.maskTier === 6).length,
+    };
 
-      const weightedPositive = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+    const spiritScore = post.spirit_score ?? 0;
 
-      const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+    const weightedPositive = postReactions
+      .filter((r) => (r.value ?? 0) > 0)
+      .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
-      let autoMask = 2;
-      if (spiritScore <= 20) autoMask = 2;
-      else if (spiritScore <= 100) autoMask = 3;
-      else if (spiritScore <= 200) autoMask = 4;
-      else if (spiritScore <= 500) autoMask = 5;
-      else autoMask = 6;
+    const weightedTotal = Math.abs(spiritScore);
+    const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-      return {
-        id: post.id,
-        title: post.title,
-        audio_url: post.audio_url,
-        creator_id: post.creator_id,
-        created_at: post.created_at,
+    let autoMask = 2;
+    if (spiritScore <= 20) autoMask = 2;
+    else if (spiritScore <= 100) autoMask = 3;
+    else if (spiritScore <= 200) autoMask = 4;
+    else if (spiritScore <= 500) autoMask = 5;
+    else autoMask = 6;
 
-        spirit_score: spiritScore,
-        positivity_ratio: positivityRatio,
-        automask: autoMask,
+    // ⭐ Share aggregation
+    const share_count = (shareRows ?? []).filter(
+      (s: any) => s.post_id === post.id
+    ).length;
 
-        users: {
-          username: post.users?.username ?? "Unknown",
-          avatar_url: post.users?.avatar_url ?? null,
-        },
+    const share_score = share_count * 5; // trending boost
 
-        reactions: counts,
-      };
-    });
-  }
+    return {
+      id: post.id,
+      title: post.title,
+      audio_url: post.audio_url,
+      creator_id: post.creator_id,
+      created_at: post.created_at,
+
+      spirit_score: spiritScore,
+      positivity_ratio: positivityRatio,
+      automask: autoMask,
+
+      users: {
+        username: post.users?.username ?? "Unknown",
+        avatar_url: post.users?.avatar_url ?? null,
+      },
+
+      reactions: counts,
+
+      // ⭐ REQUIRED FIELDS
+      share_count,
+      share_score,
+    };
+  });
+}
 
   return (
     <div className="min-h-screen text-white p-6">

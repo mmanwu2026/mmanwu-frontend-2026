@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,7 @@ export default function FloatingComposerVision() {
   const { user } = useUser();
   const router = useRouter();
 
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);   // ⭐ FIXED — closed by default
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -185,6 +185,8 @@ export default function FloatingComposerVision() {
     setTitle("");
     setFile(null);
 
+    // ⭐ CRITICAL FIX — refresh feed before redirect
+    router.refresh();
     router.push("/vision-square/feed");
   }
 

@@ -92,6 +92,10 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         positivity_ratio: positivity,
         automask,
 
+        // ⭐ INSERT THESE TWO LINES HERE
+  share_count: raw.share_count ?? 0,
+  share_score: raw.share_score ?? 0,
+  
         users: {
           username: raw.users?.username ?? "Unknown",
           avatar_url: raw.users?.avatar_url ?? null,

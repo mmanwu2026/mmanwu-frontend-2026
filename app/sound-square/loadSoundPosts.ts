@@ -22,6 +22,9 @@ export type CardSoundPost = {
 
   reactions: ReactionCounts;
 
+  share_count: number;        // ⭐ NEW
+  share_score: number;        // ⭐ NEW (optional trending boost)
+
   users: {
     username: string | null;
     avatar_url: string | null;
@@ -29,7 +32,6 @@ export type CardSoundPost = {
 };
 
 export async function loadSoundPosts() {
-  // ⭐ Browser Supabase client — SAFE for client components
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -57,15 +59,23 @@ export async function loadSoundPosts() {
 
   const ids = posts.map((p) => p.id);
 
+  // ⭐ Load reactions
   const { data: reactionRows } = await supabase
     .from("reactions")
     .select("post_id, maskTier")
     .in("post_id", ids)
     .eq("post_type", "sound");
 
+  // ⭐ Load share analytics
+  const { data: shareRows } = await supabase
+    .from("sound_share")
+    .select("post_id")
+    .in("post_id", ids);
+
   const enriched: CardSoundPost[] = posts.map((p: any) => {
     const userObj = Array.isArray(p.users) ? p.users[0] : p.users;
 
+    // ⭐ Reaction aggregation
     const rows = (reactionRows ?? []).filter(
       (r: any) => r.post_id === p.id
     );
@@ -96,6 +106,14 @@ export async function loadSoundPosts() {
     if (spirit_score > 300) automask = 5;
     if (spirit_score > 500) automask = 6;
 
+    // ⭐ Share aggregation
+    const share_count = (shareRows ?? []).filter(
+      (s: any) => s.post_id === p.id
+    ).length;
+
+    // ⭐ Optional trending boost from shares
+    const share_score = share_count * 5; // each share adds +5 to trending weight
+
     return {
       id: p.id,
       title: p.title,
@@ -108,6 +126,9 @@ export async function loadSoundPosts() {
       automask,
 
       reactions: counts,
+
+      share_count,     // ⭐ NEW
+      share_score,     // ⭐ NEW
 
       users: userObj,
     };

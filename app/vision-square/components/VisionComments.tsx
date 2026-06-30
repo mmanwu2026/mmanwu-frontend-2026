@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 interface VisionCommentsProps {
   postId: string;
@@ -13,6 +14,7 @@ interface VisionCommentsProps {
 export default function VisionComments({ postId }: VisionCommentsProps) {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();                  // ⭐ ADDED
 
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
@@ -82,6 +84,9 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
       return false;
     }
 
+    // ⭐ CRITICAL FIX: Refresh FEED after comment insert
+    router.refresh();
+
     return true;
   }
 
@@ -107,7 +112,6 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
       const ok = await insertComment(gate.finalText, gate.automask);
 
       if (ok) {
-        // ⭐ SpiritToast for positive comments
         if (gate.positivityRatio >= 0.6 || gate.automask >= 3) {
           setToastMessage("Your words uplift the spirits ✨");
         }
@@ -141,7 +145,6 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     const ok = await insertComment(rewrite, gateData.automask);
 
     if (ok) {
-      // ⭐ SpiritToast for positive rewrites
       if (gateData.positivityRatio >= 0.6 || gateData.automask >= 3) {
         setToastMessage("Your words uplift the spirits ✨");
       }

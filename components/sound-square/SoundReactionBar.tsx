@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 interface ReactionCounts {
   mask1: number;
@@ -26,6 +27,7 @@ export default function SoundReactionBar({
 }) {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();                  // ⭐ ADDED
   const [loading, setLoading] = useState(false);
 
   const isCreator = user?.id === creatorId;
@@ -47,6 +49,9 @@ export default function SoundReactionBar({
       console.error("sound_reaction error:", error);
       return;
     }
+
+    // ⭐ CRITICAL FIX: Refresh FEED after reaction
+    router.refresh();
 
     onReact();
   }
@@ -98,6 +103,15 @@ export default function SoundReactionBar({
       >
         😇
         <span className="text-xs text-gray-400">{reactions.mask5}</span>
+      </button>
+
+      {/* ⭐ Mask 6 — surprise tier */}
+      <button
+        onClick={() => handleReact(6)}
+        className="text-3xl flex flex-col items-center"
+      >
+        🔱
+        <span className="text-xs text-gray-400">{reactions.mask6}</span>
       </button>
     </div>
   );

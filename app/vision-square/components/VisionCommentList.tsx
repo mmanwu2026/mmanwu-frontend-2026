@@ -8,55 +8,76 @@ export default function VisionCommentList({ postId }: { postId: string }) {
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchComments() {
-      setLoading(true);
+  async function fetchComments() {
+    setLoading(true);
 
-      const { data, error } = await supabase
-        .from("vision_post_comments")
-        .select(`
-          id,
-          comment_text,
-          created_at,
-          automask,
-          user_id,
-          profiles:profiles!vision_post_comments_user_id_fkey (
-            username,
-            avatar_url
-          )
-        `)
-        .eq("post_id", postId)
-        .order("created_at", { ascending: true });
+    const { data, error } = await supabase
+      .from("vision_post_comments")
+      .select(`
+        id,
+        comment_text,
+        created_at,
+        automask,
+        user_id,
+        profiles:profiles!vision_post_comments_user_id_fkey (
+          username,
+          avatar_url
+        )
+      `)
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error(error);
-        setLoading(false);
-        return;
-      }
-
-      const normalized = (data || []).map((c: any) => {
-        const userObj =
-          Array.isArray(c.profiles) && c.profiles.length > 0
-            ? c.profiles[0]
-            : c.profiles;
-
-        return {
-          ...c,
-          profiles: {
-            username: userObj?.username ?? "unknown",
-            avatar_url:
-              userObj?.avatar_url && userObj.avatar_url.length > 0
-                ? userObj.avatar_url
-                : null,
-          },
-        };
-      });
-
-      setComments(normalized);
+    if (error) {
+      console.error(error);
       setLoading(false);
+      return;
     }
 
+    const normalized = (data || []).map((c: any) => {
+      const userObj =
+        Array.isArray(c.profiles) && c.profiles.length > 0
+          ? c.profiles[0]
+          : c.profiles;
+
+      return {
+        ...c,
+        profiles: {
+          username: userObj?.username ?? "unknown",
+          avatar_url:
+            userObj?.avatar_url && userObj.avatar_url.length > 0
+              ? userObj.avatar_url
+              : null,
+        },
+      };
+    });
+
+    setComments(normalized);
+    setLoading(false);
+  }
+
+  useEffect(() => {
     fetchComments();
+
+    // ⭐ REALTIME SUBSCRIPTION — Feed updates instantly
+    const channel = supabase
+      .channel(`vision-comments-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vision_post_comments",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          fetchComments(); // ⭐ Refresh comments in Feed
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [postId, supabase]);
 
   if (loading) {
@@ -67,7 +88,6 @@ export default function VisionCommentList({ postId }: { postId: string }) {
     <div className="space-y-4">
       {comments.map((c) => {
         const isPositive = c.automask >= 3;
-        const isCreator = c.user_id === c.creator_id;
 
         return (
           <div key={c.id} className="bg-gray-800 p-3 rounded-lg">
@@ -83,13 +103,6 @@ export default function VisionCommentList({ postId }: { postId: string }) {
               <span className="text-purple-200 font-semibold">
                 {c.profiles.username}
               </span>
-
-              {/* ⭐ Creator Badge */}
-              {isCreator && (
-                <span className="text-xs bg-purple-700 px-2 py-1 rounded text-white">
-                  Creator
-                </span>
-              )}
 
               {/* ⭐ Positive Mask Badge */}
               {isPositive && (

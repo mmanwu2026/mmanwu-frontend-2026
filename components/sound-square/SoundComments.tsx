@@ -6,6 +6,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 export default function SoundComments({
   postId,
@@ -16,6 +17,7 @@ export default function SoundComments({
 }) {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();                  // ⭐ ADDED
 
   const [text, setText] = useState("");
   const [gateData, setGateData] = useState<any>(null);
@@ -91,6 +93,10 @@ export default function SoundComments({
     setShowGateModal(false);
     setGateData(null);
     setBusy(false);
+
+    // ⭐ CRITICAL FIX: Refresh Sound Square feed
+    router.refresh();
+
     onSubmitted();
   }
 

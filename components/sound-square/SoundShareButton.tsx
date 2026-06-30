@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 export default function SoundShareButton({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
+  const router = useRouter();                  // ⭐ ADDED
 
   const shareUrl =
     typeof window !== "undefined"
@@ -20,6 +22,9 @@ export default function SoundShareButton({ postId }: { postId: string }) {
         method: "POST",
         body: JSON.stringify({ post_id: postId }),
       });
+
+      // ⭐ CRITICAL FIX: Refresh Sound Square feed
+      router.refresh();
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

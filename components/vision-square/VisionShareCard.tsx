@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 export default function VisionShareCard({
   postId,
@@ -13,6 +14,7 @@ export default function VisionShareCard({
   imageUrl: string;
   creatorUsername: string;
 }) {
+  const router = useRouter();                  // ⭐ ADDED
   const [copied, setCopied] = useState(false);
 
   // ⭐ Hydration-safe share URL
@@ -25,12 +27,15 @@ export default function VisionShareCard({
     try {
       await navigator.clipboard.writeText(shareUrl);
 
-      // ⭐ FIX: Add headers for analytics POST
+      // ⭐ Log share event to Supabase via API route
       await fetch("/api/vision-share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ post_id: postId }),
       });
+
+      // ⭐ CRITICAL FIX: Refresh FEED after share
+      router.refresh();
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

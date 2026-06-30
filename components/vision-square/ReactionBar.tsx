@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useSupabase } from "@/context/SupabaseContext";
 import SpiritToast from "@/components/SpiritToast";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 interface ReactionCounts {
   mask1: number;
@@ -34,6 +35,8 @@ export default function ReactionBar({
 }: VisionReactionBarProps) {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();                  // ⭐ ADDED
+
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -61,6 +64,9 @@ export default function ReactionBar({
     if (maskTier >= 3) {
       setToastMessage("Your reaction uplifts the spirits ✨");
     }
+
+    // ⭐ CRITICAL FIX: Refresh FEED after reaction
+    router.refresh();
 
     onReact();
   }
@@ -119,7 +125,7 @@ export default function ReactionBar({
         <span className="text-xs text-gray-400">{reactions.mask5}</span>
       </button>
 
-      {/* ⭐ Mask 6 — highest tier */}
+      {/* ⭐ Mask 6 — surprise tier (500+ SpiritScore) */}
       <button
         onClick={() => handleReact(6)}
         className="text-3xl flex flex-col items-center"

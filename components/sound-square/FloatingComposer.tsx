@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import SoundSquareUpload from "@/app/sound-square/create/page";
+import SoundSquareUpload from "@/components/sound-square/SoundSquareUpload";
 
 export default function FloatingComposer() {
   const [open, setOpen] = useState(false);

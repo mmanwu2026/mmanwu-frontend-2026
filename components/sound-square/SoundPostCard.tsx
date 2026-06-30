@@ -3,11 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
-
-// ❌ REMOVE this:
-// import ReactionBar from "@/components/plaza/ReactionBar";
-
-// ⭐ ADD this:
+import { useRouter } from "next/navigation";
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
 
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
@@ -31,6 +27,7 @@ export default function SoundPostCard({
 }) {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -42,7 +39,7 @@ export default function SoundPostCard({
   const [autoMask, setAutoMask] = useState(post.automask);
   const [intensity, setIntensity] = useState(0);
 
-  // AUDIO INTENSITY VISUALIZER
+  // ⭐ AUDIO INTENSITY VISUALIZER
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -65,6 +62,12 @@ export default function SoundPostCard({
       const avg = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
       const normalized = Math.min(avg / 180, 1);
       setIntensity(normalized);
+
+      // ⭐ SOUND-REACTIVE MASK BOOST
+      if (normalized > 0.75 && autoMask < 6) {
+        setAutoMask((prev) => Math.min(prev + 1, 6));
+      }
+
       animationFrame = requestAnimationFrame(tick);
     };
 
@@ -76,9 +79,9 @@ export default function SoundPostCard({
       src.disconnect();
       ctx.close();
     };
-  }, []);
+  }, [autoMask]);
 
-  // WAVEFORM VISUALIZER
+  // ⭐ WAVEFORM VISUALIZER
   useEffect(() => {
     if (!canvasRef.current || !audioRef.current) return;
 
@@ -149,7 +152,20 @@ export default function SoundPostCard({
     };
   }, []);
 
-  // REFRESH REACTIONS — post_type = "sound"
+  // ⭐ RESTORED — Play / Pause Controls
+  function handlePlay() {
+    if (!audioRef.current) return;
+    audioRef.current.play();
+    setIsPlaying(true);
+  }
+
+  function handlePause() {
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+    setIsPlaying(false);
+  }
+
+  // ⭐ REFRESH REACTIONS — post_type = "sound"
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -189,21 +205,19 @@ export default function SoundPostCard({
     if (newSpirit > 300) newAutoMask = 5;
     if (newSpirit > 500) newAutoMask = 6;
 
+    // ⭐ SOUND-REACTIVE BOOST
+    if (intensity > 0.75 && newAutoMask < 6) {
+      newAutoMask += 1;
+    }
+
     setReactions(newCounts);
     setSpiritScore(newSpirit);
     setPositivityRatio(newPositivity);
     setAutoMask(newAutoMask);
+
+    // ⭐ CRITICAL FIX: Refresh FEED
+    router.refresh();
   };
-
-  function handlePlay() {
-    audioRef.current?.play();
-    setIsPlaying(true);
-  }
-
-  function handlePause() {
-    audioRef.current?.pause();
-    setIsPlaying(false);
-  }
 
   const scale = 1 + intensity * 0.2;
 
@@ -265,7 +279,6 @@ export default function SoundPostCard({
         )}
       </div>
 
-      {/* ⭐ FIXED — use SoundReactionBar instead of Plaza ReactionBar */}
       <SoundReactionBar
         postId={post.id}
         creatorId={post.creator_id}

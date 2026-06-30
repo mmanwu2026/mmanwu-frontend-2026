@@ -6,6 +6,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import Link from "next/link";
 import ReactionBar from "@/components/vision-square/ReactionBar";
+import { useRouter } from "next/navigation";   // ⭐ ADDED
 
 interface ReactionRow {
   maskTier: number;
@@ -14,6 +15,7 @@ interface ReactionRow {
 export default function VisionCard({ post }: { post: any }) {
   const supabase = useSupabase();
   const { user } = useUser();
+  const router = useRouter();                  // ⭐ ADDED
 
   // ⭐ Null-safe defaults
   const safeReactions = post.reactions ?? {
@@ -110,6 +112,9 @@ export default function VisionCard({ post }: { post: any }) {
     setLocalSpirit(newSpirit);
     setLocalPositivity(newPositivity);
     setLocalMask(newAutoMask);
+
+    // ⭐ CRITICAL FIX: Refresh FEED after reaction
+    router.refresh();
   }
 
   const isCreator = user?.id === post.creator_id;
@@ -197,7 +202,7 @@ export default function VisionCard({ post }: { post: any }) {
         reactions={localReactions}
         spiritScore={localSpirit}
         positivityRatio={localPositivity}
-        onReact={refreshReactions}
+        onReact={refreshReactions}   // ⭐ FEED refresh now included
       />
 
       <p className="text-gray-400 text-sm mt-3">
