@@ -73,6 +73,7 @@ export default function FloatingComposerVision() {
       );
 
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
 
       xhr.upload.onprogress = (e: ProgressEvent) => {
         if (e.lengthComputable) {
@@ -150,10 +151,10 @@ export default function FloatingComposerVision() {
     const automask = gate.automask;
     const positivity = gate.positivityRatio;
 
-    // ⭐ SpiritScore = automask (same rule used everywhere)
     const spirit = automask;
 
-    const fileExt = file.name.split(".").pop();
+    // ⭐ FIXED — safe file extension extraction
+    const fileExt = file.name?.split(".").pop() || "bin";
     const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;

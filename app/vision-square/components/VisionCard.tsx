@@ -8,6 +8,7 @@ import Link from "next/link";
 import ReactionBar from "@/components/vision-square/ReactionBar";
 import SpiritToast from "@/components/SpiritToast";
 import { useRouter } from "next/navigation";
+import VisionShareButton from "@/components/vision-square/VisionShareButton";
 
 interface ReactionRow {
   maskTier: number;
@@ -18,7 +19,6 @@ export default function VisionCard({ post }: { post: any }) {
   const { user } = useUser();
   const router = useRouter();
 
-  // ⭐ Null-safe defaults
   const safeReactions = post.reactions ?? {
     mask1: 0,
     mask2: 0,
@@ -79,7 +79,6 @@ export default function VisionCard({ post }: { post: any }) {
     return () => observer.disconnect();
   }, [isVideo]);
 
-  // ⭐ Refresh reactions after reacting or sharing
   async function refreshReactions() {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -123,7 +122,6 @@ export default function VisionCard({ post }: { post: any }) {
   const isCreator = user?.id === post.creator_id;
   const isPositive = localMask >= 3;
 
-  // ⭐ Inline Comment Composer
   const [commentText, setCommentText] = useState("");
   const [commentError, setCommentError] = useState("");
   const [loadingComment, setLoadingComment] = useState(false);
@@ -146,34 +144,43 @@ export default function VisionCard({ post }: { post: any }) {
       return {
         rewriteNeeded: false,
         autoApprove: true,
-        finalText: rawText,
+        finalText: rawText || "",
         automask: 2,
         positivityRatio: 0.5,
       };
     }
   }
 
-  async function insertComment(finalText: string, automask: number, positivity: number) {
-    const { error } = await supabase
-      .from("vision_post_comments")
-      .insert({
-        post_id: post.id,
-        user_id: user?.id,
-        content: finalText,
-        raw_input: commentText,
-        automask,
-        positivity_ratio: positivity,
-      });
-
-    if (error) {
-      console.error(error);
-      setCommentError("Failed to post comment.");
-      return false;
-    }
-
-    router.refresh();
-    return true;
+async function insertComment(
+  finalText: string,
+  automask: number,
+  positivity: number
+) {
+  if (!finalText || finalText.trim().length === 0) {
+    setCommentError("Comment cannot be empty.");
+    return false;
   }
+
+  const { error } = await supabase
+    .from("vision_post_comments")
+    .insert({
+      post_id: post.id,
+      user_id: user?.id,
+      content: finalText,
+      raw_input: commentText || "",
+      automask,
+      positivity_ratio: positivity,
+    });
+
+  if (error) {
+    console.error(error);
+    setCommentError("Failed to post comment.");
+    return false;
+  }
+
+  router.refresh();
+  return true;
+}
 
   async function submitComment() {
     setCommentError("");
@@ -190,63 +197,114 @@ export default function VisionCard({ post }: { post: any }) {
 
     setLoadingComment(true);
 
-    const gate = await runGatekeeper(commentText.trim());
+const gate = await runGatekeeper(commentText.trim());
 
-    if (gate.autoApprove && !gate.rewriteNeeded) {
-      const ok = await insertComment(gate.finalText, gate.automask, gate.positivityRatio);
-      if (ok) {
-        setCommentText("");
-        if (gate.positivityRatio >= 0.6 || gate.automask >= 3) {
-          setToastMessage("Your words uplift the spirits ✨");
-        }
-      }
-      setLoadingComment(false);
-      return;
-    }
+// ⭐ SAFETY GUARD — Gatekeeper must ALWAYS return a string
+const safeFinalText = gate.finalText || "";
+const safePositivity = gate.positivityRatio ?? 0.5;
+const safeAutomask = gate.automask ?? 2;
 
-    if (gate.rewriteNeeded) {
-      setGateData(gate);
-      setShowGateModal(true);
-      setLoadingComment(false);
-      return;
-    }
-
-    const ok = await insertComment(gate.finalText, gate.automask, gate.positivityRatio);
-    if (ok) setCommentText("");
-
+// ⭐ CASE 1 — Auto-approved, no rewrite needed
+if (gate.autoApprove && !gate.rewriteNeeded) {
+  if (!safeFinalText.trim()) {
+    setCommentError("Comment cannot be empty.");
     setLoadingComment(false);
+    return;
   }
 
-  async function acceptRewrite(rewrite: string) {
-    setLoadingComment(true);
+  const ok = await insertComment(
+    safeFinalText,
+    safeAutomask,
+    safePositivity
+  );
 
-    const ok = await insertComment(
-      rewrite,
-      gateData.automask,
-      gateData.positivityRatio
-    );
+  if (ok) {
+    setCommentText("");
 
-    if (ok) {
-      setCommentText("");
-      setGateData(null);
-      setShowGateModal(false);
-      if (gateData.positivityRatio >= 0.6 || gateData.automask >= 3) {
-        setToastMessage("Your words uplift the spirits ✨");
-      }
+    if (safePositivity >= 0.6 || safeAutomask >= 3) {
+      setToastMessage("Your words uplift the spirits ✨");
     }
-
-    setLoadingComment(false);
   }
+
+  setLoadingComment(false);
+  return;
+}
+
+// ⭐ CASE 2 — Rewrite required
+if (gate.rewriteNeeded) {
+  setGateData({
+    ...gate,
+    finalText: safeFinalText,
+    positivityRatio: safePositivity,
+    automask: safeAutomask,
+  });
+  setShowGateModal(true);
+  setLoadingComment(false);
+  return;
+}
+
+// ⭐ CASE 3 — Fallback (rare)
+if (!safeFinalText.trim()) {
+  setCommentError("Comment cannot be empty.");
+  setLoadingComment(false);
+  return;
+}
+
+const ok = await insertComment(
+  safeFinalText,
+  safeAutomask,
+  safePositivity
+);
+
+if (ok) setCommentText("");
+
+setLoadingComment(false);
+
+async function acceptRewrite(rewrite: string) {
+  if (!rewrite || rewrite.trim().length === 0) {
+    setCommentError("Rewrite cannot be empty.");
+    return;
+  }
+
+  setLoadingComment(true);
+
+  const ok = await insertComment(
+    rewrite.trim(),
+    gateData.automask ?? 2,
+    gateData.positivityRatio ?? 0.5
+  );
+
+  if (ok) {
+    setCommentText("");
+    setGateData(null);
+    setShowGateModal(false);
+
+    if ((gateData.positivityRatio ?? 0.5) >= 0.6 || (gateData.automask ?? 2) >= 3) {
+      setToastMessage("Your words uplift the spirits ✨");
+    }
+  }
+
+  setLoadingComment(false);
+}
 
   return (
-    <div ref={cardRef} data-vision-card className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg">
-
+    <div
+      ref={cardRef}
+      data-vision-card
+      className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg"
+    >
       {toastMessage && (
-        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+        <SpiritToast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
       )}
 
       <div className="flex items-center justify-between mb-3">
-        <Link href={`/vision-square/post/${post.id}`} className="flex items-center gap-2">
+        <Link
+          href={`/vision-square/post/${post.id}`}
+          className="flex items-center gap-2"
+        >
           {safeAvatar && (
             <img
               src={safeAvatar}
@@ -297,7 +355,11 @@ export default function VisionCard({ post }: { post: any }) {
               </button>
             </>
           ) : (
-            <img src={safeMedia} className="rounded-lg w-full" alt="vision media" />
+            <img
+              src={safeMedia}
+              className="rounded-lg w-full"
+              alt="vision media"
+            />
           )
         ) : null}
       </div>
@@ -319,6 +381,16 @@ export default function VisionCard({ post }: { post: any }) {
         onReact={refreshReactions}
       />
 
+      {/* ⭐ INLINE SHARE BUTTON */}
+      <div className="mt-3">
+        <VisionShareButton
+          postId={post.id}
+          title={post.title}
+          imageUrl={post.media_url ?? ""}
+          creatorUsername={post.users?.username ?? "unknown"}
+        />
+      </div>
+
       {/* ⭐ COMMENTS SECTION */}
       {post.comments && post.comments.length > 0 && (
         <div className="mt-4">
@@ -338,13 +410,10 @@ export default function VisionCard({ post }: { post: any }) {
                 </span>
               </div>
 
-              <p className="ml-8 text-gray-400 text-sm">
-                {comment.content}
-              </p>
+              <p className="ml-8 text-gray-400 text-sm">{comment.content}</p>
             </div>
           ))}
 
-          {/* ⭐ View All Comments Button */}
           {post.comment_count > 2 && (
             <button
               onClick={() => setShowAllComments(true)}
@@ -370,7 +439,6 @@ export default function VisionCard({ post }: { post: any }) {
           <p className="text-red-400 text-sm mt-1">{commentError}</p>
         )}
 
-        {/* Gatekeeper Rewrite Modal */}
         {showGateModal && gateData && (
           <div className="bg-gray-700 p-3 rounded mt-3 border border-yellow-500/40">
             <p className="text-yellow-300 text-sm mb-2">
@@ -410,4 +478,5 @@ export default function VisionCard({ post }: { post: any }) {
       </p>
     </div>
   );
+}
 }

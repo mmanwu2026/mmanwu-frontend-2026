@@ -61,47 +61,47 @@ export default function VisionSquareUpload() {
     setFile(f);
   }
 
-async function uploadWithProgress(file: File, path: string) {
-  return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
-    const session = await supabase.auth.getSession();
-    const token = session.data.session?.access_token;
+  // ⭐ FIXED UPLOADER
+  async function uploadWithProgress(file: File, path: string) {
+    return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
 
-    if (!token) {
-      reject(new Error("Authentication error. Please log in again."));
-      return;
-    }
-
-    const xhr = new XMLHttpRequest();
-
-    // ⭐ Correct Supabase Storage upload endpoint
-    xhr.open(
-      "POST",
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
-    );
-
-    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-
-    xhr.upload.onprogress = (e: ProgressEvent) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        setProgress(pct);
+      if (!token) {
+        reject(new Error("Authentication error. Please log in again."));
+        return;
       }
-    };
 
-    xhr.onload = () => {
-      if (xhr.status < 300) {
-        // ⭐ Correct public URL
-        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/vision_files/${path}`;
-        resolve({ publicUrl });
-      } else {
-        reject(new Error(xhr.responseText));
-      }
-    };
+      const xhr = new XMLHttpRequest();
 
-    xhr.onerror = () => reject(new Error("Upload failed"));
-    xhr.send(file);
-  });
-}
+      xhr.open(
+        "POST",
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/vision_files/${path}`
+      );
+
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+
+      xhr.upload.onprogress = (e: ProgressEvent) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setProgress(pct);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status < 300) {
+          const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/vision_files/${path}`;
+          resolve({ publicUrl });
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(file);
+    });
+  }
 
   function extractTagsFromTitle(text: string): string[] {
     const matches = text.match(/#(\w+)/g);
@@ -115,6 +115,7 @@ async function uploadWithProgress(file: File, path: string) {
       .filter((tag) => tag.length > 0);
   }
 
+  // ⭐ FIXED GATEKEEPER FALLBACK
   async function runGatekeeper(text: string) {
     try {
       const res = await fetch("/api/gatekeeper", {
@@ -132,7 +133,7 @@ async function uploadWithProgress(file: File, path: string) {
       return {
         rewriteNeeded: false,
         autoApprove: true,
-        finalText: text,
+        finalText: text || "",
         automask: 2,
         positivityRatio: 0.5,
       };
@@ -163,10 +164,16 @@ async function uploadWithProgress(file: File, path: string) {
       return;
     }
 
-    await finalizeUpload(gate.finalText, gate.automask, gate.positivityRatio);
+    await finalizeUpload(gate.finalText || "", gate.automask, gate.positivityRatio);
   }
 
+  // ⭐ FIXED FINAL UPLOAD
   async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
+    if (!finalTitle.trim()) {
+      setError("Title cannot be empty.");
+      return;
+    }
+
     const parsedTitleTags = extractTagsFromTitle(finalTitle);
     const parsedHashtags = parseHashtagInput(hashtags);
     const allTags = [...parsedTitleTags, ...parsedHashtags];
@@ -175,7 +182,8 @@ async function uploadWithProgress(file: File, path: string) {
     setProgress(0);
     setError("");
 
-    const fileExt = file!.name.split(".").pop();
+    // ⭐ SAFE FILE EXTENSION
+    const fileExt = file!.name?.split(".").pop() || "bin";
     const filePath = `${user!.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
