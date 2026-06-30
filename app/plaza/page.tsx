@@ -61,7 +61,7 @@ export default function PlazaPage() {
   const sessionReady = hydrated && !userLoading && !!user;
 
   // -----------------------------------------------------
-  // FETCH POSTS (FK removed — reactions loaded separately)
+  // FETCH POSTS (reactions batched per page)
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
@@ -91,55 +91,131 @@ export default function PlazaPage() {
         if (!append) setPosts([]);
         setHasMore(false);
         setLoading(false);
+        setLoadingMore(false);
         return;
       }
 
       const typedPosts = postsData as any[];
 
+      // If no posts, stop here
+      if (typedPosts.length === 0) {
+        setPosts((prev) => (append ? prev : []));
+        setHasMore(false);
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      const postIds = typedPosts.map((p) => p.id);
+
+      // Fetch all reactions for these posts in one query
+      const { data: reactionRows, error: reactionError } = await supabase
+        .from("reactions")
+        .select("post_id, maskTier")
+        .in("post_id", postIds)
+        .eq("post_type", "plaza");
+
+      if (reactionError) {
+        console.error("Error fetching reactions:", reactionError);
+      }
+
+      // Build reaction map
+      const reactionMap: Record<
+        string,
+        {
+          mask1: number;
+          mask2: number;
+          mask3: number;
+          mask4: number;
+          mask5: number;
+          mask6: number;
+          spirit: number;
+          positivity: number;
+          autoMask: number;
+        }
+      > = {};
+
+      for (const postId of postIds) {
+        reactionMap[postId] = {
+          mask1: 0,
+          mask2: 0,
+          mask3: 0,
+          mask4: 0,
+          mask5: 0,
+          mask6: 0,
+          spirit: 0,
+          positivity: 0.5,
+          autoMask: 2,
+        };
+      }
+
+      const rows = reactionRows ?? [];
+
+      for (const r of rows) {
+        const entry = reactionMap[r.post_id];
+        if (!entry) continue;
+
+        const tier = r.maskTier;
+
+        if (tier === 1) entry.mask1++;
+        if (tier === 2) entry.mask2++;
+        if (tier === 3) entry.mask3++;
+        if (tier === 4) entry.mask4++;
+        if (tier === 5) entry.mask5++;
+        if (tier === 6) entry.mask6++;
+
+        entry.spirit += tier;
+      }
+
+      // Compute positivity + autoMask
+      for (const postId of postIds) {
+        const entry = reactionMap[postId];
+
+        const totalCount =
+          entry.mask1 +
+          entry.mask2 +
+          entry.mask3 +
+          entry.mask4 +
+          entry.mask5 +
+          entry.mask6;
+
+        const positiveCount =
+          entry.mask3 + entry.mask4 + entry.mask5 + entry.mask6;
+
+        entry.positivity =
+          totalCount > 0 ? positiveCount / totalCount : 0.5;
+
+        let autoMask = 2;
+        if (entry.spirit > 20) autoMask = 3;
+        if (entry.spirit > 100) autoMask = 4;
+        if (entry.spirit > 300) autoMask = 5;
+        if (entry.spirit > 500) autoMask = 6;
+
+        entry.autoMask = autoMask;
+      }
+
+      // Merge posts with aggregates
       const merged: PlazaPostWithAggregates[] = [];
 
       for (const post of typedPosts) {
-        // Fetch reactions for this post
- const { data: reactionRows } = await supabase
-  .from("reactions")
-  .select('"maskTier"')
-  .eq("post_id", post.id)
-  .eq("post_type", "plaza");
-
-const rows = reactionRows ?? [];
-
-const counts: ReactionCounts = {
-  mask1: rows.filter((r: any) => r.maskTier === 1).length ?? 0,
-  mask2: rows.filter((r: any) => r.maskTier === 2).length ?? 0,
-  mask3: rows.filter((r: any) => r.maskTier === 3).length ?? 0,
-  mask4: rows.filter((r: any) => r.maskTier === 4).length ?? 0,
-  mask5: rows.filter((r: any) => r.maskTier === 5).length ?? 0,
-  mask6: rows.filter((r: any) => r.maskTier === 6).length ?? 0,
-};
-
-        // Recompute spirit_score + positivity + autoMask
- const spirit =
-  rows.reduce((sum: number, r: any) => sum + r.maskTier, 0) ?? 0;
-
-const positiveCount =
-  rows.filter((r: any) => r.maskTier >= 3).length ?? 0;
-
-const totalCount = rows.length ?? 0;
-
-const positivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
-
-        let autoMask = 2;
-        if (spirit > 20) autoMask = 3;
-        if (spirit > 100) autoMask = 4;
-        if (spirit > 300) autoMask = 5;
-        if (spirit > 500) autoMask = 6;
+        const entry = reactionMap[post.id];
 
         merged.push({
-          ...post,
-          reactions: counts,
-          spirit_score: spirit,
-          positivity_ratio: positivity,
-          autoMask,
+          id: post.id,
+          creator_id: post.creator_id,
+          content: post.content,
+          created_at: post.created_at,
+          spirit_score: entry?.spirit ?? 0,
+          positivity_ratio: entry?.positivity ?? 0.5,
+          autoMask: entry?.autoMask ?? 2,
+          reactions: {
+            mask1: entry?.mask1 ?? 0,
+            mask2: entry?.mask2 ?? 0,
+            mask3: entry?.mask3 ?? 0,
+            mask4: entry?.mask4 ?? 0,
+            mask5: entry?.mask5 ?? 0,
+            mask6: entry?.mask6 ?? 0,
+          },
         });
       }
 
@@ -153,11 +229,14 @@ const positivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
     [supabase, sessionReady]
   );
 
-  // INITIAL LOAD
+  // INITIAL LOAD — do not refetch if posts already exist
   useEffect(() => {
     if (!sessionReady) return;
+
+    if (posts.length > 0) return;
+
     fetchPosts(0, false);
-  }, [sessionReady, fetchPosts]);
+  }, [sessionReady, fetchPosts, posts.length]);
 
   const reloadPosts = useCallback(() => {
     if (!sessionReady) return;
