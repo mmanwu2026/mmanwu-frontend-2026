@@ -14,6 +14,9 @@ interface ReactionRow {
   maskTier: number;
 }
 
+const FALLBACK_AVATAR =
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
+
 export default function VisionCard({ post }: { post: any }) {
   const supabase = useSupabase();
   const { user } = useUser();
@@ -30,7 +33,7 @@ export default function VisionCard({ post }: { post: any }) {
 
   const [showAllComments, setShowAllComments] = useState(false);
 
-  const safeAvatar = post.users?.avatar_url || undefined;
+  const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
   const safeMedia = typeof post.media_url === "string" ? post.media_url : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
@@ -203,7 +206,6 @@ export default function VisionCard({ post }: { post: any }) {
     const safePositivity = gate.positivityRatio ?? 0.5;
     const safeAutomask = gate.automask ?? 2;
 
-    // CASE 1 — Auto-approved, no rewrite needed
     if (gate.autoApprove && !gate.rewriteNeeded) {
       if (!safeFinalText.trim()) {
         setCommentError("Comment cannot be empty.");
@@ -229,7 +231,6 @@ export default function VisionCard({ post }: { post: any }) {
       return;
     }
 
-    // CASE 2 — Rewrite required
     if (gate.rewriteNeeded) {
       setGateData({
         ...gate,
@@ -242,7 +243,6 @@ export default function VisionCard({ post }: { post: any }) {
       return;
     }
 
-    // CASE 3 — Fallback
     if (!safeFinalText.trim()) {
       setCommentError("Comment cannot be empty.");
       setLoadingComment(false);
@@ -303,18 +303,19 @@ export default function VisionCard({ post }: { post: any }) {
         />
       )}
 
+      {/* ⭐ Corrected Creator Profile Link */}
       <div className="flex items-center justify-between mb-3">
         <Link
-          href={`/vision-square/post/${post.id}`}
-          className="flex items-center gap-2"
+          href={`/profile/${post.creator_id}?from=vision`}
+          className="flex items-center gap-2 hover:opacity-80 transition"
         >
-          {safeAvatar && (
-            <img
-              src={safeAvatar}
-              className="w-10 h-10 rounded-full border border-gray-700"
-              alt="avatar"
-            />
-          )}
+          <img
+            src={safeAvatar}
+            onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+            className="w-10 h-10 rounded-full border border-gray-700"
+            alt="avatar"
+          />
+
           <span className="text-purple-200 font-semibold">
             {post.users?.username ?? "unknown"}
           </span>
@@ -403,7 +404,7 @@ export default function VisionCard({ post }: { post: any }) {
             <div key={comment.id} className="mb-3">
               <div className="flex items-center gap-2">
                 <img
-                  src={comment.profiles?.avatar_url || "/default-avatar.png"}
+                  src={comment.profiles?.avatar_url || FALLBACK_AVATAR}
                   className="w-6 h-6 rounded-full"
                 />
                 <span className="text-sm font-semibold text-purple-200">

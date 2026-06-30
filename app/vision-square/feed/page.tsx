@@ -62,6 +62,9 @@ export default function VisionSquareFeed() {
 
   const PAGE_SIZE = 10;
 
+  const FALLBACK_AVATAR =
+    "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
+
   async function fetchPosts(initial = false) {
     if (initial) setLoading(true);
     else setFetchingMore(true);
@@ -120,31 +123,40 @@ export default function VisionSquareFeed() {
     if (data.length < PAGE_SIZE) setEndReached(true);
 
     const normalized = data.map((post: any) => {
-      const userObj = Array.isArray(post.users) ? post.users[0] : post.users;
+      const creator =
+        Array.isArray(post.users) && post.users.length > 0
+          ? post.users[0]
+          : post.users;
 
-      const comments = post.comments?.map((c: any) => {
-        const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-        return {
-          id: c.id,
-          content: c.content,
-          raw_input: c.raw_input ?? null,
-          created_at: c.created_at,
-          automask: c.automask,
-          positivity_ratio: c.positivity_ratio ?? 0.5,
-          user_id: c.user_id,
-          profiles: {
-            username: profile?.username ?? "unknown",
-            avatar_url: profile?.avatar_url || null,
-          },
-        };
-      }) ?? [];
+      const comments =
+        post.comments?.map((c: any) => {
+          const profile =
+            Array.isArray(c.profiles) && c.profiles.length > 0
+              ? c.profiles[0]
+              : c.profiles;
+
+          return {
+            id: c.id,
+            content: c.content,
+            raw_input: c.raw_input ?? null,
+            created_at: c.created_at,
+            automask: c.automask,
+            positivity_ratio: c.positivity_ratio ?? 0.5,
+            user_id: c.user_id,
+            profiles: {
+              username: profile?.username ?? "unknown",
+              avatar_url: profile?.avatar_url || FALLBACK_AVATAR,
+            },
+          };
+        }) ?? [];
 
       return {
         ...post,
         media_url: post.media_url || null,
+        tags: Array.isArray(post.tags) ? post.tags : [], // ⭐ SAFE TAGS
         users: {
-          username: userObj?.username ?? "unknown",
-          avatar_url: userObj?.avatar_url || null,
+          username: creator?.username ?? "unknown",
+          avatar_url: creator?.avatar_url || FALLBACK_AVATAR, // ⭐ FALLBACK AVATAR
         },
         comments,
         comment_count: comments.length,
@@ -193,9 +205,9 @@ export default function VisionSquareFeed() {
       });
     }
 
-    setPosts(() => {
+    setPosts((prev) => {
       const map = new Map<string, VisionPost>();
-      for (const p of enriched) map.set(p.id, p);
+      for (const p of [...prev, ...enriched]) map.set(p.id, p);
       return Array.from(map.values());
     });
 
@@ -242,10 +254,7 @@ export default function VisionSquareFeed() {
       {loading && <p className="text-gray-400">Loading Vision posts…</p>}
 
       {posts.map((post) => (
-        <VisionCard
-          key={`${post.id}-${post.total_reactions}-${post.comment_count}`}
-          post={post}
-        />
+        <VisionCard key={post.id} post={post} />
       ))}
 
       {fetchingMore && (

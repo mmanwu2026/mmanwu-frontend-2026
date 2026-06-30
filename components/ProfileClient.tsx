@@ -10,9 +10,8 @@ import AvatarUploader from "@/components/AvatarUploader";
 import Modal from "@/components/ui/Modal";
 import EditProfileForm from "@/components/profile/EditProfileForm";
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
-
-// ⭐ NEW — Import SoundPostCard
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
+import VisionCard from "@/app/vision-square/components/VisionCard";
 
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
@@ -64,6 +63,47 @@ type Post = {
 
 type ReactionCountsMap = Record<string, typeof EMPTY_REACTIONS>;
 
+interface VisionComment {
+  id: string;
+  content: string;
+  raw_input?: string | null;
+  created_at: string;
+  automask: number;
+  positivity_ratio?: number;
+  user_id: string;
+  profiles: {
+    username: string;
+    avatar_url: string | null;
+  };
+}
+
+interface VisionPost {
+  id: string;
+  title: string;
+  media_url: string | null;
+  creator_id: string;
+  created_at: string;
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
+  tags: string[];
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+    mask6: number;
+  };
+  total_reactions: number;
+  comments: VisionComment[];
+  comment_count: number;
+}
+
 export default function ProfileClient({
   profile,
   posts,
@@ -76,7 +116,9 @@ export default function ProfileClient({
   const router = useRouter();
 
   const [hydrated, setHydrated] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "soundposts" | "reactions">("posts");
+  const [activeTab, setActiveTab] = useState<
+    "posts" | "visionposts" | "soundposts" | "reactions"
+  >("posts");
   const [gridMode, setGridMode] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
@@ -86,16 +128,23 @@ export default function ProfileClient({
   const [showEditModal, setShowEditModal] = useState(false);
   const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
-  // ⭐ NEW — Sound-Square posts state
+  // Sound-Square posts
   const [soundPosts, setSoundPosts] = useState<CardSoundPost[]>([]);
 
-  const isOwnProfile = hydrated && user?.id === profile.id;
+  // VisionSquare posts (with infinite scroll)
+  const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
+  const [visionLoading, setVisionLoading] = useState(false);
+  const [visionFetchingMore, setVisionFetchingMore] = useState(false);
+  const [visionEndReached, setVisionEndReached] = useState(false);
 
+  const PAGE_SIZE = 10;
+
+  const isOwnProfile = hydrated && user?.id === profile.id;
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
 
-   // ⭐ Load Sound-Square posts with real emotional engine
+  // Load Sound-Square posts with emotional engine
   useEffect(() => {
     async function loadSoundPosts() {
       const { data, error } = await supabase
@@ -116,10 +165,8 @@ export default function ProfileClient({
         return;
       }
 
-      // Collect IDs
       const ids = (data || []).map((p: any) => p.id);
 
-      // Fetch reactions for these sound posts
       const { data: reactionsRows, error: reactionsError } = await supabase
         .from("reactions")
         .select('post_id, "maskTier"')
@@ -130,56 +177,53 @@ export default function ProfileClient({
         console.error("SoundPosts reactions load error:", reactionsError);
       }
 
-      // Map posts with emotional engine
-const mapped: CardSoundPost[] = (data || []).map((p: any) => {
-  const postReactions = (reactionsRows ?? []).filter(
-    (r: any) => r.post_id === p.id
-  );
+      const mapped: CardSoundPost[] = (data || []).map((p: any) => {
+        const postReactions = (reactionsRows ?? []).filter(
+          (r: any) => r.post_id === p.id
+        );
 
-  const counts: ReactionCounts = {
-    mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
-    mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
-    mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
-    mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
-    mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
-    mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
-  };
+        const counts: ReactionCounts = {
+          mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
+          mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
+          mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
+          mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
+          mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
+          mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
+        };
 
-  const spirit_score = postReactions.reduce(
-    (sum: number, r: any) => sum + r.maskTier,
-    0
-  );
+        const spirit_score = postReactions.reduce(
+          (sum: number, r: any) => sum + r.maskTier,
+          0
+        );
 
-  const total = postReactions.length;
-  const positive = postReactions.filter((r: any) => r.maskTier >= 3).length;
-  const positivity_ratio = total > 0 ? positive / total : 0.5;
+        const total = postReactions.length;
+        const positive = postReactions.filter(
+          (r: any) => r.maskTier >= 3
+        ).length;
+        const positivity_ratio = total > 0 ? positive / total : 0.5;
 
-  let automask = 2;
-  if (spirit_score > 20) automask = 3;
-  if (spirit_score > 100) automask = 4;
-  if (spirit_score > 300) automask = 5;
-  if (spirit_score > 500) automask = 6;
+        let automask = 2;
+        if (spirit_score > 20) automask = 3;
+        if (spirit_score > 100) automask = 4;
+        if (spirit_score > 300) automask = 5;
+        if (spirit_score > 500) automask = 6;
 
-  return {
-    id: p.id,
-    title: p.title ?? "",
-    audio_url: p.audio_url ?? "",
-    creator_id: p.creator_id ?? "",
-    created_at: p.created_at ?? "",
-
-    // ⭐ MUST BE SNAKE_CASE — matches SoundPostCard + RPC + DB
-    spirit_score,
-    positivity_ratio,
-    automask,
-
-    reactions: counts,
-
-    users: {
-      username: p.creator_name ?? "Unknown",
-      avatar_url: null,
-    },
-  };
-});
+        return {
+          id: p.id,
+          title: p.title ?? "",
+          audio_url: p.audio_url ?? "",
+          creator_id: p.creator_id ?? "",
+          created_at: p.created_at ?? "",
+          spirit_score,
+          positivity_ratio,
+          automask,
+          reactions: counts,
+          users: {
+            username: p.creator_name ?? "Unknown",
+            avatar_url: null,
+          },
+        };
+      });
 
       setSoundPosts(mapped);
     }
@@ -255,59 +299,243 @@ const mapped: CardSoundPost[] = (data || []).map((p: any) => {
     }
   }
 
-// Load reactions ON plaza posts
-useEffect(() => {
-  async function loadReactions() {
-    if (!posts || posts.length === 0) return;
+  // Load reactions ON plaza posts
+  useEffect(() => {
+    async function loadReactions() {
+      if (!posts || posts.length === 0) return;
 
-    const { data, error } = await supabase
-      .from("reactions")
-      .select("post_id, maskTier")
-      .in("post_id", posts.map((p) => p.id))
-      .eq("post_type", "plaza");
+      const { data, error } = await supabase
+        .from("reactions")
+        .select("post_id, maskTier")
+        .in("post_id", posts.map((p) => p.id))
+        .eq("post_type", "plaza");
+
+      if (error) {
+        console.error("Reaction load error:", error);
+        return;
+      }
+
+      const map: ReactionCountsMap = {};
+
+      (data || []).forEach((r: { post_id: string; maskTier: number }) => {
+        if (!map[r.post_id]) map[r.post_id] = { ...EMPTY_REACTIONS };
+
+        const key = `mask${r.maskTier}` as keyof typeof EMPTY_REACTIONS;
+        map[r.post_id][key] += 1;
+      });
+
+      setReactionCounts(map);
+    }
+
+    loadReactions();
+  }, [posts, supabase]);
+
+  // Load reactions GIVEN by this user
+  useEffect(() => {
+    async function loadGivenReactions() {
+      const { data, error } = await supabase
+        .from("reactions")
+        .select(`
+          id,
+          maskTier,
+          created_at,
+          post_id,
+          post_type
+        `)
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setGivenReactions(data);
+      }
+    }
+
+    loadGivenReactions();
+  }, [profile.id, supabase]);
+
+  // Load VisionSquare posts (infinite scroll)
+  async function fetchVisionPosts(initial = false) {
+    if (visionEndReached && !initial) return;
+
+    if (initial) {
+      setVisionLoading(true);
+      setVisionEndReached(false);
+    } else {
+      setVisionFetchingMore(true);
+    }
+
+    const lastCreatedAt =
+      visionPosts.length > 0
+        ? visionPosts[visionPosts.length - 1].created_at
+        : null;
+
+    let query = supabase
+      .from("vision_posts")
+      .select(`
+        id,
+        title,
+        media_url,
+        creator_id,
+        created_at,
+        spirit_score,
+        positivity_ratio,
+        automask,
+        tags,
+
+        users:creator_id (
+          username,
+          avatar_url
+        ),
+
+        comments:vision_post_comments (
+          id,
+          content,
+          raw_input,
+          created_at,
+          automask,
+          positivity_ratio,
+          user_id,
+          profiles:user_id (
+            username,
+            avatar_url
+          )
+        )
+      `)
+      .eq("creator_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(PAGE_SIZE);
+
+    if (lastCreatedAt) {
+      query = query.lt("created_at", lastCreatedAt);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
-      console.error("Reaction load error:", error);
+      console.error("Vision posts load error:", error);
+      setVisionLoading(false);
+      setVisionFetchingMore(false);
       return;
     }
 
-    const map: ReactionCountsMap = {};
+    if (data.length < PAGE_SIZE) setVisionEndReached(true);
 
-    (data || []).forEach((r: { post_id: string; maskTier: number }) => {
-      if (!map[r.post_id]) map[r.post_id] = { ...EMPTY_REACTIONS };
+    const normalized = data.map((post: any) => {
+      const creator =
+        Array.isArray(post.users) && post.users.length > 0
+          ? post.users[0]
+          : post.users;
 
-      const key = `mask${r.maskTier}` as keyof typeof EMPTY_REACTIONS;
-      map[r.post_id][key] += 1;
+      const comments =
+        post.comments?.map((c: any) => {
+          const profileObj =
+            Array.isArray(c.profiles) && c.profiles.length > 0
+              ? c.profiles[0]
+              : c.profiles;
+
+          return {
+            id: c.id,
+            content: c.content,
+            raw_input: c.raw_input ?? null,
+            created_at: c.created_at,
+            automask: c.automask,
+            positivity_ratio: c.positivity_ratio ?? 0.5,
+            user_id: c.user_id,
+            profiles: {
+              username: profileObj?.username ?? "unknown",
+              avatar_url: profileObj?.avatar_url || FALLBACK_AVATAR,
+            },
+          };
+        }) ?? [];
+
+      return {
+        ...post,
+        media_url: post.media_url || null,
+        tags: Array.isArray(post.tags) ? post.tags : [],
+        users: {
+          username: creator?.username ?? "unknown",
+          avatar_url: creator?.avatar_url || FALLBACK_AVATAR,
+        },
+        comments,
+        comment_count: comments.length,
+      };
     });
 
-    setReactionCounts(map);
-  }
+    const enriched: VisionPost[] = [];
 
-  loadReactions();
-}, [posts, supabase]);
+    for (const post of normalized) {
+      const { data: reactionRows } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .eq("post_id", post.id)
+        .eq("post_type", "vision");
 
-// Load reactions GIVEN by this user (FK‑free)
-useEffect(() => {
-  async function loadGivenReactions() {
-    const { data, error } = await supabase
-      .from("reactions")
-      .select(`
-        id,
-        maskTier,
-        created_at,
-        post_id,
-        post_type
-      `)
-      .eq("user_id", profile.id)
-      .order("created_at", { ascending: false });
+      const rows: { maskTier: number }[] = reactionRows ?? [];
 
-    if (!error && data) {
-      setGivenReactions(data);
+      const counts = {
+        mask1: rows.filter((r) => r.maskTier === 1).length,
+        mask2: rows.filter((r) => r.maskTier === 2).length,
+        mask3: rows.filter((r) => r.maskTier === 3).length,
+        mask4: rows.filter((r) => r.maskTier === 4).length,
+        mask5: rows.filter((r) => r.maskTier === 5).length,
+        mask6: rows.filter((r) => r.maskTier === 6).length,
+      };
+
+      const total = rows.length;
+      const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
+      const positivity = total > 0 ? positiveCount / total : 0.5;
+
+      const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
+
+      let autoMask = 2;
+      if (spirit > 20) autoMask = 3;
+      if (spirit > 100) autoMask = 4;
+      if (spirit > 300) autoMask = 5;
+      if (spirit > 500) autoMask = 6;
+
+      enriched.push({
+        ...post,
+        reactions: counts,
+        spirit_score: spirit,
+        positivity_ratio: positivity,
+        automask: autoMask,
+        total_reactions: total,
+      });
     }
+
+    setVisionPosts((prev) => {
+      const map = new Map<string, VisionPost>();
+      for (const p of [...prev, ...enriched]) map.set(p.id, p);
+      return Array.from(map.values());
+    });
+
+    setVisionLoading(false);
+    setVisionFetchingMore(false);
   }
 
-  loadGivenReactions();
-}, [profile.id, supabase]);
+  // Trigger initial VisionSquare load when tab is opened
+  useEffect(() => {
+    if (activeTab === "visionposts" && visionPosts.length === 0 && !visionLoading) {
+      fetchVisionPosts(true);
+    }
+  }, [activeTab, visionPosts.length, visionLoading]);
+
+  // Infinite scroll for VisionSquare tab
+  useEffect(() => {
+    function onScroll() {
+      if (activeTab !== "visionposts") return;
+      if (visionEndReached || visionFetchingMore) return;
+
+      const scrollPos =
+        window.innerHeight + document.documentElement.scrollTop;
+      const bottom = document.documentElement.offsetHeight - 300;
+
+      if (scrollPos >= bottom) fetchVisionPosts(false);
+    }
+
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [activeTab, visionPosts, visionFetchingMore, visionEndReached]);
 
   if (!hydrated) {
     return (
@@ -344,7 +572,10 @@ useEffect(() => {
           <div className="flex flex-col items-center gap-3">
             <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
               {isOwnProfile ? (
-                <AvatarUploader userId={profile.id} currentAvatar={profile.avatar_url} />
+                <AvatarUploader
+                  userId={profile.id}
+                  currentAvatar={profile.avatar_url}
+                />
               ) : (
                 <img
                   src={profile.avatar_url || FALLBACK_AVATAR}
@@ -356,7 +587,9 @@ useEffect(() => {
 
             {isOwnProfile && (
               <button
-                onClick={() => document.getElementById("avatar-upload-input")?.click()}
+                onClick={() =>
+                  document.getElementById("avatar-upload-input")?.click()
+                }
                 className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition text-white"
               >
                 Upload Avatar
@@ -367,7 +600,9 @@ useEffect(() => {
           {/* RIGHT COLUMN — INFO */}
           <div className="flex flex-col flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
+              <h1 className="text-2xl font-semibold">
+                {profile.display_name}
+              </h1>
 
               {profile.verified && (
                 <span className="inline-flex items-center justify-center rounded-full bg-yellow-500 text-black text-xs px-2 py-0.5 font-semibold">
@@ -389,7 +624,9 @@ useEffect(() => {
             <p className="text-white/60">@{profile.username}</p>
 
             {profile.bio && (
-              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">{profile.bio}</p>
+              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">
+                {profile.bio}
+              </p>
             )}
 
             {/* Stats */}
@@ -500,27 +737,48 @@ useEffect(() => {
         <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
           <button
             onClick={() => setActiveTab("posts")}
-            className={activeTab === "posts" ? "text-white font-semibold" : "text-white/50"}
+            className={
+              activeTab === "posts" ? "text-white font-semibold" : "text-white/50"
+            }
           >
             Posts
           </button>
 
           <button
+            onClick={() => setActiveTab("visionposts")}
+            className={
+              activeTab === "visionposts"
+                ? "text-white font-semibold"
+                : "text-white/50"
+            }
+          >
+            Vision Posts
+          </button>
+
+          <button
             onClick={() => setActiveTab("soundposts")}
-            className={activeTab === "soundposts" ? "text-white font-semibold" : "text-white/50"}
+            className={
+              activeTab === "soundposts"
+                ? "text-white font-semibold"
+                : "text-white/50"
+            }
           >
             Soundposts
           </button>
 
           <button
             onClick={() => setActiveTab("reactions")}
-            className={activeTab === "reactions" ? "text-white font-semibold" : "text-white/50"}
+            className={
+              activeTab === "reactions"
+                ? "text-white font-semibold"
+                : "text-white/50"
+            }
           >
             Reactions
           </button>
         </div>
 
-        {/* Grid toggle */}
+        {/* Grid toggle for Plaza posts */}
         {activeTab === "posts" && (
           <div className="flex justify-end mt-2">
             <button
@@ -573,6 +831,39 @@ useEffect(() => {
             </div>
           )}
 
+          {/* VISION-SQUARE POSTS */}
+          {activeTab === "visionposts" && (
+            <div className="space-y-6">
+              {visionLoading && visionPosts.length === 0 && (
+                <p className="text-white/40 text-center mt-6">
+                  Loading visions…
+                </p>
+              )}
+
+              {!visionLoading && visionPosts.length === 0 && (
+                <p className="text-white/40 text-center mt-6">
+                  No visions yet…
+                </p>
+              )}
+
+              {visionPosts.map((post) => (
+                <VisionCard key={post.id} post={post} />
+              ))}
+
+              {visionFetchingMore && (
+                <p className="text-white/40 text-center mt-4">
+                  Loading more visions…
+                </p>
+              )}
+
+              {visionEndReached && visionPosts.length > 0 && (
+                <p className="text-white/40 text-center mt-4">
+                  You’ve reached the end of this creator’s visions.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* SOUND-SQUARE POSTS */}
           {activeTab === "soundposts" && (
             <div className="space-y-6">
@@ -581,78 +872,87 @@ useEffect(() => {
                   <SoundPostCard
                     key={post.id}
                     post={post}
-                    isTrending={false}   // ⭐ No glyph inside profile
+                    isTrending={false}
                   />
                 ))
               ) : (
-                <p className="text-white/40 text-center mt-6">No soundposts yet…</p>
+                <p className="text-white/40 text-center mt-6">
+                  No soundposts yet…
+                </p>
               )}
             </div>
           )}
 
-{/* REACTIONS */}
-{activeTab === "reactions" && (
-  <div className="space-y-4">
-    {givenReactions.length === 0 ? (
-      <p className="text-white/40 text-center mt-6">No reactions yet…</p>
-    ) : (
-      givenReactions.map((r) => {
-        // ⭐ Determine post type
-        const postType = r.post_type;
+          {/* REACTIONS */}
+          {activeTab === "reactions" && (
+            <div className="space-y-4">
+              {givenReactions.length === 0 ? (
+                <p className="text-white/40 text-center mt-6">
+                  No reactions yet…
+                </p>
+              ) : (
+                givenReactions.map((r) => {
+                  const postType = r.post_type;
 
-        // ⭐ FK-free username + content lookup
-        let username = "unknown";
-        let content = "";
+                  let username = "unknown";
+                  let content = "";
 
-        if (postType === "plaza") {
-          // Plaza posts are already loaded in `posts`
-          const p = posts.find((x) => x.id === r.post_id);
-          username = p?.creator_id ?? "unknown";
-          content = p?.content ?? "";
-        }
+                  if (postType === "plaza") {
+                    const p = posts.find((x) => x.id === r.post_id);
+                    username = p?.creator_id ?? "unknown";
+                    content = p?.content ?? "";
+                  }
 
-        if (postType === "sound") {
-          const p = soundPosts.find((x) => x.id === r.post_id);
-          username = p?.users?.username ?? "unknown";
-          content = p?.title ?? "";
-        }
+                  if (postType === "sound") {
+                    const p = soundPosts.find((x) => x.id === r.post_id);
+                    username = p?.users?.username ?? "unknown";
+                    content = p?.title ?? "";
+                  }
 
-        if (postType === "vision") {
-          // Vision posts are not loaded here → minimal fallback
-          username = "vision_creator";
-          content = "Vision post";
-        }
+                  if (postType === "vision") {
+                    username = "vision_creator";
+                    content = "Vision post";
+                  }
 
-        return (
-          <div
-            key={r.id}
-            className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-          >
-            <p className="text-sm text-white/70 mb-2">
-              You reacted{" "}
-              <span className="font-semibold text-white">
-                Mask {r.maskTier}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold">@{username}</span>
-            </p>
+                  return (
+                    <div
+                      key={r.id}
+                      className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+                    >
+                      <p className="text-sm text-white/70 mb-2">
+                        You reacted{" "}
+                        <span className="font-semibold text-white">
+                          Mask {r.maskTier}
+                        </span>{" "}
+                        to{" "}
+                        <span className="font-semibold">@{username}</span>
+                      </p>
 
-            <p className="text-white/90 mb-2 italic">
-              “{content.slice(0, 120)}…”
-            </p>
+                      <p className="text-white/90 mb-2 italic">
+                        “{content.slice(0, 120)}…”
+                      </p>
 
-            <p className="text-xs text-white/40">
-              {new Date(r.created_at).toLocaleString()}
-            </p>
-          </div>
-        );
-      })
-    )}
-  </div>
-)}
+                      <p className="text-xs text-white/40">
+                        {new Date(r.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <Modal onClose={() => setShowEditModal(false)}>
+          <EditProfileForm
+            profile={profile}
+            onClose={() => setShowEditModal(false)}
+          />
+        </Modal>
+      )}
     </>
   );
 }
-

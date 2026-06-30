@@ -6,7 +6,6 @@ import { useUser } from "@/context/UserContext";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import VisionCard from "@/app/vision-square/components/VisionCard";
-import VisionComments from "@/app/vision-square/components/VisionComments";
 import SpiritToast from "@/components/SpiritToast";
 import VisionShareButton from "@/components/vision-square/VisionShareButton";
 
@@ -65,13 +64,13 @@ export default function VisionPostPage() {
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [showAllComments, setShowAllComments] = useState(false);
+  const FALLBACK_AVATAR =
+    "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
   useEffect(() => {
     async function fetchPost() {
       setLoading(true);
 
-      // ⭐ Load post + comments
       const { data, error } = await supabase
         .from("vision_posts")
         .select(`
@@ -113,16 +112,15 @@ export default function VisionPostPage() {
         return;
       }
 
-      // ⭐ Normalize creator
       const normalizedUser =
         Array.isArray(data.users) ? data.users[0] : data.users;
 
-      // ⭐ Normalize comments
       const normalizedComments =
         data.comments?.map((c: any) => {
-          const profile = Array.isArray(c.profiles)
-            ? c.profiles[0]
-            : c.profiles;
+          const profile =
+            Array.isArray(c.profiles) && c.profiles.length > 0
+              ? c.profiles[0]
+              : c.profiles;
 
           return {
             id: c.id,
@@ -134,12 +132,11 @@ export default function VisionPostPage() {
             user_id: c.user_id,
             profiles: {
               username: profile?.username ?? "unknown",
-              avatar_url: profile?.avatar_url ?? null,
+              avatar_url: profile?.avatar_url || FALLBACK_AVATAR,
             },
           };
         }) ?? [];
 
-      // ⭐ Load reactions (including shares)
       const { data: reactionRows } = await supabase
         .from("reactions")
         .select('post_id, "maskTier"')
@@ -157,7 +154,6 @@ export default function VisionPostPage() {
         mask6: rows.filter((r) => r.maskTier === 6).length,
       };
 
-      // ⭐ Recalculate spirit score + positivity + automask
       const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
       const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
       const totalCount = rows.length;
@@ -174,7 +170,7 @@ export default function VisionPostPage() {
         ...data,
         users: {
           username: normalizedUser?.username ?? "unknown",
-          avatar_url: normalizedUser?.avatar_url ?? null,
+          avatar_url: normalizedUser?.avatar_url || FALLBACK_AVATAR,
         },
         reactions: counts,
         comments: normalizedComments,
@@ -250,7 +246,7 @@ export default function VisionPostPage() {
         </h1>
       )}
 
-      {/* ⭐ Vision Card */}
+      {/* ⭐ VisionCard handles ALL comments */}
       <VisionCard post={post} />
 
       {/* ⭐ Share Button */}
@@ -262,86 +258,6 @@ export default function VisionPostPage() {
           creatorUsername={post.users.username}
         />
       </div>
-
-      {/* ⭐ Comments Section */}
-      <div className="mt-8">
-        <h2 className="text-2xl font-semibold mb-4">Comments</h2>
-
-        {/* Inline Composer */}
-        <VisionComments postId={post.id} />
-
-        {/* Preview + View All */}
-        <div className="mt-6">
-          {post.comments.slice(0, 3).map((comment) => (
-            <div key={comment.id} className="mb-4">
-              <div className="flex items-center gap-2">
-                <img
-                  src={comment.profiles.avatar_url || "/default-avatar.png"}
-                  className="w-7 h-7 rounded-full"
-                />
-                <span className="text-sm font-semibold text-purple-200">
-                  {comment.profiles.username}
-                </span>
-              </div>
-
-              <p className="ml-9 text-gray-300 text-sm mt-1">
-                {comment.content}
-              </p>
-            </div>
-          ))}
-
-          {post.comment_count > 3 && (
-            <button
-              onClick={() => setShowAllComments(true)}
-              className="text-purple-300 hover:text-purple-200 text-sm underline"
-            >
-              View all comments →
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ⭐ FULL COMMENTS MODAL */}
-      {showAllComments && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[5000]">
-          <div className="bg-gray-900 p-6 rounded-xl w-full max-w-lg border border-white/10 shadow-xl overflow-y-auto max-h-[80vh]">
-            <h2 className="text-xl font-semibold text-purple-200 mb-4">
-              All Comments
-            </h2>
-
-            {post.comments.map((comment) => (
-              <div key={comment.id} className="mb-4">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={comment.profiles.avatar_url || "/default-avatar.png"}
-                    className="w-7 h-7 rounded-full"
-                  />
-                  <span className="text-sm font-semibold text-purple-200">
-                    {comment.profiles.username}
-                  </span>
-                </div>
-
-                <p className="ml-9 text-gray-300 text-sm mt-1">
-                  {comment.content}
-                </p>
-
-                <p className="ml-9 text-gray-500 text-xs mt-1">
-                  {new Date(comment.created_at).toLocaleString()}
-                </p>
-
-                <hr className="border-gray-700 mt-3" />
-              </div>
-            ))}
-
-            <button
-              onClick={() => setShowAllComments(false)}
-              className="mt-4 bg-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-600 text-white"
-            >
-              Close ✕
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
