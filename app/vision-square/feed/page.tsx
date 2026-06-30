@@ -10,6 +10,18 @@ interface ReactionRow {
   maskTier: number;
 }
 
+interface VisionComment {
+  id: string;
+  comment_text: string;
+  created_at: string;
+  automask: number;
+  user_id: string;
+  profiles: {
+    username: string;
+    avatar_url: string | null;
+  };
+}
+
 interface VisionPost {
   id: string;
   title: string;
@@ -33,6 +45,8 @@ interface VisionPost {
     mask6: number;
   };
   total_reactions: number;
+  comments: VisionComment[];
+  comment_count: number;
 }
 
 export default function VisionSquareFeed() {
@@ -65,9 +79,22 @@ export default function VisionSquareFeed() {
         positivity_ratio,
         automask,
         tags,
+
         users:creator_id (
           username,
           avatar_url
+        ),
+
+        comments:vision_post_comments (
+          id,
+          comment_text,
+          created_at,
+          automask,
+          user_id,
+          profiles:user_id (
+            username,
+            avatar_url
+          )
         )
       `)
       .order("created_at", { ascending: false })
@@ -91,6 +118,17 @@ export default function VisionSquareFeed() {
     const normalized = data.map((post: any) => {
       const userObj = Array.isArray(post.users) ? post.users[0] : post.users;
 
+      const comments = post.comments?.map((c: any) => {
+        const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+        return {
+          ...c,
+          profiles: {
+            username: profile?.username ?? "unknown",
+            avatar_url: profile?.avatar_url || null,
+          },
+        };
+      }) ?? [];
+
       return {
         ...post,
         media_url: post.media_url || null,
@@ -98,6 +136,8 @@ export default function VisionSquareFeed() {
           username: userObj?.username ?? "unknown",
           avatar_url: userObj?.avatar_url || null,
         },
+        comments,
+        comment_count: comments.length,
       };
     });
 
@@ -123,15 +163,12 @@ export default function VisionSquareFeed() {
 
       const total = rows.length;
 
-      // ⭐ Correct positivity calculation
       const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
       const positivity =
-        total > 0 ? positiveCount / total : 0.5; // neutral baseline
+        total > 0 ? positiveCount / total : 0.5;
 
-      // ⭐ Correct spiritScore calculation
       const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
 
-      // ⭐ Correct automask calculation
       let autoMask = 2;
       if (spirit > 20) autoMask = 3;
       if (spirit > 100) autoMask = 4;
@@ -198,7 +235,7 @@ export default function VisionSquareFeed() {
 
       {posts.map((post) => (
         <VisionCard
-          key={`${post.id}-${post.total_reactions}`}
+          key={`${post.id}-${post.total_reactions}-${post.comment_count}`}
           post={post}
         />
       ))}
