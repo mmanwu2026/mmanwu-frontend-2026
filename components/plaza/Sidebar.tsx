@@ -80,8 +80,8 @@ export default function Sidebar() {
                   }
                 `}
               >
-                <Icon className="h-4 w-4 text-purple-300" />
-                {item.label}
+                <Icon className="h-4 w-4 text-purple-300 shrink-0" />
+                <span>{item.label}</span>
               </Link>
 
               {item.children && active && (
