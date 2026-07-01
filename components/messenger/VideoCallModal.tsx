@@ -254,39 +254,38 @@ export default function VideoCallModal({
   }
 
   // Process signaling updates incrementally
+const hasStartedCallRef = useRef(false);
+
 useEffect(() => {
   if (!isOpen) return;
 
   (async () => {
     await setupLocalStream();
 
-    Object.entries(signaling.offers).forEach(
-      ([fromUser, offer]: [string, RTCSessionDescriptionInit]) => {
-        if (fromUser !== userId) {
-          handleIncomingOffer(fromUser, offer);
-        }
+    // Process incoming offers/answers/candidates
+    Object.entries(signaling.offers).forEach(([fromUser, offer]) => {
+      if (fromUser !== userId) {
+        handleIncomingOffer(fromUser, offer);
       }
-    );
+    });
 
-    Object.entries(signaling.answers).forEach(
-      ([fromUser, answer]: [string, RTCSessionDescriptionInit]) => {
-        handleIncomingAnswer(fromUser, answer);
-      }
-    );
+    Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
+      handleIncomingAnswer(fromUser, answer);
+    });
 
-    Object.entries(signaling.candidates).forEach(
-      ([fromUser, candidateList]: [string, RTCIceCandidate[]]) => {
-        candidateList.forEach((candidate) => {
-          handleIncomingCandidate(fromUser, candidate);
-        });
-      }
-    );
+    Object.entries(signaling.candidates).forEach(([fromUser, candidateList]) => {
+      candidateList.forEach((candidate) => {
+        handleIncomingCandidate(fromUser, candidate);
+      });
+    });
 
-    if (signaling.isCaller) {
+    // ⭐ Only start call ONCE
+    if (signaling.isCaller && !hasStartedCallRef.current) {
+      hasStartedCallRef.current = true;
       await startCallAsCaller();
     }
   })();
-}, [isOpen, signaling, userId]);
+}, [isOpen, signaling.isCaller]);
 
   const participantCount = signaling.participants.length;
   const gridCols =
