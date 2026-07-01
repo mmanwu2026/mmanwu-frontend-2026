@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 import VideoCallModal from "./VideoCallModal";
@@ -14,20 +14,19 @@ export default function MessengerThread({
   otherUserId?: string;
   roomId?: string;
 }) {
-  if (!roomId) {
-    console.error("Missing roomId");
-    return null;
-  }
+  if (!roomId) return null;
 
   const supabase = useSupabase();
   const finalRoomId = roomId;
 
   const searchParams = useSearchParams();
-  const isIncoming = searchParams ? searchParams.get("incoming") === "1" : false;
+  const isIncoming = searchParams?.get("incoming") === "1";
 
   const [messages, setMessages] = useState<any[]>([]);
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callActive, setCallActive] = useState(false);
+
+  const subscribedRef = useRef(false); // ⭐ prevents double subscription
 
   const [signalingState, setSignalingState] = useState({
     isCaller: false,
@@ -68,6 +67,7 @@ export default function MessengerThread({
     },
   });
 
+  // ⭐ Load messages once
   async function loadMessages() {
     const { data } = await supabase
       .from("messages")
@@ -76,13 +76,13 @@ export default function MessengerThread({
       .order("created_at", { ascending: true });
 
     setMessages(data || []);
-
-    const last = data?.[data.length - 1];
-    if (last?.message_type === "call_offer") {
-      setCallActive(true);
-    }
   }
 
+  useEffect(() => {
+    loadMessages();
+  }, [finalRoomId]);
+
+  // ⭐ Incoming call modal
   useEffect(() => {
     if (isIncoming) {
       setCallActive(true);
@@ -90,15 +90,17 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
+  // ⭐ Realtime listener — FIXED
   useEffect(() => {
-    loadMessages();
+    if (subscribedRef.current) return; // prevents double subscription
+    subscribedRef.current = true;
 
     const channel = supabase
       .channel(`room-${finalRoomId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT", // ⭐ ONLY INSERT
           schema: "public",
           table: "messages",
           filter: `room_id=eq.${finalRoomId}`,
@@ -106,7 +108,7 @@ export default function MessengerThread({
         (payload: any) => {
           const msg = payload.new;
 
-          // prevent duplicates
+          // ⭐ Prevent duplicates
           setMessages((prev) => {
             if (prev.some((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
@@ -114,47 +116,10 @@ export default function MessengerThread({
 
           const fromUser = msg.sender_id;
 
-          // update signaling state for call-related messages
-          setSignalingState((prev) => {
-            const next = { ...prev };
-
-            if (!next.participants.includes(fromUser)) {
-              next.participants = [...next.participants, fromUser];
-            }
-
-            if (msg.message_type === "call_offer") {
-              next.isCaller = fromUser === userId;
-              next.offers = {
-                ...next.offers,
-                [fromUser]: msg.metadata?.offer,
-              };
-            }
-
-            if (msg.message_type === "call_answer") {
-              next.answers = {
-                ...next.answers,
-                [fromUser]: msg.metadata?.answer,
-              };
-            }
-
-            if (msg.message_type === "ice_candidate") {
-              next.candidates = {
-                ...next.candidates,
-                [fromUser]: [
-                  ...(next.candidates[fromUser] || []),
-                  msg.metadata?.candidate,
-                ],
-              };
-            }
-
-            return next;
-          });
-
+          // ⭐ Call signaling
           if (msg.message_type === "call_offer") {
             setCallActive(true);
-            if (fromUser !== userId) {
-              setCallModalOpen(true);
-            }
+            if (fromUser !== userId) setCallModalOpen(true);
           }
         }
       )
@@ -162,6 +127,7 @@ export default function MessengerThread({
 
     return () => {
       supabase.removeChannel(channel);
+      subscribedRef.current = false;
     };
   }, [finalRoomId, userId]);
 
@@ -172,10 +138,7 @@ export default function MessengerThread({
   async function startGroupCall() {
     setCallActive(true);
     setCallModalOpen(true);
-    setSignalingState((prev) => ({
-      ...prev,
-      isCaller: true,
-    }));
+    setSignalingState((prev) => ({ ...prev, isCaller: true }));
   }
 
   return (
