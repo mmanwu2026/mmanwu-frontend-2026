@@ -95,35 +95,35 @@ export default function MessengerThread({
     if (subscribedRef.current) return; // prevents double subscription
     subscribedRef.current = true;
 
-    const channel = supabase
-      .channel(`room-${finalRoomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT", // ⭐ ONLY INSERT
-          schema: "public",
-          table: "messages",
-          filter: `room_id=eq.${finalRoomId}`,
-        },
-        (payload: any) => {
-          const msg = payload.new;
+ const channel = supabase
+  .channel(`room-${finalRoomId}`)
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "messages",
+    },
+    (payload: any) => {
+      const msg = payload.new;
 
-          // ⭐ Prevent duplicates
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
+      // ⭐ Manual filter (Supabase Realtime v2 requires this)
+      if (msg.room_id !== finalRoomId) return;
 
-          const fromUser = msg.sender_id;
+      // ⭐ Prevent duplicates
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
 
-          // ⭐ Call signaling
-          if (msg.message_type === "call_offer") {
-            setCallActive(true);
-            if (fromUser !== userId) setCallModalOpen(true);
-          }
-        }
-      )
-      .subscribe();
+      // ⭐ Call signaling
+      if (msg.message_type === "call_offer") {
+        setCallActive(true);
+        if (msg.sender_id !== userId) setCallModalOpen(true);
+      }
+    }
+  )
+  .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
