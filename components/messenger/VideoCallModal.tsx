@@ -149,16 +149,23 @@ export default function VideoCallModal({
     pushNotification(`Answer received from ${fromUser}`);
   }
 
-  async function handleIncomingCandidate(fromUser: string, candidate: RTCIceCandidate) {
-    const pc = peerConnections.current[fromUser];
-    if (!pc) return;
+ async function handleIncomingCandidate(fromUser: string, candidate: any) {
+  const pc = peerConnections.current[fromUser];
+  if (!pc) return;
 
-    try {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (err) {
-      console.error("Error adding ICE candidate:", err);
-    }
+  try {
+    // Normalize candidate coming from Supabase
+    const normalized = {
+      candidate: candidate.candidate,
+      sdpMid: candidate.sdpMid ?? "0",
+      sdpMLineIndex: candidate.sdpMLineIndex ?? 0,
+    };
+
+    await pc.addIceCandidate(new RTCIceCandidate(normalized));
+  } catch (err) {
+    console.error("Error adding ICE candidate:", err);
   }
+}
 
   async function startCallAsCaller() {
     await setupLocalStream();
