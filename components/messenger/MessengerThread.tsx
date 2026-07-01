@@ -19,8 +19,7 @@ export default function MessengerThread({
     return null;
   }
 
-  const supabase = useSupabase();   // ⭐ FIXED
-
+  const supabase = useSupabase();
   const finalRoomId = roomId;
 
   const searchParams = useSearchParams();
@@ -37,6 +36,7 @@ export default function MessengerThread({
     offers: {} as Record<string, RTCSessionDescriptionInit>,
     answers: {} as Record<string, RTCSessionDescriptionInit>,
     candidates: {} as Record<string, RTCIceCandidate[]>,
+
     sendOffer: async (targetId: string, offer: RTCSessionDescriptionInit) => {
       await supabase.from("messages").insert({
         sender_id: userId,
@@ -46,6 +46,7 @@ export default function MessengerThread({
         metadata: { offer },
       });
     },
+
     sendAnswer: async (targetId: string, answer: RTCSessionDescriptionInit) => {
       await supabase.from("messages").insert({
         sender_id: userId,
@@ -55,6 +56,7 @@ export default function MessengerThread({
         metadata: { answer },
       });
     },
+
     sendCandidate: async (targetId: string, candidate: RTCIceCandidate) => {
       await supabase.from("messages").insert({
         sender_id: userId,
@@ -96,65 +98,63 @@ export default function MessengerThread({
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "messages",
           filter: `room_id=eq.${finalRoomId}`,
         },
         (payload: any) => {
           const msg = payload.new;
-          setMessages((prev) => [...prev, msg]);
+
+          // prevent duplicates
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
 
           const fromUser = msg.sender_id;
 
+          // update signaling state for call-related messages
           setSignalingState((prev) => {
-            if (!prev.participants.includes(fromUser)) {
-              return {
-                ...prev,
-                participants: [...prev.participants, fromUser],
+            const next = { ...prev };
+
+            if (!next.participants.includes(fromUser)) {
+              next.participants = [...next.participants, fromUser];
+            }
+
+            if (msg.message_type === "call_offer") {
+              next.isCaller = fromUser === userId;
+              next.offers = {
+                ...next.offers,
+                [fromUser]: msg.metadata?.offer,
               };
             }
-            return prev;
+
+            if (msg.message_type === "call_answer") {
+              next.answers = {
+                ...next.answers,
+                [fromUser]: msg.metadata?.answer,
+              };
+            }
+
+            if (msg.message_type === "ice_candidate") {
+              next.candidates = {
+                ...next.candidates,
+                [fromUser]: [
+                  ...(next.candidates[fromUser] || []),
+                  msg.metadata?.candidate,
+                ],
+              };
+            }
+
+            return next;
           });
 
           if (msg.message_type === "call_offer") {
             setCallActive(true);
-
             if (fromUser !== userId) {
               setCallModalOpen(true);
             }
-
-            setSignalingState((prev) => ({
-              ...prev,
-              isCaller: fromUser === userId,
-              offers: {
-                ...prev.offers,
-                [fromUser]: msg.metadata.offer,
-              },
-            }));
-          }
-
-          if (msg.message_type === "call_answer") {
-            setSignalingState((prev) => ({
-              ...prev,
-              answers: {
-                ...prev.answers,
-                [fromUser]: msg.metadata.answer,
-              },
-            }));
-          }
-
-          if (msg.message_type === "ice_candidate") {
-            setSignalingState((prev) => ({
-              ...prev,
-              candidates: {
-                ...prev.candidates,
-                [fromUser]: [
-                  ...(prev.candidates[fromUser] || []),
-                  msg.metadata.candidate,
-                ],
-              },
-            }));
           }
         }
       )
