@@ -69,20 +69,20 @@ export default function Sidebar() {
           return (
             <div key={item.href} className="flex flex-col space-y-1">
               <Link
-                href={item.href}
-                className={`
-                  px-2.5 py-1.5 rounded-md transition-all flex items-center gap-2
-                  text-sm
-                  ${
-                    active
-                      ? "bg-purple-600/20 text-purple-200 font-semibold"
-                      : "hover:bg-purple-500/10"
-                  }
-                `}
-              >
-                <Icon className="h-4 w-4 text-purple-300 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
+  href={item.href}
+  className={`
+    px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5
+    text-xs
+    ${
+      active
+        ? "bg-purple-600/20 text-purple-200 font-semibold"
+        : "hover:bg-purple-500/10"
+    }
+  `}
+>
+  <Icon className="h-4 w-4 text-purple-300/70 shrink-0" />
+  <span>{item.label}</span>
+</Link>
 
               {item.children && active && (
                 <div className="ml-5 flex flex-col space-y-1">
