@@ -145,7 +145,35 @@ async function startChat(targetUserId: string) {
     return;
   }
 
-  // ⭐ FIX: include created_by
+  // 1. Find existing 1-to-1 room between these two users
+  const { data: existingRooms, error: findError } = await supabase
+    .from("room_participants")
+    .select("room_id")
+    .in("user_id", [userId, targetUserId]);
+
+  if (findError) {
+    console.error("Failed to check existing rooms:", findError);
+    setCreating(null);
+    return;
+  }
+
+  // Count participants per room_id
+  const counts: Record<string, number> = {};
+  for (const row of existingRooms ?? []) {
+    counts[row.room_id] = (counts[row.room_id] || 0) + 1;
+  }
+
+  // Find a room where BOTH users are participants
+  const existingRoomId = Object.entries(counts)
+    .find(([_, count]) => count === 2)?.[0];
+
+  if (existingRoomId) {
+    // ⭐ Reuse existing room — NO DUPLICATES
+    window.location.href = `/messenger/${existingRoomId}`;
+    return;
+  }
+
+  // 2. Create a new room only if none exists
   const { data: room, error: roomError } = await supabase
     .from("rooms")
     .insert({
@@ -161,6 +189,7 @@ async function startChat(targetUserId: string) {
     return;
   }
 
+  // 3. Add both participants
   await supabase.from("room_participants").insert([
     { room_id: room.id, user_id: userId },
     { room_id: room.id, user_id: targetUserId },
