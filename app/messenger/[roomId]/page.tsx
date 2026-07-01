@@ -13,7 +13,6 @@ export default function RoomPage() {
 
   const supabase = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
 
   useEffect(() => {
@@ -23,20 +22,6 @@ export default function RoomPage() {
     }
     loadUser();
   }, [supabase]);
-
-  useEffect(() => {
-    async function loadMessages() {
-      const { data } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("room_id", roomId)
-        .order("created_at", { ascending: true });
-
-      setMessages(data || []);
-    }
-
-    loadMessages();
-  }, [roomId, supabase]);
 
   async function sendMessage() {
     if (!input.trim() || !userId) return;
@@ -49,6 +34,7 @@ export default function RoomPage() {
     });
 
     setInput("");
+    // ⭐ No local reload here — MessengerThread's realtime will pick it up
   }
 
   if (!userId) {
@@ -56,47 +42,32 @@ export default function RoomPage() {
   }
 
   return (
-  <div className="flex flex-col h-full bg-black text-white">
+    <div className="flex flex-col h-full bg-black text-white">
+      {/* ⭐ Single source of truth for messages */}
+      <MessengerThread userId={userId} otherUserId={undefined} roomId={roomId} />
 
-    {/* ⭐ MessengerThread MUST be visible */}
-    <MessengerThread
-      userId={userId}
-      otherUserId={undefined}
-      roomId={roomId}
-    />
-
-    {/* ⭐ Your messaging UI */}
-    <div className="flex-1 overflow-y-auto p-4 space-y-2">
-      {messages.map((msg) => (
-        <div key={msg.id} className="text-sm">
-          <strong>{msg.sender_id}</strong>: {msg.content}
-        </div>
-      ))}
-    </div>
-
-    {/* ⭐ Message composer */}
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        sendMessage();
-      }}
-      className="p-4 flex gap-2 border-t border-gray-700"
-    >
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        className="flex-1 bg-gray-800 text-white p-2 rounded"
-        placeholder="Type a message…"
-      />
-
-      <button
-        type="submit"
-        className="bg-blue-600 px-4 py-2 rounded text-white"
+      {/* ⭐ Message composer only */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          sendMessage();
+        }}
+        className="p-4 flex gap-2 border-t border-gray-700"
       >
-        Send
-      </button>
-    </form>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="flex-1 bg-gray-800 text-white p-2 rounded"
+          placeholder="Type a message…"
+        />
 
-  </div>
-);
+        <button
+          type="submit"
+          className="bg-blue-600 px-4 py-2 rounded text-white"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  );
 }
