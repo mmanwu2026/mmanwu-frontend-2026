@@ -29,6 +29,7 @@ export default function MessengerThread({
   const subscribedRef = useRef(false);
 
   const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [newMessage, setNewMessage] = useState("");
 
   const [signalingState, setSignalingState] = useState({
     isCaller: false,
@@ -83,6 +84,7 @@ export default function MessengerThread({
     loadMessages();
   }, [finalRoomId]);
 
+  // ⭐ Load usernames
   useEffect(() => {
     async function loadUsernames() {
       const ids = Array.from(
@@ -114,6 +116,7 @@ export default function MessengerThread({
     loadUsernames();
   }, [messages, userId, otherUserId]);
 
+  // ⭐ Incoming call auto-open
   useEffect(() => {
     if (isIncoming) {
       setCallActive(true);
@@ -121,6 +124,7 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
+  // ⭐ Realtime subscription
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -144,6 +148,7 @@ export default function MessengerThread({
             return [...prev, msg];
           });
 
+          // ⭐ Call signaling routing
           if (
             msg.message_type === "call_offer" ||
             msg.message_type === "call_answer" ||
@@ -191,6 +196,7 @@ export default function MessengerThread({
             });
           }
 
+          // ⭐ Auto-open modal for callee
           if (msg.message_type === "call_offer") {
             setCallActive(true);
             if (msg.sender_id !== userId) {
@@ -206,6 +212,20 @@ export default function MessengerThread({
       subscribedRef.current = false;
     };
   }, [finalRoomId, userId, supabase]);
+
+  // ⭐ Send message
+  async function sendMessage() {
+    if (!newMessage.trim()) return;
+
+    await supabase.from("messages").insert({
+      room_id: finalRoomId,
+      sender_id: userId,
+      content: newMessage,
+      message_type: "text",
+    });
+
+    setNewMessage("");
+  }
 
   function joinCall() {
     setCallModalOpen(true);
@@ -234,6 +254,8 @@ export default function MessengerThread({
 
   return (
     <div className="flex flex-col h-full bg-neutral-950 text-white">
+
+      {/* ⭐ Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">Room</span>
@@ -248,6 +270,7 @@ export default function MessengerThread({
         </button>
       </div>
 
+      {/* ⭐ Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((m) => (
           <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
@@ -273,14 +296,21 @@ export default function MessengerThread({
         )}
       </div>
 
+      {/* ⭐ Composer */}
       <div className="p-4 border-t border-neutral-700 bg-neutral-900/80 backdrop-blur-md">
         <div className="flex gap-2">
           <input
             type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
             className="flex-1 px-3 py-2 rounded bg-neutral-800 text-white outline-none"
             placeholder="Type a message…"
           />
-          <button className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500">
+
+          <button
+            onClick={sendMessage}
+            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500"
+          >
             Send
           </button>
         </div>
