@@ -273,13 +273,13 @@ useEffect(() => {
       }
     });
 
-    // ⭐ Process incoming ANSWERS once
-    Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
-      if (!processedAnswersRef.current.has(fromUser)) {
-        processedAnswersRef.current.add(fromUser);
-        handleIncomingAnswer(fromUser, answer);
-      }
-    });
+    // ⭐ Process incoming ANSWERS once — ONLY on the caller side
+Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
+  if (fromUser !== userId && !processedAnswersRef.current.has(fromUser)) {
+    processedAnswersRef.current.add(fromUser);
+    handleIncomingAnswer(fromUser, answer);
+  }
+});
 
     // ⭐ Process incoming ICE CANDIDATES once
     Object.entries(signaling.candidates).forEach(([fromUser, candidateList]) => {
