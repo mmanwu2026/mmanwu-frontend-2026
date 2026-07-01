@@ -12,7 +12,7 @@ import {
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
   Cog6ToothIcon,
-} from "@heroicons/react/24/outline"; // ⭐ outline = visually smaller
+} from "@heroicons/react/24/outline"; // outline = visually lighter
 
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
@@ -68,21 +68,29 @@ export default function Sidebar() {
 
           return (
             <div key={item.href} className="flex flex-col space-y-1">
-             <Link
-  href={item.href}
-  className={`
-    px-1.5 py-1 rounded-md transition-all flex items-center gap-1
-    text-[11px]
-    ${
-      active
-        ? "bg-purple-600/25 text-purple-200 font-semibold"
-        : "hover:bg-purple-500/15"
-    }
-  `}
->
-  <Icon className="h-3 w-3 text-purple-300 shrink-0 stroke-[1]" />
-  <span className="truncate">{item.label}</span>
-</Link>
+              <Link
+                href={item.href}
+                className={`
+                  px-1.5 py-1 rounded-md transition-all flex items-center gap-1
+                  text-[11px]
+                  ${
+                    active
+                      ? "bg-purple-600/25 text-purple-200 font-semibold"
+                      : "hover:bg-purple-500/15"
+                  }
+                `}
+              >
+                {/* ⭐ Forced scaling — this is what finally shrinks the icons */}
+                <Icon className="
+                  h-4 w-4 
+                  scale-[0.55] 
+                  transform origin-center 
+                  text-purple-300 
+                  shrink-0
+                " />
+
+                <span className="truncate">{item.label}</span>
+              </Link>
 
               {item.children && active && (
                 <div className="ml-4 flex flex-col space-y-1">
