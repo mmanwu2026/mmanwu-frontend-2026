@@ -154,11 +154,12 @@ async function handleIncomingCandidate(fromUser: string, candidate: any) {
   if (!pc) return;
 
   try {
-    // Supabase wraps candidate inside metadata.candidate
+    // Supabase stores candidate inside metadata.candidate
     const raw = candidate.candidate ?? candidate;
 
+    // If raw is a string, wrap it properly
     const normalized = {
-      candidate: raw.candidate,
+      candidate: typeof raw === "string" ? raw : raw.candidate,
       sdpMid: raw.sdpMid ?? "0",
       sdpMLineIndex: raw.sdpMLineIndex ?? 0,
     };
