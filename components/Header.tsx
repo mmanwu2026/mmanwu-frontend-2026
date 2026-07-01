@@ -9,7 +9,7 @@ export default function Header() {
   return (
     <header className="w-full flex justify-between items-center px-4 py-4 mb-6 bg-white shadow-sm">
       <Link href="/" className="text-xl font-bold text-black">
-        Mmanwu Plaza
+        Mman Plaza
       </Link>
 
       {user && (

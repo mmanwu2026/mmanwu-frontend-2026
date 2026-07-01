@@ -13,7 +13,6 @@ export default function RoomPage() {
 
   const supabase = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [input, setInput] = useState("");
 
   useEffect(() => {
     async function loadUser() {
@@ -23,51 +22,17 @@ export default function RoomPage() {
     loadUser();
   }, [supabase]);
 
-  async function sendMessage() {
-    if (!input.trim() || !userId) return;
-
-    await supabase.from("messages").insert({
-      room_id: roomId,
-      sender_id: userId,
-      content: input,
-      message_type: "text",
-    });
-
-    setInput("");
-    // ⭐ No local reload here — MessengerThread's realtime will pick it up
-  }
-
   if (!userId) {
     return <div className="p-6 text-white">Loading user…</div>;
   }
 
   return (
-    <div className="flex flex-col h-full bg-black text-white">
-      {/* ⭐ Single source of truth for messages */}
-      <MessengerThread userId={userId} otherUserId={undefined} roomId={roomId} />
-
-      {/* ⭐ Message composer only */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          sendMessage();
-        }}
-        className="p-4 flex gap-2 border-t border-gray-700"
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 bg-gray-800 text-white p-2 rounded"
-          placeholder="Type a message…"
-        />
-
-        <button
-          type="submit"
-          className="bg-blue-600 px-4 py-2 rounded text-white"
-        >
-          Send
-        </button>
-      </form>
+    <div className="flex flex-col h-full bg-black">
+      <MessengerThread
+        userId={userId}
+        otherUserId={undefined}
+        roomId={roomId}
+      />
     </div>
   );
 }
