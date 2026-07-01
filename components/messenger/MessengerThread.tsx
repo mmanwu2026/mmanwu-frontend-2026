@@ -28,7 +28,6 @@ export default function MessengerThread({
 
   const subscribedRef = useRef(false);
 
-  // ⭐ Username map
   const [usernames, setUsernames] = useState<Record<string, string>>({});
 
   const [signalingState, setSignalingState] = useState({
@@ -84,7 +83,6 @@ export default function MessengerThread({
     loadMessages();
   }, [finalRoomId]);
 
-  // ⭐ Load usernames for all participants
   useEffect(() => {
     async function loadUsernames() {
       const ids = Array.from(
@@ -104,9 +102,11 @@ export default function MessengerThread({
         .in("id", ids);
 
       const map: Record<string, string> = {};
-      data?.forEach((u: { id: string; username: string | null; display_name: string | null }) => {
-  map[u.id] = u.display_name || u.username || u.id;
-});
+      data?.forEach(
+        (u: { id: string; username: string | null; display_name: string | null }) => {
+          map[u.id] = u.display_name || u.username || u.id;
+        }
+      );
 
       setUsernames(map);
     }
@@ -144,7 +144,6 @@ export default function MessengerThread({
             return [...prev, msg];
           });
 
-          // Call signaling routing
           if (
             msg.message_type === "call_offer" ||
             msg.message_type === "call_answer" ||
@@ -192,7 +191,6 @@ export default function MessengerThread({
             });
           }
 
-          // Open modal for callee on offer
           if (msg.message_type === "call_offer") {
             setCallActive(true);
             if (msg.sender_id !== userId) {
@@ -236,8 +234,6 @@ export default function MessengerThread({
 
   return (
     <div className="flex flex-col h-full bg-neutral-950 text-white">
-
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">Room</span>
@@ -252,11 +248,10 @@ export default function MessengerThread({
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((m) => (
           <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
-            <div className="text-xs text-neutral-400">
+            <div className="text-xs font-semibold text-yellow-400">
               {usernames[m.sender_id] || m.sender_id}
             </div>
             <div className="text-sm mt-1">{m.content}</div>
@@ -278,7 +273,6 @@ export default function MessengerThread({
         )}
       </div>
 
-      {/* Input */}
       <div className="p-4 border-t border-neutral-700 bg-neutral-900/80 backdrop-blur-md">
         <div className="flex gap-2">
           <input
