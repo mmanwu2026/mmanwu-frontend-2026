@@ -255,6 +255,9 @@ export default function VideoCallModal({
 
   // Process signaling updates incrementally
 const hasStartedCallRef = useRef(false);
+const processedOffersRef = useRef(new Set());
+const processedAnswersRef = useRef(new Set());
+const processedCandidatesRef = useRef(new Set());
 
 useEffect(() => {
   if (!isOpen) return;
@@ -262,24 +265,34 @@ useEffect(() => {
   (async () => {
     await setupLocalStream();
 
-    // Process incoming offers/answers/candidates
+    // ⭐ Process incoming OFFERS once
     Object.entries(signaling.offers).forEach(([fromUser, offer]) => {
-      if (fromUser !== userId) {
+      if (fromUser !== userId && !processedOffersRef.current.has(fromUser)) {
+        processedOffersRef.current.add(fromUser);
         handleIncomingOffer(fromUser, offer);
       }
     });
 
+    // ⭐ Process incoming ANSWERS once
     Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
-      handleIncomingAnswer(fromUser, answer);
+      if (!processedAnswersRef.current.has(fromUser)) {
+        processedAnswersRef.current.add(fromUser);
+        handleIncomingAnswer(fromUser, answer);
+      }
     });
 
+    // ⭐ Process incoming ICE CANDIDATES once
     Object.entries(signaling.candidates).forEach(([fromUser, candidateList]) => {
       candidateList.forEach((candidate) => {
-        handleIncomingCandidate(fromUser, candidate);
+        const key = `${fromUser}-${candidate.sdpMid}-${candidate.sdpMLineIndex}`;
+        if (!processedCandidatesRef.current.has(key)) {
+          processedCandidatesRef.current.add(key);
+          handleIncomingCandidate(fromUser, candidate);
+        }
       });
     });
 
-    // ⭐ Only start call ONCE
+    // ⭐ Start call ONCE for caller
     if (signaling.isCaller && !hasStartedCallRef.current) {
       hasStartedCallRef.current = true;
       await startCallAsCaller();
