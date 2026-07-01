@@ -49,26 +49,28 @@ export default function VideoCallModal({
   }
 
   async function setupLocalStream() {
-  if (localStream) return;
+    if (localStream) return;
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
 
-    setLocalStream(stream);
+      setLocalStream(stream);
 
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.muted = true;
+        await localVideoRef.current.play();
+      }
+
+      pushNotification("Camera and microphone started");
+    } catch (err) {
+      console.error("getUserMedia failed", err);
+      pushNotification("Could not access camera/microphone");
     }
-
-    pushNotification("Camera and microphone started");
-  } catch (err) {
-    console.error("getUserMedia failed", err);
-    pushNotification("Could not access camera/microphone");
   }
-}
 
   function attachTracksToPC(pc: RTCPeerConnection, stream: MediaStream | null) {
     if (!stream) return;
@@ -93,15 +95,17 @@ export default function VideoCallModal({
       ],
     });
 
-    attachTracksToPC(pc, screenStream || localStream);
-
     pc.ontrack = (event) => {
       const remoteVideo = document.getElementById(
         `remote-${targetId}`
-      ) as HTMLVideoElement;
+      ) as HTMLVideoElement | null;
 
       if (remoteVideo) {
         remoteVideo.srcObject = event.streams[0];
+        remoteVideo.autoplay = true;
+        remoteVideo.playsInline = true;
+        remoteVideo.muted = false;
+        remoteVideo.play().catch(() => {});
       }
     };
 
@@ -122,7 +126,11 @@ export default function VideoCallModal({
   }
 
   async function handleIncomingOffer(fromUser: string, offer: RTCSessionDescriptionInit) {
+    await setupLocalStream();
+
     const pc = createPeerConnection(fromUser);
+
+    attachTracksToPC(pc, screenStream || localStream);
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
@@ -148,157 +156,155 @@ export default function VideoCallModal({
     await pc.addIceCandidate(new RTCIceCandidate(candidate));
   }
 
-  async function startCallAsCaller() {
-    await setupLocalStream();
+async function startCallAsCaller() {
+  await setupLocalStream();
 
-    if (signaling.logCallEvent) {
-      signaling.logCallEvent("call_started");
-    }
-
-    pushNotification("Call started");
-
-    for (const targetId of signaling.participants) {
-      const pc = createPeerConnection(targetId);
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      signaling.sendOffer(targetId, offer);
-    }
+  if (signaling.logCallEvent) {
+    signaling.logCallEvent("call_started");
   }
 
-  async function toggleAudioOnly() {
-    setIsAudioOnly((prev) => {
-      const next = !prev;
-      if (localStream) {
-        localStream.getVideoTracks().forEach((track) => {
-          track.enabled = !next;
-        });
-      }
-      pushNotification(next ? "Audio-only mode enabled" : "Video enabled");
-      return next;
-    });
+  pushNotification("Call started");
+
+  for (const targetId of signaling.participants) {
+    const pc = createPeerConnection(targetId);
+
+    // Attach tracks AFTER localStream is ready
+    attachTracksToPC(pc, screenStream || localStream);
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    signaling.sendOffer(targetId, offer);
   }
+}
 
-  async function startScreenShare() {
-    if (isScreenSharing) {
-      stopScreenShare();
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-
-      setScreenStream(stream);
-      setIsScreenSharing(true);
-      pushNotification("Screen sharing started");
-
-      Object.values(peerConnections.current).forEach((pc) => {
-        const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
-        const screenTrack = stream.getVideoTracks()[0];
-        if (senders.length > 0 && screenTrack) {
-          senders[0].replaceTrack(screenTrack);
-        }
-      });
-
-      stream.getVideoTracks()[0].addEventListener("ended", () => {
-        stopScreenShare();
-      });
-    } catch {
-      pushNotification("Screen sharing failed");
-    }
-  }
-
-  function stopScreenShare() {
-    if (!isScreenSharing) return;
-
-    screenStream?.getTracks().forEach((t) => t.stop());
-    setScreenStream(null);
-    setIsScreenSharing(false);
-    pushNotification("Screen sharing stopped");
-
+async function toggleAudioOnly() {
+  setIsAudioOnly((prev) => {
+    const next = !prev;
     if (localStream) {
-      Object.values(peerConnections.current).forEach((pc) => {
-        const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
-        const camTrack = localStream.getVideoTracks()[0];
-        if (senders.length > 0 && camTrack) {
-          senders[0].replaceTrack(camTrack);
-        }
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !next;
       });
     }
+    pushNotification(next ? "Audio-only mode enabled" : "Video enabled");
+    return next;
+  });
+}
+
+async function startScreenShare() {
+  if (isScreenSharing) {
+    stopScreenShare();
+    return;
   }
 
-  function endCall() {
-    Object.values(peerConnections.current).forEach((pc) => pc.close());
-    peerConnections.current = {};
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: false,
+    });
 
-    localStream?.getTracks().forEach((t) => t.stop());
-    screenStream?.getTracks().forEach((t) => t.stop());
+    setScreenStream(stream);
+    setIsScreenSharing(true);
+    pushNotification("Screen sharing started");
 
-    setLocalStream(null);
-    setScreenStream(null);
-    setIsScreenSharing(false);
-    setIsAudioOnly(false);
-    setRinging(false);
-    setAccepted(false);
-
-    if (signaling.logCallEvent) {
-      signaling.logCallEvent("call_ended");
-    }
-
-    pushNotification("Call ended");
-    onCloseAction();
-  }
-
-  // Process signaling updates incrementally
-const hasStartedCallRef = useRef(false);
-const processedOffersRef = useRef(new Set());
-const processedAnswersRef = useRef(new Set());
-const processedCandidatesRef = useRef(new Set());
-
-useEffect(() => {
-  if (!isOpen) return;
-
-  (async () => {
-    await setupLocalStream();
-
-    // ⭐ Process incoming OFFERS once
-    Object.entries(signaling.offers).forEach(([fromUser, offer]) => {
-      if (fromUser !== userId && !processedOffersRef.current.has(fromUser)) {
-        processedOffersRef.current.add(fromUser);
-        handleIncomingOffer(fromUser, offer);
+    Object.values(peerConnections.current).forEach((pc) => {
+      const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
+      const screenTrack = stream.getVideoTracks()[0];
+      if (senders.length > 0 && screenTrack) {
+        senders[0].replaceTrack(screenTrack);
       }
     });
 
-    // ⭐ Process incoming ANSWERS once — ONLY on the caller side
-Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
-  if (fromUser !== userId && !processedAnswersRef.current.has(fromUser)) {
-    processedAnswersRef.current.add(fromUser);
-    handleIncomingAnswer(fromUser, answer);
+    stream.getVideoTracks()[0].addEventListener("ended", () => {
+      stopScreenShare();
+    });
+  } catch {
+    pushNotification("Screen sharing failed");
   }
-});
+}
 
-    // ⭐ Process incoming ICE CANDIDATES once
-    Object.entries(signaling.candidates).forEach(([fromUser, candidateList]) => {
-      candidateList.forEach((candidate) => {
-        const key = `${fromUser}-${candidate.sdpMid}-${candidate.sdpMLineIndex}`;
-        if (!processedCandidatesRef.current.has(key)) {
-          processedCandidatesRef.current.add(key);
-          handleIncomingCandidate(fromUser, candidate);
+function stopScreenShare() {
+  if (!isScreenSharing) return;
+
+  screenStream?.getTracks().forEach((t) => t.stop());
+  setScreenStream(null);
+  setIsScreenSharing(false);
+  pushNotification("Screen sharing stopped");
+
+  if (localStream) {
+    Object.values(peerConnections.current).forEach((pc) => {
+      const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
+      const camTrack = localStream.getVideoTracks()[0];
+      if (senders.length > 0 && camTrack) {
+        senders[0].replaceTrack(camTrack);
+      }
+    });
+  }
+}
+
+function endCall() {
+  Object.values(peerConnections.current).forEach((pc) => pc.close());
+  peerConnections.current = {};
+
+  localStream?.getTracks().forEach((t) => t.stop());
+  screenStream?.getTracks().forEach((t) => t.stop());
+
+  setLocalStream(null);
+  setScreenStream(null);
+  setIsScreenSharing(false);
+  setIsAudioOnly(false);
+  setRinging(false);
+  setAccepted(false);
+
+  if (signaling.logCallEvent) {
+    signaling.logCallEvent("call_ended");
+  }
+
+  pushNotification("Call ended");
+  onCloseAction();
+}
+
+  const hasStartedCallRef = useRef(false);
+  const processedOffersRef = useRef(new Set());
+  const processedAnswersRef = useRef(new Set());
+  const processedCandidatesRef = useRef(new Set());
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    (async () => {
+      await setupLocalStream();
+
+      Object.entries(signaling.offers).forEach(([fromUser, offer]) => {
+        if (fromUser !== userId && !processedOffersRef.current.has(fromUser)) {
+          processedOffersRef.current.add(fromUser);
+          handleIncomingOffer(fromUser, offer);
         }
       });
-    });
 
-    // ⭐ Start call ONCE for caller
-    if (signaling.isCaller && !hasStartedCallRef.current) {
-      hasStartedCallRef.current = true;
-      await startCallAsCaller();
-    }
-  })();
-}, [isOpen, signaling.isCaller]);
+      Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
+        if (fromUser !== userId && !processedAnswersRef.current.has(fromUser)) {
+          processedAnswersRef.current.add(fromUser);
+          handleIncomingAnswer(fromUser, answer);
+        }
+      });
+
+      Object.entries(signaling.candidates).forEach(([fromUser, candidateList]) => {
+        candidateList.forEach((candidate) => {
+          const key = `${fromUser}-${candidate.sdpMid}-${candidate.sdpMLineIndex}`;
+          if (!processedCandidatesRef.current.has(key)) {
+            processedCandidatesRef.current.add(key);
+            handleIncomingCandidate(fromUser, candidate);
+          }
+        });
+      });
+
+      if (signaling.isCaller && !hasStartedCallRef.current) {
+        hasStartedCallRef.current = true;
+        await startCallAsCaller();
+      }
+    })();
+  }, [isOpen, signaling.isCaller]);
 
   const participantCount = signaling.participants.length;
   const gridCols =
