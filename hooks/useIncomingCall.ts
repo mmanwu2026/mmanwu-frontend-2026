@@ -27,12 +27,20 @@ export default function useIncomingCall(userId: string | undefined) {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `receiver_id=eq.${userId} AND message_type=eq.call_offer`,
         },
         (payload: { new: CallMessage }) => {
-          const roomId = payload.new.room_id;
+          const msg = payload.new;
 
-          router.push(`/messenger/${roomId}?incoming=1`);
+          // ⭐ Manual filtering (Supabase Realtime v2 requires this)
+          if (
+            msg.receiver_id !== userId ||
+            msg.message_type !== "call_offer"
+          ) {
+            return;
+          }
+
+          // ⭐ Now callee receives the call instantly
+          router.push(`/messenger/${msg.room_id}?incoming=1`);
         }
       )
       .subscribe();
