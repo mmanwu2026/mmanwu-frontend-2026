@@ -176,30 +176,43 @@ export default function MessengerThread({
     };
   }, [finalRoomId, userId, supabase]);
 
-  function joinCall() {
-    setCallModalOpen(true);
-  }
+function joinCall() {
+  setCallModalOpen(true);
+}
 
-  async function startGroupCall() {
+async function startGroupCall() {
+  // First compute participants
+  const inferredParticipants = Array.from(
+    new Set(
+      messages
+        .map((m) => m.sender_id)
+        .filter((id: string) => id && id !== userId)
+    )
+  );
+
+  // Update signaling state FIRST
+  setSignalingState((prev) => ({
+    ...prev,
+    isCaller: true,
+    participants: inferredParticipants,
+  }));
+
+  // ⭐ Delay opening the modal so VideoCallModal sees updated participants
+  setTimeout(() => {
     setCallActive(true);
     setCallModalOpen(true);
-    setSignalingState((prev) => ({
-      ...prev,
-      isCaller: true,
-      participants: otherUserId
-        ? Array.from(new Set([...prev.participants, otherUserId]))
-        : prev.participants,
-    }));
-  }
+  }, 50);
+}
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.map((m) => (
-          <div key={m.id} className="mb-2 text-white">
-            <strong>{m.sender_id}</strong>: {m.content}
-          </div>
-        ))}
+return (
+  <div className="flex flex-col h-full">
+    <div className="flex-1 overflow-y-auto p-4">
+      {messages.map((m) => (
+        <div key={m.id} className="mb-2 text-white">
+          <strong>{m.sender_id}</strong>: {m.content}
+        </div>
+      ))}
+
 
         {callActive && (
           <div className="mt-4 p-3 bg-blue-900/40 border border-blue-600 rounded flex items-center justify-between">
