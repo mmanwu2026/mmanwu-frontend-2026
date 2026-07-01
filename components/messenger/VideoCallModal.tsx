@@ -168,7 +168,7 @@ async function startCallAsCaller() {
   for (const targetId of signaling.participants) {
     const pc = createPeerConnection(targetId);
 
-    // Attach tracks AFTER localStream is ready
+    // ⭐ Attach tracks AFTER localStream is ready
     attachTracksToPC(pc, screenStream || localStream);
 
     const offer = await pc.createOffer();
