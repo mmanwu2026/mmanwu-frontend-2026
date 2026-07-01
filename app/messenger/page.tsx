@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import MessengerSidebar from "@/components/messenger/MessengerSidebar";
 
@@ -13,6 +13,7 @@ interface UserRow {
 }
 
 export default function MessengerPage() {
+  const supabase = useSupabase();   // ⭐ FIXED
   const { user, loading: userLoading } = useUser();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function MessengerPage() {
     }
 
     loadUsers();
-  }, [user]);
+  }, [user, supabase]);
 
   if (userLoading || loading) {
     return (
