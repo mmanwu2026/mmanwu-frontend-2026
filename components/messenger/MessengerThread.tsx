@@ -253,10 +253,10 @@ export default function MessengerThread({
   }
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-white">
+    <div className="flex flex-col h-full bg-neutral-950">
 
       {/* ⭐ Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur-md sticky top-0 z-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">Room</span>
           <span className="text-xs text-neutral-400">{finalRoomId}</span>
@@ -297,7 +297,7 @@ export default function MessengerThread({
       </div>
 
       {/* ⭐ Composer */}
-      <div className="p-4 border-t border-neutral-700 bg-neutral-900/80 backdrop-blur-md">
+      <div className="p-4 border-t border-neutral-700 bg-neutral-900">
         <div className="flex gap-2">
           <input
             type="text"

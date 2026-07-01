@@ -153,121 +153,124 @@ export default function VideoCallModal({
     const pc = peerConnections.current[fromUser];
     if (!pc) return;
 
-    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.error("Error adding ICE candidate:", err);
+    }
   }
 
-async function startCallAsCaller() {
-  await setupLocalStream();
+  async function startCallAsCaller() {
+    await setupLocalStream();
 
-  if (signaling.logCallEvent) {
-    signaling.logCallEvent("call_started");
+    if (signaling.logCallEvent) {
+      signaling.logCallEvent("call_started");
+    }
+
+    pushNotification("Call started");
+
+    for (const targetId of signaling.participants) {
+      const pc = createPeerConnection(targetId);
+
+      attachTracksToPC(pc, screenStream || localStream);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      signaling.sendOffer(targetId, offer);
+    }
   }
 
-  pushNotification("Call started");
-
-  for (const targetId of signaling.participants) {
-    const pc = createPeerConnection(targetId);
-
-    // ⭐ Attach tracks AFTER localStream is ready
-    attachTracksToPC(pc, screenStream || localStream);
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    signaling.sendOffer(targetId, offer);
+  async function toggleAudioOnly() {
+    setIsAudioOnly((prev) => {
+      const next = !prev;
+      if (localStream) {
+        localStream.getVideoTracks().forEach((track) => {
+          track.enabled = !next;
+        });
+      }
+      pushNotification(next ? "Audio-only mode enabled" : "Video enabled");
+      return next;
+    });
   }
-}
 
-async function toggleAudioOnly() {
-  setIsAudioOnly((prev) => {
-    const next = !prev;
+  async function startScreenShare() {
+    if (isScreenSharing) {
+      stopScreenShare();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+
+      setScreenStream(stream);
+      setIsScreenSharing(true);
+      pushNotification("Screen sharing started");
+
+      Object.values(peerConnections.current).forEach((pc) => {
+        const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
+        const screenTrack = stream.getVideoTracks()[0];
+        if (senders.length > 0 && screenTrack) {
+          senders[0].replaceTrack(screenTrack);
+        }
+      });
+
+      stream.getVideoTracks()[0].addEventListener("ended", () => {
+        stopScreenShare();
+      });
+    } catch {
+      pushNotification("Screen sharing failed");
+    }
+  }
+
+  function stopScreenShare() {
+    if (!isScreenSharing) return;
+
+    screenStream?.getTracks().forEach((t) => t.stop());
+    setScreenStream(null);
+    setIsScreenSharing(false);
+    pushNotification("Screen sharing stopped");
+
     if (localStream) {
-      localStream.getVideoTracks().forEach((track) => {
-        track.enabled = !next;
+      Object.values(peerConnections.current).forEach((pc) => {
+        const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
+        const camTrack = localStream.getVideoTracks()[0];
+        if (senders.length > 0 && camTrack) {
+          senders[0].replaceTrack(camTrack);
+        }
       });
     }
-    pushNotification(next ? "Audio-only mode enabled" : "Video enabled");
-    return next;
-  });
-}
-
-async function startScreenShare() {
-  if (isScreenSharing) {
-    stopScreenShare();
-    return;
   }
 
-  try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: false,
-    });
+  function endCall() {
+    Object.values(peerConnections.current).forEach((pc) => pc.close());
+    peerConnections.current = {};
 
-    setScreenStream(stream);
-    setIsScreenSharing(true);
-    pushNotification("Screen sharing started");
+    localStream?.getTracks().forEach((t) => t.stop());
+    screenStream?.getTracks().forEach((t) => t.stop());
 
-    Object.values(peerConnections.current).forEach((pc) => {
-      const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
-      const screenTrack = stream.getVideoTracks()[0];
-      if (senders.length > 0 && screenTrack) {
-        senders[0].replaceTrack(screenTrack);
-      }
-    });
+    setLocalStream(null);
+    setScreenStream(null);
+    setIsScreenSharing(false);
+    setIsAudioOnly(false);
+    setRinging(false);
+    setAccepted(false);
 
-    stream.getVideoTracks()[0].addEventListener("ended", () => {
-      stopScreenShare();
-    });
-  } catch {
-    pushNotification("Screen sharing failed");
+    if (signaling.logCallEvent) {
+      signaling.logCallEvent("call_ended");
+    }
+
+    pushNotification("Call ended");
+    onCloseAction();
   }
-}
-
-function stopScreenShare() {
-  if (!isScreenSharing) return;
-
-  screenStream?.getTracks().forEach((t) => t.stop());
-  setScreenStream(null);
-  setIsScreenSharing(false);
-  pushNotification("Screen sharing stopped");
-
-  if (localStream) {
-    Object.values(peerConnections.current).forEach((pc) => {
-      const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
-      const camTrack = localStream.getVideoTracks()[0];
-      if (senders.length > 0 && camTrack) {
-        senders[0].replaceTrack(camTrack);
-      }
-    });
-  }
-}
-
-function endCall() {
-  Object.values(peerConnections.current).forEach((pc) => pc.close());
-  peerConnections.current = {};
-
-  localStream?.getTracks().forEach((t) => t.stop());
-  screenStream?.getTracks().forEach((t) => t.stop());
-
-  setLocalStream(null);
-  setScreenStream(null);
-  setIsScreenSharing(false);
-  setIsAudioOnly(false);
-  setRinging(false);
-  setAccepted(false);
-
-  if (signaling.logCallEvent) {
-    signaling.logCallEvent("call_ended");
-  }
-
-  pushNotification("Call ended");
-  onCloseAction();
-}
 
   const hasStartedCallRef = useRef(false);
-  const processedOffersRef = useRef(new Set());
-  const processedAnswersRef = useRef(new Set());
-  const processedCandidatesRef = useRef(new Set());
+  const processedOffersRef = useRef(new Set<string>());
+  const processedAnswersRef = useRef(new Set<string>());
+  const processedCandidatesRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -304,7 +307,14 @@ function endCall() {
         await startCallAsCaller();
       }
     })();
-  }, [isOpen, signaling.isCaller]);
+  }, [
+    isOpen,
+    signaling.isCaller,
+    signaling.offers,
+    signaling.answers,
+    signaling.candidates,
+    userId,
+  ]);
 
   const participantCount = signaling.participants.length;
   const gridCols =
@@ -335,7 +345,7 @@ function endCall() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-neutral-950 flex items-center justify-center z-50">
       <div className="bg-neutral-900 rounded-lg shadow-xl w-full max-w-5xl p-4 flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <h2 className="text-white text-lg">Room call — {roomId}</h2>
@@ -398,20 +408,64 @@ function endCall() {
             ))}
         </div>
 
-        <div className="flex gap-3 items-center mt-2">
-          <button
-            onClick={toggleAudioOnly}
-            className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500"
-          >
-            {isAudioOnly ? "Enable Video" : "Audio-only mode"}
-          </button>
-          <button
-            onClick={startScreenShare}
-            className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-500"
-          >
-            {isScreenSharing ? "Stop Screen Share" : "Share Screen"}
-          </button>
-        </div>
+<div className="flex gap-4 items-center justify-center mt-4">
+
+  {/* Mute / Unmute Microphone */}
+  <button
+    onClick={() => {
+      if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
+      }
+    }}
+    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+  >
+    {localStream?.getAudioTracks()[0]?.enabled ? (
+      <span>🎤</span>
+    ) : (
+      <span>🔇</span>
+    )}
+  </button>
+
+  {/* Toggle Camera */}
+  <button
+    onClick={() => {
+      if (localStream) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
+      }
+    }}
+    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+  >
+    {localStream?.getVideoTracks()[0]?.enabled ? (
+      <span>🎥</span>
+    ) : (
+      <span>📷</span>
+    )}
+  </button>
+
+  {/* Toggle Speaker Output */}
+  <button
+    onClick={() => {
+      const remoteVideos = document.querySelectorAll("video[id^='remote-']");
+      remoteVideos.forEach((v: any) => {
+        v.muted = !v.muted;
+      });
+    }}
+    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+  >
+    <span>🔊</span>
+  </button>
+
+  {/* Screen Share */}
+  <button
+    onClick={startScreenShare}
+    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+  >
+    {isScreenSharing ? "🛑" : "🖥️"}
+  </button>
+
+</div>
 
         {notifications.length > 0 && (
           <div className="fixed bottom-4 right-4 space-y-2">
