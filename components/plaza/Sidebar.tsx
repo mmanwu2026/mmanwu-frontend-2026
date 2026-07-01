@@ -12,7 +12,7 @@ import {
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
   Cog6ToothIcon,
-} from "@heroicons/react/24/solid";
+} from "@heroicons/react/24/outline"; // ⭐ outline = visually smaller
 
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
@@ -52,16 +52,16 @@ export default function Sidebar() {
     <div
       suppressHydrationWarning
       className="
-        fixed left-0 top-0 h-full w-[110px]
+        fixed left-0 top-0 h-full w-[96px]
         bg-black text-gray-300 flex flex-col
-        px-3 pt-[260px] z-[3000]
+        px-2.5 pt-[240px] z-[3000]
       "
     >
-      <h2 className="text-sm font-semibold text-purple-200 mb-4">
+      <h2 className="text-xs font-semibold text-purple-200 mb-3">
         Navigation
       </h2>
 
-      <div className="flex flex-col space-y-3">
+      <div className="flex flex-col space-y-2.5">
         {navItems.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -69,23 +69,23 @@ export default function Sidebar() {
           return (
             <div key={item.href} className="flex flex-col space-y-1">
               <Link
-  href={item.href}
-  className={`
-    px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5
-    text-xs
-    ${
-      active
-        ? "bg-purple-600/20 text-purple-200 font-semibold"
-        : "hover:bg-purple-500/10"
-    }
-  `}
->
-  <Icon className="h-4 w-4 text-purple-300/70 shrink-0" />
-  <span>{item.label}</span>
-</Link>
+                href={item.href}
+                className={`
+                  px-2 py-1 rounded-md transition-all flex items-center gap-1.5
+                  text-xs
+                  ${
+                    active
+                      ? "bg-purple-600/25 text-purple-200 font-semibold"
+                      : "hover:bg-purple-500/15"
+                  }
+                `}
+              >
+                <Icon className="h-3.5 w-3.5 text-purple-300/80 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </Link>
 
               {item.children && active && (
-                <div className="ml-5 flex flex-col space-y-1">
+                <div className="ml-4 flex flex-col space-y-1">
                   {item.children.map((child) => {
                     const childActive = pathname === child.href;
 
@@ -94,7 +94,7 @@ export default function Sidebar() {
                         key={child.href}
                         href={child.href}
                         className={`
-                          text-xs px-2 py-1 rounded transition-all
+                          text-[11px] px-2 py-0.5 rounded transition-all
                           ${
                             childActive
                               ? "text-purple-300 font-semibold"
