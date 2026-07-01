@@ -181,10 +181,9 @@ export default function MessengerThread({
                 };
               }
 
-              if (
-                msg.message_type === "ice_candidate" &&
-                msg.metadata?.candidate
-              ) {
+if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
+  console.log("RAW CANDIDATE FROM SUPABASE", msg.metadata.candidate);
+  
                 const existing = prev.candidates[msg.sender_id] || [];
                 next.candidates = {
                   ...prev.candidates,

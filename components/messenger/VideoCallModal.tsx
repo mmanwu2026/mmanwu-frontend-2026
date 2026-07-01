@@ -84,16 +84,17 @@ export default function VideoCallModal({
       return peerConnections.current[targetId];
     }
 
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        {
-          urls: "turn:global.turn.twilio.com:3478?transport=udp",
-          username: "example-user",
-          credential: "example-pass",
-        },
-      ],
-    });
+const pc = new RTCPeerConnection({
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+});
+
+pc.oniceconnectionstatechange = () => {
+  console.log("ICE STATE:", targetId, pc.iceConnectionState);
+};
+
+pc.onconnectionstatechange = () => {
+  console.log("PC STATE:", targetId, pc.connectionState);
+};
 
     pc.ontrack = (event) => {
       const remoteVideo = document.getElementById(
@@ -153,16 +154,18 @@ async function handleIncomingCandidate(fromUser: string, candidate: any) {
   const pc = peerConnections.current[fromUser];
   if (!pc) return;
 
+  console.log("HANDLE CANDIDATE for", fromUser, candidate);
+
   try {
-    // Supabase stores candidate inside metadata.candidate
     const raw = candidate.candidate ?? candidate;
 
-    // If raw is a string, wrap it properly
     const normalized = {
       candidate: typeof raw === "string" ? raw : raw.candidate,
       sdpMid: raw.sdpMid ?? "0",
       sdpMLineIndex: raw.sdpMLineIndex ?? 0,
     };
+
+    console.log("NORMALIZED CANDIDATE", normalized);
 
     await pc.addIceCandidate(new RTCIceCandidate(normalized));
   } catch (err) {
