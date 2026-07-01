@@ -26,7 +26,7 @@ export default function MessengerThread({
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callActive, setCallActive] = useState(false);
 
-  const subscribedRef = useRef(false); // ⭐ prevents double subscription
+  const subscribedRef = useRef(false);
 
   const [signalingState, setSignalingState] = useState({
     isCaller: false,
@@ -67,7 +67,6 @@ export default function MessengerThread({
     },
   });
 
-  // ⭐ Load messages once
   async function loadMessages() {
     const { data } = await supabase
       .from("messages")
@@ -82,7 +81,6 @@ export default function MessengerThread({
     loadMessages();
   }, [finalRoomId]);
 
-  // ⭐ Incoming call modal
   useEffect(() => {
     if (isIncoming) {
       setCallActive(true);
@@ -90,105 +88,109 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
-  // ⭐ Realtime listener — FIXED
-useEffect(() => {
-  if (subscribedRef.current) return;
-  subscribedRef.current = true;
+  useEffect(() => {
+    if (subscribedRef.current) return;
+    subscribedRef.current = true;
 
-  const channel = supabase
-    .channel(`room-${finalRoomId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-      },
-      (payload: any) => {
-        const msg = payload.new;
+    const channel = supabase
+      .channel(`room-${finalRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        (payload: any) => {
+          const msg = payload.new;
 
-        if (msg.room_id !== finalRoomId) return;
+          if (msg.room_id !== finalRoomId) return;
 
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-
-        // ⭐ Call signaling routing
-        if (
-          msg.message_type === "call_offer" ||
-          msg.message_type === "call_answer" ||
-          msg.message_type === "ice_candidate"
-        ) {
-          setSignalingState((prev) => {
-            const participants = Array.from(
-              new Set([
-                ...prev.participants,
-                msg.sender_id,
-                msg.receiver_id,
-              ].filter(Boolean))
-            );
-
-            const next = { ...prev, participants };
-
-            if (msg.message_type === "call_offer" && msg.metadata?.offer) {
-              next.offers = {
-                ...prev.offers,
-                [msg.sender_id]: msg.metadata.offer,
-              };
-            }
-
-            if (msg.message_type === "call_answer" && msg.metadata?.answer) {
-              next.answers = {
-                ...prev.answers,
-                [msg.sender_id]: msg.metadata.answer,
-              };
-            }
-
-            if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-              const existing = prev.candidates[msg.sender_id] || [];
-              next.candidates = {
-                ...prev.candidates,
-                [msg.sender_id]: [...existing, msg.metadata.candidate],
-              };
-            }
-
-            return next;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
           });
-        }
 
-        // ⭐ Open modal for callee on offer
-        if (msg.message_type === "call_offer") {
-          setCallActive(true);
-          if (msg.sender_id !== userId) {
-            setCallModalOpen(true);
+          // Call signaling routing
+          if (
+            msg.message_type === "call_offer" ||
+            msg.message_type === "call_answer" ||
+            msg.message_type === "ice_candidate"
+          ) {
+            setSignalingState((prev) => {
+              const participants = Array.from(
+                new Set(
+                  [
+                    ...prev.participants,
+                    msg.sender_id,
+                    msg.receiver_id,
+                  ].filter(Boolean)
+                )
+              );
+
+              const next = { ...prev, participants };
+
+              if (msg.message_type === "call_offer" && msg.metadata?.offer) {
+                next.offers = {
+                  ...prev.offers,
+                  [msg.sender_id]: msg.metadata.offer,
+                };
+              }
+
+              if (msg.message_type === "call_answer" && msg.metadata?.answer) {
+                next.answers = {
+                  ...prev.answers,
+                  [msg.sender_id]: msg.metadata.answer,
+                };
+              }
+
+              if (
+                msg.message_type === "ice_candidate" &&
+                msg.metadata?.candidate
+              ) {
+                const existing = prev.candidates[msg.sender_id] || [];
+                next.candidates = {
+                  ...prev.candidates,
+                  [msg.sender_id]: [...existing, msg.metadata.candidate],
+                };
+              }
+
+              return next;
+            });
+          }
+
+          // Open modal for callee on offer
+          if (msg.message_type === "call_offer") {
+            setCallActive(true);
+            if (msg.sender_id !== userId) {
+              setCallModalOpen(true);
+            }
           }
         }
-      }
-    )
-    .subscribe();
+      )
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-    subscribedRef.current = false;
-  };
-}, [finalRoomId, userId]);
+    return () => {
+      supabase.removeChannel(channel);
+      subscribedRef.current = false;
+    };
+  }, [finalRoomId, userId, supabase]);
 
   function joinCall() {
     setCallModalOpen(true);
   }
 
- async function startGroupCall() {
-  setCallActive(true);
-  setCallModalOpen(true);
-  setSignalingState((prev) => ({
-    ...prev,
-    isCaller: true,
-    participants: otherUserId
-      ? Array.from(new Set([...prev.participants, otherUserId]))
-      : prev.participants,
-  }));
-}
+  async function startGroupCall() {
+    setCallActive(true);
+    setCallModalOpen(true);
+    setSignalingState((prev) => ({
+      ...prev,
+      isCaller: true,
+      participants: otherUserId
+        ? Array.from(new Set([...prev.participants, otherUserId]))
+        : prev.participants,
+    }));
+  }
 
   return (
     <div className="flex flex-col h-full">
