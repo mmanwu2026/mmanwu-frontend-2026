@@ -4,6 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 
+// Import Heroicons (this path works with pnpm + Next.js)
+import {
+  MusicalNoteIcon,
+  PhotoIcon,
+  SparklesIcon,
+  FireIcon,
+  ChatBubbleLeftRightIcon,
+  UserCircleIcon,
+  Cog6ToothIcon,
+} from "@heroicons/react/24/solid";
+
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
   const { user } = useUser();
@@ -12,7 +23,7 @@ export default function Sidebar() {
     {
       label: "SoundSquare",
       href: "/sound-square/feed",
-      prefetch: false,
+      icon: MusicalNoteIcon,
       children: [
         { label: "Feed", href: "/sound-square/feed" },
         { label: "Upload Sound", href: "/sound-square/create" },
@@ -23,7 +34,7 @@ export default function Sidebar() {
     {
       label: "VisionSquare",
       href: "/vision-square/feed",
-      prefetch: false,
+      icon: PhotoIcon,
       children: [
         { label: "Feed", href: "/vision-square/feed" },
         { label: "Upload Vision", href: "/vision-square/create" },
@@ -31,21 +42,24 @@ export default function Sidebar() {
       ],
     },
 
-    { label: "SpiritSquare", href: "/spirit", prefetch: false },
-    { label: "Shrine", href: "/shrine", prefetch: false },
+    { label: "SpiritSquare", href: "/spirit", icon: SparklesIcon },
+    { label: "Shrine", href: "/shrine", icon: FireIcon },
+
+    // ⭐ Messenger added with icon
+    { label: "Messenger", href: "/messenger", icon: ChatBubbleLeftRightIcon },
 
     user
-      ? { label: "Profile", href: `/profile/${user.id}`, prefetch: false }
-      : { label: "Profile", href: "/login", prefetch: false },
+      ? { label: "Profile", href: `/profile/${user.id}`, icon: UserCircleIcon }
+      : { label: "Profile", href: "/login", icon: UserCircleIcon },
 
-    { label: "Settings", href: "/settings", prefetch: false },
+    { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
   ];
 
   return (
     <div
       suppressHydrationWarning
       className="
-        fixed left-0 top-0 h-full w-[120px]
+        fixed left-0 top-0 h-full w-[140px]
         bg-black text-gray-300 flex flex-col
         px-4 pt-[352px] z-[3000] pointer-events-auto
         [backface-visibility:hidden] [transform:translateZ(0)]
@@ -57,27 +71,29 @@ export default function Sidebar() {
 
       <div className="flex flex-col space-y-4">
         {navItems.map((item) => {
-          const active = pathname?.startsWith(item.href) ?? false;
+          const active = pathname.startsWith(item.href);
+          const Icon = item.icon;
 
           return (
             <div key={item.href} className="flex flex-col space-y-1">
               <Link
                 href={item.href}
-                prefetch={item.prefetch}
                 className={`
-                  px-3 py-2 rounded-lg transition-all
-                  ${active
-                    ? "bg-purple-600/20 text-purple-200 font-semibold"
-                    : "hover:bg-purple-500/10"
+                  px-3 py-2 rounded-lg transition-all flex items-center gap-2
+                  ${
+                    active
+                      ? "bg-purple-600/20 text-purple-200 font-semibold"
+                      : "hover:bg-purple-500/10"
                   }
                 `}
               >
+                <Icon className="h-5 w-5 text-purple-300" />
                 {item.label}
               </Link>
 
               {/* ⭐ Sub-links for SoundSquare & VisionSquare */}
               {item.children && active && (
-                <div className="ml-3 flex flex-col space-y-1">
+                <div className="ml-6 flex flex-col space-y-1">
                   {item.children.map((child) => {
                     const childActive = pathname === child.href;
 
@@ -87,9 +103,10 @@ export default function Sidebar() {
                         href={child.href}
                         className={`
                           text-sm px-2 py-1 rounded transition-all
-                          ${childActive
-                            ? "text-purple-300 font-semibold"
-                            : "text-gray-400 hover:text-purple-200"
+                          ${
+                            childActive
+                              ? "text-purple-300 font-semibold"
+                              : "text-gray-400 hover:text-purple-200"
                           }
                         `}
                       >
