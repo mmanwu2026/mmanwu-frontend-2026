@@ -230,26 +230,31 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
     setCallModalOpen(true);
   }
 
-  async function startGroupCall() {
-    const inferredParticipants = Array.from(
-      new Set(
-        messages
-          .map((m) => m.sender_id)
-          .filter((id: string) => id && id !== userId)
-      )
-    );
+ async function startGroupCall() {
+  // Collect all unique IDs from messages (senders + receivers)
+  const inferredParticipants = Array.from(
+    new Set(
+      [
+        ...messages.map((m) => m.sender_id),
+        ...messages.map((m) => m.receiver_id),
+        otherUserId, // explicitly include the other user if known
+      ].filter((id: string | undefined) => id && id !== userId)
+    )
+  );
 
-    setSignalingState((prev) => ({
-      ...prev,
-      isCaller: true,
-      participants: inferredParticipants,
-    }));
+  console.log("START GROUP CALL participants:", inferredParticipants);
 
-    setTimeout(() => {
-      setCallActive(true);
-      setCallModalOpen(true);
-    }, 50);
-  }
+  setSignalingState((prev) => ({
+    ...prev,
+    isCaller: true,
+    participants: inferredParticipants,
+  }));
+
+  setTimeout(() => {
+    setCallActive(true);
+    setCallModalOpen(true);
+  }, 50);
+}
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
