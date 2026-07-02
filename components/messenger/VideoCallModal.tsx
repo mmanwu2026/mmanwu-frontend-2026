@@ -153,15 +153,34 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     };
 
     pc.ontrack = (event) => {
+      console.log("ontrack FIRED for", participantId, event.streams);
       const [remoteStream] = event.streams;
       const videoEl = remoteVideoRefs.current[participantId];
       if (videoEl) {
-        videoEl.srcObject = remoteStream;
-        videoEl
-          .play()
-          .catch((err) =>
-            console.error("remote video play() error for", participantId, err)
-          );
+        if (videoEl.srcObject !== remoteStream) {
+          videoEl.srcObject = remoteStream;
+        }
+
+        setTimeout(() => {
+          const playPromise = videoEl.play();
+          if (playPromise && typeof playPromise.then === "function") {
+            playPromise
+              .then(() => {
+                console.log("remote video play() called for", participantId);
+              })
+              .catch((err) => {
+                if (err.name === "AbortError") {
+                  console.log(
+                    "remote video play() AbortError for",
+                    participantId,
+                    "- likely due to srcObject change; ignoring"
+                  );
+                } else {
+                  console.error("remote video play() error for", participantId, err);
+                }
+              });
+          }
+        }, 50);
       }
     };
 
@@ -404,99 +423,86 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const participants = signaling.participants;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-700 rounded-lg overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-950">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-white">Video call</span>
-            <span className="text-xs text-neutral-400">
-              {signaling.isCaller ? "You are calling" : "Incoming call"}
-            </span>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-neutral-900 rounded-lg shadow-lg p-4 w-full max-w-4xl">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold text-white">Video Call</h2>
           <button
             onClick={handleClose}
             className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500 text-white"
           >
-            End
+            End Call
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-900">
-          {/* Local video */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs text-neutral-400">You</span>
-            <div className="relative bg-black rounded overflow-hidden h-48 md:h-64">
-              <video
-                ref={localVideoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                playsInline
-              />
-            </div>
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={handleToggleMic}
-                className="px-3 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white"
-              >
-                {micOn ? "Mute mic" : "Unmute mic"}
-              </button>
-              <button
-                onClick={handleToggleCamera}
-                className="px-3 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white"
-              >
-                {cameraOn ? "Turn camera off" : "Turn camera on"}
-              </button>
-            </div>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="flex flex-col">
+            <span className="text-xs text-neutral-300 mb-1">You</span>
+            <video
+              ref={localVideoRef}
+              muted
+              playsInline
+              autoPlay
+              className="w-full h-64 bg-black rounded"
+            />
           </div>
 
-          {/* Remote videos */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs text-neutral-400">Participants</span>
-            <div className="grid grid-cols-1 gap-3">
-              {participants.map((pid) => (
-                <div key={pid} className="flex flex-col gap-1">
-                  <span className="text-xs text-neutral-300 truncate">
-                    Participant: {pid}
-                  </span>
-                  <div className="relative bg-black rounded overflow-hidden h-40 md:h-52">
-                    <video
-                      ref={(el) => {
-                        remoteVideoRefs.current[pid] = el;
-                      }}
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      playsInline
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-1">
+          <div className="flex flex-col space-y-2">
+            {participants.length === 0 && (
+              <div className="w-full h-64 bg-neutral-800 rounded flex items-center justify-center text-neutral-400 text-sm">
+                Waiting for participants…
+              </div>
+            )}
+
+            {participants.map((pid) => (
+              <div key={pid} className="flex flex-col">
+                <span className="text-xs text-neutral-300 mb-1">
+                  Participant: {pid}
+                </span>
+                <video
+                  ref={(el) => {
+                    if (el && !remoteVideoRefs.current[pid]) {
+                      remoteVideoRefs.current[pid] = el;
+                    }
+                  }}
+                  playsInline
+                  autoPlay
+                  className="w-full h-40 bg-black rounded"
+                />
+                <div className="mt-1 flex gap-2">
+                  <button
+                    onClick={() => handleToggleSpeaker(pid)}
+                    className="px-2 py-1 text-xs rounded bg-neutral-700 text-white hover:bg-neutral-600"
+                  >
+                    {speakerMuted[pid] ? "Unmute speaker" : "Mute speaker"}
+                  </button>
+                  {!signaling.isCaller && incomingOffers[pid] && (
                     <button
-                      onClick={() => handleToggleSpeaker(pid)}
-                      className="px-3 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white"
+                      onClick={() => handleAnswerClick(pid)}
+                      className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-500"
                     >
-                      {speakerMuted[pid] ? "Unmute speaker" : "Mute speaker"}
+                      Answer
                     </button>
-                    {!signaling.isCaller && incomingOffers[pid] && (
-                      <button
-                        onClick={() => handleAnswerClick(pid)}
-                        className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white"
-                      >
-                        Answer
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
-              ))}
-
-              {!participants.length && (
-                <div className="text-xs text-neutral-500">
-                  Waiting for participants…
-                </div>
-              )}
-            </div>
+              </div>
+            ))}
           </div>
+        </div>
+
+        <div className="flex gap-2 justify-center mt-2">
+          <button
+            onClick={handleToggleMic}
+            className="px-3 py-1 text-sm rounded bg-neutral-700 text-white hover:bg-neutral-600"
+          >
+            {micOn ? "Mute mic" : "Unmute mic"}
+          </button>
+          <button
+            onClick={handleToggleCamera}
+            className="px-3 py-1 text-sm rounded bg-neutral-700 text-white hover:bg-neutral-600"
+          >
+            {cameraOn ? "Turn camera off" : "Turn camera on"}
+          </button>
         </div>
       </div>
     </div>
