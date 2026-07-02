@@ -30,6 +30,8 @@ export default function VideoCallModal({
   userId: string;
   roomId: string;
 }) {
+  console.log("VideoCallModal RENDER", { isOpen, signaling });
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -42,6 +44,7 @@ export default function VideoCallModal({
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
 
   function pushNotification(msg: string) {
+    console.log("NOTIFICATION:", msg);
     setNotifications((prev) => [...prev, msg]);
     setTimeout(() => {
       setNotifications((prev) => prev.slice(1));
@@ -49,7 +52,12 @@ export default function VideoCallModal({
   }
 
   async function setupLocalStream() {
-    if (localStream) return;
+    console.log("setupLocalStream CALLED, localStream:", localStream);
+
+    if (localStream) {
+      console.log("setupLocalStream: localStream already exists");
+      return;
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -57,12 +65,16 @@ export default function VideoCallModal({
         audio: true,
       });
 
+      console.log("setupLocalStream GOT STREAM:", stream);
+
       setLocalStream(stream);
 
       if (localVideoRef.current) {
+        console.log("setupLocalStream: attaching stream to localVideoRef");
         localVideoRef.current.srcObject = stream;
         localVideoRef.current.muted = true;
         await localVideoRef.current.play();
+        console.log("setupLocalStream: localVideoRef.play() called");
       }
 
       pushNotification("Camera and microphone started");
@@ -73,35 +85,42 @@ export default function VideoCallModal({
   }
 
   function attachTracksToPC(pc: RTCPeerConnection, stream: MediaStream | null) {
+    console.log("attachTracksToPC CALLED", { pc, stream });
     if (!stream) return;
     stream.getTracks().forEach((track) => {
+      console.log("attachTracksToPC: adding track", track);
       pc.addTrack(track, stream);
     });
   }
 
   function createPeerConnection(targetId: string) {
+    console.log("createPeerConnection CALLED for", targetId);
+
     if (peerConnections.current[targetId]) {
+      console.log("createPeerConnection: returning existing PC for", targetId);
       return peerConnections.current[targetId];
     }
 
- const pc = new RTCPeerConnection({
-  iceServers: [
-    {
-      urls: [
-        "stun:global.xirsys.net",
-        "turn:global.xirsys.net:3478?transport=udp",
-        "turn:global.xirsys.net:3478?transport=tcp",
-        "turns:global.xirsys.net:443?transport=tcp",
-        "turns:global.xirsys.net:5349?transport=tcp",
-        "turn:global.xirsys.net:80?transport=udp",
-        "turn:global.xirsys.net:80?transport=tcp"
-      ],
-      username:
-        "wkxJr_mEzDbRvQqpHgAeK8kbx0hjeGo6FnV97Vl34YV0RHJPiRX8mgFqNd-KkSi2AAAAAGpFxt1tbWFucGxhemE=",
-      credential: "2c2c6cf4-75ba-11f1-ac0b-0242ac140004"
-    }
-  ]
-});
+    console.log("createPeerConnection: creating NEW PC for", targetId);
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: [
+            "stun:global.xirsys.net",
+            "turn:global.xirsys.net:3478?transport=udp",
+            "turn:global.xirsys.net:3478?transport=tcp",
+            "turns:global.xirsys.net:443?transport=tcp",
+            "turns:global.xirsys.net:5349?transport=tcp",
+            "turn:global.xirsys.net:80?transport=udp",
+            "turn:global.xirsys.net:80?transport=tcp"
+          ],
+          username:
+            "wkxJr_mEzDbRvQqpHgAeK8kbx0hjeGo6FnV97Vl34YV0RHJPiRX8mgFqNd-KkSi2AAAAAGpFxt1tbWFucGxhemE=",
+          credential: "2c2c6cf4-75ba-11f1-ac0b-0242ac140004"
+        }
+      ]
+    });
 
     pc.oniceconnectionstatechange = () => {
       console.log("ICE STATE:", targetId, pc.iceConnectionState);
@@ -109,15 +128,11 @@ export default function VideoCallModal({
 
     pc.onconnectionstatechange = () => {
       console.log("PC STATE:", targetId, pc.connectionState);
-      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-        pushNotification(`Connection with ${targetId} lost`);
-      }
     };
 
     pc.ontrack = (event) => {
-      const remoteVideo = document.getElementById(
-        `remote-${targetId}`
-      ) as HTMLVideoElement | null;
+      console.log("ontrack FIRED for", targetId, event.streams);
+      const remoteVideo = document.getElementById(`remote-${targetId}`) as HTMLVideoElement | null;
 
       if (remoteVideo) {
         remoteVideo.srcObject = event.streams[0];
@@ -129,6 +144,7 @@ export default function VideoCallModal({
     };
 
     pc.onicecandidate = (event) => {
+      console.log("onicecandidate FIRED for", targetId, event.candidate);
       if (event.candidate) {
         signaling.sendCandidate(targetId, event.candidate);
       }
@@ -139,61 +155,66 @@ export default function VideoCallModal({
   }
 
   async function handleIncomingOffer(fromUser: string, offer: RTCSessionDescriptionInit) {
+    console.log("handleIncomingOffer CALLED from", fromUser, offer);
+
     await setupLocalStream();
 
     const pc = createPeerConnection(fromUser);
 
     attachTracksToPC(pc, screenStream || localStream);
 
+    console.log("handleIncomingOffer: setting remote description");
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+    console.log("handleIncomingOffer: creating answer");
     const answer = await pc.createAnswer();
+
+    console.log("handleIncomingOffer: setting local description");
     await pc.setLocalDescription(answer);
 
     signaling.sendAnswer(fromUser, answer);
+    console.log("handleIncomingOffer: ANSWER SENT to", fromUser);
+
     pushNotification(`Incoming call offer from ${fromUser}`);
     setRinging(true);
   }
 
   async function handleIncomingAnswer(fromUser: string, answer: RTCSessionDescriptionInit) {
-    const pc = peerConnections.current[fromUser];
-    if (!pc) return;
+    console.log("handleIncomingAnswer CALLED from", fromUser, answer);
 
+    const pc = peerConnections.current[fromUser];
+    if (!pc) {
+      console.log("handleIncomingAnswer: NO PC FOUND for", fromUser);
+      return;
+    }
+
+    console.log("handleIncomingAnswer: setting remote description");
     await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
     pushNotification(`Answer received from ${fromUser}`);
   }
 
   async function handleIncomingCandidate(fromUser: string, candidate: any) {
+    console.log("handleIncomingCandidate CALLED from", fromUser, candidate);
+
     const pc = peerConnections.current[fromUser];
-    if (!pc) return;
+    if (!pc) {
+      console.log("handleIncomingCandidate: NO PC FOUND for", fromUser);
+      return;
+    }
 
-    console.log("HANDLE CANDIDATE for", fromUser, candidate);
-
+    console.log("handleIncomingCandidate: adding ICE candidate");
     try {
-      const raw = candidate?.candidate ?? candidate;
-
-      const normalized = {
-        candidate:
-          typeof raw === "string"
-            ? raw
-            : raw?.candidate ?? candidate?.candidate ?? "",
-        sdpMid: raw?.sdpMid ?? candidate?.sdpMid ?? "0",
-        sdpMLineIndex: raw?.sdpMLineIndex ?? candidate?.sdpMLineIndex ?? 0,
-      };
-
-      console.log("NORMALIZED CANDIDATE", normalized);
-
-      if (!normalized.candidate) {
-        console.warn("Skipping candidate with empty candidate string", candidate);
-        return;
-      }
-
-      await pc.addIceCandidate(new RTCIceCandidate(normalized));
+      await pc.addIceCandidate(candidate);
     } catch (err) {
       console.error("Error adding ICE candidate:", err);
     }
   }
 
   async function startCallAsCaller() {
+    console.log("startCallAsCaller CALLED");
+    console.log("startCallAsCaller participants:", signaling.participants);
+
     await setupLocalStream();
 
     if (signaling.logCallEvent) {
@@ -205,14 +226,21 @@ export default function VideoCallModal({
     for (const targetId of signaling.participants) {
       if (targetId === userId) continue;
 
+      console.log("startCallAsCaller: creating PC for", targetId);
+
       const pc = createPeerConnection(targetId);
 
       attachTracksToPC(pc, screenStream || localStream);
 
+      console.log("startCallAsCaller: creating offer for", targetId);
       const offer = await pc.createOffer();
+      console.log("startCallAsCaller: OFFER CREATED for", targetId, offer);
+
       await pc.setLocalDescription(offer);
+      console.log("startCallAsCaller: LOCAL DESCRIPTION SET for", targetId);
 
       signaling.sendOffer(targetId, offer);
+      console.log("startCallAsCaller: OFFER SENT to", targetId);
     }
   }
 
@@ -241,6 +269,8 @@ export default function VideoCallModal({
         audio: false,
       });
 
+      console.log("startScreenShare GOT STREAM:", stream);
+
       setScreenStream(stream);
       setIsScreenSharing(true);
       pushNotification("Screen sharing started");
@@ -249,6 +279,7 @@ export default function VideoCallModal({
         const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
         const screenTrack = stream.getVideoTracks()[0];
         if (senders.length > 0 && screenTrack) {
+          console.log("startScreenShare: replacing track");
           senders[0].replaceTrack(screenTrack);
         }
       });
@@ -262,6 +293,8 @@ export default function VideoCallModal({
   }
 
   function stopScreenShare() {
+    console.log("stopScreenShare CALLED");
+
     if (!isScreenSharing) return;
 
     screenStream?.getTracks().forEach((t) => t.stop());
@@ -274,6 +307,7 @@ export default function VideoCallModal({
         const senders = pc.getSenders().filter((s) => s.track?.kind === "video");
         const camTrack = localStream.getVideoTracks()[0];
         if (senders.length > 0 && camTrack) {
+          console.log("stopScreenShare: restoring camera track");
           senders[0].replaceTrack(camTrack);
         }
       });
@@ -281,6 +315,8 @@ export default function VideoCallModal({
   }
 
   function endCall() {
+    console.log("endCall CALLED");
+
     Object.values(peerConnections.current).forEach((pc) => pc.close());
     peerConnections.current = {};
 
@@ -308,12 +344,24 @@ export default function VideoCallModal({
   const processedCandidatesRef = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      console.log("VideoCallModal effect: isOpen FALSE");
+      return;
+    }
+
+    console.log("VideoCallModal effect RUN", {
+      isCaller: signaling.isCaller,
+      participants: signaling.participants,
+      offers: signaling.offers,
+      answers: signaling.answers,
+      candidates: signaling.candidates,
+    });
 
     (async () => {
       await setupLocalStream();
 
       Object.entries(signaling.offers).forEach(([fromUser, offer]) => {
+        console.log("EFFECT sees OFFER from", fromUser);
         if (fromUser !== userId && !processedOffersRef.current.has(fromUser)) {
           processedOffersRef.current.add(fromUser);
           handleIncomingOffer(fromUser, offer);
@@ -321,6 +369,7 @@ export default function VideoCallModal({
       });
 
       Object.entries(signaling.answers).forEach(([fromUser, answer]) => {
+        console.log("EFFECT sees ANSWER from", fromUser);
         if (fromUser !== userId && !processedAnswersRef.current.has(fromUser)) {
           processedAnswersRef.current.add(fromUser);
           handleIncomingAnswer(fromUser, answer);
@@ -328,6 +377,7 @@ export default function VideoCallModal({
       });
 
       Object.entries(signaling.candidates).forEach(([fromUser, candidateList]) => {
+        console.log("EFFECT sees CANDIDATES from", fromUser, candidateList);
         candidateList.forEach((candidate) => {
           const key = `${fromUser}-${candidate.sdpMid}-${candidate.sdpMLineIndex}`;
           if (!processedCandidatesRef.current.has(key)) {
@@ -338,6 +388,7 @@ export default function VideoCallModal({
       });
 
       if (signaling.isCaller && !hasStartedCallRef.current) {
+        console.log("EFFECT: Caller starting call");
         hasStartedCallRef.current = true;
         await startCallAsCaller();
       }
@@ -362,12 +413,14 @@ export default function VideoCallModal({
       : "grid-cols-3";
 
   function acceptCall() {
+    console.log("acceptCall CALLED");
     setAccepted(true);
     setRinging(false);
     pushNotification("Call accepted");
   }
 
   function rejectCall() {
+    console.log("rejectCall CALLED");
     setAccepted(false);
     setRinging(false);
     if (signaling.logCallEvent) {
@@ -377,7 +430,10 @@ export default function VideoCallModal({
     endCall();
   }
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log("VideoCallModal NOT OPEN");
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-neutral-950 flex items-center justify-center z-50">
@@ -444,9 +500,9 @@ export default function VideoCallModal({
         </div>
 
         <div className="flex gap-4 items-center justify-center mt-4">
-          {/* Mute / Unmute Microphone */}
           <button
             onClick={() => {
+              console.log("Toggle mic");
               if (localStream) {
                 const audioTrack = localStream.getAudioTracks()[0];
                 if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
@@ -457,9 +513,9 @@ export default function VideoCallModal({
             {localStream?.getAudioTracks()[0]?.enabled ? <span>🎤</span> : <span>🔇</span>}
           </button>
 
-          {/* Toggle Camera */}
           <button
             onClick={() => {
+              console.log("Toggle camera");
               if (localStream) {
                 const videoTrack = localStream.getVideoTracks()[0];
                 if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
@@ -470,12 +526,14 @@ export default function VideoCallModal({
             {localStream?.getVideoTracks()[0]?.enabled ? <span>🎥</span> : <span>📷</span>}
           </button>
 
-          {/* Toggle Speaker Output */}
+                    {/* Toggle Speaker Output */}
           <button
             onClick={() => {
+              console.log("Toggle speaker");
               const remoteVideos = document.querySelectorAll("video[id^='remote-']");
               remoteVideos.forEach((v: any) => {
                 v.muted = !v.muted;
+                console.log("Speaker toggle for", v.id, "muted:", v.muted);
               });
             }}
             className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
