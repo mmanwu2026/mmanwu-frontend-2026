@@ -51,38 +51,40 @@ export default function VideoCallModal({
     }, 4000);
   }
 
-  async function setupLocalStream() {
-    console.log("setupLocalStream CALLED, localStream:", localStream);
+async function setupLocalStream(): Promise<MediaStream | null> {
+  console.log("setupLocalStream CALLED, localStream:", localStream);
 
-    if (localStream) {
-      console.log("setupLocalStream: localStream already exists");
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-
-      console.log("setupLocalStream GOT STREAM:", stream);
-
-      setLocalStream(stream);
-
-      if (localVideoRef.current) {
-        console.log("setupLocalStream: attaching stream to localVideoRef");
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.muted = true;
-        await localVideoRef.current.play();
-        console.log("setupLocalStream: localVideoRef.play() called");
-      }
-
-      pushNotification("Camera and microphone started");
-    } catch (err) {
-      console.error("getUserMedia failed", err);
-      pushNotification("Could not access camera/microphone");
-    }
+  if (localStream) {
+    console.log("setupLocalStream: localStream already exists");
+    return localStream;
   }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+
+    console.log("setupLocalStream GOT STREAM:", stream);
+
+    setLocalStream(stream);
+
+    if (localVideoRef.current) {
+      console.log("setupLocalStream: attaching stream to localVideoRef");
+      localVideoRef.current.srcObject = stream;
+      localVideoRef.current.muted = true;
+      await localVideoRef.current.play();
+      console.log("setupLocalStream: localVideoRef.play() called");
+    }
+
+    pushNotification("Camera and microphone started");
+    return stream;
+  } catch (err) {
+    console.error("getUserMedia failed", err);
+    pushNotification("Could not access camera/microphone");
+    return null;
+  }
+}
 
   function attachTracksToPC(pc: RTCPeerConnection, stream: MediaStream | null) {
     console.log("attachTracksToPC CALLED", { pc, stream });
@@ -154,30 +156,35 @@ export default function VideoCallModal({
     return pc;
   }
 
-  async function handleIncomingOffer(fromUser: string, offer: RTCSessionDescriptionInit) {
-    console.log("handleIncomingOffer CALLED from", fromUser, offer);
+async function handleIncomingOffer(fromUser: string, offer: RTCSessionDescriptionInit) {
+  console.log("handleIncomingOffer CALLED from", fromUser, offer);
 
-    await setupLocalStream();
-
-    const pc = createPeerConnection(fromUser);
-
-    attachTracksToPC(pc, screenStream || localStream);
-
-    console.log("handleIncomingOffer: setting remote description");
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-    console.log("handleIncomingOffer: creating answer");
-    const answer = await pc.createAnswer();
-
-    console.log("handleIncomingOffer: setting local description");
-    await pc.setLocalDescription(answer);
-
-    signaling.sendAnswer(fromUser, answer);
-    console.log("handleIncomingOffer: ANSWER SENT to", fromUser);
-
-    pushNotification(`Incoming call offer from ${fromUser}`);
-    setRinging(true);
+  const stream = await setupLocalStream();
+  if (!stream) {
+    console.log("handleIncomingOffer: no local stream, aborting");
+    return;
   }
+
+  const pc = createPeerConnection(fromUser);
+
+  // ✅ again, use the returned stream
+  attachTracksToPC(pc, screenStream || stream);
+
+  console.log("handleIncomingOffer: setting remote description");
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+  console.log("handleIncomingOffer: creating answer");
+  const answer = await pc.createAnswer();
+
+  console.log("handleIncomingOffer: setting local description");
+  await pc.setLocalDescription(answer);
+
+  signaling.sendAnswer(fromUser, answer);
+  console.log("handleIncomingOffer: ANSWER SENT to", fromUser);
+
+  pushNotification(`Incoming call offer from ${fromUser}`);
+  setRinging(true);
+}
 
   async function handleIncomingAnswer(fromUser: string, answer: RTCSessionDescriptionInit) {
     console.log("handleIncomingAnswer CALLED from", fromUser, answer);
@@ -211,38 +218,43 @@ export default function VideoCallModal({
     }
   }
 
-  async function startCallAsCaller() {
-    console.log("startCallAsCaller CALLED");
-    console.log("startCallAsCaller participants:", signaling.participants);
+ async function startCallAsCaller() {
+  console.log("startCallAsCaller CALLED");
+  console.log("startCallAsCaller participants:", signaling.participants);
 
-    await setupLocalStream();
-
-    if (signaling.logCallEvent) {
-      signaling.logCallEvent("call_started");
-    }
-
-    pushNotification("Call started");
-
-    for (const targetId of signaling.participants) {
-      if (targetId === userId) continue;
-
-      console.log("startCallAsCaller: creating PC for", targetId);
-
-      const pc = createPeerConnection(targetId);
-
-      attachTracksToPC(pc, screenStream || localStream);
-
-      console.log("startCallAsCaller: creating offer for", targetId);
-      const offer = await pc.createOffer();
-      console.log("startCallAsCaller: OFFER CREATED for", targetId, offer);
-
-      await pc.setLocalDescription(offer);
-      console.log("startCallAsCaller: LOCAL DESCRIPTION SET for", targetId);
-
-      signaling.sendOffer(targetId, offer);
-      console.log("startCallAsCaller: OFFER SENT to", targetId);
-    }
+  const stream = await setupLocalStream();
+  if (!stream) {
+    console.log("startCallAsCaller: no local stream, aborting");
+    return;
   }
+
+  if (signaling.logCallEvent) {
+    signaling.logCallEvent("call_started");
+  }
+
+  pushNotification("Call started");
+
+  for (const targetId of signaling.participants) {
+    if (targetId === userId) continue;
+
+    console.log("startCallAsCaller: creating PC for", targetId);
+
+    const pc = createPeerConnection(targetId);
+
+    // ✅ use the stream we just got, not `localStream` (which may still be null)
+    attachTracksToPC(pc, screenStream || stream);
+
+    console.log("startCallAsCaller: creating offer for", targetId);
+    const offer = await pc.createOffer();
+    console.log("startCallAsCaller: OFFER CREATED for", targetId, offer);
+
+    await pc.setLocalDescription(offer);
+    console.log("startCallAsCaller: LOCAL DESCRIPTION SET for", targetId);
+
+    signaling.sendOffer(targetId, offer);
+    console.log("startCallAsCaller: OFFER SENT to", targetId);
+  }
+}
 
   async function toggleAudioOnly() {
     setIsAudioOnly((prev) => {
