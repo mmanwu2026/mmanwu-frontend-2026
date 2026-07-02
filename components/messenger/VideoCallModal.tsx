@@ -84,17 +84,35 @@ export default function VideoCallModal({
       return peerConnections.current[targetId];
     }
 
-const pc = new RTCPeerConnection({
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+ const pc = new RTCPeerConnection({
+  iceServers: [
+    {
+      urls: [
+        "stun:global.xirsys.net",
+        "turn:global.xirsys.net:3478?transport=udp",
+        "turn:global.xirsys.net:3478?transport=tcp",
+        "turns:global.xirsys.net:443?transport=tcp",
+        "turns:global.xirsys.net:5349?transport=tcp",
+        "turn:global.xirsys.net:80?transport=udp",
+        "turn:global.xirsys.net:80?transport=tcp"
+      ],
+      username:
+        "wkxJr_mEzDbRvQqpHgAeK8kbx0hjeGo6FnV97Vl34YV0RHJPiRX8mgFqNd-KkSi2AAAAAGpFxt1tbWFucGxhemE=",
+      credential: "2c2c6cf4-75ba-11f1-ac0b-0242ac140004"
+    }
+  ]
 });
 
-pc.oniceconnectionstatechange = () => {
-  console.log("ICE STATE:", targetId, pc.iceConnectionState);
-};
+    pc.oniceconnectionstatechange = () => {
+      console.log("ICE STATE:", targetId, pc.iceConnectionState);
+    };
 
-pc.onconnectionstatechange = () => {
-  console.log("PC STATE:", targetId, pc.connectionState);
-};
+    pc.onconnectionstatechange = () => {
+      console.log("PC STATE:", targetId, pc.connectionState);
+      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+        pushNotification(`Connection with ${targetId} lost`);
+      }
+    };
 
     pc.ontrack = (event) => {
       const remoteVideo = document.getElementById(
@@ -113,12 +131,6 @@ pc.onconnectionstatechange = () => {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         signaling.sendCandidate(targetId, event.candidate);
-      }
-    };
-
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-        pushNotification(`Connection with ${targetId} lost`);
       }
     };
 
@@ -150,28 +162,36 @@ pc.onconnectionstatechange = () => {
     pushNotification(`Answer received from ${fromUser}`);
   }
 
-async function handleIncomingCandidate(fromUser: string, candidate: any) {
-  const pc = peerConnections.current[fromUser];
-  if (!pc) return;
+  async function handleIncomingCandidate(fromUser: string, candidate: any) {
+    const pc = peerConnections.current[fromUser];
+    if (!pc) return;
 
-  console.log("HANDLE CANDIDATE for", fromUser, candidate);
+    console.log("HANDLE CANDIDATE for", fromUser, candidate);
 
-  try {
-    const raw = candidate.candidate ?? candidate;
+    try {
+      const raw = candidate?.candidate ?? candidate;
 
-    const normalized = {
-      candidate: typeof raw === "string" ? raw : raw.candidate,
-      sdpMid: raw.sdpMid ?? "0",
-      sdpMLineIndex: raw.sdpMLineIndex ?? 0,
-    };
+      const normalized = {
+        candidate:
+          typeof raw === "string"
+            ? raw
+            : raw?.candidate ?? candidate?.candidate ?? "",
+        sdpMid: raw?.sdpMid ?? candidate?.sdpMid ?? "0",
+        sdpMLineIndex: raw?.sdpMLineIndex ?? candidate?.sdpMLineIndex ?? 0,
+      };
 
-    console.log("NORMALIZED CANDIDATE", normalized);
+      console.log("NORMALIZED CANDIDATE", normalized);
 
-    await pc.addIceCandidate(new RTCIceCandidate(normalized));
-  } catch (err) {
-    console.error("Error adding ICE candidate:", err);
+      if (!normalized.candidate) {
+        console.warn("Skipping candidate with empty candidate string", candidate);
+        return;
+      }
+
+      await pc.addIceCandidate(new RTCIceCandidate(normalized));
+    } catch (err) {
+      console.error("Error adding ICE candidate:", err);
+    }
   }
-}
 
   async function startCallAsCaller() {
     await setupLocalStream();
@@ -183,6 +203,8 @@ async function handleIncomingCandidate(fromUser: string, candidate: any) {
     pushNotification("Call started");
 
     for (const targetId of signaling.participants) {
+      if (targetId === userId) continue;
+
       const pc = createPeerConnection(targetId);
 
       attachTracksToPC(pc, screenStream || localStream);
@@ -421,64 +443,54 @@ async function handleIncomingCandidate(fromUser: string, candidate: any) {
             ))}
         </div>
 
-<div className="flex gap-4 items-center justify-center mt-4">
+        <div className="flex gap-4 items-center justify-center mt-4">
+          {/* Mute / Unmute Microphone */}
+          <button
+            onClick={() => {
+              if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
+              }
+            }}
+            className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+          >
+            {localStream?.getAudioTracks()[0]?.enabled ? <span>🎤</span> : <span>🔇</span>}
+          </button>
 
-  {/* Mute / Unmute Microphone */}
-  <button
-    onClick={() => {
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
-      }
-    }}
-    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
-  >
-    {localStream?.getAudioTracks()[0]?.enabled ? (
-      <span>🎤</span>
-    ) : (
-      <span>🔇</span>
-    )}
-  </button>
+          {/* Toggle Camera */}
+          <button
+            onClick={() => {
+              if (localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
+              }
+            }}
+            className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+          >
+            {localStream?.getVideoTracks()[0]?.enabled ? <span>🎥</span> : <span>📷</span>}
+          </button>
 
-  {/* Toggle Camera */}
-  <button
-    onClick={() => {
-      if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
-      }
-    }}
-    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
-  >
-    {localStream?.getVideoTracks()[0]?.enabled ? (
-      <span>🎥</span>
-    ) : (
-      <span>📷</span>
-    )}
-  </button>
+          {/* Toggle Speaker Output */}
+          <button
+            onClick={() => {
+              const remoteVideos = document.querySelectorAll("video[id^='remote-']");
+              remoteVideos.forEach((v: any) => {
+                v.muted = !v.muted;
+              });
+            }}
+            className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+          >
+            <span>🔊</span>
+          </button>
 
-  {/* Toggle Speaker Output */}
-  <button
-    onClick={() => {
-      const remoteVideos = document.querySelectorAll("video[id^='remote-']");
-      remoteVideos.forEach((v: any) => {
-        v.muted = !v.muted;
-      });
-    }}
-    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
-  >
-    <span>🔊</span>
-  </button>
-
-  {/* Screen Share */}
-  <button
-    onClick={startScreenShare}
-    className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
-  >
-    {isScreenSharing ? "🛑" : "🖥️"}
-  </button>
-
-</div>
+          {/* Screen Share */}
+          <button
+            onClick={startScreenShare}
+            className="p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white"
+          >
+            {isScreenSharing ? "🛑" : "🖥️"}
+          </button>
+        </div>
 
         {notifications.length > 0 && (
           <div className="fixed bottom-4 right-4 space-y-2">
