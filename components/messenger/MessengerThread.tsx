@@ -37,7 +37,7 @@ export default function MessengerThread({
     participants: [] as string[],
     offers: {} as Record<string, RTCSessionDescriptionInit>,
     answers: {} as Record<string, RTCSessionDescriptionInit>,
-    candidates: {} as Record<string, RTCIceCandidate[]>,
+    candidates: {} as Record<string, RTCIceCandidateInit[]>,
 
     sendOffer: async (targetId: string, offer: RTCSessionDescriptionInit) => {
       await supabase.from("messages").insert({
@@ -59,7 +59,7 @@ export default function MessengerThread({
       });
     },
 
-    sendCandidate: async (targetId: string, candidate: RTCIceCandidate) => {
+    sendCandidate: async (targetId: string, candidate: RTCIceCandidateInit) => {
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -84,7 +84,7 @@ export default function MessengerThread({
     loadMessages();
   }, [finalRoomId]);
 
-  // ⭐ Load usernames
+  // Load usernames
   useEffect(() => {
     async function loadUsernames() {
       const ids = Array.from(
@@ -116,7 +116,7 @@ export default function MessengerThread({
     loadUsernames();
   }, [messages, userId, otherUserId]);
 
-  // ⭐ Incoming call auto-open
+  // Incoming call auto-open
   useEffect(() => {
     if (isIncoming) {
       setCallActive(true);
@@ -124,7 +124,7 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
-  // ⭐ Realtime subscription
+  // Realtime subscription
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -148,7 +148,7 @@ export default function MessengerThread({
             return [...prev, msg];
           });
 
-          // ⭐ Call signaling routing
+          // Call signaling routing
           if (
             msg.message_type === "call_offer" ||
             msg.message_type === "call_answer" ||
@@ -181,9 +181,7 @@ export default function MessengerThread({
                 };
               }
 
-if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-  console.log("RAW CANDIDATE FROM SUPABASE", msg.metadata.candidate);
-  
+              if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
                 const existing = prev.candidates[msg.sender_id] || [];
                 next.candidates = {
                   ...prev.candidates,
@@ -195,7 +193,7 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
             });
           }
 
-          // ⭐ Auto-open modal for callee
+          // Auto-open modal for callee
           if (msg.message_type === "call_offer") {
             setCallActive(true);
             if (msg.sender_id !== userId) {
@@ -212,7 +210,7 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
     };
   }, [finalRoomId, userId, supabase]);
 
-  // ⭐ Send message
+  // Send message
   async function sendMessage() {
     if (!newMessage.trim()) return;
 
@@ -230,36 +228,31 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
     setCallModalOpen(true);
   }
 
- async function startGroupCall() {
-  // Collect all unique IDs from messages (senders + receivers)
-  const inferredParticipants = Array.from(
-    new Set(
-      [
-        ...messages.map((m) => m.sender_id),
-        ...messages.map((m) => m.receiver_id),
-        otherUserId, // explicitly include the other user if known
-      ].filter((id: string | undefined) => id && id !== userId)
-    )
-  );
+  async function startGroupCall() {
+    const inferredParticipants = Array.from(
+      new Set(
+        messages
+          .map((m) => m.sender_id)
+          .filter((id: string) => id && id !== userId)
+      )
+    );
 
-  console.log("START GROUP CALL participants:", inferredParticipants);
+    setSignalingState((prev) => ({
+      ...prev,
+      isCaller: true,
+      participants: inferredParticipants,
+    }));
 
-  setSignalingState((prev) => ({
-    ...prev,
-    isCaller: true,
-    participants: inferredParticipants,
-  }));
-
-  setTimeout(() => {
-    setCallActive(true);
-    setCallModalOpen(true);
-  }, 50);
-}
+    setTimeout(() => {
+      setCallActive(true);
+      setCallModalOpen(true);
+    }, 50);
+  }
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
 
-      {/* ⭐ Header */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">Room</span>
@@ -274,7 +267,7 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
         </button>
       </div>
 
-      {/* ⭐ Messages */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((m) => (
           <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
@@ -300,7 +293,7 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
         )}
       </div>
 
-      {/* ⭐ Composer */}
+      {/* Composer */}
       <div className="p-4 border-t border-neutral-700 bg-neutral-900">
         <div className="flex gap-2">
           <input
@@ -320,15 +313,18 @@ if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
         </div>
       </div>
 
+      {/* Video Call Modal */}
       <VideoCallModal
         isOpen={callModalOpen}
-        onCloseAction={() => {
+        onClose={() => {
           setCallModalOpen(false);
           setCallActive(false);
         }}
         signaling={signalingState}
-        userId={userId}
-        roomId={finalRoomId}
+        onSendOffer={signalingState.sendOffer}
+        onSendAnswer={signalingState.sendAnswer}
+        onSendCandidate={signalingState.sendCandidate}
+        onNotify={(msg) => console.log("NOTIFY:", msg)}
       />
     </div>
   );

@@ -424,3 +424,5 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
     </div>
   );
 };
+
+export default VideoCallModal;
