@@ -40,7 +40,10 @@ export default function MessengerThread({
     candidates: {} as Record<string, RTCIceCandidateInit[]>,
 
     sendOffer: async (targetId: string, offer: RTCSessionDescriptionInit) => {
-      if (!offer || !offer.sdp) return; // ⭐ Prevent empty offers
+      if (!offer || !offer.sdp) {
+        console.log("IGNORED EMPTY OFFER");
+        return;
+      }
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -51,7 +54,10 @@ export default function MessengerThread({
     },
 
     sendAnswer: async (targetId: string, answer: RTCSessionDescriptionInit) => {
-      if (!answer || !answer.sdp) return; // ⭐ Prevent empty answers
+      if (!answer || !answer.sdp) {
+        console.log("IGNORED EMPTY ANSWER");
+        return;
+      }
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -62,7 +68,10 @@ export default function MessengerThread({
     },
 
     sendCandidate: async (targetId: string, candidate: RTCIceCandidateInit) => {
-      if (!candidate || !candidate.candidate) return; // ⭐ Prevent empty candidates
+      if (!candidate || !candidate.candidate) {
+        console.log("IGNORED EMPTY CANDIDATE");
+        return;
+      }
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -127,7 +136,7 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
-  // ⭐ Realtime subscription with EMPTY SIGNAL FILTER
+  // ⭐ Realtime subscription with EMPTY MESSAGE FILTERS
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -145,6 +154,12 @@ export default function MessengerThread({
           const msg = payload.new;
 
           if (msg.room_id !== finalRoomId) return;
+
+          // ⭐ Ignore empty text messages
+          if (msg.message_type === "text" && (!msg.content || msg.content.trim() === "")) {
+            console.log("IGNORED EMPTY TEXT MESSAGE:", msg);
+            return;
+          }
 
           // ⭐ Ignore empty signaling messages
           const isEmptySignal =
@@ -232,12 +247,16 @@ export default function MessengerThread({
 
   // Send message
   async function sendMessage() {
-    if (!newMessage.trim()) return;
+    const trimmed = newMessage.trim();
+    if (!trimmed || trimmed.length === 0) {
+      console.log("IGNORED EMPTY TEXT MESSAGE (sendMessage)");
+      return;
+    }
 
     await supabase.from("messages").insert({
       room_id: finalRoomId,
       sender_id: userId,
-      content: newMessage,
+      content: trimmed,
       message_type: "text",
     });
 
@@ -271,6 +290,7 @@ export default function MessengerThread({
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
         <div className="flex flex-col">
