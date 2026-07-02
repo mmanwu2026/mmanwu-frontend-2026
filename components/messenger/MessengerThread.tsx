@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
-import VideoCallModal from "./VideoCallModal";   // ✅ FIXED: default import
+import VideoCallModal from "./VideoCallModal";
 
 export default function MessengerThread({
   userId,
@@ -40,6 +40,7 @@ export default function MessengerThread({
     candidates: {} as Record<string, RTCIceCandidateInit[]>,
 
     sendOffer: async (targetId: string, offer: RTCSessionDescriptionInit) => {
+      if (!offer || !offer.sdp) return; // ⭐ Prevent empty offers
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -50,6 +51,7 @@ export default function MessengerThread({
     },
 
     sendAnswer: async (targetId: string, answer: RTCSessionDescriptionInit) => {
+      if (!answer || !answer.sdp) return; // ⭐ Prevent empty answers
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -60,6 +62,7 @@ export default function MessengerThread({
     },
 
     sendCandidate: async (targetId: string, candidate: RTCIceCandidateInit) => {
+      if (!candidate || !candidate.candidate) return; // ⭐ Prevent empty candidates
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -124,7 +127,7 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
-  // Realtime subscription
+  // ⭐ Realtime subscription with EMPTY SIGNAL FILTER
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -138,17 +141,29 @@ export default function MessengerThread({
           schema: "public",
           table: "messages",
         },
-        (payload: { new: any }) => {   // ✅ FIXED: typed payload
+        (payload: { new: any }) => {
           const msg = payload.new;
 
           if (msg.room_id !== finalRoomId) return;
 
+          // ⭐ Ignore empty signaling messages
+          const isEmptySignal =
+            (msg.message_type === "call_offer" && !msg.metadata?.offer) ||
+            (msg.message_type === "call_answer" && !msg.metadata?.answer) ||
+            (msg.message_type === "ice_candidate" && !msg.metadata?.candidate);
+
+          if (isEmptySignal) {
+            console.log("IGNORED EMPTY SIGNAL:", msg);
+            return;
+          }
+
+          // Add message to UI
           setMessages((prev) => {
             if (prev.some((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
 
-          // Call signaling routing
+          // ⭐ Call signaling routing
           if (
             msg.message_type === "call_offer" ||
             msg.message_type === "call_answer" ||
@@ -198,7 +213,7 @@ export default function MessengerThread({
             if (msg.sender_id !== userId) {
               setSignalingState((prev) => ({
                 ...prev,
-                isCaller: false,   // ⭐ CRITICAL FIX
+                isCaller: false,
               }));
 
               setCallActive(true);
@@ -256,7 +271,6 @@ export default function MessengerThread({
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
-
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
         <div className="flex flex-col">
