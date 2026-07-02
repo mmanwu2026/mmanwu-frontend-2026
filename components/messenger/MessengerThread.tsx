@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
-import VideoCallModal from "./VideoCallModal";
+import VideoCallModal from "./VideoCallModal";   // ✅ FIXED: default import
 
 export default function MessengerThread({
   userId,
@@ -138,7 +138,7 @@ export default function MessengerThread({
           schema: "public",
           table: "messages",
         },
-        (payload: any) => {
+        (payload: { new: any }) => {   // ✅ FIXED: typed payload
           const msg = payload.new;
 
           if (msg.room_id !== finalRoomId) return;
@@ -195,8 +195,13 @@ export default function MessengerThread({
 
           // Auto-open modal for callee
           if (msg.message_type === "call_offer") {
-            setCallActive(true);
             if (msg.sender_id !== userId) {
+              setSignalingState((prev) => ({
+                ...prev,
+                isCaller: false,   // ⭐ CRITICAL FIX
+              }));
+
+              setCallActive(true);
               setCallModalOpen(true);
             }
           }
