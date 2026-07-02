@@ -23,8 +23,21 @@ type VideoCallModalProps = {
 const iceConfig: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    // add your TURN here if needed
-  ],
+
+    {
+      urls: [
+        "stun:us-turn1.xirsys.com",
+        "turn:us-turn1.xirsys.com:80?transport=udp",
+        "turn:us-turn1.xirsys.com:3478?transport=udp",
+        "turn:us-turn1.xirsys.com:80?transport=tcp",
+        "turn:us-turn1.xirsys.com:3478?transport=tcp",
+        "turns:us-turn1.xirsys.com:443?transport=tcp",
+        "turns:us-turn1.xirsys.com:5349?transport=tcp"
+      ],
+      username: "c_bZzzTif6SVAIN6HzYzNujR-POCwcemnWrIJ2dsKelNM4hBXc3kCuHEiD9cfCqXAAAAAGpG5H9tbWFucGxhemE=",
+      credential: "6cbf261c-7664-11f1-b615-0242ac140004"
+    }
+  ]
 };
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
@@ -43,6 +56,12 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Record<ParticipantId, RTCPeerConnection>>({});
   const pendingCandidatesRef = useRef<Record<ParticipantId, RTCIceCandidateInit[]>>({});
+
+  // guards to prevent repeated processing
+  const hasStartedCallRef = useRef(false);
+  const handledOffersRef = useRef<Set<string>>(new Set());
+  const handledAnswersRef = useRef<Set<string>>(new Set());
+  const handledCandidatesRef = useRef<Set<string>>(new Set());
 
   const [speakerMuted, setSpeakerMuted] = useState<Record<ParticipantId, boolean>>({});
   const [cameraOn, setCameraOn] = useState(true);
@@ -101,9 +120,16 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       return;
     }
 
+    // avoid adding duplicate tracks
+    const senders = pc.getSenders();
+    const existingTracks = new Set(senders.map((s) => s.track));
     stream.getTracks().forEach((track) => {
-      console.log("attachTracksToPC: adding track", track);
-      pc.addTrack(track, stream);
+      if (!existingTracks.has(track)) {
+        console.log("attachTracksToPC: adding track", track);
+        pc.addTrack(track, stream);
+      } else {
+        console.log("attachTracksToPC: track already added", track);
+      }
     });
   };
 
@@ -173,6 +199,12 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   const startCallAsCaller = async () => {
     console.log("startCallAsCaller CALLED");
+    if (hasStartedCallRef.current) {
+      console.log("startCallAsCaller: already started, skipping");
+      return;
+    }
+    hasStartedCallRef.current = true;
+
     const { participants } = signaling;
     console.log("startCallAsCaller participants:", participants);
 
@@ -185,7 +217,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       console.log("startCallAsCaller: creating/using PC for", participantId);
       const pc = createPeerConnection(participantId);
 
-      // Only create an offer if we are the caller and we don't already have one
       if (signaling.isCaller && !signaling.offers[participantId]) {
         console.log("startCallAsCaller: creating offer for", participantId);
         const offer = await pc.createOffer();
@@ -211,6 +242,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     from: ParticipantId,
     offer: RTCSessionDescriptionInit
   ) => {
+    const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
+    if (handledOffersRef.current.has(key)) {
+      console.log("handleIncomingOffer: already handled", key);
+      return;
+    }
+    handledOffersRef.current.add(key);
+
     console.log("handleIncomingOffer CALLED from", from, offer);
     await setupLocalStream();
 
@@ -225,7 +263,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     onSendAnswer(from, answer);
     console.log("handleIncomingOffer: ANSWER SENT to", from);
 
-    // flush any queued candidates
     const queued = pendingCandidatesRef.current[from] || [];
     if (queued.length) {
       console.log("handleIncomingOffer: flushing queued candidates for", from, queued);
@@ -244,6 +281,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     from: ParticipantId,
     answer: RTCSessionDescriptionInit
   ) => {
+    const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
+    if (handledAnswersRef.current.has(key)) {
+      console.log("handleIncomingAnswer: already handled", key);
+      return;
+    }
+    handledAnswersRef.current.add(key);
+
     console.log("handleIncomingAnswer CALLED from", from, answer);
     const pc = peerConnectionsRef.current[from];
     if (!pc) {
@@ -273,6 +317,15 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     from: ParticipantId,
     candidateInit: RTCIceCandidateInit
   ) => {
+    const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${
+      candidateInit.sdpMLineIndex ?? ""
+    }`;
+    if (handledCandidatesRef.current.has(key)) {
+      console.log("handleIncomingCandidate: already handled", key);
+      return;
+    }
+    handledCandidatesRef.current.add(key);
+
     console.log("handleIncomingCandidate CALLED from", from, candidateInit);
     const pc = peerConnectionsRef.current[from];
 
@@ -303,14 +356,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       return;
     }
 
-    console.log("VideoCallModal effect RUN", signaling);
+    console.log("VideoCallModal effect RUN (caller start)", signaling);
 
-    // Caller: start call once when modal opens
-    if (signaling.isCaller) {
-      console.log("EFFECT: Caller starting call (participants may have changed)");
+    if (signaling.isCaller && signaling.participants.length > 0) {
+      console.log("EFFECT: Caller starting call (once)");
       startCallAsCaller();
     }
-  }, [isOpen, signaling.isCaller, signaling.participants]);
+  }, [isOpen, signaling.isCaller, signaling.participants.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -390,6 +442,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     }
 
     pendingCandidatesRef.current = {};
+    handledOffersRef.current.clear();
+    handledAnswersRef.current.clear();
+    handledCandidatesRef.current.clear();
+    hasStartedCallRef.current = false;
+
     setSpeakerMuted({});
     setCameraOn(true);
     setMicOn(true);
