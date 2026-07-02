@@ -40,10 +40,7 @@ export default function MessengerThread({
     candidates: {} as Record<string, RTCIceCandidateInit[]>,
 
     sendOffer: async (targetId: string, offer: RTCSessionDescriptionInit) => {
-      if (!offer || !offer.sdp) {
-        console.log("IGNORED EMPTY OFFER");
-        return;
-      }
+      if (!offer || !offer.sdp) return;
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -54,10 +51,7 @@ export default function MessengerThread({
     },
 
     sendAnswer: async (targetId: string, answer: RTCSessionDescriptionInit) => {
-      if (!answer || !answer.sdp) {
-        console.log("IGNORED EMPTY ANSWER");
-        return;
-      }
+      if (!answer || !answer.sdp) return;
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -68,10 +62,7 @@ export default function MessengerThread({
     },
 
     sendCandidate: async (targetId: string, candidate: RTCIceCandidateInit) => {
-      if (!candidate || !candidate.candidate) {
-        console.log("IGNORED EMPTY CANDIDATE");
-        return;
-      }
+      if (!candidate || !candidate.candidate) return;
       await supabase.from("messages").insert({
         sender_id: userId,
         receiver_id: targetId,
@@ -87,6 +78,7 @@ export default function MessengerThread({
       .from("messages")
       .select("*")
       .eq("room_id", finalRoomId)
+      .eq("message_type", "text")   // ⭐ ONLY LOAD CHAT MESSAGES
       .order("created_at", { ascending: true });
 
     setMessages(data || []);
@@ -136,7 +128,7 @@ export default function MessengerThread({
     }
   }, [isIncoming]);
 
-  // ⭐ Realtime subscription with EMPTY MESSAGE FILTERS
+  // ⭐ Realtime subscription (SIGNALING HIDDEN)
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -155,30 +147,17 @@ export default function MessengerThread({
 
           if (msg.room_id !== finalRoomId) return;
 
-          // ⭐ Ignore empty text messages
-          if (msg.message_type === "text" && (!msg.content || msg.content.trim() === "")) {
-            console.log("IGNORED EMPTY TEXT MESSAGE:", msg);
-            return;
+          // ⭐ ONLY ADD TEXT MESSAGES TO CHAT
+          if (msg.message_type === "text") {
+            if (!msg.content || msg.content.trim() === "") return;
+
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
           }
 
-          // ⭐ Ignore empty signaling messages
-          const isEmptySignal =
-            (msg.message_type === "call_offer" && !msg.metadata?.offer) ||
-            (msg.message_type === "call_answer" && !msg.metadata?.answer) ||
-            (msg.message_type === "ice_candidate" && !msg.metadata?.candidate);
-
-          if (isEmptySignal) {
-            console.log("IGNORED EMPTY SIGNAL:", msg);
-            return;
-          }
-
-          // Add message to UI
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-
-          // ⭐ Call signaling routing
+          // ⭐ SIGNALING ROUTING (hidden from chat)
           if (
             msg.message_type === "call_offer" ||
             msg.message_type === "call_answer" ||
@@ -248,10 +227,7 @@ export default function MessengerThread({
   // Send message
   async function sendMessage() {
     const trimmed = newMessage.trim();
-    if (!trimmed || trimmed.length === 0) {
-      console.log("IGNORED EMPTY TEXT MESSAGE (sendMessage)");
-      return;
-    }
+    if (!trimmed || trimmed.length === 0) return;
 
     await supabase.from("messages").insert({
       room_id: finalRoomId,

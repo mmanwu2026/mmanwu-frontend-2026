@@ -23,7 +23,6 @@ type VideoCallModalProps = {
 const iceConfig: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-
     {
       urls: [
         "stun:us-turn1.xirsys.com",
@@ -32,12 +31,13 @@ const iceConfig: RTCConfiguration = {
         "turn:us-turn1.xirsys.com:80?transport=tcp",
         "turn:us-turn1.xirsys.com:3478?transport=tcp",
         "turns:us-turn1.xirsys.com:443?transport=tcp",
-        "turns:us-turn1.xirsys.com:5349?transport=tcp"
+        "turns:us-turn1.xirsys.com:5349?transport=tcp",
       ],
-      username: "c_bZzzTif6SVAIN6HzYzNujR-POCwcemnWrIJ2dsKelNM4hBXc3kCuHEiD9cfCqXAAAAAGpG5H9tbWFucGxhemE=",
-      credential: "6cbf261c-7664-11f1-b615-0242ac140004"
-    }
-  ]
+      username:
+        "c_bZzzTif6SVAIN6HzYzNujR-POCwcemnWrIJ2dsKelNM4hBXc3kCuHEiD9cfCqXAAAAAGpG5H9tbWFucGxhemE=",
+      credential: "6cbf261c-7664-11f1-b615-0242ac140004",
+    },
+  ],
 };
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
@@ -49,15 +49,12 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   onNotify,
   onClose,
 }) => {
-  console.log("VideoCallModal RENDER", { isOpen, signaling });
-
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRefs = useRef<Record<ParticipantId, HTMLVideoElement | null>>({});
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Record<ParticipantId, RTCPeerConnection>>({});
   const pendingCandidatesRef = useRef<Record<ParticipantId, RTCIceCandidateInit[]>>({});
 
-  // guards to prevent repeated processing
   const hasStartedCallRef = useRef(false);
   const handledOffersRef = useRef<Set<string>>(new Set());
   const handledAnswersRef = useRef<Set<string>>(new Set());
@@ -67,20 +64,20 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
 
+  // incoming offers that require explicit user answer
+  const [incomingOffers, setIncomingOffers] = useState<
+    Record<ParticipantId, RTCSessionDescriptionInit>
+  >({});
+
   // ---------- LOCAL MEDIA ----------
 
   const setupLocalStream = async () => {
-    console.log("setupLocalStream CALLED, localStream:", localStreamRef.current);
     if (localStreamRef.current) {
-      console.log("setupLocalStream: localStream already exists");
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStreamRef.current;
         localVideoRef.current
           .play()
-          .then(() => console.log("setupLocalStream: localVideoRef.play() called"))
-          .catch((err) =>
-            console.error("setupLocalStream: localVideoRef.play() error", err)
-          );
+          .catch((err) => console.error("localVideoRef.play() error", err));
       }
       return;
     }
@@ -90,22 +87,16 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         audio: true,
         video: true,
       });
-      console.log("setupLocalStream GOT STREAM:", stream);
       localStreamRef.current = stream;
 
       if (localVideoRef.current) {
-        console.log("setupLocalStream: attaching stream to localVideoRef");
         localVideoRef.current.srcObject = stream;
         localVideoRef.current
           .play()
-          .then(() => console.log("setupLocalStream: localVideoRef.play() called"))
-          .catch((err) =>
-            console.error("setupLocalStream: localVideoRef.play() error", err)
-          );
+          .catch((err) => console.error("localVideoRef.play() error", err));
       }
 
       onNotify("Camera and microphone started");
-      console.log("NOTIFICATION: Camera and microphone started");
     } catch (err) {
       console.error("setupLocalStream ERROR", err);
       onNotify("Failed to start camera/microphone");
@@ -114,21 +105,16 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
     const stream = localStreamRef.current;
-    console.log("attachTracksToPC CALLED", { pc, stream });
     if (!stream) {
       console.warn("attachTracksToPC: NO localStreamRef.current");
       return;
     }
 
-    // avoid adding duplicate tracks
     const senders = pc.getSenders();
     const existingTracks = new Set(senders.map((s) => s.track));
     stream.getTracks().forEach((track) => {
       if (!existingTracks.has(track)) {
-        console.log("attachTracksToPC: adding track", track);
         pc.addTrack(track, stream);
-      } else {
-        console.log("attachTracksToPC: track already added", track);
       }
     });
   };
@@ -136,21 +122,15 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   // ---------- PEER CONNECTION MANAGEMENT ----------
 
   const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
-    console.log("createPeerConnection CALLED for", participantId);
-
     let existing = peerConnectionsRef.current[participantId];
     if (existing) {
-      console.log("createPeerConnection: PC already exists for", participantId);
       return existing;
     }
 
     const pc = new RTCPeerConnection(iceConfig);
     peerConnectionsRef.current[participantId] = pc;
 
-    console.log("createPeerConnection: creating NEW PC for", participantId);
-
     pc.onicecandidate = (event) => {
-      console.log("onicecandidate FIRED for", participantId, event.candidate);
       if (event.candidate) {
         const candInit: RTCIceCandidateInit = {
           candidate: event.candidate.candidate,
@@ -159,33 +139,26 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           usernameFragment: (event.candidate as any).usernameFragment,
         };
         onSendCandidate(participantId, candInit);
-      } else {
-        console.log("onicecandidate FIRED for", participantId, "null (end of candidates)");
       }
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log("ICE STATE:", participantId, pc.iceConnectionState);
       if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
-        console.log("PC STATE:", participantId, pc.connectionState);
         onNotify(`Connection with ${participantId} lost`);
-        console.log("NOTIFICATION: Connection with", participantId, "lost");
       }
     };
 
     pc.onconnectionstatechange = () => {
-      console.log("PC STATE:", participantId, pc.connectionState);
+      // silent; no signaling UI
     };
 
     pc.ontrack = (event) => {
-      console.log("ontrack FIRED for", participantId, event.streams);
       const [remoteStream] = event.streams;
       const videoEl = remoteVideoRefs.current[participantId];
       if (videoEl) {
         videoEl.srcObject = remoteStream;
         videoEl
           .play()
-          .then(() => console.log("remote video play() called for", participantId))
           .catch((err) =>
             console.error("remote video play() error for", participantId, err)
           );
@@ -198,42 +171,22 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   };
 
   const startCallAsCaller = async () => {
-    console.log("startCallAsCaller CALLED");
-    if (hasStartedCallRef.current) {
-      console.log("startCallAsCaller: already started, skipping");
-      return;
-    }
+    if (hasStartedCallRef.current) return;
     hasStartedCallRef.current = true;
 
     const { participants } = signaling;
-    console.log("startCallAsCaller participants:", participants);
 
     await setupLocalStream();
 
     onNotify("Call started");
-    console.log("NOTIFICATION: Call started");
 
     for (const participantId of participants) {
-      console.log("startCallAsCaller: creating/using PC for", participantId);
       const pc = createPeerConnection(participantId);
 
       if (signaling.isCaller && !signaling.offers[participantId]) {
-        console.log("startCallAsCaller: creating offer for", participantId);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        console.log("startCallAsCaller: OFFER CREATED for", participantId, offer);
-        console.log("startCallAsCaller: LOCAL DESCRIPTION SET for", participantId);
         onSendOffer(participantId, offer);
-        console.log("startCallAsCaller: OFFER SENT to", participantId);
-      } else {
-        console.log(
-          "startCallAsCaller: skipping offer for",
-          participantId,
-          "isCaller:",
-          signaling.isCaller,
-          "existingOffer:",
-          !!signaling.offers[participantId]
-        );
       }
     }
   };
@@ -244,28 +197,21 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   ) => {
     const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
     if (handledOffersRef.current.has(key)) {
-      console.log("handleIncomingOffer: already handled", key);
       return;
     }
     handledOffersRef.current.add(key);
 
-    console.log("handleIncomingOffer CALLED from", from, offer);
     await setupLocalStream();
 
     const pc = createPeerConnection(from);
-    console.log("handleIncomingOffer: setting remote description");
     await pc.setRemoteDescription(offer);
 
-    console.log("handleIncomingOffer: creating answer");
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    console.log("handleIncomingOffer: LOCAL DESCRIPTION SET for", from);
     onSendAnswer(from, answer);
-    console.log("handleIncomingOffer: ANSWER SENT to", from);
 
     const queued = pendingCandidatesRef.current[from] || [];
     if (queued.length) {
-      console.log("handleIncomingOffer: flushing queued candidates for", from, queued);
       for (const c of queued) {
         try {
           await pc.addIceCandidate(c);
@@ -275,6 +221,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       }
       delete pendingCandidatesRef.current[from];
     }
+
+    onNotify(`Call answered for ${from}`);
   };
 
   const handleIncomingAnswer = async (
@@ -283,25 +231,20 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   ) => {
     const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
     if (handledAnswersRef.current.has(key)) {
-      console.log("handleIncomingAnswer: already handled", key);
       return;
     }
     handledAnswersRef.current.add(key);
 
-    console.log("handleIncomingAnswer CALLED from", from, answer);
     const pc = peerConnectionsRef.current[from];
     if (!pc) {
       console.warn("handleIncomingAnswer: NO PC FOUND for", from);
       return;
     }
-    console.log("handleIncomingAnswer: setting remote description");
     await pc.setRemoteDescription(answer);
     onNotify(`Answer received from ${from}`);
-    console.log("NOTIFICATION: Answer received from", from);
 
     const queued = pendingCandidatesRef.current[from] || [];
     if (queued.length) {
-      console.log("handleIncomingAnswer: flushing queued candidates for", from, queued);
       for (const c of queued) {
         try {
           await pc.addIceCandidate(c);
@@ -321,20 +264,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       candidateInit.sdpMLineIndex ?? ""
     }`;
     if (handledCandidatesRef.current.has(key)) {
-      console.log("handleIncomingCandidate: already handled", key);
       return;
     }
     handledCandidatesRef.current.add(key);
 
-    console.log("handleIncomingCandidate CALLED from", from, candidateInit);
     const pc = peerConnectionsRef.current[from];
 
     if (!pc || !pc.remoteDescription) {
-      console.warn(
-        "handleIncomingCandidate: NO PC or remoteDescription null for",
-        from,
-        "– queueing candidate"
-      );
       const existing = pendingCandidatesRef.current[from] || [];
       pendingCandidatesRef.current[from] = [...existing, candidateInit];
       return;
@@ -342,7 +278,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     try {
       await pc.addIceCandidate(candidateInit);
-      console.log("handleIncomingCandidate: addIceCandidate SUCCESS for", from);
     } catch (err) {
       console.error("handleIncomingCandidate: addIceCandidate ERROR for", from, err);
     }
@@ -351,15 +286,9 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   // ---------- EFFECTS ----------
 
   useEffect(() => {
-    if (!isOpen) {
-      console.log("VideoCallModal effect: isOpen FALSE");
-      return;
-    }
-
-    console.log("VideoCallModal effect RUN (caller start)", signaling);
+    if (!isOpen) return;
 
     if (signaling.isCaller && signaling.participants.length > 0) {
-      console.log("EFFECT: Caller starting call (once)");
       startCallAsCaller();
     }
   }, [isOpen, signaling.isCaller, signaling.participants.length]);
@@ -367,23 +296,27 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    console.log("VideoCallModal effect RUN (signaling change)", signaling);
-
-    // Offers (callee side)
+    // collect incoming offers for callee, but DO NOT auto-answer
     if (!signaling.isCaller) {
-      Object.entries(signaling.offers).forEach(([from, offer]) => {
-        handleIncomingOffer(from, offer);
+      setIncomingOffers((prev) => {
+        const next = { ...prev };
+        Object.entries(signaling.offers).forEach(([from, offer]) => {
+          if (!next[from]) {
+            next[from] = offer;
+          }
+        });
+        return next;
       });
     }
 
-    // Answers (caller side)
+    // answers (caller side)
     if (signaling.isCaller) {
       Object.entries(signaling.answers).forEach(([from, answer]) => {
         handleIncomingAnswer(from, answer);
       });
     }
 
-    // Candidates (both sides)
+    // candidates (both sides)
     Object.entries(signaling.candidates).forEach(([from, list]) => {
       list.forEach((c) => handleIncomingCandidate(from, c));
     });
@@ -424,9 +357,20 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     });
   };
 
-  const handleClose = () => {
-    console.log("handleClose CALLED – tearing down PCs and streams");
+  const handleAnswerClick = async (participantId: ParticipantId) => {
+    const offer = incomingOffers[participantId];
+    if (!offer) return;
 
+    await handleIncomingOffer(participantId, offer);
+
+    setIncomingOffers((prev) => {
+      const next = { ...prev };
+      delete next[participantId];
+      return next;
+    });
+  };
+
+  const handleClose = () => {
     Object.values(peerConnectionsRef.current).forEach((pc) => {
       try {
         pc.close();
@@ -450,6 +394,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     setSpeakerMuted({});
     setCameraOn(true);
     setMicOn(true);
+    setIncomingOffers({});
 
     onClose();
   };
@@ -459,74 +404,99 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const participants = signaling.participants;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-neutral-900 rounded-lg shadow-lg p-4 w-full max-w-4xl">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold text-white">Video Call</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-700 rounded-lg overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-950">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white">Video call</span>
+            <span className="text-xs text-neutral-400">
+              {signaling.isCaller ? "You are calling" : "Incoming call"}
+            </span>
+          </div>
           <button
             onClick={handleClose}
             className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500 text-white"
           >
-            End Call
+            End
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="flex flex-col">
-            <span className="text-xs text-neutral-300 mb-1">You</span>
-            <video
-              ref={localVideoRef}
-              muted
-              playsInline
-              className="w-full h-64 bg-black rounded"
-            />
+        {/* Body */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-900">
+          {/* Local video */}
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-neutral-400">You</span>
+            <div className="relative bg-black rounded overflow-hidden h-48 md:h-64">
+              <video
+                ref={localVideoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                playsInline
+              />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={handleToggleMic}
+                className="px-3 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white"
+              >
+                {micOn ? "Mute mic" : "Unmute mic"}
+              </button>
+              <button
+                onClick={handleToggleCamera}
+                className="px-3 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white"
+              >
+                {cameraOn ? "Turn camera off" : "Turn camera on"}
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-col space-y-2">
-            {participants.length === 0 && (
-              <div className="w-full h-64 bg-neutral-800 rounded flex items-center justify-center text-neutral-400 text-sm">
-                Waiting for participants…
-              </div>
-            )}
-
-            {participants.map((pid) => (
-              <div key={pid} className="flex flex-col">
-                <span className="text-xs text-neutral-300 mb-1">
-                  Participant: {pid}
-                </span>
-                <video
-                  ref={(el) => {
-                    remoteVideoRefs.current[pid] = el;
-                  }}
-                  playsInline
-                  className="w-full h-40 bg-black rounded"
-                />
-                <div className="mt-1 flex gap-2">
-                  <button
-                    onClick={() => handleToggleSpeaker(pid)}
-                    className="px-2 py-1 text-xs rounded bg-neutral-700 text-white hover:bg-neutral-600"
-                  >
-                    {speakerMuted[pid] ? "Unmute speaker" : "Mute speaker"}
-                  </button>
+          {/* Remote videos */}
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-neutral-400">Participants</span>
+            <div className="grid grid-cols-1 gap-3">
+              {participants.map((pid) => (
+                <div key={pid} className="flex flex-col gap-1">
+                  <span className="text-xs text-neutral-300 truncate">
+                    Participant: {pid}
+                  </span>
+                  <div className="relative bg-black rounded overflow-hidden h-40 md:h-52">
+                    <video
+                      ref={(el) => {
+                        remoteVideoRefs.current[pid] = el;
+                      }}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      playsInline
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => handleToggleSpeaker(pid)}
+                      className="px-3 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white"
+                    >
+                      {speakerMuted[pid] ? "Unmute speaker" : "Mute speaker"}
+                    </button>
+                    {!signaling.isCaller && incomingOffers[pid] && (
+                      <button
+                        onClick={() => handleAnswerClick(pid)}
+                        className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white"
+                      >
+                        Answer
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
 
-        <div className="flex gap-2 justify-center mt-2">
-          <button
-            onClick={handleToggleMic}
-            className="px-3 py-1 text-sm rounded bg-neutral-700 text-white hover:bg-neutral-600"
-          >
-            {micOn ? "Mute mic" : "Unmute mic"}
-          </button>
-          <button
-            onClick={handleToggleCamera}
-            className="px-3 py-1 text-sm rounded bg-neutral-700 text-white hover:bg-neutral-600"
-          >
-            {cameraOn ? "Turn camera off" : "Turn camera on"}
-          </button>
+              {!participants.length && (
+                <div className="text-xs text-neutral-500">
+                  Waiting for participants…
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
