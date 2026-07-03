@@ -71,53 +71,64 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
-  // ---------- LOCAL MEDIA ----------
+ // ---------- LOCAL MEDIA ----------
 
-  const setupLocalStream = async () => {
-    if (localStreamRef.current) {
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStreamRef.current;
-        localVideoRef.current.play().catch(() => {});
+const setupLocalStream = async () => {
+  // If we already have a stream, just reattach it safely
+  if (localStreamRef.current) {
+    if (localVideoRef.current && localVideoRef.current.isConnected) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+      try {
+        localVideoRef.current.play();
+      } catch (err) {
+        console.warn("LOCAL: video play error (existing stream)", err);
       }
-      return;
     }
+    return;
+  }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-      localStreamRef.current = stream;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.play().catch(() => {});
-      }
-
-      onNotify("Camera and microphone started");
-    } catch (err) {
-      console.error("setupLocalStream ERROR", err);
-      onNotify("Failed to start camera/microphone");
-    }
-  };
-
-  const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
-    const stream = localStreamRef.current;
-    console.log("attachTracksToPC for", participantId, "stream:", stream);
-    if (!stream) {
-      console.warn("attachTracksToPC: NO localStreamRef.current");
-      return;
-    }
-
-    const senders = pc.getSenders();
-    const existingTracks = new Set(senders.map((s) => s.track));
-    stream.getTracks().forEach((track) => {
-      console.log("adding track", track.kind, "to", participantId);
-      if (!existingTracks.has(track)) {
-        pc.addTrack(track, stream);
-      }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
     });
-  };
+    localStreamRef.current = stream;
+
+    if (localVideoRef.current && localVideoRef.current.isConnected) {
+      localVideoRef.current.srcObject = stream;
+      try {
+        localVideoRef.current.play();
+      } catch (err) {
+        console.warn("LOCAL: video play error (new stream)", err);
+      }
+    }
+
+    onNotify("Camera and microphone started");
+  } catch (err) {
+    console.error("setupLocalStream ERROR", err);
+    onNotify("Failed to start camera/microphone");
+  }
+};
+
+const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
+  const stream = localStreamRef.current;
+  console.log("attachTracksToPC for", participantId, "stream:", stream);
+
+  if (!stream) {
+    console.warn("attachTracksToPC: NO localStreamRef.current");
+    return;
+  }
+
+  const senders = pc.getSenders();
+  const existingTracks = new Set(senders.map((s) => s.track));
+
+  stream.getTracks().forEach((track) => {
+    console.log("adding track", track.kind, "to", participantId);
+    if (!existingTracks.has(track)) {
+      pc.addTrack(track, stream);
+    }
+  });
+};
 
   // ---------- CALLER-ONLY ICE RESTART ----------
 
@@ -337,53 +348,58 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   // ---------- EFFECTS ----------
 
-  useEffect(() => {
-    if (!isOpen) return;
+useEffect(() => {
+  if (!isOpen) return;
+  if (!signaling.isCaller) return;
 
-    if (signaling.isCaller && signaling.participants.length > 0) {
-      startCallAsCaller();
-    }
-  }, [isOpen, signaling.isCaller, signaling.participants.length]);
+  // Wait until participants actually exist
+  if (signaling.participants.length === 0) return;
 
-  useEffect(() => {
-    if (!isOpen) return;
+  // Prevent early or duplicate call starts
+  if (hasStartedCallRef.current) return;
 
-    // CALLEE LOGIC
-    if (!signaling.isCaller) {
-      setIncomingOffers((prev) => {
-        const next = { ...prev };
-        Object.entries(signaling.offers).forEach(([from, offer]) => {
-          if (!next[from]) next[from] = offer;
-        });
-        return next;
+  startCallAsCaller();
+}, [isOpen, signaling.isCaller, signaling.participants.length]);
+
+useEffect(() => {
+  if (!isOpen) return;
+
+  // CALLEE LOGIC
+  if (!signaling.isCaller) {
+    setIncomingOffers((prev) => {
+      const next = { ...prev };
+      Object.entries(signaling.offers).forEach(([from, offer]) => {
+        if (!next[from]) next[from] = offer;
       });
-
-      if (callActive) {
-        Object.entries(signaling.offers).forEach(([from, offer]) => {
-          handleIncomingOffer(from, offer);
-        });
-      }
-    }
-
-    // CALLER LOGIC
-    if (signaling.isCaller) {
-      Object.entries(signaling.answers).forEach(([from, answer]) => {
-        handleIncomingAnswer(from, answer);
-      });
-    }
-
-    // ICE CANDIDATES
-    Object.entries(signaling.candidates).forEach(([from, list]) => {
-      list.forEach((c) => handleIncomingCandidate(from, c));
+      return next;
     });
-  }, [
-    isOpen,
-    signaling.offers,
-    signaling.answers,
-    signaling.candidates,
-    signaling.isCaller,
-    callActive,
-  ]);
+
+    if (callActive) {
+      Object.entries(signaling.offers).forEach(([from, offer]) => {
+        handleIncomingOffer(from, offer);
+      });
+    }
+  }
+
+  // CALLER LOGIC
+  if (signaling.isCaller) {
+    Object.entries(signaling.answers).forEach(([from, answer]) => {
+      handleIncomingAnswer(from, answer);
+    });
+  }
+
+  // ICE CANDIDATES
+  Object.entries(signaling.candidates).forEach(([from, list]) => {
+    list.forEach((c) => handleIncomingCandidate(from, c));
+  });
+}, [
+  isOpen,
+  signaling.offers,
+  signaling.answers,
+  signaling.candidates,
+  signaling.isCaller,
+  callActive,
+]);
 
   useEffect(() => {
     console.log("VideoCallModal sees signaling.offers:", signaling.offers);
