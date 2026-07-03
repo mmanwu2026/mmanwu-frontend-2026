@@ -87,27 +87,36 @@ const setupLocalStream = async () => {
     return;
   }
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    localStreamRef.current = stream;
+try {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: true,
+  });
+  localStreamRef.current = stream;
 
-    if (localVideoRef.current && localVideoRef.current.isConnected) {
-      localVideoRef.current.srcObject = stream;
-      try {
-        localVideoRef.current.play();
-      } catch (err) {
-        console.warn("LOCAL: video play error (new stream)", err);
-      }
-    }
+  // PATCH #2 — LOCAL STREAM DEBUGGER
+  console.log(
+    "LOCAL STREAM TRACKS",
+    stream.getTracks().map((t) => ({
+      kind: t.kind,
+      enabled: t.enabled,
+      readyState: t.readyState,
+    }))
+  );
+  console.log("LOCAL videoEl =>", localVideoRef.current);
 
-    onNotify("Camera and microphone started");
-  } catch (err) {
-    console.error("setupLocalStream ERROR", err);
-    onNotify("Failed to start camera/microphone");
+  if (localVideoRef.current && localVideoRef.current.isConnected) {
+    localVideoRef.current.srcObject = stream;
+    localVideoRef.current
+      .play()
+      .catch((err) => console.warn("LOCAL: video play error (new stream)", err));
   }
+
+  onNotify("Camera and microphone started");
+} catch (err) {
+  console.error("setupLocalStream ERROR", err);
+  onNotify("Failed to start camera/microphone");
+}
 };
 
 const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
@@ -182,6 +191,7 @@ const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) =
 pc.ontrack = (event) => {
   const [remoteStream] = event.streams;
 
+  // PATCH #1
   console.log(
     "REMOTE STREAM TRACKS for",
     participantId,
@@ -191,9 +201,8 @@ pc.ontrack = (event) => {
       readyState: t.readyState,
     }))
   );
-
-const videoEl = remoteVideoRefs.current[participantId];
-console.log("REMOTE videoEl for", participantId, "=>", videoEl);
+  const videoEl = remoteVideoRefs.current[participantId];
+  console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
 if (!videoEl || !videoEl.isConnected) {
   console.warn("no connected video element for", participantId, "— buffering stream");
