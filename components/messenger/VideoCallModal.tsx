@@ -179,43 +179,65 @@ const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) =
       }
     };
 
-    pc.ontrack = (event) => {
-      console.log("CALLER: ontrack fired for", participantId, "streams:", event.streams);
-      const [remoteStream] = event.streams;
-      const videoEl = remoteVideoRefs.current[participantId];
+pc.ontrack = (event) => {
+  const [remoteStream] = event.streams;
 
-      if (!videoEl || !videoEl.isConnected) {
-        console.warn(
-          "CALLER: no connected video element for",
-          participantId,
-          "— buffering stream"
-        );
-        pendingRemoteStreamsRef.current[participantId] = remoteStream;
-        return;
-      }
+  console.log(
+    "REMOTE STREAM TRACKS for",
+    participantId,
+    remoteStream.getTracks().map((t) => ({
+      kind: t.kind,
+      enabled: t.enabled,
+      readyState: t.readyState,
+    }))
+  );
 
-      videoEl.srcObject = remoteStream;
+  const videoEl = remoteVideoRefs.current[participantId];
+  console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
-      setTimeout(() => {
-        const el = remoteVideoRefs.current[participantId];
-        if (!isOpen || !el || !el.isConnected) return;
-        try {
-          el.play();
-        } catch (err) {
-          console.warn("CALLER: video play error (50ms)", err);
-        }
-      }, 50);
+  // If the video element isn't mounted yet, buffer the stream
+  if (!videoEl || !videoEl.isConnected) {
+    console.warn(
+      "no connected video element for",
+      participantId,
+      "— buffering stream"
+    );
+    pendingRemoteStreamsRef.current[participantId] = remoteStream;
+    return;
+  }
 
-      setTimeout(() => {
-        const el = remoteVideoRefs.current[participantId];
-        if (!isOpen || !el || !el.isConnected) return;
-        try {
-          el.play();
-        } catch (err) {
-          console.warn("CALLER: video play error (300ms)", err);
-        }
-      }, 300);
-    };
+  // Attach stream immediately
+  videoEl.srcObject = remoteStream;
+
+  // Play immediately (Promise-based catch prevents AbortError)
+  videoEl
+    .play()
+    .catch((err) =>
+      console.warn("REMOTE: video play error (ontrack immediate)", err)
+    );
+
+  // Retry after 50ms
+  setTimeout(() => {
+    const el = remoteVideoRefs.current[participantId];
+    if (!isOpen || !el || !el.isConnected) return;
+    el
+      .play()
+      .catch((err) =>
+        console.warn("REMOTE: video play error (50ms)", err)
+      );
+  }, 50);
+
+  // Retry after 300ms
+  setTimeout(() => {
+    const el = remoteVideoRefs.current[participantId];
+    if (!isOpen || !el || !el.isConnected) return;
+    el
+      .play()
+      .catch((err) =>
+        console.warn("REMOTE: video play error (300ms)", err)
+      );
+  }, 300);
+};
 
     return pc;
   };
