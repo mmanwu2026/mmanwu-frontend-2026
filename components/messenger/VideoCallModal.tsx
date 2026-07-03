@@ -188,64 +188,63 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       }
     };
 
-    pc.ontrack = (event) => {
-      const [remoteStream] = event.streams;
+pc.ontrack = (event) => {
+  const [remoteStream] = event.streams;
 
-      // PATCH #1
-      console.log(
-        "REMOTE STREAM TRACKS for",
-        participantId,
-        remoteStream.getTracks().map((t) => ({
-          kind: t.kind,
-          enabled: t.enabled,
-          readyState: t.readyState,
-        }))
-      );
+  console.log(
+    "REMOTE STREAM TRACKS for",
+    participantId,
+    remoteStream.getTracks().map((t) => ({
+      kind: t.kind,
+      enabled: t.enabled,
+      readyState: t.readyState,
+    }))
+  );
 
-      const videoEl = remoteVideoRefs.current[participantId];
-      console.log("REMOTE videoEl for", participantId, "=>", videoEl);
+  const videoEl = remoteVideoRefs.current[participantId];
+  console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
-      if (!videoEl || !videoEl.isConnected) {
-        console.warn("no connected video element for", participantId, "— buffering stream");
-        pendingRemoteStreamsRef.current[participantId] = remoteStream;
-        return;
-      }
+  if (!videoEl || !videoEl.isConnected) {
+    console.warn("no connected video element for", participantId, "— buffering stream");
+    pendingRemoteStreamsRef.current[participantId] = remoteStream;
+    return;
+  }
 
-      // Avoid re-attaching the same stream repeatedly
-      if (videoEl.srcObject !== remoteStream) {
-        videoEl.muted = true; // key for autoplay
-        videoEl.srcObject = remoteStream;
-      }
+  if (videoEl.srcObject !== remoteStream) {
+    videoEl.muted = true;
+    videoEl.srcObject = remoteStream;
+  }
 
-      if (!isOpen) return;
+  if (!isOpen) return;
 
-      videoEl
-        .play()
-        .catch((err) =>
-          console.warn("REMOTE: video play error (ontrack immediate)", err)
-        );
+  videoEl.play().catch((err) =>
+    console.warn("REMOTE: video play error (ontrack immediate)", err)
+  );
 
-      // Extra retries, but only if element is still connected
-      setTimeout(() => {
-        const el = remoteVideoRefs.current[participantId];
-        if (!isOpen || !el || !el.isConnected) return;
-        el
-          .play()
-          .catch((err) =>
-            console.warn("REMOTE: video play error (50ms)", err)
-          );
-      }, 50);
+  // SAFE MOMENT TO REMOVE THE OFFER — ONLY AFTER VIDEO TRACK ARRIVES
+  if (!signaling.isCaller) {
+    const hasVideo = remoteStream.getVideoTracks().length > 0;
+    if (hasVideo) {
+      setIncomingOffers((prev) => {
+        const next = { ...prev };
+        delete next[participantId];
+        return next;
+      });
+    }
+  }
 
-      setTimeout(() => {
-        const el = remoteVideoRefs.current[participantId];
-        if (!isOpen || !el || !el.isConnected) return;
-        el
-          .play()
-          .catch((err) =>
-            console.warn("REMOTE: video play error (300ms)", err)
-          );
-      }, 300);
-    };
+  setTimeout(() => {
+    const el = remoteVideoRefs.current[participantId];
+    if (!isOpen || !el || !el.isConnected) return;
+    el.play().catch((err) => console.warn("REMOTE: video play error (50ms)", err));
+  }, 50);
+
+  setTimeout(() => {
+    const el = remoteVideoRefs.current[participantId];
+    if (!isOpen || !el || !el.isConnected) return;
+    el.play().catch((err) => console.warn("REMOTE: video play error (300ms)", err));
+  }, 300);
+};
 
     return pc;
   };
