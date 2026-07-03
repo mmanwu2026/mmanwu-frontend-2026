@@ -484,11 +484,6 @@ const startCallAsCaller = async () => {
 
     await handleIncomingOffer(participantId, offer);
 
-    setIncomingOffers((prev) => {
-      const next = { ...prev };
-      delete next[participantId];
-      return next;
-    });
   };
 
   const handleClose = () => {
