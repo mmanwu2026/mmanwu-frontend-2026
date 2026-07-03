@@ -38,8 +38,6 @@ const iceConfig: RTCConfiguration = {
       ],
     },
   ],
-
-  // ⭐ FORCE TURN — required for reconnect to work
   iceTransportPolicy: "relay",
 };
 
@@ -58,6 +56,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Record<ParticipantId, RTCPeerConnection>>({});
   const pendingCandidatesRef = useRef<Record<ParticipantId, RTCIceCandidateInit[]>>({});
+  const pendingRemoteStreamsRef = useRef<Record<ParticipantId, MediaStream>>({});
 
   const hasStartedCallRef = useRef(false);
   const handledOffersRef = useRef<Set<string>>(new Set());
@@ -72,339 +71,320 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
-// ---------- LOCAL MEDIA ----------
+  // ---------- LOCAL MEDIA ----------
 
-const setupLocalStream = async () => {
-  if (localStreamRef.current) {
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = localStreamRef.current;
-      localVideoRef.current.play().catch(() => {});
-    }
-    return;
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    localStreamRef.current = stream;
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-      localVideoRef.current.play().catch(() => {});
-    }
-
-    onNotify("Camera and microphone started");
-  } catch (err) {
-    console.error("setupLocalStream ERROR", err);
-    onNotify("Failed to start camera/microphone");
-  }
-};
-
-const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
-  const stream = localStreamRef.current;
-  console.log("attachTracksToPC for", participantId, "stream:", stream);
-  if (!stream) {
-    console.warn("attachTracksToPC: NO localStreamRef.current");
-    return;
-  }
-
-  const senders = pc.getSenders();
-  const existingTracks = new Set(senders.map((s) => s.track));
-  stream.getTracks().forEach((track) => {
-    console.log("adding track", track.kind, "to", participantId);
-    if (!existingTracks.has(track)) {
-      pc.addTrack(track, stream);
-    }
-  });
-};
-
-// ---------- CALLER-ONLY ICE RESTART ----------
-
-const restartIceForParticipant = async (participantId: ParticipantId) => {
-  if (!signaling.isCaller) return; // only caller drives restart
-
-  const pc = peerConnectionsRef.current[participantId];
-  if (!pc) return;
-
-  try {
-    const offer = await pc.createOffer({ iceRestart: true });
-    await pc.setLocalDescription(offer);
-    onSendOffer(participantId, offer);
-    onNotify(`ICE restart offer sent to ${participantId}`);
-  } catch (err) {
-    console.error("restartIceForParticipant ERROR", participantId, err);
-    onNotify(`Failed to restart ICE with ${participantId}`);
-  }
-};
-
-// ---------- PEER CONNECTION MANAGEMENT ----------
-
-const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
-  let existing = peerConnectionsRef.current[participantId];
-  if (existing) {
-    return existing;
-  }
-
-  const pc = new RTCPeerConnection(iceConfig);
-  peerConnectionsRef.current[participantId] = pc;
-
- pc.onicecandidate = (event) => {
-  if (event.candidate) {
-    console.log("LOCAL ICE candidate for", participantId, "=>", event.candidate);
-    const candInit: RTCIceCandidateInit = {
-      candidate: event.candidate.candidate,
-      sdpMid: event.candidate.sdpMid ?? undefined,
-      sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
-      usernameFragment: (event.candidate as any).usernameFragment,
-    };
-    onSendCandidate(participantId, candInit);
-  }
-};
-
-  pc.oniceconnectionstatechange = () => {
-    const state = pc.iceConnectionState;
-    console.log("PC ICE STATE for", participantId, "=>", state);
-
-    if (state === "failed" || state === "disconnected") {
-      onNotify(`Connection with ${participantId} ${state}`);
-      restartIceForParticipant(participantId); // caller-only reconnect
-    }
-  };
-
-  pc.ontrack = (event) => {
-    console.log("CALLER: ontrack fired for", participantId, "streams:", event.streams);
-    const [remoteStream] = event.streams;
-    const videoEl = remoteVideoRefs.current[participantId];
-    if (!videoEl) {
-      console.warn("CALLER: no video element for", participantId);
+  const setupLocalStream = async () => {
+    if (localStreamRef.current) {
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+        localVideoRef.current.play().catch(() => {});
+      }
       return;
     }
 
-    videoEl.srcObject = remoteStream;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
+      localStreamRef.current = stream;
 
-    setTimeout(() => {
-      videoEl.play().catch(err =>
-        console.warn("CALLER: video play error (50ms)", err)
-      );
-    }, 50);
-    setTimeout(() => {
-      videoEl.play().catch(err =>
-        console.warn("CALLER: video play error (300ms)", err)
-      );
-    }, 300);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.play().catch(() => {});
+      }
+
+      onNotify("Camera and microphone started");
+    } catch (err) {
+      console.error("setupLocalStream ERROR", err);
+      onNotify("Failed to start camera/microphone");
+    }
   };
 
-  return pc;
-};
+  const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
+    const stream = localStreamRef.current;
+    console.log("attachTracksToPC for", participantId, "stream:", stream);
+    if (!stream) {
+      console.warn("attachTracksToPC: NO localStreamRef.current");
+      return;
+    }
 
-const startCallAsCaller = async () => {
-  if (hasStartedCallRef.current) return;
-  hasStartedCallRef.current = true;
+    const senders = pc.getSenders();
+    const existingTracks = new Set(senders.map((s) => s.track));
+    stream.getTracks().forEach((track) => {
+      console.log("adding track", track.kind, "to", participantId);
+      if (!existingTracks.has(track)) {
+        pc.addTrack(track, stream);
+      }
+    });
+  };
 
-  const { participants } = signaling;
+  // ---------- CALLER-ONLY ICE RESTART ----------
 
-  await setupLocalStream();
+  const restartIceForParticipant = async (participantId: ParticipantId) => {
+    if (!signaling.isCaller) return;
 
-  onNotify("Call started");
+    const pc = peerConnectionsRef.current[participantId];
+    if (!pc) return;
 
-  for (const participantId of participants) {
-    const pc = createPeerConnection(participantId);
-
-    attachTracksToPC(pc, participantId);
-
-    if (signaling.isCaller && !signaling.offers[participantId]) {
-      const offer = await pc.createOffer();
+    try {
+      const offer = await pc.createOffer({ iceRestart: true });
       await pc.setLocalDescription(offer);
       onSendOffer(participantId, offer);
+      onNotify(`ICE restart offer sent to ${participantId}`);
+    } catch (err) {
+      console.error("restartIceForParticipant ERROR", participantId, err);
+      onNotify(`Failed to restart ICE with ${participantId}`);
     }
-  }
-};
+  };
 
-const handleIncomingOffer = async (
-  from: ParticipantId,
-  offer: RTCSessionDescriptionInit,
-) => {
-  const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
-  if (handledOffersRef.current.has(key)) {
-    return;
-  }
-  handledOffersRef.current.add(key);
+  // ---------- PEER CONNECTION MANAGEMENT ----------
 
-  await setupLocalStream();
+  const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
+    let existing = peerConnectionsRef.current[participantId];
+    if (existing) return existing;
 
-  let pc = peerConnectionsRef.current[from];
-  if (!pc) {
-    pc = createPeerConnection(from);
-  }
-  attachTracksToPC(pc, from);
+    const pc = new RTCPeerConnection(iceConfig);
+    peerConnectionsRef.current[participantId] = pc;
 
-  await pc.setRemoteDescription(offer);
+    pc.onicecandidate = (event) => {
+      if (!event.candidate) return;
+      const candInit: RTCIceCandidateInit = {
+        candidate: event.candidate.candidate,
+        sdpMid: event.candidate.sdpMid ?? undefined,
+        sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
+        usernameFragment: (event.candidate as any).usernameFragment,
+      };
+      onSendCandidate(participantId, candInit);
+    };
 
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  onSendAnswer(from, answer);
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      console.log("PC ICE STATE for", participantId, "=>", state);
 
-  const queued = pendingCandidatesRef.current[from] || [];
-  if (queued.length) {
-    for (const c of queued) {
-      try {
-        await pc.addIceCandidate(c);
-      } catch (err) {
-        console.error("handleIncomingOffer: addIceCandidate (queued) error", err);
+      if (state === "failed" || state === "disconnected") {
+        onNotify(`Connection with ${participantId} ${state}`);
+        restartIceForParticipant(participantId);
+      }
+    };
+
+    pc.ontrack = (event) => {
+      console.log("CALLER: ontrack fired for", participantId, "streams:", event.streams);
+      const [remoteStream] = event.streams;
+      const videoEl = remoteVideoRefs.current[participantId];
+
+      if (!videoEl) {
+        console.warn("CALLER: no video element for", participantId, "— buffering stream");
+        pendingRemoteStreamsRef.current[participantId] = remoteStream;
+        return;
+      }
+
+      videoEl.srcObject = remoteStream;
+
+      setTimeout(() => {
+        if (!isOpen) return;
+        const el = remoteVideoRefs.current[participantId];
+        if (!el) return;
+        el.play().catch((err) =>
+          console.warn("CALLER: video play error (50ms)", err)
+        );
+      }, 50);
+
+      setTimeout(() => {
+        if (!isOpen) return;
+        const el = remoteVideoRefs.current[participantId];
+        if (!el) return;
+        el.play().catch((err) =>
+          console.warn("CALLER: video play error (300ms)", err)
+        );
+      }, 300);
+    };
+
+    return pc;
+  };
+
+  const startCallAsCaller = async () => {
+    if (hasStartedCallRef.current) return;
+    hasStartedCallRef.current = true;
+
+    const { participants } = signaling;
+
+    await setupLocalStream();
+    onNotify("Call started");
+
+    for (const participantId of participants) {
+      const pc = createPeerConnection(participantId);
+      attachTracksToPC(pc, participantId);
+
+      if (signaling.isCaller && !signaling.offers[participantId]) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        onSendOffer(participantId, offer);
       }
     }
-    delete pendingCandidatesRef.current[from];
-  }
+  };
 
-  onNotify(`Call answered for ${from}`);
-};
+  const handleIncomingOffer = async (
+    from: ParticipantId,
+    offer: RTCSessionDescriptionInit,
+  ) => {
+    const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
+    if (handledOffersRef.current.has(key)) return;
+    handledOffersRef.current.add(key);
 
-const handleIncomingAnswer = async (
-  from: ParticipantId,
-  answer: RTCSessionDescriptionInit,
-) => {
-  const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
-  if (handledAnswersRef.current.has(key)) {
-    return;
-  }
-  handledAnswersRef.current.add(key);
+    await setupLocalStream();
 
-  let pc = peerConnectionsRef.current[from];
-  if (!pc) {
-    console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
-    pc = createPeerConnection(from);
-  }
+    let pc = peerConnectionsRef.current[from];
+    if (!pc) pc = createPeerConnection(from);
 
-  try {
-    await pc.setRemoteDescription(answer);
-    console.log(
-      "CALLER: setRemoteDescription(success) for",
-      from,
-      "ICE state:",
-      pc.iceConnectionState
-    );
-  } catch (err) {
-    console.error("handleIncomingAnswer: setRemoteDescription ERROR", err);
-    return;
-  }
+    attachTracksToPC(pc, from);
+    await pc.setRemoteDescription(offer);
 
-  onNotify(`Answer received from ${from}`);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    onSendAnswer(from, answer);
 
-  const queued = pendingCandidatesRef.current[from] || [];
-  if (queued.length) {
-    for (const c of queued) {
-      try {
-        await pc.addIceCandidate(c);
-      } catch (err) {
-        console.error("handleIncomingAnswer: addIceCandidate (queued) error", err);
+    const queued = pendingCandidatesRef.current[from] || [];
+    if (queued.length) {
+      for (const c of queued) {
+        try {
+          await pc.addIceCandidate(c);
+        } catch (err) {
+          console.error("handleIncomingOffer: addIceCandidate (queued) error", err);
+        }
+      }
+      delete pendingCandidatesRef.current[from];
+    }
+
+    onNotify(`Call answered for ${from}`);
+  };
+
+  const handleIncomingAnswer = async (
+    from: ParticipantId,
+    answer: RTCSessionDescriptionInit,
+  ) => {
+    const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
+    if (handledAnswersRef.current.has(key)) return;
+    handledAnswersRef.current.add(key);
+
+    let pc = peerConnectionsRef.current[from];
+    if (!pc) {
+      console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
+      pc = createPeerConnection(from);
+    }
+
+    try {
+      await pc.setRemoteDescription(answer);
+      console.log(
+        "CALLER: setRemoteDescription(success) for",
+        from,
+        "ICE state:",
+        pc.iceConnectionState
+      );
+    } catch (err) {
+      console.error("handleIncomingAnswer: setRemoteDescription ERROR", err);
+      return;
+    }
+
+    onNotify(`Answer received from ${from}`);
+
+    const queued = pendingCandidatesRef.current[from] || [];
+    if (queued.length) {
+      for (const c of queued) {
+        try {
+          await pc.addIceCandidate(c);
+        } catch (err) {
+          console.error("handleIncomingAnswer: addIceCandidate (queued) error", err);
+        }
+      }
+      delete pendingCandidatesRef.current[from];
+    }
+  };
+
+  const handleIncomingCandidate = async (
+    from: ParticipantId,
+    candidateInit: RTCIceCandidateInit,
+  ) => {
+    console.log("REMOTE ICE candidate for", from, "=>", candidateInit);
+
+    const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${candidateInit.sdpMLineIndex ?? ""}`;
+    if (handledCandidatesRef.current.has(key)) return;
+    handledCandidatesRef.current.add(key);
+
+    let pc = peerConnectionsRef.current[from];
+    if (!pc) pc = createPeerConnection(from);
+
+    if (!pc.remoteDescription) {
+      const existing = pendingCandidatesRef.current[from] || [];
+      pendingCandidatesRef.current[from] = [...existing, candidateInit];
+      return;
+    }
+
+    try {
+      await pc.addIceCandidate(candidateInit);
+    } catch (err) {
+      console.error("handleIncomingCandidate: addIceCandidate ERROR for", from, err);
+    }
+  };
+
+  // ---------- EFFECTS ----------
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (signaling.isCaller && signaling.participants.length > 0) {
+      startCallAsCaller();
+    }
+  }, [isOpen, signaling.isCaller, signaling.participants.length]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // CALLEE LOGIC
+    if (!signaling.isCaller) {
+      setIncomingOffers((prev) => {
+        const next = { ...prev };
+        Object.entries(signaling.offers).forEach(([from, offer]) => {
+          if (!next[from]) next[from] = offer;
+        });
+        return next;
+      });
+
+      if (callActive) {
+        Object.entries(signaling.offers).forEach(([from, offer]) => {
+          handleIncomingOffer(from, offer);
+        });
       }
     }
-    delete pendingCandidatesRef.current[from];
-  }
-};
 
-const handleIncomingCandidate = async (
-  from: ParticipantId,
-  candidateInit: RTCIceCandidateInit,
-) => {
-  console.log("REMOTE ICE candidate for", from, "=>", candidateInit);
-
-  const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${
-    candidateInit.sdpMLineIndex ?? ""
-  }`;
-  if (handledCandidatesRef.current.has(key)) {
-    return;
-  }
-  handledCandidatesRef.current.add(key);
-
-  let pc = peerConnectionsRef.current[from];
-  if (!pc) {
-    pc = createPeerConnection(from);
-  }
-
-  if (!pc.remoteDescription) {
-    const existing = pendingCandidatesRef.current[from] || [];
-    pendingCandidatesRef.current[from] = [...existing, candidateInit];
-    return;
-  }
-
-  try {
-    await pc.addIceCandidate(candidateInit);
-  } catch (err) {
-    console.error("handleIncomingCandidate: addIceCandidate ERROR for", from, err);
-  }
-};
-
-// ---------- EFFECTS ----------
-
-useEffect(() => {
-  if (!isOpen) return;
-
-  if (signaling.isCaller && signaling.participants.length > 0) {
-    startCallAsCaller();
-  }
-}, [isOpen, signaling.isCaller, signaling.participants.length]);
-
-useEffect(() => {
-  if (!isOpen) return;
-
-  // -------------------------------
-  // 1) CALLEE LOGIC
-  // -------------------------------
-  if (!signaling.isCaller) {
-
-    // Update incomingOffers so the Answer button appears
-    setIncomingOffers(prev => {
-      const next = { ...prev };
-      Object.entries(signaling.offers).forEach(([from, offer]) => {
-        if (!next[from]) next[from] = offer;
-      });
-      return next;
-    });
-
-    // OPTIONAL: Auto-answer ONLY if already in a call (reconnect)
-    if (callActive) {
-      Object.entries(signaling.offers).forEach(([from, offer]) => {
-        handleIncomingOffer(from, offer);
+    // CALLER LOGIC
+    if (signaling.isCaller) {
+      Object.entries(signaling.answers).forEach(([from, answer]) => {
+        handleIncomingAnswer(from, answer);
       });
     }
-  }
 
-  // -------------------------------
-  // 2) CALLER LOGIC
-  // -------------------------------
-  if (signaling.isCaller) {
-    Object.entries(signaling.answers).forEach(([from, answer]) => {
-      handleIncomingAnswer(from, answer);
+    // ICE CANDIDATES
+    Object.entries(signaling.candidates).forEach(([from, list]) => {
+      list.forEach((c) => handleIncomingCandidate(from, c));
     });
-  }
+  }, [
+    isOpen,
+    signaling.offers,
+    signaling.answers,
+    signaling.candidates,
+    signaling.isCaller,
+    callActive,
+  ]);
 
-  // -------------------------------
-  // 3) ICE CANDIDATES (both sides)
-  // -------------------------------
-  Object.entries(signaling.candidates).forEach(([from, list]) => {
-    list.forEach(c => handleIncomingCandidate(from, c));
-  });
+  // DEBUG
+  useEffect(() => {
+    console.log("VideoCallModal sees signaling.offers:", signaling.offers);
+  }, [signaling.offers]);
 
-}, [
-  isOpen,
-  signaling.offers,
-  signaling.answers,
-  signaling.candidates,
-  signaling.isCaller,
-  callActive
-]);
-
-// ⭐ DEBUG EFFECTS (these go RIGHT HERE)
-useEffect(() => {
-  console.log("VideoCallModal sees signaling.offers:", signaling.offers);
-}, [signaling.offers]);
-
-useEffect(() => {
-  console.log("VideoCallModal incomingOffers:", incomingOffers);
-}, [incomingOffers]);
+  useEffect(() => {
+    console.log("VideoCallModal incomingOffers:", incomingOffers);
+  }, [incomingOffers]);
 
   // ---------- CONTROLS & CLEANUP ----------
 
@@ -434,9 +414,7 @@ useEffect(() => {
     setSpeakerMuted((prev) => {
       const nextMuted = !prev[participantId];
       const videoEl = remoteVideoRefs.current[participantId];
-      if (videoEl) {
-        videoEl.muted = nextMuted;
-      }
+      if (videoEl) videoEl.muted = nextMuted;
       return { ...prev, [participantId]: nextMuted };
     });
   };
@@ -470,6 +448,7 @@ useEffect(() => {
     }
 
     pendingCandidatesRef.current = {};
+    pendingRemoteStreamsRef.current = {};
     handledOffersRef.current.clear();
     handledAnswersRef.current.clear();
     handledCandidatesRef.current.clear();
@@ -483,15 +462,21 @@ useEffect(() => {
     onClose();
   };
 
-  const participants = signaling.participants;
+  // ---------- PARTICIPANTS ----------
+
+  const participants = signaling.isCaller
+    ? signaling.participants
+    : Object.keys(incomingOffers);
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // ⭐ DEBUG: Show caller participant IDs
-useEffect(() => {
-  console.log("CALLER participants array:", participants);
-}, [participants]);
+  useEffect(() => {
+    console.log("CALLER participants array:", participants);
+  }, [participants]);
 
-if (!isOpen) return null;
+  if (!isOpen) return null;
+
+  // ---------- UI ----------
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -530,22 +515,35 @@ if (!isOpen) return null;
                 <span className="text-xs text-neutral-300 mb-1">
                   Participant: {pid}
                 </span>
+
                 <video
                   ref={(el) => {
                     remoteVideoRefs.current[pid] = el;
+
+                    const stream = pendingRemoteStreamsRef.current[pid];
+                    if (el && stream) {
+                      console.log("ATTACHING buffered stream for", pid);
+                      el.srcObject = stream;
+                      el.play().catch((err) =>
+                        console.warn("CALLER: video play error (ref attach)", err)
+                      );
+                      delete pendingRemoteStreamsRef.current[pid];
+                    }
                   }}
                   muted={isMobile}
                   playsInline
                   autoPlay
                   className="w-full h-40 bg-black rounded"
                 />
-                <div className="mt-1 flex gap-2">
+
+                               <div className="mt-1 flex gap-2">
                   <button
                     onClick={() => handleToggleSpeaker(pid)}
                     className="px-2 py-1 text-xs rounded bg-neutral-700 text-white hover:bg-neutral-600"
                   >
                     {speakerMuted[pid] ? "Unmute speaker" : "Mute speaker"}
                   </button>
+
                   {!signaling.isCaller && incomingOffers[pid] && (
                     <button
                       onClick={() => handleAnswerClick(pid)}
@@ -567,6 +565,7 @@ if (!isOpen) return null;
           >
             {micOn ? "Mute mic" : "Unmute mic"}
           </button>
+
           <button
             onClick={handleToggleCamera}
             className="px-3 py-1 text-sm rounded bg-neutral-700 text-white hover:bg-neutral-600"
