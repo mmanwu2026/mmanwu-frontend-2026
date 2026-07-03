@@ -174,7 +174,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       const videoEl = remoteVideoRefs.current[participantId];
 
       if (!videoEl || !videoEl.isConnected) {
-        console.warn("CALLER: no connected video element for", participantId, "— buffering stream");
+        console.warn(
+          "CALLER: no connected video element for",
+          participantId,
+          "— buffering stream"
+        );
         pendingRemoteStreamsRef.current[participantId] = remoteStream;
         return;
       }
@@ -184,45 +188,49 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       setTimeout(() => {
         const el = remoteVideoRefs.current[participantId];
         if (!isOpen || !el || !el.isConnected) return;
-        el.play().catch((err) =>
-          console.warn("CALLER: video play error (50ms)", err)
-        );
+        try {
+          el.play();
+        } catch (err) {
+          console.warn("CALLER: video play error (50ms)", err);
+        }
       }, 50);
 
       setTimeout(() => {
         const el = remoteVideoRefs.current[participantId];
         if (!isOpen || !el || !el.isConnected) return;
-        el.play().catch((err) =>
-          console.warn("CALLER: video play error (300ms)", err)
-        );
+        try {
+          el.play();
+        } catch (err) {
+          console.warn("CALLER: video play error (300ms)", err);
+        }
       }, 300);
     };
 
     return pc;
   };
 
-const startCallAsCaller = async () => {
-  if (hasStartedCallRef.current) return;
-  hasStartedCallRef.current = true;
+  const startCallAsCaller = async () => {
+    if (hasStartedCallRef.current) return;
+    hasStartedCallRef.current = true;
 
-  const { participants } = signaling;
+    const { participants } = signaling;
 
-  await setupLocalStream();
-  onNotify("Call started");
+    await setupLocalStream();
+    onNotify("Call started");
 
-  for (const participantId of participants) {
-    const pc = createPeerConnection(participantId);
+    for (const participantId of participants) {
+      const pc = createPeerConnection(participantId);
 
-    // ✅ ADD TRACKS FIRST
-    attachTracksToPC(pc, participantId);
+      // add tracks first, then create offer
+      attachTracksToPC(pc, participantId);
 
-    if (signaling.isCaller && !signaling.offers[participantId]) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      onSendOffer(participantId, offer);
+      if (signaling.isCaller && !signaling.offers[participantId]) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        onSendOffer(participantId, offer);
+      }
     }
-  }
-};
+  };
 
   const handleIncomingOffer = async (
     from: ParticipantId,
@@ -525,9 +533,11 @@ const startCallAsCaller = async () => {
                     if (el && el.isConnected && stream) {
                       console.log("ATTACHING buffered stream for", pid);
                       el.srcObject = stream;
-                      el.play().catch((err) =>
-                        console.warn("CALLER: video play error (ref attach)", err)
-                      );
+                      try {
+                        el.play();
+                      } catch (err) {
+                        console.warn("CALLER: video play error (ref attach)", err);
+                      }
                       delete pendingRemoteStreamsRef.current[pid];
                     }
                   }}
