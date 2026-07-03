@@ -20,24 +20,19 @@ type VideoCallModalProps = {
   onClose: () => void;
 };
 
-const iceConfig: RTCConfiguration = {
+const iceConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     {
       urls: [
-        "stun:us-turn1.xirsys.com",
-        "turn:us-turn1.xirsys.com:80?transport=udp",
-        "turn:us-turn1.xirsys.com:3478?transport=udp",
-        "turn:us-turn1.xirsys.com:80?transport=tcp",
-        "turn:us-turn1.xirsys.com:3478?transport=tcp",
-        "turns:us-turn1.xirsys.com:443?transport=tcp",
-        "turns:us-turn1.xirsys.com:5349?transport=tcp",
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:5349"
       ],
-      username:
-        "c_bZzzTif6SVAIN6HzYzNujR-POCwcemnWrIJ2dsKelNM4hBXc3kCuHEiD9cfCqXAAAAAGpG5H9tbWFucGxhemE=",
-      credential: "6cbf261c-7664-11f1-b615-0242ac140004",
-    },
-  ],
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    }
+  ]
 };
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
@@ -223,7 +218,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     await setupLocalStream();
 
     const pc = createPeerConnection(from);
-    await pc.setRemoteDescription(offer);
+    
+    // 🔴 ensure tracks are attached here too
+attachTracksToPC(pc, from);
+
+await pc.setRemoteDescription(offer);
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
