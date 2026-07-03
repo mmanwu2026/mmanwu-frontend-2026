@@ -173,8 +173,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       const [remoteStream] = event.streams;
       const videoEl = remoteVideoRefs.current[participantId];
 
-      if (!videoEl) {
-        console.warn("CALLER: no video element for", participantId, "— buffering stream");
+      if (!videoEl || !videoEl.isConnected) {
+        console.warn("CALLER: no connected video element for", participantId, "— buffering stream");
         pendingRemoteStreamsRef.current[participantId] = remoteStream;
         return;
       }
@@ -182,18 +182,16 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       videoEl.srcObject = remoteStream;
 
       setTimeout(() => {
-        if (!isOpen) return;
         const el = remoteVideoRefs.current[participantId];
-        if (!el) return;
+        if (!isOpen || !el || !el.isConnected) return;
         el.play().catch((err) =>
           console.warn("CALLER: video play error (50ms)", err)
         );
       }, 50);
 
       setTimeout(() => {
-        if (!isOpen) return;
         const el = remoteVideoRefs.current[participantId];
-        if (!el) return;
+        if (!isOpen || !el || !el.isConnected) return;
         el.play().catch((err) =>
           console.warn("CALLER: video play error (300ms)", err)
         );
@@ -214,13 +212,14 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     for (const participantId of participants) {
       const pc = createPeerConnection(participantId);
-      attachTracksToPC(pc, participantId);
 
       if (signaling.isCaller && !signaling.offers[participantId]) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         onSendOffer(participantId, offer);
       }
+
+      attachTracksToPC(pc, participantId);
     }
   };
 
@@ -237,8 +236,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     let pc = peerConnectionsRef.current[from];
     if (!pc) pc = createPeerConnection(from);
 
-    attachTracksToPC(pc, from);
     await pc.setRemoteDescription(offer);
+    attachTracksToPC(pc, from);
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
@@ -377,7 +376,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     callActive,
   ]);
 
-  // DEBUG
   useEffect(() => {
     console.log("VideoCallModal sees signaling.offers:", signaling.offers);
   }, [signaling.offers]);
@@ -465,10 +463,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   // ---------- PARTICIPANTS ----------
 
   const participants = signaling.isCaller
-  ? signaling.participants
-  : Object.keys(incomingOffers).length > 0
-    ? Object.keys(incomingOffers)
-    : Object.keys(peerConnectionsRef.current);
+    ? signaling.participants
+    : Object.keys(incomingOffers).length > 0
+      ? Object.keys(incomingOffers)
+      : Object.keys(peerConnectionsRef.current);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -523,7 +521,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
                     remoteVideoRefs.current[pid] = el;
 
                     const stream = pendingRemoteStreamsRef.current[pid];
-                    if (el && stream) {
+                    if (el && el.isConnected && stream) {
                       console.log("ATTACHING buffered stream for", pid);
                       el.srcObject = stream;
                       el.play().catch((err) =>
@@ -538,7 +536,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
                   className="w-full h-40 bg-black rounded"
                 />
 
-                               <div className="mt-1 flex gap-2">
+                <div className="mt-1 flex gap-2">
                   <button
                     onClick={() => handleToggleSpeaker(pid)}
                     className="px-2 py-1 text-xs rounded bg-neutral-700 text-white hover:bg-neutral-600"
@@ -567,7 +565,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           >
             {micOn ? "Mute mic" : "Unmute mic"}
           </button>
-
           <button
             onClick={handleToggleCamera}
             className="px-3 py-1 text-sm rounded bg-neutral-700 text-white hover:bg-neutral-600"
