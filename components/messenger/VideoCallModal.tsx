@@ -71,73 +71,73 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
- // ---------- LOCAL MEDIA ----------
+  // ---------- LOCAL MEDIA ----------
 
-const setupLocalStream = async () => {
-  // If we already have a stream, just reattach it safely
-  if (localStreamRef.current) {
-    if (localVideoRef.current && localVideoRef.current.isConnected) {
-      localVideoRef.current.srcObject = localStreamRef.current;
-      try {
-        localVideoRef.current.play();
-      } catch (err) {
-        console.warn("LOCAL: video play error (existing stream)", err);
+  const setupLocalStream = async () => {
+    if (localStreamRef.current) {
+      if (localVideoRef.current && localVideoRef.current.isConnected) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+        localVideoRef.current
+          .play()
+          .catch((err) =>
+            console.warn("LOCAL: video play error (existing stream)", err)
+          );
       }
+      return;
     }
-    return;
-  }
 
-try {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
-    video: true,
-  });
-  localStreamRef.current = stream;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
+      localStreamRef.current = stream;
 
-  // PATCH #2 — LOCAL STREAM DEBUGGER
-  console.log(
-    "LOCAL STREAM TRACKS",
-    stream.getTracks().map((t) => ({
-      kind: t.kind,
-      enabled: t.enabled,
-      readyState: t.readyState,
-    }))
-  );
-  console.log("LOCAL videoEl =>", localVideoRef.current);
+      console.log(
+        "LOCAL STREAM TRACKS",
+        stream.getTracks().map((t) => ({
+          kind: t.kind,
+          enabled: t.enabled,
+          readyState: t.readyState,
+        }))
+      );
+      console.log("LOCAL videoEl =>", localVideoRef.current);
 
-  if (localVideoRef.current && localVideoRef.current.isConnected) {
-    localVideoRef.current.srcObject = stream;
-    localVideoRef.current
-      .play()
-      .catch((err) => console.warn("LOCAL: video play error (new stream)", err));
-  }
+      if (localVideoRef.current && localVideoRef.current.isConnected) {
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current
+          .play()
+          .catch((err) =>
+            console.warn("LOCAL: video play error (new stream)", err)
+          );
+      }
 
-  onNotify("Camera and microphone started");
-} catch (err) {
-  console.error("setupLocalStream ERROR", err);
-  onNotify("Failed to start camera/microphone");
-}
-};
-
-const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
-  const stream = localStreamRef.current;
-  console.log("attachTracksToPC for", participantId, "stream:", stream);
-
-  if (!stream) {
-    console.warn("attachTracksToPC: NO localStreamRef.current");
-    return;
-  }
-
-  const senders = pc.getSenders();
-  const existingTracks = new Set(senders.map((s) => s.track));
-
-  stream.getTracks().forEach((track) => {
-    console.log("adding track", track.kind, "to", participantId);
-    if (!existingTracks.has(track)) {
-      pc.addTrack(track, stream);
+      onNotify("Camera and microphone started");
+    } catch (err) {
+      console.error("setupLocalStream ERROR", err);
+      onNotify("Failed to start camera/microphone");
     }
-  });
-};
+  };
+
+  const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
+    const stream = localStreamRef.current;
+    console.log("attachTracksToPC for", participantId, "stream:", stream);
+
+    if (!stream) {
+      console.warn("attachTracksToPC: NO localStreamRef.current");
+      return;
+    }
+
+    const senders = pc.getSenders();
+    const existingTracks = new Set(senders.map((s) => s.track));
+
+    stream.getTracks().forEach((track) => {
+      console.log("adding track", track.kind, "to", participantId);
+      if (!existingTracks.has(track)) {
+        pc.addTrack(track, stream);
+      }
+    });
+  };
 
   // ---------- CALLER-ONLY ICE RESTART ----------
 
@@ -188,57 +188,60 @@ const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) =
       }
     };
 
-pc.ontrack = (event) => {
-  const [remoteStream] = event.streams;
+    pc.ontrack = (event) => {
+      const [remoteStream] = event.streams;
 
-  // PATCH #1
-  console.log(
-    "REMOTE STREAM TRACKS for",
-    participantId,
-    remoteStream.getTracks().map((t) => ({
-      kind: t.kind,
-      enabled: t.enabled,
-      readyState: t.readyState,
-    }))
-  );
-  const videoEl = remoteVideoRefs.current[participantId];
-  console.log("REMOTE videoEl for", participantId, "=>", videoEl);
+      console.log(
+        "REMOTE STREAM TRACKS for",
+        participantId,
+        remoteStream.getTracks().map((t) => ({
+          kind: t.kind,
+          enabled: t.enabled,
+          readyState: t.readyState,
+        }))
+      );
+      const videoEl = remoteVideoRefs.current[participantId];
+      console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
-if (!videoEl || !videoEl.isConnected) {
-  console.warn("no connected video element for", participantId, "— buffering stream");
-  pendingRemoteStreamsRef.current[participantId] = remoteStream;
-  return;
-}
+      if (!videoEl || !videoEl.isConnected) {
+        console.warn(
+          "no connected video element for",
+          participantId,
+          "— buffering stream"
+        );
+        pendingRemoteStreamsRef.current[participantId] = remoteStream;
+        return;
+      }
 
-videoEl.muted = true; // <-- ensure muted before play
-videoEl.srcObject = remoteStream;
+      videoEl.muted = true;
+      videoEl.srcObject = remoteStream;
 
-videoEl
-  .play()
-  .catch((err) =>
-    console.warn("REMOTE: video play error (ontrack immediate)", err)
- );
+      videoEl
+        .play()
+        .catch((err) =>
+          console.warn("REMOTE: video play error (ontrack immediate)", err)
+        );
 
-setTimeout(() => {
-  const el = remoteVideoRefs.current[participantId];
-  if (!isOpen || !el || !el.isConnected) return;
-  el
-    .play()
-    .catch((err) =>
-      console.warn("REMOTE: video play error (50ms)", err)
-    );
-}, 50);
+      setTimeout(() => {
+        const el = remoteVideoRefs.current[participantId];
+        if (!isOpen || !el || !el.isConnected) return;
+        el
+          .play()
+          .catch((err) =>
+            console.warn("REMOTE: video play error (50ms)", err)
+          );
+      }, 50);
 
-setTimeout(() => {
-  const el = remoteVideoRefs.current[participantId];
-  if (!isOpen || !el || !el.isConnected) return;
-  el
-    .play()
-    .catch((err) =>
-      console.warn("REMOTE: video play error (300ms)", err)
-    );
-}, 300);
-};
+      setTimeout(() => {
+        const el = remoteVideoRefs.current[participantId];
+        if (!isOpen || !el || !el.isConnected) return;
+        el
+          .play()
+          .catch((err) =>
+            console.warn("REMOTE: video play error (300ms)", err)
+          );
+      }, 300);
+    };
 
     return pc;
   };
@@ -254,8 +257,6 @@ setTimeout(() => {
 
     for (const participantId of participants) {
       const pc = createPeerConnection(participantId);
-
-      // add tracks first, then create offer
       attachTracksToPC(pc, participantId);
 
       if (signaling.isCaller && !signaling.offers[participantId]) {
@@ -265,6 +266,8 @@ setTimeout(() => {
       }
     }
   };
+
+  // ---------- INCOMING OFFER / ANSWER / CANDIDATES ----------
 
   const handleIncomingOffer = async (
     from: ParticipantId,
@@ -330,6 +333,27 @@ setTimeout(() => {
 
     onNotify(`Answer received from ${from}`);
 
+    // PATCH — FORCE REMOTE VIDEO RENDER
+    const tracks = pc.getReceivers().map((r) => r.track).filter(Boolean);
+    if (tracks.length > 0) {
+      const remoteStream = new MediaStream(tracks);
+      const videoEl = remoteVideoRefs.current[from];
+      console.log("PATCH: forcing remote video attach for", from, "=>", videoEl);
+
+      if (videoEl && videoEl.isConnected) {
+        videoEl.muted = true;
+        videoEl.srcObject = remoteStream;
+        videoEl
+          .play()
+          .catch((err) =>
+            console.warn("PATCH: remote video play error (force attach)", err)
+          );
+      } else {
+        console.warn("PATCH: remote video element not ready — buffering");
+        pendingRemoteStreamsRef.current[from] = remoteStream;
+      }
+    }
+
     const queued = pendingCandidatesRef.current[from] || [];
     if (queued.length) {
       for (const c of queued) {
@@ -371,58 +395,55 @@ setTimeout(() => {
 
   // ---------- EFFECTS ----------
 
-useEffect(() => {
-  if (!isOpen) return;
-  if (!signaling.isCaller) return;
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!signaling.isCaller) return;
 
-  // Wait until participants actually exist
-  if (signaling.participants.length === 0) return;
+    if (signaling.participants.length === 0) return;
+    if (hasStartedCallRef.current) return;
 
-  // Prevent early or duplicate call starts
-  if (hasStartedCallRef.current) return;
+    startCallAsCaller();
+  }, [isOpen, signaling.isCaller, signaling.participants.length]);
 
-  startCallAsCaller();
-}, [isOpen, signaling.isCaller, signaling.participants.length]);
+  useEffect(() => {
+    if (!isOpen) return;
 
-useEffect(() => {
-  if (!isOpen) return;
-
-  // CALLEE LOGIC
-  if (!signaling.isCaller) {
-    setIncomingOffers((prev) => {
-      const next = { ...prev };
-      Object.entries(signaling.offers).forEach(([from, offer]) => {
-        if (!next[from]) next[from] = offer;
+    // CALLEE LOGIC
+    if (!signaling.isCaller) {
+      setIncomingOffers((prev) => {
+        const next = { ...prev };
+        Object.entries(signaling.offers).forEach(([from, offer]) => {
+          if (!next[from]) next[from] = offer;
+        });
+        return next;
       });
-      return next;
-    });
 
-    if (callActive) {
-      Object.entries(signaling.offers).forEach(([from, offer]) => {
-        handleIncomingOffer(from, offer);
+      if (callActive) {
+        Object.entries(signaling.offers).forEach(([from, offer]) => {
+          handleIncomingOffer(from, offer);
+        });
+      }
+    }
+
+    // CALLER LOGIC
+    if (signaling.isCaller) {
+      Object.entries(signaling.answers).forEach(([from, answer]) => {
+        handleIncomingAnswer(from, answer);
       });
     }
-  }
 
-  // CALLER LOGIC
-  if (signaling.isCaller) {
-    Object.entries(signaling.answers).forEach(([from, answer]) => {
-      handleIncomingAnswer(from, answer);
+    // ICE CANDIDATES
+    Object.entries(signaling.candidates).forEach(([from, list]) => {
+      list.forEach((c) => handleIncomingCandidate(from, c));
     });
-  }
-
-  // ICE CANDIDATES
-  Object.entries(signaling.candidates).forEach(([from, list]) => {
-    list.forEach((c) => handleIncomingCandidate(from, c));
-  });
-}, [
-  isOpen,
-  signaling.offers,
-  signaling.answers,
-  signaling.candidates,
-  signaling.isCaller,
-  callActive,
-]);
+  }, [
+    isOpen,
+    signaling.offers,
+    signaling.answers,
+    signaling.candidates,
+    signaling.isCaller,
+    callActive,
+  ]);
 
   useEffect(() => {
     console.log("VideoCallModal sees signaling.offers:", signaling.offers);
@@ -565,27 +586,30 @@ useEffect(() => {
                 </span>
 
                 <video
-  ref={(el) => {
-    remoteVideoRefs.current[pid] = el;
+                  ref={(el) => {
+                    remoteVideoRefs.current[pid] = el;
 
-    const stream = pendingRemoteStreamsRef.current[pid];
-    if (el && el.isConnected && stream) {
-      console.log("ATTACHING buffered stream for", pid);
-      el.muted = true; // <-- key for autoplay
-      el.srcObject = stream;
-      el
-        .play()
-        .catch((err) =>
-          console.warn("CALLER: video play error (ref attach)", err)
-        );
-      delete pendingRemoteStreamsRef.current[pid];
-    }
-  }}
-  muted // <-- always muted, not just mobile
-  playsInline
-  autoPlay
-  className="w-full h-40 bg-black rounded"
-/>
+                    const stream = pendingRemoteStreamsRef.current[pid];
+                    if (el && el.isConnected && stream) {
+                      console.log("ATTACHING buffered stream for", pid);
+                      el.muted = true;
+                      el.srcObject = stream;
+                      el
+                        .play()
+                        .catch((err) =>
+                          console.warn(
+                            "CALLER: video play error (ref attach)",
+                            err
+                          )
+                        );
+                      delete pendingRemoteStreamsRef.current[pid];
+                    }
+                  }}
+                  muted
+                  playsInline
+                  autoPlay
+                  className="w-full h-40 bg-black rounded"
+                />
 
                 <div className="mt-1 flex gap-2">
                   <button
@@ -623,6 +647,13 @@ useEffect(() => {
             {cameraOn ? "Turn camera off" : "Turn camera on"}
           </button>
         </div>
+
+        {isMobile && (
+          <p className="text-xs text-neutral-400 mt-2">
+            On mobile, browser autoplay policies may require you to tap the video to start
+            playback.
+          </p>
+        )}
       </div>
     </div>
   );
