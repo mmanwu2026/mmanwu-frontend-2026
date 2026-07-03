@@ -22,9 +22,7 @@ type VideoCallModalProps = {
 
 const iceConfig = {
   iceServers: [
-    {
-      urls: ["stun:us-turn8.xirsys.com"],
-    },
+    { urls: ["stun:us-turn8.xirsys.com"] },
     {
       username:
         "dbmO5NTrYER8pb4YZUw0FpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
@@ -115,6 +113,43 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     });
   };
 
+  // ---------- ⭐ RECONNECT LOGIC ----------
+
+  const reconnectPeerConnection = async (participantId: ParticipantId) => {
+    onNotify(`Reconnecting with ${participantId}…`);
+
+    const pc = createPeerConnection(participantId);
+    attachTracksToPC(pc, participantId);
+
+    const offer = signaling.offers[participantId];
+    const answer = signaling.answers[participantId];
+
+    try {
+      if (offer && !pc.remoteDescription) {
+        await pc.setRemoteDescription(offer);
+        const newAnswer = await pc.createAnswer();
+        await pc.setLocalDescription(newAnswer);
+        onSendAnswer(participantId, newAnswer);
+      }
+
+      if (answer && !pc.remoteDescription) {
+        await pc.setRemoteDescription(answer);
+      }
+    } catch (err) {
+      console.error("Reconnect signaling error:", err);
+    }
+
+    const queued = pendingCandidatesRef.current[participantId] || [];
+    for (const c of queued) {
+      try {
+        await pc.addIceCandidate(c);
+      } catch (err) {
+        console.error("Reconnect addIceCandidate error:", err);
+      }
+    }
+    delete pendingCandidatesRef.current[participantId];
+  };
+
   // ---------- PEER CONNECTION MANAGEMENT ----------
 
   const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
@@ -139,44 +174,27 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+      if (
+        pc.iceConnectionState === "failed" ||
+        pc.iceConnectionState === "disconnected"
+      ) {
         onNotify(`Connection with ${participantId} lost`);
+        reconnectPeerConnection(participantId); // ⭐ REAL RECONNECT
       }
     };
 
-    pc.onconnectionstatechange = () => {};
-
     pc.ontrack = (event) => {
-      console.log("ontrack FIRED for", participantId, event.streams);
       const [remoteStream] = event.streams;
-      console.log(
-        "remoteStream tracks:",
-        remoteStream.getTracks().map((t) => ({
-          kind: t.kind,
-          enabled: t.enabled,
-          readyState: t.readyState,
-        })),
-      );
-
       const videoEl = remoteVideoRefs.current[participantId];
-      console.log("videoEl for", participantId, "=", videoEl);
-
       if (!videoEl) return;
 
       videoEl.srcObject = remoteStream;
-      console.log("videoEl.srcObject set for", participantId, videoEl.srcObject);
 
       setTimeout(() => {
-        videoEl
-          .play()
-          .then(() => console.log("videoEl.play() OK for", participantId))
-          .catch((err) => console.error("videoEl.play() error for", participantId, err));
+        videoEl.play().catch(() => {});
       }, 50);
       setTimeout(() => {
-        videoEl
-          .play()
-          .then(() => console.log("videoEl.play() second OK for", participantId))
-          .catch((err) => console.error("videoEl.play() second error for", participantId, err));
+        videoEl.play().catch(() => {});
       }, 300);
     };
 
@@ -259,7 +277,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     let pc = peerConnectionsRef.current[from];
     if (!pc) {
-      console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
       pc = createPeerConnection(from);
     }
 
