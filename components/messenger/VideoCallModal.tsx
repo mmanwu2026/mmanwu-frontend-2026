@@ -209,15 +209,22 @@ const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection =
       onNotify(`Connection with ${participantId} established`);
     }
 
-    // ⭐ ONLY restart on true failure, not on "disconnected"
+    // ⭐ Restart ONLY on true ICE failure
     if (state === "failed") {
-      onNotify(`Connection with ${participantId} failed — restarting ICE`);
+      onNotify(`ICE connection with ${participantId} failed — restarting ICE`);
       restartIceForParticipant(participantId);
     }
   };
 
   pc.onconnectionstatechange = () => {
-    console.log("PC CONNECTION STATE for", participantId, "=>", pc.connectionState);
+    const state = pc.connectionState;
+    console.log("PC CONNECTION STATE for", participantId, "=>", state);
+
+    // ⭐ Transport-level failure also triggers restart
+    if (state === "failed") {
+      onNotify(`Transport with ${participantId} failed — restarting ICE`);
+      restartIceForParticipant(participantId);
+    }
   };
 
   pc.ontrack = (event) => {
