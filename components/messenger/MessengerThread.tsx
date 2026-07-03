@@ -348,18 +348,19 @@ export default function MessengerThread({
 
       {/* Video Call Modal */}
       <VideoCallModal
-        isOpen={callModalOpen}
-        onClose={() => {
-          setCallModalOpen(false);
-          setCallActive(false);
-          resetSignaling(); // ⭐ CRITICAL FIX
-        }}
-        signaling={signalingState}
-        onSendOffer={signalingState.sendOffer}
-        onSendAnswer={signalingState.sendAnswer}
-        onSendCandidate={signalingState.sendCandidate}
-        onNotify={(msg) => console.log("NOTIFY:", msg)}
-      />
+  isOpen={callModalOpen}
+  callActive={callActive}   // ⭐ ADD THIS
+  onClose={() => {
+    setCallModalOpen(false);
+    setCallActive(false);
+    resetSignaling();
+  }}
+  signaling={signalingState}
+  onSendOffer={signalingState.sendOffer}
+  onSendAnswer={signalingState.sendAnswer}
+  onSendCandidate={signalingState.sendCandidate}
+  onNotify={(msg) => console.log("NOTIFY:", msg)}
+/>
     </div>
   );
 }

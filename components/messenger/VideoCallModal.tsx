@@ -12,6 +12,7 @@ type SignalingState = {
 
 type VideoCallModalProps = {
   isOpen: boolean;
+  callActive: boolean;
   signaling: SignalingState;
   onSendOffer: (to: ParticipantId, offer: RTCSessionDescriptionInit) => void;
   onSendAnswer: (to: ParticipantId, answer: RTCSessionDescriptionInit) => void;
@@ -41,6 +42,7 @@ const iceConfig = {
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
   isOpen,
+  callActive,
   signaling,
   onSendOffer,
   onSendAnswer,
@@ -312,44 +314,66 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     }
   };
 
-  // ---------- EFFECTS ----------
+// ---------- EFFECTS ----------
 
-  useEffect(() => {
-    if (!isOpen) return;
+useEffect(() => {
+  if (!isOpen) return;
 
-    if (signaling.isCaller && signaling.participants.length > 0) {
-      startCallAsCaller();
-    }
-  }, [isOpen, signaling.isCaller, signaling.participants.length]);
+  if (signaling.isCaller && signaling.participants.length > 0) {
+    startCallAsCaller();
+  }
+}, [isOpen, signaling.isCaller, signaling.participants.length]);
 
-  useEffect(() => {
-    if (!isOpen) return;
+useEffect(() => {
+  if (!isOpen) return;
 
-    // Callee: collect offers so "Answer" button can show
-    if (!signaling.isCaller) {
-      setIncomingOffers((prev) => {
-        const next = { ...prev };
-        Object.entries(signaling.offers).forEach(([from, offer]) => {
-          if (!next[from]) {
-            next[from] = offer;
-          }
-        });
-        return next;
+  // -------------------------------
+  // 1) CALLEE LOGIC
+  // -------------------------------
+  if (!signaling.isCaller) {
+
+    // Update incomingOffers so the Answer button appears
+    setIncomingOffers(prev => {
+      const next = { ...prev };
+      Object.entries(signaling.offers).forEach(([from, offer]) => {
+        if (!next[from]) next[from] = offer;
       });
-    }
-
-    // Caller: process answers
-    if (signaling.isCaller) {
-      Object.entries(signaling.answers).forEach(([from, answer]) => {
-        handleIncomingAnswer(from, answer);
-      });
-    }
-
-    // Both: process candidates
-    Object.entries(signaling.candidates).forEach(([from, list]) => {
-      list.forEach((c) => handleIncomingCandidate(from, c));
+      return next;
     });
-  }, [isOpen, signaling.offers, signaling.answers, signaling.candidates, signaling.isCaller]);
+
+    // OPTIONAL: Auto-answer ONLY if already in a call (reconnect)
+    // This prevents auto-answering the *initial* incoming call.
+    if (callActive) {
+      Object.entries(signaling.offers).forEach(([from, offer]) => {
+        handleIncomingOffer(from, offer);
+      });
+    }
+  }
+
+  // -------------------------------
+  // 2) CALLER LOGIC
+  // -------------------------------
+  if (signaling.isCaller) {
+    Object.entries(signaling.answers).forEach(([from, answer]) => {
+      handleIncomingAnswer(from, answer);
+    });
+  }
+
+  // -------------------------------
+  // 3) ICE CANDIDATES (both sides)
+  // -------------------------------
+  Object.entries(signaling.candidates).forEach(([from, list]) => {
+    list.forEach(c => handleIncomingCandidate(from, c));
+  });
+
+}, [
+  isOpen,
+  signaling.offers,
+  signaling.answers,
+  signaling.candidates,
+  signaling.isCaller,
+  callActive
+]);
 
   // ---------- CONTROLS & CLEANUP ----------
 
