@@ -74,6 +74,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   // ---------- LOCAL MEDIA ----------
 
   const setupLocalStream = async () => {
+    // If we already have a stream, just reattach it safely
     if (localStreamRef.current) {
       if (localVideoRef.current && localVideoRef.current.isConnected) {
         localVideoRef.current.srcObject = localStreamRef.current;
@@ -93,6 +94,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       });
       localStreamRef.current = stream;
 
+      // PATCH #2 — LOCAL STREAM DEBUGGER
       console.log(
         "LOCAL STREAM TRACKS",
         stream.getTracks().map((t) => ({
@@ -189,6 +191,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     pc.ontrack = (event) => {
       const [remoteStream] = event.streams;
 
+      // PATCH #1
       console.log(
         "REMOTE STREAM TRACKS for",
         participantId,
@@ -198,6 +201,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           readyState: t.readyState,
         }))
       );
+
       const videoEl = remoteVideoRefs.current[participantId];
       console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
@@ -207,8 +211,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         return;
       }
 
-      videoEl.muted = true;
-      videoEl.srcObject = remoteStream;
+      // Avoid re-attaching the same stream repeatedly
+      if (videoEl.srcObject !== remoteStream) {
+        videoEl.muted = true; // key for autoplay
+        videoEl.srcObject = remoteStream;
+      }
+
+      if (!isOpen) return;
 
       videoEl
         .play()
@@ -216,6 +225,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           console.warn("REMOTE: video play error (ontrack immediate)", err)
         );
 
+      // Extra retries, but only if element is still connected
       setTimeout(() => {
         const el = remoteVideoRefs.current[participantId];
         if (!isOpen || !el || !el.isConnected) return;
@@ -251,6 +261,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     for (const participantId of participants) {
       const pc = createPeerConnection(participantId);
+
+      // add tracks first, then create offer
       attachTracksToPC(pc, participantId);
 
       if (signaling.isCaller && !signaling.offers[participantId]) {
@@ -371,7 +383,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     if (!signaling.isCaller) return;
+
+    // Wait until participants actually exist
     if (signaling.participants.length === 0) return;
+
+    // Prevent early or duplicate call starts
     if (hasStartedCallRef.current) return;
 
     startCallAsCaller();
@@ -504,10 +520,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   // ---------- PARTICIPANTS ----------
 
   const participants = signaling.isCaller
-    ? Object.keys(peerConnectionsRef.current)
+    ? signaling.participants
     : Object.keys(incomingOffers).length > 0
-        ? Object.keys(incomingOffers)
-        : Object.keys(peerConnectionsRef.current);
+    ? Object.keys(incomingOffers)
+    : Object.keys(peerConnectionsRef.current);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -564,17 +580,24 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
                     const stream = pendingRemoteStreamsRef.current[pid];
                     if (el && el.isConnected && stream) {
                       console.log("ATTACHING buffered stream for", pid);
-                      el.muted = true;
-                      el.srcObject = stream;
-                      el
-                        .play()
-                        .catch((err) =>
-                          console.warn("CALLER: video play error (ref attach)", err)
-                        );
+                      if (el.srcObject !== stream) {
+                        el.muted = true; // key for autoplay
+                        el.srcObject = stream;
+                      }
+                      if (isOpen) {
+                        el
+                          .play()
+                          .catch((err) =>
+                            console.warn(
+                              "CALLER: video play error (ref attach)",
+                              err
+                            )
+                          );
+                      }
                       delete pendingRemoteStreamsRef.current[pid];
                     }
                   }}
-                  muted
+                  muted // always muted for autoplay
                   playsInline
                   autoPlay
                   className="w-full h-40 bg-black rounded"
