@@ -150,17 +150,18 @@ const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection =
   const pc = new RTCPeerConnection(iceConfig);
   peerConnectionsRef.current[participantId] = pc;
 
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      const candInit: RTCIceCandidateInit = {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid ?? undefined,
-        sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
-        usernameFragment: (event.candidate as any).usernameFragment,
-      };
-      onSendCandidate(participantId, candInit);
-    }
-  };
+ pc.onicecandidate = (event) => {
+  if (event.candidate) {
+    console.log("LOCAL ICE candidate for", participantId, "=>", event.candidate);
+    const candInit: RTCIceCandidateInit = {
+      candidate: event.candidate.candidate,
+      sdpMid: event.candidate.sdpMid ?? undefined,
+      sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
+      usernameFragment: (event.candidate as any).usernameFragment,
+    };
+    onSendCandidate(participantId, candInit);
+  }
+};
 
   pc.oniceconnectionstatechange = () => {
     const state = pc.iceConnectionState;
@@ -308,6 +309,8 @@ const handleIncomingCandidate = async (
   from: ParticipantId,
   candidateInit: RTCIceCandidateInit,
 ) => {
+  console.log("REMOTE ICE candidate for", from, "=>", candidateInit);
+
   const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${
     candidateInit.sdpMLineIndex ?? ""
   }`;
