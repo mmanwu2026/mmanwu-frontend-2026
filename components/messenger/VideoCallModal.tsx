@@ -483,8 +483,6 @@ useEffect(() => {
     onClose();
   };
 
-  if (!isOpen) return null;
-
   const participants = signaling.participants;
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -492,6 +490,8 @@ useEffect(() => {
 useEffect(() => {
   console.log("CALLER participants array:", participants);
 }, [participants]);
+
+if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
