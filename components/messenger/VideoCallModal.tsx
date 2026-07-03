@@ -250,28 +250,32 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     return pc;
   };
 
-  const startCallAsCaller = async () => {
-    if (hasStartedCallRef.current) return;
-    hasStartedCallRef.current = true;
+const startCallAsCaller = async () => {
+  if (hasStartedCallRef.current) return;
+  hasStartedCallRef.current = true;
 
-    const { participants } = signaling;
+  // WAIT for local stream to be fully ready
+  await setupLocalStream();
+  if (!localStreamRef.current) {
+    console.error("Caller has NO local stream — aborting call start");
+    return;
+  }
 
-    await setupLocalStream();
-    onNotify("Call started");
+  onNotify("Call started");
 
-    for (const participantId of participants) {
-      const pc = createPeerConnection(participantId);
+  for (const participantId of signaling.participants) {
+    // Create PC AFTER stream exists
+    const pc = createPeerConnection(participantId);
 
-      // add tracks first, then create offer
-      attachTracksToPC(pc, participantId);
+    // Attach tracks AFTER PC is created
+    attachTracksToPC(pc, participantId);
 
-      if (signaling.isCaller && !signaling.offers[participantId]) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        onSendOffer(participantId, offer);
-      }
-    }
-  };
+    // Create offer AFTER tracks are attached
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    onSendOffer(participantId, offer);
+  }
+};
 
   // ---------- INCOMING SIGNALING ----------
 
@@ -519,11 +523,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   // ---------- PARTICIPANTS ----------
 
-  const participants = signaling.isCaller
-    ? signaling.participants
-    : Object.keys(incomingOffers).length > 0
-    ? Object.keys(incomingOffers)
-    : Object.keys(peerConnectionsRef.current);
+const participants = signaling.isCaller
+  ? Object.keys(peerConnectionsRef.current)
+  : Object.keys(incomingOffers).length > 0
+      ? Object.keys(incomingOffers)
+      : Object.keys(peerConnectionsRef.current);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
