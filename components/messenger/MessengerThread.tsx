@@ -31,6 +31,7 @@ export default function MessengerThread({
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
 
+  // ⭐ SIGNALING STATE
   const [signalingState, setSignalingState] = useState({
     isCaller: false,
     roomId: finalRoomId,
@@ -72,6 +73,18 @@ export default function MessengerThread({
       });
     },
   });
+
+  // ⭐ RESET SIGNALING BETWEEN CALLS
+  function resetSignaling() {
+    setSignalingState(prev => ({
+      ...prev,
+      isCaller: false,
+      participants: [],
+      offers: {},
+      answers: {},
+      candidates: {},
+    }));
+  }
 
   async function loadMessages() {
     const { data } = await supabase
@@ -123,12 +136,13 @@ export default function MessengerThread({
   // Incoming call auto-open
   useEffect(() => {
     if (isIncoming) {
+      resetSignaling(); // ⭐ ensure clean state
       setCallActive(true);
       setCallModalOpen(true);
     }
   }, [isIncoming]);
 
-  // ⭐ Realtime subscription (SIGNALING HIDDEN)
+  // ⭐ REALTIME SIGNALING SUBSCRIPTION
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -157,7 +171,7 @@ export default function MessengerThread({
             });
           }
 
-          // ⭐ SIGNALING ROUTING (hidden from chat)
+          // ⭐ SIGNALING ROUTING
           if (
             msg.message_type === "call_offer" ||
             msg.message_type === "call_answer" ||
@@ -205,6 +219,7 @@ export default function MessengerThread({
           // Auto-open modal for callee
           if (msg.message_type === "call_offer") {
             if (msg.sender_id !== userId) {
+              resetSignaling(); // ⭐ ensure clean state
               setSignalingState((prev) => ({
                 ...prev,
                 isCaller: false,
@@ -240,6 +255,7 @@ export default function MessengerThread({
   }
 
   function joinCall() {
+    resetSignaling(); // ⭐ clean state before joining
     setCallModalOpen(true);
   }
 
@@ -251,6 +267,8 @@ export default function MessengerThread({
           .filter((id: string) => id && id !== userId)
       )
     );
+
+    resetSignaling(); // ⭐ clean state before starting
 
     setSignalingState((prev) => ({
       ...prev,
@@ -334,6 +352,7 @@ export default function MessengerThread({
         onClose={() => {
           setCallModalOpen(false);
           setCallActive(false);
+          resetSignaling(); // ⭐ CRITICAL FIX
         }}
         signaling={signalingState}
         onSendOffer={signalingState.sendOffer}
