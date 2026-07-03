@@ -192,51 +192,43 @@ pc.ontrack = (event) => {
     }))
   );
 
-  const videoEl = remoteVideoRefs.current[participantId];
-  console.log("REMOTE videoEl for", participantId, "=>", videoEl);
+const videoEl = remoteVideoRefs.current[participantId];
+console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
-  // If the video element isn't mounted yet, buffer the stream and exit
-  if (!videoEl || !videoEl.isConnected) {
-    console.warn(
-      "no connected video element for",
-      participantId,
-      "— buffering stream"
-    );
-    pendingRemoteStreamsRef.current[participantId] = remoteStream;
-    return;
-  }
+if (!videoEl || !videoEl.isConnected) {
+  console.warn("no connected video element for", participantId, "— buffering stream");
+  pendingRemoteStreamsRef.current[participantId] = remoteStream;
+  return;
+}
 
-  // Attach stream immediately
-  videoEl.srcObject = remoteStream;
+videoEl.muted = true; // <-- ensure muted before play
+videoEl.srcObject = remoteStream;
 
-  // Play immediately (Promise-based catch prevents uncaught AbortError)
-  videoEl
+videoEl
+  .play()
+  .catch((err) =>
+    console.warn("REMOTE: video play error (ontrack immediate)", err)
+ );
+
+setTimeout(() => {
+  const el = remoteVideoRefs.current[participantId];
+  if (!isOpen || !el || !el.isConnected) return;
+  el
     .play()
     .catch((err) =>
-      console.warn("REMOTE: video play error (ontrack immediate)", err)
+      console.warn("REMOTE: video play error (50ms)", err)
     );
+}, 50);
 
-  // Retry after 50ms
-  setTimeout(() => {
-    const el = remoteVideoRefs.current[participantId];
-    if (!isOpen || !el || !el.isConnected) return;
-    el
-      .play()
-      .catch((err) =>
-        console.warn("REMOTE: video play error (50ms)", err)
-      );
-  }, 50);
-
-  // Retry after 300ms
-  setTimeout(() => {
-    const el = remoteVideoRefs.current[participantId];
-    if (!isOpen || !el || !el.isConnected) return;
-    el
-      .play()
-      .catch((err) =>
-        console.warn("REMOTE: video play error (300ms)", err)
-      );
-  }, 300);
+setTimeout(() => {
+  const el = remoteVideoRefs.current[participantId];
+  if (!isOpen || !el || !el.isConnected) return;
+  el
+    .play()
+    .catch((err) =>
+      console.warn("REMOTE: video play error (300ms)", err)
+    );
+}, 300);
 };
 
     return pc;
@@ -564,26 +556,27 @@ useEffect(() => {
                 </span>
 
                 <video
-                  ref={(el) => {
-                    remoteVideoRefs.current[pid] = el;
+  ref={(el) => {
+    remoteVideoRefs.current[pid] = el;
 
-                    const stream = pendingRemoteStreamsRef.current[pid];
-                    if (el && el.isConnected && stream) {
-                      console.log("ATTACHING buffered stream for", pid);
-                      el.srcObject = stream;
-                      try {
-                        el.play();
-                      } catch (err) {
-                        console.warn("CALLER: video play error (ref attach)", err);
-                      }
-                      delete pendingRemoteStreamsRef.current[pid];
-                    }
-                  }}
-                  muted={isMobile}
-                  playsInline
-                  autoPlay
-                  className="w-full h-40 bg-black rounded"
-                />
+    const stream = pendingRemoteStreamsRef.current[pid];
+    if (el && el.isConnected && stream) {
+      console.log("ATTACHING buffered stream for", pid);
+      el.muted = true; // <-- key for autoplay
+      el.srcObject = stream;
+      el
+        .play()
+        .catch((err) =>
+          console.warn("CALLER: video play error (ref attach)", err)
+        );
+      delete pendingRemoteStreamsRef.current[pid];
+    }
+  }}
+  muted // <-- always muted, not just mobile
+  playsInline
+  autoPlay
+  className="w-full h-40 bg-black rounded"
+/>
 
                 <div className="mt-1 flex gap-2">
                   <button
