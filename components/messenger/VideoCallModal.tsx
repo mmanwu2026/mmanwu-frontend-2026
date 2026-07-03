@@ -135,6 +135,16 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         pc.addTrack(track, stream);
       }
     });
+
+    console.log(
+      "ATTACHED LOCAL TRACKS for",
+      participantId,
+      stream.getTracks().map((t) => ({
+        kind: t.kind,
+        enabled: t.enabled,
+        readyState: t.readyState,
+      }))
+    );
   };
 
   // ---------- CALLER-ONLY ICE RESTART ----------
@@ -212,6 +222,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         videoEl.muted = true;
         videoEl.srcObject = remoteStream;
       }
+
+      console.log("REMOTE srcObject for", participantId, videoEl.srcObject);
 
       if (!isOpen) return;
 
@@ -305,7 +317,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     onNotify(`Call answered for ${from}`);
 
-    // AFTER answering, we can safely remove the offer.
     setIncomingOffers((prev) => {
       const next = { ...prev };
       delete next[from];
@@ -395,7 +406,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    // CALLEE: only populate incomingOffers; do NOT auto-answer.
     if (!signaling.isCaller) {
       setIncomingOffers((prev) => {
         const next = { ...prev };
@@ -406,14 +416,12 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       });
     }
 
-    // CALLER: process answers.
     if (signaling.isCaller) {
       Object.entries(signaling.answers).forEach(([from, answer]) => {
         handleIncomingAnswer(from, answer);
       });
     }
 
-    // ICE candidates for both sides.
     Object.entries(signaling.candidates).forEach(([from, list]) => {
       list.forEach((c) => handleIncomingCandidate(from, c));
     });
@@ -472,7 +480,15 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     if (!offer) return;
 
     await handleIncomingOffer(participantId, offer);
-    // offer is removed inside handleIncomingOffer
+
+    const el = remoteVideoRefs.current[participantId];
+    if (el) {
+      el
+        .play()
+        .catch((err) =>
+          console.warn("REMOTE: video play error (after Answer click)", err)
+        );
+    }
   };
 
   const handleClose = () => {
@@ -566,6 +582,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
                     remoteVideoRefs.current[pid] = el;
 
                     const stream = pendingRemoteStreamsRef.current[pid];
+                    console.log("REF ATTACH for", pid, "stream =>", stream);
+
                     if (el && el.isConnected && stream) {
                       console.log("ATTACHING buffered stream for", pid);
                       if (el.srcObject !== stream) {
