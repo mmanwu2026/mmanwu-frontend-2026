@@ -59,7 +59,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
 
-  // incoming offers that require explicit user answer
   const [incomingOffers, setIncomingOffers] = useState<
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
@@ -70,9 +69,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     if (localStreamRef.current) {
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStreamRef.current;
-        localVideoRef.current
-          .play()
-          .catch((err) => console.error("localVideoRef.play() error", err));
+        localVideoRef.current.play().catch(() => {});
       }
       return;
     }
@@ -86,9 +83,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
-        localVideoRef.current
-          .play()
-          .catch((err) => console.error("localVideoRef.play() error", err));
+        localVideoRef.current.play().catch(() => {});
       }
 
       onNotify("Camera and microphone started");
@@ -143,40 +138,20 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       }
     };
 
-    pc.onconnectionstatechange = () => {
-      // silent; no signaling UI
-    };
+    pc.onconnectionstatechange = () => {};
 
     pc.ontrack = (event) => {
       console.log("ontrack FIRED for", participantId, event.streams);
       const [remoteStream] = event.streams;
       const videoEl = remoteVideoRefs.current[participantId];
-      if (videoEl) {
-        if (videoEl.srcObject !== remoteStream) {
-          videoEl.srcObject = remoteStream;
-        }
+      if (!videoEl) return;
 
-        setTimeout(() => {
-          const playPromise = videoEl.play();
-          if (playPromise && typeof playPromise.then === "function") {
-            playPromise
-              .then(() => {
-                console.log("remote video play() called for", participantId);
-              })
-              .catch((err) => {
-                if (err.name === "AbortError") {
-                  console.log(
-                    "remote video play() AbortError for",
-                    participantId,
-                    "- likely due to srcObject change; ignoring"
-                  );
-                } else {
-                  console.error("remote video play() error for", participantId, err);
-                }
-              });
-          }
-        }, 50);
-      }
+      // ⭐ ALWAYS set srcObject
+      videoEl.srcObject = remoteStream;
+
+      // ⭐ Double delayed play() for mobile autoplay
+      setTimeout(() => videoEl.play().catch(() => {}), 50);
+      setTimeout(() => videoEl.play().catch(() => {}), 300);
     };
 
     attachTracksToPC(pc, participantId);
@@ -196,6 +171,8 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     for (const participantId of participants) {
       const pc = createPeerConnection(participantId);
+
+      attachTracksToPC(pc, participantId);
 
       if (signaling.isCaller && !signaling.offers[participantId]) {
         const offer = await pc.createOffer();
@@ -218,11 +195,9 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     await setupLocalStream();
 
     const pc = createPeerConnection(from);
-    
-    // 🔴 ensure tracks are attached here too
-attachTracksToPC(pc, from);
+    attachTracksToPC(pc, from);
 
-await pc.setRemoteDescription(offer);
+    await pc.setRemoteDescription(offer);
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
@@ -314,7 +289,6 @@ await pc.setRemoteDescription(offer);
   useEffect(() => {
     if (!isOpen) return;
 
-    // collect incoming offers for callee, but DO NOT auto-answer
     if (!signaling.isCaller) {
       setIncomingOffers((prev) => {
         const next = { ...prev };
@@ -327,14 +301,12 @@ await pc.setRemoteDescription(offer);
       });
     }
 
-    // answers (caller side)
     if (signaling.isCaller) {
       Object.entries(signaling.answers).forEach(([from, answer]) => {
         handleIncomingAnswer(from, answer);
       });
     }
 
-    // candidates (both sides)
     Object.entries(signaling.candidates).forEach(([from, list]) => {
       list.forEach((c) => handleIncomingCandidate(from, c));
     });
@@ -460,10 +432,9 @@ await pc.setRemoteDescription(offer);
                 </span>
                 <video
                   ref={(el) => {
-                    if (el && !remoteVideoRefs.current[pid]) {
-                      remoteVideoRefs.current[pid] = el;
-                    }
+                    remoteVideoRefs.current[pid] = el;
                   }}
+                  muted
                   playsInline
                   autoPlay
                   className="w-full h-40 bg-black rounded"
