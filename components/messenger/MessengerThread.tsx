@@ -171,72 +171,75 @@ const channel = supabase
         });
       }
 
-      // ⭐ SIGNALING ROUTING
-      if (
-        msg.message_type === "call_offer" ||
-        msg.message_type === "call_answer" ||
-        msg.message_type === "ice_candidate"
-      ) {
-        setSignalingState((prev) => {
-          const participants = Array.from(
-            new Set(
-              [
-                ...prev.participants,
-                msg.sender_id,
-                msg.receiver_id,
-              ].filter(Boolean)
-            )
-          );
+// ⭐ SIGNALING ROUTING
+if (
+  msg.message_type === "call_offer" ||
+  msg.message_type === "call_answer" ||
+  msg.message_type === "ice_candidate"
+) {
+  setSignalingState((prev) => {
 
-          const next = { ...prev, participants };
+    // ⭐ FIX: participants must ONLY include real user IDs
+    const participants = Array.from(
+      new Set(
+        [
+          ...prev.participants,
+          msg.sender_id,
+          msg.receiver_id,
+        ].filter((id) => id && id !== userId) // remove null + self
+      )
+    );
 
-          // ⭐ Offers (initial + ICE restart)
-          if (msg.message_type === "call_offer" && msg.metadata?.offer) {
-            next.offers = {
-              ...prev.offers,
-              [msg.sender_id]: msg.metadata.offer,
-            };
-          }
+    const next = { ...prev, participants };
 
-          // ⭐ Answers
-          if (msg.message_type === "call_answer" && msg.metadata?.answer) {
-            next.answers = {
-              ...prev.answers,
-              [msg.sender_id]: msg.metadata.answer,
-            };
-          }
+    // ⭐ Offers (initial + ICE restart)
+    if (msg.message_type === "call_offer" && msg.metadata?.offer) {
+      next.offers = {
+        ...prev.offers,
+        [msg.sender_id]: msg.metadata.offer,
+      };
+    }
 
-          // ⭐ ICE candidates
-          if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-            const existing = prev.candidates[msg.sender_id] || [];
-            next.candidates = {
-              ...prev.candidates,
-              [msg.sender_id]: [...existing, msg.metadata.candidate],
-            };
-          }
+    // ⭐ Answers
+    if (msg.message_type === "call_answer" && msg.metadata?.answer) {
+      next.answers = {
+        ...prev.answers,
+        [msg.sender_id]: msg.metadata.answer,
+      };
+    }
 
-          return next;
-        });
-      }
+    // ⭐ ICE candidates
+    if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
+      const existing = prev.candidates[msg.sender_id] || [];
+      next.candidates = {
+        ...prev.candidates,
+        [msg.sender_id]: [...existing, msg.metadata.candidate],
+      };
+    }
 
-      // ⭐ Auto-open modal for callee ONLY for the FIRST offer
-      if (msg.message_type === "call_offer") {
-        if (msg.sender_id !== userId) {
+    return next;
+  });
+}
 
-          if (!callActive) {
-            setSignalingState(prev => ({
-              ...prev,
-              isCaller: false,
-            }));
+// ⭐ Auto-open modal ONLY for the FIRST offer
+if (msg.message_type === "call_offer") {
+  if (msg.sender_id !== userId) {
 
-            setCallActive(true);
-            setCallModalOpen(true);
-          }
+    if (!callActive) {
+      setSignalingState(prev => ({
+        ...prev,
+        isCaller: false,
+      }));
 
-          // ⭐ If already in a call, DO NOT reset modal or state.
-          // The ICE restart offer will flow into signaling.offers normally.
-        }
-      }
+      setCallActive(true);
+      setCallModalOpen(true);
+    }
+
+    // ⭐ If already in a call, DO NOT reset modal or state.
+    // The ICE restart offer will flow into signaling.offers normally.
+  }
+}
+
     }
   )
   .subscribe();
