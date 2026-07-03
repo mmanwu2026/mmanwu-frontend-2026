@@ -404,35 +404,37 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   }, [isOpen, signaling.isCaller, signaling.participants.length]);
 
   useEffect(() => {
-    if (!isOpen) return;
+  if (!isOpen) return;
 
-    if (!signaling.isCaller) {
-      setIncomingOffers((prev) => {
-        const next = { ...prev };
-        Object.entries(signaling.offers).forEach(([from, offer]) => {
-          if (!next[from]) next[from] = offer;
-        });
-        return next;
+  // CALLEE LOGIC — always track offers, do not gate on callActive
+  if (!signaling.isCaller) {
+    setIncomingOffers((prev) => {
+      const next = { ...prev };
+      Object.entries(signaling.offers).forEach(([from, offer]) => {
+        next[from] = offer;
       });
-    }
-
-    if (signaling.isCaller) {
-      Object.entries(signaling.answers).forEach(([from, answer]) => {
-        handleIncomingAnswer(from, answer);
-      });
-    }
-
-    Object.entries(signaling.candidates).forEach(([from, list]) => {
-      list.forEach((c) => handleIncomingCandidate(from, c));
+      return next;
     });
-  }, [
-    isOpen,
-    signaling.offers,
-    signaling.answers,
-    signaling.candidates,
-    signaling.isCaller,
-    callActive,
-  ]);
+  }
+
+  // CALLER LOGIC — process answers as they arrive
+  if (signaling.isCaller) {
+    Object.entries(signaling.answers).forEach(([from, answer]) => {
+      handleIncomingAnswer(from, answer);
+    });
+  }
+
+  // ICE CANDIDATES — both sides
+  Object.entries(signaling.candidates).forEach(([from, list]) => {
+    list.forEach((c) => handleIncomingCandidate(from, c));
+  });
+}, [
+  isOpen,
+  signaling.offers,
+  signaling.answers,
+  signaling.candidates,
+  signaling.isCaller,
+]);
 
   useEffect(() => {
     console.log("VideoCallModal sees signaling.offers:", signaling.offers);
