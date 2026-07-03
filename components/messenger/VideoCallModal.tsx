@@ -21,7 +21,7 @@ type VideoCallModalProps = {
   onClose: () => void;
 };
 
-const iceConfig = {
+const iceConfig: RTCConfiguration = {
   iceServers: [
     { urls: ["stun:us-turn8.xirsys.com"] },
     {
@@ -38,6 +38,9 @@ const iceConfig = {
       ],
     },
   ],
+
+  // ⭐ FORCE TURN — required for reconnect to work
+  iceTransportPolicy: "relay",
 };
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
@@ -342,7 +345,6 @@ useEffect(() => {
     });
 
     // OPTIONAL: Auto-answer ONLY if already in a call (reconnect)
-    // This prevents auto-answering the *initial* incoming call.
     if (callActive) {
       Object.entries(signaling.offers).forEach(([from, offer]) => {
         handleIncomingOffer(from, offer);
@@ -374,6 +376,16 @@ useEffect(() => {
   signaling.isCaller,
   callActive
 ]);
+
+// ⭐ DEBUG: See when VideoCallModal receives new offers
+useEffect(() => {
+  console.log("VideoCallModal sees signaling.offers:", signaling.offers);
+}, [signaling.offers]);
+
+// ⭐ DEBUG: See when incomingOffers updates (Answer button source)
+useEffect(() => {
+  console.log("VideoCallModal incomingOffers:", incomingOffers);
+}, [incomingOffers]);
 
   // ---------- CONTROLS & CLEANUP ----------
 

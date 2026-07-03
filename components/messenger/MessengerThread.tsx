@@ -222,9 +222,19 @@ if (
 }
 
 // ⭐ Auto-open modal ONLY for the FIRST offer
+// Auto-open modal for callee ONLY for the FIRST offer
 if (msg.message_type === "call_offer") {
   if (msg.sender_id !== userId) {
 
+    // ⭐ DEBUG: Log every offer the callee receives (initial + restart)
+    console.log("CALLEE RECEIVED OFFER:", {
+      from: msg.sender_id,
+      offer: msg.metadata?.offer,
+      callActive,
+      signalingStateBefore: signalingState
+    });
+
+    // ⭐ Only auto-open modal if NOT already in a call
     if (!callActive) {
       setSignalingState(prev => ({
         ...prev,
