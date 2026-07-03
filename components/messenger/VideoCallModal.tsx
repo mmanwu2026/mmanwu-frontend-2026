@@ -140,19 +140,34 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     pc.onconnectionstatechange = () => {};
 
-    pc.ontrack = (event) => {
-      console.log("ontrack FIRED for", participantId, event.streams);
-      const [remoteStream] = event.streams;
-      const videoEl = remoteVideoRefs.current[participantId];
-      if (!videoEl) return;
+pc.ontrack = (event) => {
+  console.log("ontrack FIRED for", participantId, event.streams);
+  const [remoteStream] = event.streams;
+  console.log("remoteStream tracks:", remoteStream.getTracks().map(t => ({
+    kind: t.kind,
+    enabled: t.enabled,
+    readyState: t.readyState,
+  })));
 
-      // ⭐ ALWAYS set srcObject
-      videoEl.srcObject = remoteStream;
+  const videoEl = remoteVideoRefs.current[participantId];
+  console.log("videoEl for", participantId, "=", videoEl);
 
-      // ⭐ Double delayed play() for mobile autoplay
-      setTimeout(() => videoEl.play().catch(() => {}), 50);
-      setTimeout(() => videoEl.play().catch(() => {}), 300);
-    };
+  if (!videoEl) return;
+
+  videoEl.srcObject = remoteStream;
+  console.log("videoEl.srcObject set for", participantId, videoEl.srcObject);
+
+  setTimeout(() => {
+    videoEl.play()
+      .then(() => console.log("videoEl.play() OK for", participantId))
+      .catch(err => console.error("videoEl.play() error for", participantId, err));
+  }, 50);
+  setTimeout(() => {
+    videoEl.play()
+      .then(() => console.log("videoEl.play() second OK for", participantId))
+      .catch(err => console.error("videoEl.play() second error for", participantId, err));
+  }, 300);
+};
 
     attachTracksToPC(pc, participantId);
 
