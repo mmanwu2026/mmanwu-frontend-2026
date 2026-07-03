@@ -22,15 +22,21 @@ type VideoCallModalProps = {
 
 const iceConfig = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
     {
+      urls: ["stun:us-turn8.xirsys.com"],
+    },
+    {
+      username:
+        "dbmO5NTrYER8pb4YZUw0FpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
+      credential: "38c296aa-767d-11f1-b766-0242ac140004",
       urls: [
-        "turn:openrelay.metered.ca:80",
-        "turn:openrelay.metered.ca:443",
-        "turn:openrelay.metered.ca:5349",
+        "turn:us-turn8.xirsys.com:80?transport=udp",
+        "turn:us-turn8.xirsys.com:3478?transport=udp",
+        "turn:us-turn8.xirsys.com:80?transport=tcp",
+        "turn:us-turn8.xirsys.com:3478?transport=tcp",
+        "turns:us-turn8.xirsys.com:443?transport=tcp",
+        "turns:us-turn8.xirsys.com:5349?transport=tcp",
       ],
-      username: "openrelayproject",
-      credential: "openrelayproject",
     },
   ],
 };
