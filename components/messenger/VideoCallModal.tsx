@@ -179,7 +179,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         pc.iceConnectionState === "disconnected"
       ) {
         onNotify(`Connection with ${participantId} lost`);
-        reconnectPeerConnection(participantId); // ⭐ REAL RECONNECT
       }
     };
 
