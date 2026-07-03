@@ -220,10 +220,10 @@ pc.onicecandidate = (event) => {
         return;
       }
 
-      if (videoEl.srcObject !== remoteStream) {
-        videoEl.muted = true;
-        videoEl.srcObject = remoteStream;
-      }
+if (videoEl.srcObject !== remoteStream) {
+  videoEl.srcObject = remoteStream;
+  videoEl.muted = !!speakerMuted[participantId]; // keep in sync
+}
 
       console.log("REMOTE srcObject for", participantId, videoEl.srcObject);
 
@@ -591,7 +591,7 @@ pc.onicecandidate = (event) => {
                     if (el && el.isConnected && stream) {
                       console.log("ATTACHING buffered stream for", pid);
                       if (el.srcObject !== stream) {
-                        el.muted = true;
+                    
                         el.srcObject = stream;
                       }
                       if (isOpen) {
