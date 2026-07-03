@@ -72,250 +72,268 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
-  // ---------- LOCAL MEDIA ----------
+// ---------- LOCAL MEDIA ----------
 
-  const setupLocalStream = async () => {
-    if (localStreamRef.current) {
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStreamRef.current;
-        localVideoRef.current.play().catch(() => {});
-      }
-      return;
+const setupLocalStream = async () => {
+  if (localStreamRef.current) {
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+      localVideoRef.current.play().catch(() => {});
     }
+    return;
+  }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-      localStreamRef.current = stream;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.play().catch(() => {});
-      }
-
-      onNotify("Camera and microphone started");
-    } catch (err) {
-      console.error("setupLocalStream ERROR", err);
-      onNotify("Failed to start camera/microphone");
-    }
-  };
-
-  const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
-    const stream = localStreamRef.current;
-    if (!stream) {
-      console.warn("attachTracksToPC: NO localStreamRef.current");
-      return;
-    }
-
-    const senders = pc.getSenders();
-    const existingTracks = new Set(senders.map((s) => s.track));
-    stream.getTracks().forEach((track) => {
-      if (!existingTracks.has(track)) {
-        pc.addTrack(track, stream);
-      }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
     });
+    localStreamRef.current = stream;
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+      localVideoRef.current.play().catch(() => {});
+    }
+
+    onNotify("Camera and microphone started");
+  } catch (err) {
+    console.error("setupLocalStream ERROR", err);
+    onNotify("Failed to start camera/microphone");
+  }
+};
+
+const attachTracksToPC = (pc: RTCPeerConnection, participantId: ParticipantId) => {
+  const stream = localStreamRef.current;
+  console.log("attachTracksToPC for", participantId, "stream:", stream);
+  if (!stream) {
+    console.warn("attachTracksToPC: NO localStreamRef.current");
+    return;
+  }
+
+  const senders = pc.getSenders();
+  const existingTracks = new Set(senders.map((s) => s.track));
+  stream.getTracks().forEach((track) => {
+    console.log("adding track", track.kind, "to", participantId);
+    if (!existingTracks.has(track)) {
+      pc.addTrack(track, stream);
+    }
+  });
+};
+
+// ---------- CALLER-ONLY ICE RESTART ----------
+
+const restartIceForParticipant = async (participantId: ParticipantId) => {
+  if (!signaling.isCaller) return; // only caller drives restart
+
+  const pc = peerConnectionsRef.current[participantId];
+  if (!pc) return;
+
+  try {
+    const offer = await pc.createOffer({ iceRestart: true });
+    await pc.setLocalDescription(offer);
+    onSendOffer(participantId, offer);
+    onNotify(`ICE restart offer sent to ${participantId}`);
+  } catch (err) {
+    console.error("restartIceForParticipant ERROR", participantId, err);
+    onNotify(`Failed to restart ICE with ${participantId}`);
+  }
+};
+
+// ---------- PEER CONNECTION MANAGEMENT ----------
+
+const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
+  let existing = peerConnectionsRef.current[participantId];
+  if (existing) {
+    return existing;
+  }
+
+  const pc = new RTCPeerConnection(iceConfig);
+  peerConnectionsRef.current[participantId] = pc;
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      const candInit: RTCIceCandidateInit = {
+        candidate: event.candidate.candidate,
+        sdpMid: event.candidate.sdpMid ?? undefined,
+        sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
+        usernameFragment: (event.candidate as any).usernameFragment,
+      };
+      onSendCandidate(participantId, candInit);
+    }
   };
 
-  // ---------- CALLER-ONLY ICE RESTART ----------
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState;
+    console.log("PC ICE STATE for", participantId, "=>", state);
 
-  const restartIceForParticipant = async (participantId: ParticipantId) => {
-    if (!signaling.isCaller) return; // only caller drives restart
+    if (state === "failed" || state === "disconnected") {
+      onNotify(`Connection with ${participantId} ${state}`);
+      restartIceForParticipant(participantId); // caller-only reconnect
+    }
+  };
 
-    const pc = peerConnectionsRef.current[participantId];
-    if (!pc) return;
+  pc.ontrack = (event) => {
+    console.log("CALLER: ontrack fired for", participantId, "streams:", event.streams);
+    const [remoteStream] = event.streams;
+    const videoEl = remoteVideoRefs.current[participantId];
+    if (!videoEl) {
+      console.warn("CALLER: no video element for", participantId);
+      return;
+    }
 
-    try {
-      const offer = await pc.createOffer({ iceRestart: true });
+    videoEl.srcObject = remoteStream;
+
+    setTimeout(() => {
+      videoEl.play().catch(err =>
+        console.warn("CALLER: video play error (50ms)", err)
+      );
+    }, 50);
+    setTimeout(() => {
+      videoEl.play().catch(err =>
+        console.warn("CALLER: video play error (300ms)", err)
+      );
+    }, 300);
+  };
+
+  return pc;
+};
+
+const startCallAsCaller = async () => {
+  if (hasStartedCallRef.current) return;
+  hasStartedCallRef.current = true;
+
+  const { participants } = signaling;
+
+  await setupLocalStream();
+
+  onNotify("Call started");
+
+  for (const participantId of participants) {
+    const pc = createPeerConnection(participantId);
+
+    attachTracksToPC(pc, participantId);
+
+    if (signaling.isCaller && !signaling.offers[participantId]) {
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       onSendOffer(participantId, offer);
-      onNotify(`ICE restart offer sent to ${participantId}`);
-    } catch (err) {
-      console.error("restartIceForParticipant ERROR", participantId, err);
-      onNotify(`Failed to restart ICE with ${participantId}`);
     }
-  };
+  }
+};
 
-  // ---------- PEER CONNECTION MANAGEMENT ----------
+const handleIncomingOffer = async (
+  from: ParticipantId,
+  offer: RTCSessionDescriptionInit,
+) => {
+  const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
+  if (handledOffersRef.current.has(key)) {
+    return;
+  }
+  handledOffersRef.current.add(key);
 
-  const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
-    let existing = peerConnectionsRef.current[participantId];
-    if (existing) {
-      return existing;
-    }
+  await setupLocalStream();
 
-    const pc = new RTCPeerConnection(iceConfig);
-    peerConnectionsRef.current[participantId] = pc;
+  let pc = peerConnectionsRef.current[from];
+  if (!pc) {
+    pc = createPeerConnection(from);
+  }
+  attachTracksToPC(pc, from);
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        const candInit: RTCIceCandidateInit = {
-          candidate: event.candidate.candidate,
-          sdpMid: event.candidate.sdpMid ?? undefined,
-          sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
-          usernameFragment: (event.candidate as any).usernameFragment,
-        };
-        onSendCandidate(participantId, candInit);
-      }
-    };
+  await pc.setRemoteDescription(offer);
 
-    pc.oniceconnectionstatechange = () => {
-      const state = pc.iceConnectionState;
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  onSendAnswer(from, answer);
 
-      if (state === "failed" || state === "disconnected") {
-        onNotify(`Connection with ${participantId} ${state}`);
-        restartIceForParticipant(participantId); // caller-only reconnect
-      }
-    };
-
-    pc.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      const videoEl = remoteVideoRefs.current[participantId];
-      if (!videoEl) return;
-
-      videoEl.srcObject = remoteStream;
-
-      setTimeout(() => {
-        videoEl.play().catch(() => {});
-      }, 50);
-      setTimeout(() => {
-        videoEl.play().catch(() => {});
-      }, 300);
-    };
-
-    return pc;
-  };
-
-  const startCallAsCaller = async () => {
-    if (hasStartedCallRef.current) return;
-    hasStartedCallRef.current = true;
-
-    const { participants } = signaling;
-
-    await setupLocalStream();
-
-    onNotify("Call started");
-
-    for (const participantId of participants) {
-      const pc = createPeerConnection(participantId);
-
-      attachTracksToPC(pc, participantId);
-
-      if (signaling.isCaller && !signaling.offers[participantId]) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        onSendOffer(participantId, offer);
+  const queued = pendingCandidatesRef.current[from] || [];
+  if (queued.length) {
+    for (const c of queued) {
+      try {
+        await pc.addIceCandidate(c);
+      } catch (err) {
+        console.error("handleIncomingOffer: addIceCandidate (queued) error", err);
       }
     }
-  };
+    delete pendingCandidatesRef.current[from];
+  }
 
-  const handleIncomingOffer = async (
-    from: ParticipantId,
-    offer: RTCSessionDescriptionInit,
-  ) => {
-    const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
-    if (handledOffersRef.current.has(key)) {
-      return;
-    }
-    handledOffersRef.current.add(key);
+  onNotify(`Call answered for ${from}`);
+};
 
-    await setupLocalStream();
+const handleIncomingAnswer = async (
+  from: ParticipantId,
+  answer: RTCSessionDescriptionInit,
+) => {
+  const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
+  if (handledAnswersRef.current.has(key)) {
+    return;
+  }
+  handledAnswersRef.current.add(key);
 
-    let pc = peerConnectionsRef.current[from];
-    if (!pc) {
-      pc = createPeerConnection(from);
-    }
-    attachTracksToPC(pc, from);
+  let pc = peerConnectionsRef.current[from];
+  if (!pc) {
+    console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
+    pc = createPeerConnection(from);
+  }
 
-    await pc.setRemoteDescription(offer);
+  try {
+    await pc.setRemoteDescription(answer);
+    console.log(
+      "CALLER: setRemoteDescription(success) for",
+      from,
+      "ICE state:",
+      pc.iceConnectionState
+    );
+  } catch (err) {
+    console.error("handleIncomingAnswer: setRemoteDescription ERROR", err);
+    return;
+  }
 
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    onSendAnswer(from, answer);
+  onNotify(`Answer received from ${from}`);
 
-    const queued = pendingCandidatesRef.current[from] || [];
-    if (queued.length) {
-      for (const c of queued) {
-        try {
-          await pc.addIceCandidate(c);
-        } catch (err) {
-          console.error("handleIncomingOffer: addIceCandidate (queued) error", err);
-        }
+  const queued = pendingCandidatesRef.current[from] || [];
+  if (queued.length) {
+    for (const c of queued) {
+      try {
+        await pc.addIceCandidate(c);
+      } catch (err) {
+        console.error("handleIncomingAnswer: addIceCandidate (queued) error", err);
       }
-      delete pendingCandidatesRef.current[from];
     }
+    delete pendingCandidatesRef.current[from];
+  }
+};
 
-    onNotify(`Call answered for ${from}`);
-  };
+const handleIncomingCandidate = async (
+  from: ParticipantId,
+  candidateInit: RTCIceCandidateInit,
+) => {
+  const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${
+    candidateInit.sdpMLineIndex ?? ""
+  }`;
+  if (handledCandidatesRef.current.has(key)) {
+    return;
+  }
+  handledCandidatesRef.current.add(key);
 
-  const handleIncomingAnswer = async (
-    from: ParticipantId,
-    answer: RTCSessionDescriptionInit,
-  ) => {
-    const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
-    if (handledAnswersRef.current.has(key)) {
-      return;
-    }
-    handledAnswersRef.current.add(key);
+  let pc = peerConnectionsRef.current[from];
+  if (!pc) {
+    pc = createPeerConnection(from);
+  }
 
-    let pc = peerConnectionsRef.current[from];
-    if (!pc) {
-      console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
-      pc = createPeerConnection(from);
-    }
+  if (!pc.remoteDescription) {
+    const existing = pendingCandidatesRef.current[from] || [];
+    pendingCandidatesRef.current[from] = [...existing, candidateInit];
+    return;
+  }
 
-    try {
-      await pc.setRemoteDescription(answer);
-    } catch (err) {
-      console.error("handleIncomingAnswer: setRemoteDescription ERROR", err);
-      return;
-    }
+  try {
+    await pc.addIceCandidate(candidateInit);
+  } catch (err) {
+    console.error("handleIncomingCandidate: addIceCandidate ERROR for", from, err);
+  }
+};
 
-    onNotify(`Answer received from ${from}`);
-
-    const queued = pendingCandidatesRef.current[from] || [];
-    if (queued.length) {
-      for (const c of queued) {
-        try {
-          await pc.addIceCandidate(c);
-        } catch (err) {
-          console.error("handleIncomingAnswer: addIceCandidate (queued) error", err);
-        }
-      }
-      delete pendingCandidatesRef.current[from];
-    }
-  };
-
-  const handleIncomingCandidate = async (
-    from: ParticipantId,
-    candidateInit: RTCIceCandidateInit,
-  ) => {
-    const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${
-      candidateInit.sdpMLineIndex ?? ""
-    }`;
-    if (handledCandidatesRef.current.has(key)) {
-      return;
-    }
-    handledCandidatesRef.current.add(key);
-
-    let pc = peerConnectionsRef.current[from];
-    if (!pc) {
-      pc = createPeerConnection(from);
-    }
-
-    if (!pc.remoteDescription) {
-      const existing = pendingCandidatesRef.current[from] || [];
-      pendingCandidatesRef.current[from] = [...existing, candidateInit];
-      return;
-    }
-
-    try {
-      await pc.addIceCandidate(candidateInit);
-    } catch (err) {
-      console.error("handleIncomingCandidate: addIceCandidate ERROR for", from, err);
-    }
-  };
 
 // ---------- EFFECTS ----------
 
