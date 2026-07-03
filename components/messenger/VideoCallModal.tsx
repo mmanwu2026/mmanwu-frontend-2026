@@ -113,41 +113,23 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     });
   };
 
-  // ---------- ⭐ RECONNECT LOGIC ----------
+  // ---------- CALLER-ONLY ICE RESTART ----------
 
-  const reconnectPeerConnection = async (participantId: ParticipantId) => {
-    onNotify(`Reconnecting with ${participantId}…`);
+  const restartIceForParticipant = async (participantId: ParticipantId) => {
+    if (!signaling.isCaller) return; // only caller drives restart
 
-    const pc = createPeerConnection(participantId);
-    attachTracksToPC(pc, participantId);
-
-    const offer = signaling.offers[participantId];
-    const answer = signaling.answers[participantId];
+    const pc = peerConnectionsRef.current[participantId];
+    if (!pc) return;
 
     try {
-      if (offer && !pc.remoteDescription) {
-        await pc.setRemoteDescription(offer);
-        const newAnswer = await pc.createAnswer();
-        await pc.setLocalDescription(newAnswer);
-        onSendAnswer(participantId, newAnswer);
-      }
-
-      if (answer && !pc.remoteDescription) {
-        await pc.setRemoteDescription(answer);
-      }
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      onSendOffer(participantId, offer);
+      onNotify(`ICE restart offer sent to ${participantId}`);
     } catch (err) {
-      console.error("Reconnect signaling error:", err);
+      console.error("restartIceForParticipant ERROR", participantId, err);
+      onNotify(`Failed to restart ICE with ${participantId}`);
     }
-
-    const queued = pendingCandidatesRef.current[participantId] || [];
-    for (const c of queued) {
-      try {
-        await pc.addIceCandidate(c);
-      } catch (err) {
-        console.error("Reconnect addIceCandidate error:", err);
-      }
-    }
-    delete pendingCandidatesRef.current[participantId];
   };
 
   // ---------- PEER CONNECTION MANAGEMENT ----------
@@ -174,11 +156,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (
-        pc.iceConnectionState === "failed" ||
-        pc.iceConnectionState === "disconnected"
-      ) {
-        onNotify(`Connection with ${participantId} lost`);
+      const state = pc.iceConnectionState;
+
+      if (state === "failed" || state === "disconnected") {
+        onNotify(`Connection with ${participantId} ${state}`);
+        restartIceForParticipant(participantId); // caller-only reconnect
       }
     };
 
@@ -196,8 +178,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         videoEl.play().catch(() => {});
       }, 300);
     };
-
-    attachTracksToPC(pc, participantId);
 
     return pc;
   };
@@ -276,10 +256,17 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     let pc = peerConnectionsRef.current[from];
     if (!pc) {
+      console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
       pc = createPeerConnection(from);
     }
 
-    await pc.setRemoteDescription(answer);
+    try {
+      await pc.setRemoteDescription(answer);
+    } catch (err) {
+      console.error("handleIncomingAnswer: setRemoteDescription ERROR", err);
+      return;
+    }
+
     onNotify(`Answer received from ${from}`);
 
     const queued = pendingCandidatesRef.current[from] || [];
@@ -338,6 +325,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    // Callee: collect offers so "Answer" button can show
     if (!signaling.isCaller) {
       setIncomingOffers((prev) => {
         const next = { ...prev };
@@ -350,12 +338,14 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       });
     }
 
+    // Caller: process answers
     if (signaling.isCaller) {
       Object.entries(signaling.answers).forEach(([from, answer]) => {
         handleIncomingAnswer(from, answer);
       });
     }
 
+    // Both: process candidates
     Object.entries(signaling.candidates).forEach(([from, list]) => {
       list.forEach((c) => handleIncomingCandidate(from, c));
     });
