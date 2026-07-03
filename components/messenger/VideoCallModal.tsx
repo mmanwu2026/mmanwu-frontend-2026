@@ -27,12 +27,12 @@ const iceConfig = {
       urls: [
         "turn:openrelay.metered.ca:80",
         "turn:openrelay.metered.ca:443",
-        "turn:openrelay.metered.ca:5349"
+        "turn:openrelay.metered.ca:5349",
       ],
       username: "openrelayproject",
-      credential: "openrelayproject"
-    }
-  ]
+      credential: "openrelayproject",
+    },
+  ],
 };
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
@@ -140,34 +140,39 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     pc.onconnectionstatechange = () => {};
 
-pc.ontrack = (event) => {
-  console.log("ontrack FIRED for", participantId, event.streams);
-  const [remoteStream] = event.streams;
-  console.log("remoteStream tracks:", remoteStream.getTracks().map(t => ({
-    kind: t.kind,
-    enabled: t.enabled,
-    readyState: t.readyState,
-  })));
+    pc.ontrack = (event) => {
+      console.log("ontrack FIRED for", participantId, event.streams);
+      const [remoteStream] = event.streams;
+      console.log(
+        "remoteStream tracks:",
+        remoteStream.getTracks().map((t) => ({
+          kind: t.kind,
+          enabled: t.enabled,
+          readyState: t.readyState,
+        })),
+      );
 
-  const videoEl = remoteVideoRefs.current[participantId];
-  console.log("videoEl for", participantId, "=", videoEl);
+      const videoEl = remoteVideoRefs.current[participantId];
+      console.log("videoEl for", participantId, "=", videoEl);
 
-  if (!videoEl) return;
+      if (!videoEl) return;
 
-  videoEl.srcObject = remoteStream;
-  console.log("videoEl.srcObject set for", participantId, videoEl.srcObject);
+      videoEl.srcObject = remoteStream;
+      console.log("videoEl.srcObject set for", participantId, videoEl.srcObject);
 
-  setTimeout(() => {
-    videoEl.play()
-      .then(() => console.log("videoEl.play() OK for", participantId))
-      .catch(err => console.error("videoEl.play() error for", participantId, err));
-  }, 50);
-  setTimeout(() => {
-    videoEl.play()
-      .then(() => console.log("videoEl.play() second OK for", participantId))
-      .catch(err => console.error("videoEl.play() second error for", participantId, err));
-  }, 300);
-};
+      setTimeout(() => {
+        videoEl
+          .play()
+          .then(() => console.log("videoEl.play() OK for", participantId))
+          .catch((err) => console.error("videoEl.play() error for", participantId, err));
+      }, 50);
+      setTimeout(() => {
+        videoEl
+          .play()
+          .then(() => console.log("videoEl.play() second OK for", participantId))
+          .catch((err) => console.error("videoEl.play() second error for", participantId, err));
+      }, 300);
+    };
 
     attachTracksToPC(pc, participantId);
 
@@ -199,7 +204,7 @@ pc.ontrack = (event) => {
 
   const handleIncomingOffer = async (
     from: ParticipantId,
-    offer: RTCSessionDescriptionInit
+    offer: RTCSessionDescriptionInit,
   ) => {
     const key = `${from}:${offer.type}:${offer.sdp?.length ?? 0}`;
     if (handledOffersRef.current.has(key)) {
@@ -209,7 +214,10 @@ pc.ontrack = (event) => {
 
     await setupLocalStream();
 
-    const pc = createPeerConnection(from);
+    let pc = peerConnectionsRef.current[from];
+    if (!pc) {
+      pc = createPeerConnection(from);
+    }
     attachTracksToPC(pc, from);
 
     await pc.setRemoteDescription(offer);
@@ -235,7 +243,7 @@ pc.ontrack = (event) => {
 
   const handleIncomingAnswer = async (
     from: ParticipantId,
-    answer: RTCSessionDescriptionInit
+    answer: RTCSessionDescriptionInit,
   ) => {
     const key = `${from}:${answer.type}:${answer.sdp?.length ?? 0}`;
     if (handledAnswersRef.current.has(key)) {
@@ -243,11 +251,12 @@ pc.ontrack = (event) => {
     }
     handledAnswersRef.current.add(key);
 
-    const pc = peerConnectionsRef.current[from];
+    let pc = peerConnectionsRef.current[from];
     if (!pc) {
-      console.warn("handleIncomingAnswer: NO PC FOUND for", from);
-      return;
+      console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
+      pc = createPeerConnection(from);
     }
+
     await pc.setRemoteDescription(answer);
     onNotify(`Answer received from ${from}`);
 
@@ -266,7 +275,7 @@ pc.ontrack = (event) => {
 
   const handleIncomingCandidate = async (
     from: ParticipantId,
-    candidateInit: RTCIceCandidateInit
+    candidateInit: RTCIceCandidateInit,
   ) => {
     const key = `${from}:${candidateInit.candidate}:${candidateInit.sdpMid ?? ""}:${
       candidateInit.sdpMLineIndex ?? ""
@@ -276,9 +285,12 @@ pc.ontrack = (event) => {
     }
     handledCandidatesRef.current.add(key);
 
-    const pc = peerConnectionsRef.current[from];
+    let pc = peerConnectionsRef.current[from];
+    if (!pc) {
+      pc = createPeerConnection(from);
+    }
 
-    if (!pc || !pc.remoteDescription) {
+    if (!pc.remoteDescription) {
       const existing = pendingCandidatesRef.current[from] || [];
       pendingCandidatesRef.current[from] = [...existing, candidateInit];
       return;
@@ -446,17 +458,15 @@ pc.ontrack = (event) => {
                 <span className="text-xs text-neutral-300 mb-1">
                   Participant: {pid}
                 </span>
-
-<video
-  ref={(el) => {
-    remoteVideoRefs.current[pid] = el;
-  }}
-  muted={isMobile}        // ⭐ mobile starts muted, desktop starts unmuted
-  playsInline
-  autoPlay
-  className="w-full h-40 bg-black rounded"
-/>
-
+                <video
+                  ref={(el) => {
+                    remoteVideoRefs.current[pid] = el;
+                  }}
+                  muted={isMobile}
+                  playsInline
+                  autoPlay
+                  className="w-full h-40 bg-black rounded"
+                />
                 <div className="mt-1 flex gap-2">
                   <button
                     onClick={() => handleToggleSpeaker(pid)}
