@@ -152,15 +152,18 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 // per-participant debounce so we don't spam restarts
 const lastIceRestartRef = useRef<Record<ParticipantId, number>>({});
 
-const restartIceForParticipant = async (participantId: ParticipantId) => {
+const restartIceForParticipant = async (
+  participantId: ParticipantId,
+  force: boolean = false
+) => {
   const pc = peerConnectionsRef.current[participantId];
   if (!pc) return;
 
   const now = Date.now();
   const last = lastIceRestartRef.current[participantId] ?? 0;
 
-  // don't restart more than once every 5 seconds per participant
-  if (now - last < 5000) {
+  // ⭐ Debounce normal restarts, but allow forced ones
+  if (!force && now - last < 10000) {
     console.warn("ICE restart skipped (debounce) for", participantId);
     return;
   }
@@ -169,11 +172,7 @@ const restartIceForParticipant = async (participantId: ParticipantId) => {
   try {
     const offer = await pc.createOffer({ iceRestart: true });
     await pc.setLocalDescription(offer);
-
-    // ⭐ IMPORTANT: both caller and callee send restart offers
-    // use the same signaling path as normal offers
     onSendOffer(participantId, offer);
-
     onNotify(`ICE restart offer sent to ${participantId}`);
   } catch (err) {
     console.error("restartIceForParticipant ERROR", participantId, err);
@@ -202,30 +201,30 @@ const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection =
   };
 
   pc.oniceconnectionstatechange = () => {
-    const state = pc.iceConnectionState;
-    console.log("PC ICE STATE for", participantId, "=>", state);
+  const state = pc.iceConnectionState;
+  console.log("PC ICE STATE for", participantId, "=>", state);
 
-    if (state === "connected") {
-      onNotify(`Connection with ${participantId} established`);
-    }
+  if (state === "connected") {
+    onNotify(`Connection with ${participantId} established`);
+  }
 
-    // ⭐ Restart ONLY on true ICE failure
-    if (state === "failed") {
-      onNotify(`ICE connection with ${participantId} failed — restarting ICE`);
-      restartIceForParticipant(participantId);
-    }
-  };
+  // ⭐ Soft failure: respect debounce
+  if (state === "failed") {
+    onNotify(`ICE connection with ${participantId} failed — restarting ICE`);
+    restartIceForParticipant(participantId, false);
+  }
+};
 
-  pc.onconnectionstatechange = () => {
-    const state = pc.connectionState;
-    console.log("PC CONNECTION STATE for", participantId, "=>", state);
+pc.onconnectionstatechange = () => {
+  const state = pc.connectionState;
+  console.log("PC CONNECTION STATE for", participantId, "=>", state);
 
-    // ⭐ Transport-level failure also triggers restart
-    if (state === "failed") {
-      onNotify(`Transport with ${participantId} failed — restarting ICE`);
-      restartIceForParticipant(participantId);
-    }
-  };
+  // ⭐ Hard failure: bypass debounce
+  if (state === "failed") {
+    onNotify(`Transport with ${participantId} failed — FORCE restarting ICE`);
+    restartIceForParticipant(participantId, true);
+  }
+};
 
   pc.ontrack = (event) => {
     const [remoteStream] = event.streams;
@@ -276,6 +275,7 @@ const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection =
 
   return pc;
 };
+
 
   // ---------- CALLER START ----------
 
