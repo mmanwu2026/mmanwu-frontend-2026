@@ -147,91 +147,99 @@ export default function MessengerThread({
     if (subscribedRef.current) return;
     subscribedRef.current = true;
 
-    const channel = supabase
-      .channel(`room-${finalRoomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-        },
-        (payload: { new: any }) => {
-          const msg = payload.new;
+const channel = supabase
+  .channel(`room-${finalRoomId}`)
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "messages",
+    },
+    (payload: { new: any }) => {
+      const msg = payload.new;
 
-          if (msg.room_id !== finalRoomId) return;
+      if (msg.room_id !== finalRoomId) return;
 
-          // ⭐ ONLY ADD TEXT MESSAGES TO CHAT
-          if (msg.message_type === "text") {
-            if (!msg.content || msg.content.trim() === "") return;
+      // ⭐ Only add text messages to chat
+      if (msg.message_type === "text") {
+        if (!msg.content || msg.content.trim() === "") return;
 
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg];
-            });
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      }
+
+      // ⭐ SIGNALING ROUTING
+      if (
+        msg.message_type === "call_offer" ||
+        msg.message_type === "call_answer" ||
+        msg.message_type === "ice_candidate"
+      ) {
+        setSignalingState((prev) => {
+          const participants = Array.from(
+            new Set(
+              [
+                ...prev.participants,
+                msg.sender_id,
+                msg.receiver_id,
+              ].filter(Boolean)
+            )
+          );
+
+          const next = { ...prev, participants };
+
+          // ⭐ Offers (initial + ICE restart)
+          if (msg.message_type === "call_offer" && msg.metadata?.offer) {
+            next.offers = {
+              ...prev.offers,
+              [msg.sender_id]: msg.metadata.offer,
+            };
           }
 
-          // ⭐ SIGNALING ROUTING
-          if (
-            msg.message_type === "call_offer" ||
-            msg.message_type === "call_answer" ||
-            msg.message_type === "ice_candidate"
-          ) {
-            setSignalingState((prev) => {
-              const participants = Array.from(
-                new Set(
-                  [
-                    ...prev.participants,
-                    msg.sender_id,
-                    msg.receiver_id,
-                  ].filter(Boolean)
-                )
-              );
-
-              const next = { ...prev, participants };
-
-              if (msg.message_type === "call_offer" && msg.metadata?.offer) {
-                next.offers = {
-                  ...prev.offers,
-                  [msg.sender_id]: msg.metadata.offer,
-                };
-              }
-
-              if (msg.message_type === "call_answer" && msg.metadata?.answer) {
-                next.answers = {
-                  ...prev.answers,
-                  [msg.sender_id]: msg.metadata.answer,
-                };
-              }
-
-              if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-                const existing = prev.candidates[msg.sender_id] || [];
-                next.candidates = {
-                  ...prev.candidates,
-                  [msg.sender_id]: [...existing, msg.metadata.candidate],
-                };
-              }
-
-              return next;
-            });
+          // ⭐ Answers
+          if (msg.message_type === "call_answer" && msg.metadata?.answer) {
+            next.answers = {
+              ...prev.answers,
+              [msg.sender_id]: msg.metadata.answer,
+            };
           }
 
-          // Auto-open modal for callee
-          if (msg.message_type === "call_offer") {
-            if (msg.sender_id !== userId) {
-              
-              setSignalingState((prev) => ({
-                ...prev,
-                isCaller: false,
-              }));
-
-              setCallActive(true);
-              setCallModalOpen(true);
-            }
+          // ⭐ ICE candidates
+          if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
+            const existing = prev.candidates[msg.sender_id] || [];
+            next.candidates = {
+              ...prev.candidates,
+              [msg.sender_id]: [...existing, msg.metadata.candidate],
+            };
           }
+
+          return next;
+        });
+      }
+
+      // ⭐ Auto-open modal for callee ONLY for the FIRST offer
+      if (msg.message_type === "call_offer") {
+        if (msg.sender_id !== userId) {
+
+          if (!callActive) {
+            setSignalingState(prev => ({
+              ...prev,
+              isCaller: false,
+            }));
+
+            setCallActive(true);
+            setCallModalOpen(true);
+          }
+
+          // ⭐ If already in a call, DO NOT reset modal or state.
+          // The ICE restart offer will flow into signaling.offers normally.
         }
-      )
-      .subscribe();
+      }
+    }
+  )
+  .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
