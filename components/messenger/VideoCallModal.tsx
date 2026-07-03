@@ -147,116 +147,128 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     );
   };
 
-  // ---------- CALLER-ONLY ICE RESTART ----------
+// ---------- CALL-WIDE ICE RESTART ----------
 
-  const restartIceForParticipant = async (participantId: ParticipantId) => {
-    if (!signaling.isCaller) return;
+// per-participant debounce so we don't spam restarts
+const lastIceRestartRef = useRef<Record<ParticipantId, number>>({});
 
-    const pc = peerConnectionsRef.current[participantId];
-    if (!pc) return;
+const restartIceForParticipant = async (participantId: ParticipantId) => {
+  const pc = peerConnectionsRef.current[participantId];
+  if (!pc) return;
 
-    try {
-      const offer = await pc.createOffer({ iceRestart: true });
-      await pc.setLocalDescription(offer);
-      onSendOffer(participantId, offer);
-      onNotify(`ICE restart offer sent to ${participantId}`);
-    } catch (err) {
-      console.error("restartIceForParticipant ERROR", participantId, err);
-      onNotify(`Failed to restart ICE with ${participantId}`);
+  const now = Date.now();
+  const last = lastIceRestartRef.current[participantId] ?? 0;
+
+  // don't restart more than once every 5 seconds per participant
+  if (now - last < 5000) {
+    console.warn("ICE restart skipped (debounce) for", participantId);
+    return;
+  }
+  lastIceRestartRef.current[participantId] = now;
+
+  try {
+    const offer = await pc.createOffer({ iceRestart: true });
+    await pc.setLocalDescription(offer);
+
+    // ⭐ IMPORTANT: both caller and callee send restart offers
+    // use the same signaling path as normal offers
+    onSendOffer(participantId, offer);
+
+    onNotify(`ICE restart offer sent to ${participantId}`);
+  } catch (err) {
+    console.error("restartIceForParticipant ERROR", participantId, err);
+    onNotify(`Failed to restart ICE with ${participantId}`);
+  }
+};
+
+// ---------- PEER CONNECTION MANAGEMENT ----------
+
+const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
+  let existing = peerConnectionsRef.current[participantId];
+  if (existing) return existing;
+
+  const pc = new RTCPeerConnection(iceConfig);
+  peerConnectionsRef.current[participantId] = pc;
+
+  pc.onicecandidate = (event) => {
+    if (!event.candidate) return;
+    const candInit: RTCIceCandidateInit = {
+      candidate: event.candidate.candidate,
+      sdpMid: event.candidate.sdpMid ?? undefined,
+      sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
+      usernameFragment: (event.candidate as any).usernameFragment,
+    };
+    onSendCandidate(participantId, candInit);
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState;
+    console.log("PC ICE STATE for", participantId, "=>", state);
+
+    if (state === "connected") {
+      onNotify(`Connection with ${participantId} established`);
+    }
+
+    // ⭐ ONLY restart on true failure, not on "disconnected"
+    if (state === "failed") {
+      onNotify(`Connection with ${participantId} failed — restarting ICE`);
+      restartIceForParticipant(participantId);
     }
   };
 
-  // ---------- PEER CONNECTION MANAGEMENT ----------
-
-  const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
-    let existing = peerConnectionsRef.current[participantId];
-    if (existing) return existing;
-
-    const pc = new RTCPeerConnection(iceConfig);
-    peerConnectionsRef.current[participantId] = pc;
-
-pc.onicecandidate = (event) => {
-  console.log("LOCAL ICE candidate for", participantId, "=>", event.candidate);
-
-  if (!event.candidate) return;
-  const candInit: RTCIceCandidateInit = {
-    candidate: event.candidate.candidate,
-    sdpMid: event.candidate.sdpMid ?? undefined,
-    sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
-    usernameFragment: (event.candidate as any).usernameFragment,
+  pc.onconnectionstatechange = () => {
+    console.log("PC CONNECTION STATE for", participantId, "=>", pc.connectionState);
   };
-  onSendCandidate(participantId, candInit);
+
+  pc.ontrack = (event) => {
+    const [remoteStream] = event.streams;
+
+    console.log(
+      "REMOTE STREAM TRACKS for",
+      participantId,
+      remoteStream.getTracks().map((t) => ({
+        kind: t.kind,
+        enabled: t.enabled,
+        readyState: t.readyState,
+      }))
+    );
+
+    const videoEl = remoteVideoRefs.current[participantId];
+    console.log("REMOTE videoEl for", participantId, "=>", videoEl);
+
+    if (!videoEl || !videoEl.isConnected) {
+      console.warn("no connected video element for", participantId, "— buffering stream");
+      pendingRemoteStreamsRef.current[participantId] = remoteStream;
+      return;
+    }
+
+    if (videoEl.srcObject !== remoteStream) {
+      videoEl.srcObject = remoteStream;
+      videoEl.muted = !!speakerMuted[participantId];
+      console.log("REMOTE srcObject for", participantId, remoteStream);
+    }
+
+    if (!isOpen) return;
+
+    videoEl
+      .play()
+      .catch((err) => console.warn("REMOTE: video play error (ontrack immediate)", err));
+
+    setTimeout(() => {
+      const el = remoteVideoRefs.current[participantId];
+      if (!isOpen || !el || !el.isConnected) return;
+      el.play().catch((err) => console.warn("REMOTE: video play error (50ms)", err));
+    }, 50);
+
+    setTimeout(() => {
+      const el = remoteVideoRefs.current[participantId];
+      if (!isOpen || !el || !el.isConnected) return;
+      el.play().catch((err) => console.warn("REMOTE: video play error (300ms)", err));
+    }, 300);
+  };
+
+  return pc;
 };
-
-    pc.oniceconnectionstatechange = () => {
-      const state = pc.iceConnectionState;
-      console.log("PC ICE STATE for", participantId, "=>", state);
-
- if (state === "failed") {
-  restartIceForParticipant(participantId);
-}
-    };
-
-    pc.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-
-      console.log(
-        "REMOTE STREAM TRACKS for",
-        participantId,
-        remoteStream.getTracks().map((t) => ({
-          kind: t.kind,
-          enabled: t.enabled,
-          readyState: t.readyState,
-        }))
-      );
-
-      const videoEl = remoteVideoRefs.current[participantId];
-      console.log("REMOTE videoEl for", participantId, "=>", videoEl);
-
-      if (!videoEl || !videoEl.isConnected) {
-        console.warn("no connected video element for", participantId, "— buffering stream");
-        pendingRemoteStreamsRef.current[participantId] = remoteStream;
-        return;
-      }
-
-if (videoEl.srcObject !== remoteStream) {
-  videoEl.srcObject = remoteStream;
-  videoEl.muted = !!speakerMuted[participantId]; // keep in sync
-}
-
-      console.log("REMOTE srcObject for", participantId, videoEl.srcObject);
-
-      if (!isOpen) return;
-
-      videoEl
-        .play()
-        .catch((err) =>
-          console.warn("REMOTE: video play error (ontrack immediate)", err)
-        );
-
-      setTimeout(() => {
-        const el = remoteVideoRefs.current[participantId];
-        if (!isOpen || !el || !el.isConnected) return;
-        el
-          .play()
-          .catch((err) =>
-            console.warn("REMOTE: video play error (50ms)", err)
-          );
-      }, 50);
-
-      setTimeout(() => {
-        const el = remoteVideoRefs.current[participantId];
-        if (!isOpen || !el || !el.isConnected) return;
-        el
-          .play()
-          .catch((err) =>
-            console.warn("REMOTE: video play error (300ms)", err)
-          );
-      }, 300);
-    };
-
-    return pc;
-  };
 
   // ---------- CALLER START ----------
 
