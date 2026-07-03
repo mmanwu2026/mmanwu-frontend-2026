@@ -77,11 +77,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     if (localStreamRef.current) {
       if (localVideoRef.current && localVideoRef.current.isConnected) {
         localVideoRef.current.srcObject = localStreamRef.current;
-        localVideoRef.current
-          .play()
-          .catch((err) =>
-            console.warn("LOCAL: video play error (existing stream)", err)
-          );
+        try {
+          localVideoRef.current.play();
+        } catch (err) {
+          console.warn("LOCAL: video play error (existing stream)", err);
+        }
       }
       return;
     }
@@ -107,9 +107,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         localVideoRef.current.srcObject = stream;
         localVideoRef.current
           .play()
-          .catch((err) =>
-            console.warn("LOCAL: video play error (new stream)", err)
-          );
+          .catch((err) => console.warn("LOCAL: video play error (new stream)", err));
       }
 
       onNotify("Camera and microphone started");
@@ -204,11 +202,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
       if (!videoEl || !videoEl.isConnected) {
-        console.warn(
-          "no connected video element for",
-          participantId,
-          "— buffering stream"
-        );
+        console.warn("no connected video element for", participantId, "— buffering stream");
         pendingRemoteStreamsRef.current[participantId] = remoteStream;
         return;
       }
@@ -267,7 +261,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     }
   };
 
-  // ---------- INCOMING OFFER / ANSWER / CANDIDATES ----------
+  // ---------- INCOMING SIGNALING ----------
 
   const handleIncomingOffer = async (
     from: ParticipantId,
@@ -333,27 +327,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
     onNotify(`Answer received from ${from}`);
 
-    // PATCH — FORCE REMOTE VIDEO RENDER
-    const tracks = pc.getReceivers().map((r) => r.track).filter(Boolean);
-    if (tracks.length > 0) {
-      const remoteStream = new MediaStream(tracks);
-      const videoEl = remoteVideoRefs.current[from];
-      console.log("PATCH: forcing remote video attach for", from, "=>", videoEl);
-
-      if (videoEl && videoEl.isConnected) {
-        videoEl.muted = true;
-        videoEl.srcObject = remoteStream;
-        videoEl
-          .play()
-          .catch((err) =>
-            console.warn("PATCH: remote video play error (force attach)", err)
-          );
-      } else {
-        console.warn("PATCH: remote video element not ready — buffering");
-        pendingRemoteStreamsRef.current[from] = remoteStream;
-      }
-    }
-
     const queued = pendingCandidatesRef.current[from] || [];
     if (queued.length) {
       for (const c of queued) {
@@ -398,7 +371,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     if (!signaling.isCaller) return;
-
     if (signaling.participants.length === 0) return;
     if (hasStartedCallRef.current) return;
 
@@ -531,11 +503,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   // ---------- PARTICIPANTS ----------
 
-const participants = signaling.isCaller
-  ? Object.keys(peerConnectionsRef.current)   // stable for caller
-  : Object.keys(incomingOffers).length > 0
-      ? Object.keys(incomingOffers)
-      : Object.keys(peerConnectionsRef.current);
+  const participants = signaling.isCaller
+    ? Object.keys(peerConnectionsRef.current)
+    : Object.keys(incomingOffers).length > 0
+        ? Object.keys(incomingOffers)
+        : Object.keys(peerConnectionsRef.current);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -597,10 +569,7 @@ const participants = signaling.isCaller
                       el
                         .play()
                         .catch((err) =>
-                          console.warn(
-                            "CALLER: video play error (ref attach)",
-                            err
-                          )
+                          console.warn("CALLER: video play error (ref attach)", err)
                         );
                       delete pendingRemoteStreamsRef.current[pid];
                     }
@@ -647,13 +616,6 @@ const participants = signaling.isCaller
             {cameraOn ? "Turn camera off" : "Turn camera on"}
           </button>
         </div>
-
-        {isMobile && (
-          <p className="text-xs text-neutral-400 mt-2">
-            On mobile, browser autoplay policies may require you to tap the video to start
-            playback.
-          </p>
-        )}
       </div>
     </div>
   );
