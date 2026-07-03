@@ -465,8 +465,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   // ---------- PARTICIPANTS ----------
 
   const participants = signaling.isCaller
-    ? signaling.participants
-    : Object.keys(incomingOffers);
+  ? signaling.participants
+  : Object.keys(incomingOffers).length > 0
+    ? Object.keys(incomingOffers)
+    : Object.keys(peerConnectionsRef.current);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
