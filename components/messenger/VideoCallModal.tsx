@@ -192,10 +192,9 @@ pc.onicecandidate = (event) => {
       const state = pc.iceConnectionState;
       console.log("PC ICE STATE for", participantId, "=>", state);
 
-      if (state === "failed" || state === "disconnected") {
-        onNotify(`Connection with ${participantId} ${state}`);
-        restartIceForParticipant(participantId);
-      }
+ if (state === "failed") {
+  restartIceForParticipant(participantId);
+}
     };
 
     pc.ontrack = (event) => {
