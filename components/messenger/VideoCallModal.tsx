@@ -195,7 +195,7 @@ pc.ontrack = (event) => {
   const videoEl = remoteVideoRefs.current[participantId];
   console.log("REMOTE videoEl for", participantId, "=>", videoEl);
 
-  // If the video element isn't mounted yet, buffer the stream
+  // If the video element isn't mounted yet, buffer the stream and exit
   if (!videoEl || !videoEl.isConnected) {
     console.warn(
       "no connected video element for",
@@ -209,7 +209,7 @@ pc.ontrack = (event) => {
   // Attach stream immediately
   videoEl.srcObject = remoteStream;
 
-  // Play immediately (Promise-based catch prevents AbortError)
+  // Play immediately (Promise-based catch prevents uncaught AbortError)
   videoEl
     .play()
     .catch((err) =>
