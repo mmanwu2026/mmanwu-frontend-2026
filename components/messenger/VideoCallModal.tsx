@@ -531,9 +531,9 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   // ---------- PARTICIPANTS ----------
 
-  const participants = signaling.isCaller
-    ? signaling.participants
-    : Object.keys(incomingOffers).length > 0
+const participants = signaling.isCaller
+  ? Object.keys(peerConnectionsRef.current)   // stable for caller
+  : Object.keys(incomingOffers).length > 0
       ? Object.keys(incomingOffers)
       : Object.keys(peerConnectionsRef.current);
 
