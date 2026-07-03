@@ -38,7 +38,7 @@ const iceConfig: RTCConfiguration = {
       ],
     },
   ],
-  iceTransportPolicy: "relay",
+  iceTransportPolicy: "all",
 };
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
@@ -175,16 +175,18 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     const pc = new RTCPeerConnection(iceConfig);
     peerConnectionsRef.current[participantId] = pc;
 
-    pc.onicecandidate = (event) => {
-      if (!event.candidate) return;
-      const candInit: RTCIceCandidateInit = {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid ?? undefined,
-        sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
-        usernameFragment: (event.candidate as any).usernameFragment,
-      };
-      onSendCandidate(participantId, candInit);
-    };
+pc.onicecandidate = (event) => {
+  console.log("LOCAL ICE candidate for", participantId, "=>", event.candidate);
+
+  if (!event.candidate) return;
+  const candInit: RTCIceCandidateInit = {
+    candidate: event.candidate.candidate,
+    sdpMid: event.candidate.sdpMid ?? undefined,
+    sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
+    usernameFragment: (event.candidate as any).usernameFragment,
+  };
+  onSendCandidate(participantId, candInit);
+};
 
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState;
@@ -469,13 +471,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   };
 
   const handleToggleSpeaker = (participantId: ParticipantId) => {
-    setSpeakerMuted((prev) => {
-      const nextMuted = !prev[participantId];
-      const videoEl = remoteVideoRefs.current[participantId];
-      if (videoEl) videoEl.muted = nextMuted;
-      return { ...prev, [participantId]: nextMuted };
-    });
-  };
+  setSpeakerMuted((prev) => {
+    const nextMuted = !prev[participantId];
+    const videoEl = remoteVideoRefs.current[participantId];
+    if (videoEl) videoEl.muted = nextMuted;
+    return { ...prev, [participantId]: nextMuted };
+  });
+};
 
   const handleAnswerClick = async (participantId: ParticipantId) => {
     const offer = incomingOffers[participantId];
@@ -605,7 +607,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
                       delete pendingRemoteStreamsRef.current[pid];
                     }
                   }}
-                  muted
                   playsInline
                   autoPlay
                   className="w-full h-40 bg-black rounded"
