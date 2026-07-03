@@ -219,7 +219,7 @@ export default function MessengerThread({
           // Auto-open modal for callee
           if (msg.message_type === "call_offer") {
             if (msg.sender_id !== userId) {
-              resetSignaling(); // ⭐ ensure clean state
+              
               setSignalingState((prev) => ({
                 ...prev,
                 isCaller: false,
