@@ -407,6 +407,7 @@ pc.ontrack = (event) => {
   if (!isOpen) return null;
 
   const participants = signaling.participants;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -445,15 +446,17 @@ pc.ontrack = (event) => {
                 <span className="text-xs text-neutral-300 mb-1">
                   Participant: {pid}
                 </span>
-                <video
-                  ref={(el) => {
-                    remoteVideoRefs.current[pid] = el;
-                  }}
-                  muted
-                  playsInline
-                  autoPlay
-                  className="w-full h-40 bg-black rounded"
-                />
+
+<video
+  ref={(el) => {
+    remoteVideoRefs.current[pid] = el;
+  }}
+  muted={isMobile}        // ⭐ mobile starts muted, desktop starts unmuted
+  playsInline
+  autoPlay
+  className="w-full h-40 bg-black rounded"
+/>
+
                 <div className="mt-1 flex gap-2">
                   <button
                     onClick={() => handleToggleSpeaker(pid)}
