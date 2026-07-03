@@ -337,7 +337,6 @@ const handleIncomingCandidate = async (
   }
 };
 
-
 // ---------- EFFECTS ----------
 
 useEffect(() => {
@@ -398,12 +397,11 @@ useEffect(() => {
   callActive
 ]);
 
-// ⭐ DEBUG: See when VideoCallModal receives new offers
+// ⭐ DEBUG EFFECTS (these go RIGHT HERE)
 useEffect(() => {
   console.log("VideoCallModal sees signaling.offers:", signaling.offers);
 }, [signaling.offers]);
 
-// ⭐ DEBUG: See when incomingOffers updates (Answer button source)
 useEffect(() => {
   console.log("VideoCallModal incomingOffers:", incomingOffers);
 }, [incomingOffers]);
@@ -489,6 +487,11 @@ useEffect(() => {
 
   const participants = signaling.participants;
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // ⭐ DEBUG: Show caller participant IDs
+useEffect(() => {
+  console.log("CALLER participants array:", participants);
+}, [participants]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
