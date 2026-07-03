@@ -201,27 +201,28 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     return pc;
   };
 
-  const startCallAsCaller = async () => {
-    if (hasStartedCallRef.current) return;
-    hasStartedCallRef.current = true;
+const startCallAsCaller = async () => {
+  if (hasStartedCallRef.current) return;
+  hasStartedCallRef.current = true;
 
-    const { participants } = signaling;
+  const { participants } = signaling;
 
-    await setupLocalStream();
-    onNotify("Call started");
+  await setupLocalStream();
+  onNotify("Call started");
 
-    for (const participantId of participants) {
-      const pc = createPeerConnection(participantId);
+  for (const participantId of participants) {
+    const pc = createPeerConnection(participantId);
 
-      if (signaling.isCaller && !signaling.offers[participantId]) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        onSendOffer(participantId, offer);
-      }
+    // ✅ ADD TRACKS FIRST
+    attachTracksToPC(pc, participantId);
 
-      attachTracksToPC(pc, participantId);
+    if (signaling.isCaller && !signaling.offers[participantId]) {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      onSendOffer(participantId, offer);
     }
-  };
+  }
+};
 
   const handleIncomingOffer = async (
     from: ParticipantId,
