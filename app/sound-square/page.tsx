@@ -1,38 +1,19 @@
-"use client";
-
-import { useEffect, useState } from "react";
+// app/sound-square/page.tsx
+import { loadSoundPosts } from "./_server/loadSoundPosts";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
-import { loadSoundPosts, CardSoundPost } from "./_server/loadSoundPosts";
+import TopBar from "@/components/navigation/TopBar";
 
-export default function SoundSquarePage() {
-  const [posts, setPosts] = useState<CardSoundPost[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function run() {
-      setLoading(true);
-      const data = await loadSoundPosts();   // ⭐ FIX: no supabase argument
-      setPosts(data);
-      setLoading(false);
-    }
-    run();
-  }, []); // ⭐ FIX: no dependency on supabase
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading Sound Square...</p>
-      </div>
-    );
-  }
+export default async function SoundSquarePage() {
+  // ⭐ SERVER-SIDE DATA FETCH
+  const posts = await loadSoundPosts();
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {posts.length === 0 && (
-          <p className="text-zinc-500 text-center">No sounds yet.</p>
-        )}
+    <div className="min-h-screen text-white p-6">
+      <TopBar />
 
+      <h1 className="text-2xl font-bold mb-4">Sound Square</h1>
+
+      <div className="space-y-6">
         {posts.map((post) => (
           <SoundPostCard key={post.id} post={post} />
         ))}
