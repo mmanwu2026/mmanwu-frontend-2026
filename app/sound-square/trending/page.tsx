@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
-import type { CardSoundPost, SoundComment } from "@/app/sound-square/loadSoundPosts";
+import type { CardSoundPost, SoundComment } from "@/app/sound-square/_server/loadSoundPosts";
 
 type ReactionCounts = {
   mask1: number;

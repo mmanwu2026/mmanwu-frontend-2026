@@ -1,5 +1,6 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
+
+/* -------------------- TYPES -------------------- */
 
 export type ReactionCounts = {
   mask1: number;
@@ -75,27 +76,13 @@ type RawComment = {
 /* -------------------- MAIN FUNCTION -------------------- */
 
 export async function loadSoundPosts(): Promise<CardSoundPost[]> {
-  const cookieStore = await cookies(); // ⭐ FIX — await cookies()
-
-  const supabase = createServerClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options });
-        },
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   /* -------------------- LOAD POSTS -------------------- */
+
   const { data: posts, error } = await supabase
     .from("sound_posts")
     .select(`
@@ -120,6 +107,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
   const ids = posts.map((p: RawPost) => p.id);
 
   /* -------------------- LOAD REACTIONS -------------------- */
+
   const { data: reactionRows } = await supabase
     .from("reactions")
     .select("post_id, maskTier")
@@ -127,6 +115,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
     .eq("post_type", "sound");
 
   /* -------------------- LOAD SHARES -------------------- */
+
   const { data: shareRows, error: shareError } = await supabase
     .from("sound_post_shares")
     .select("post_id")
@@ -135,6 +124,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
   const safeShareRows: RawShare[] = shareError ? [] : shareRows ?? [];
 
   /* -------------------- LOAD COMMENTS -------------------- */
+
   const { data: commentRows } = await supabase
     .from("sound_post_comments")
     .select(`
@@ -161,6 +151,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
       Array.isArray(p.users) && p.users.length > 0 ? p.users[0] : null;
 
     /* -------------------- REACTIONS -------------------- */
+
     const rows: RawReaction[] =
       (reactionRows ?? []).filter((r: RawReaction) => r.post_id === p.id);
 
@@ -190,6 +181,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
     if (spirit_score > 500) automask = 6;
 
     /* -------------------- SHARES -------------------- */
+
     const share_count = safeShareRows.filter(
       (s: RawShare) => s.post_id === p.id
     ).length;
@@ -197,6 +189,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
     const share_score = share_count * 5;
 
     /* -------------------- COMMENTS -------------------- */
+
     const rawComments: RawComment[] =
       (commentRows ?? []).filter((c: RawComment) => c.post_id === p.id);
 
@@ -217,6 +210,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
     const comment_count = comments.length;
 
     /* -------------------- CREATOR NAME FALLBACK -------------------- */
+
     const username =
       userObj?.username ?? p.creator_name ?? "Unknown";
 

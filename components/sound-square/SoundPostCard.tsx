@@ -5,7 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
-import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
+import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/_server/loadSoundPosts";
 import Link from "next/link";
 
 const MASK_EMOJI: Record<number, string> = {

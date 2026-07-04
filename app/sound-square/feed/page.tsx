@@ -7,7 +7,7 @@ import TopBar from "@/components/navigation/TopBar";
 import FeedToggle from "@/components/sound-square/FeedToggle";
 import FloatingComposer from "@/components/sound-square/FloatingComposer";
 
-import type { CardSoundPost, SoundComment } from "@/app/sound-square/loadSoundPosts";
+import type { CardSoundPost, SoundComment } from "@/app/sound-square/_server/loadSoundPosts";
 
 type ReactionCounts = {
   mask1: number;
