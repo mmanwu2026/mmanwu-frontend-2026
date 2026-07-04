@@ -178,7 +178,10 @@ if (
   msg.message_type === "ice_candidate"
 ) {
   // only process signaling that involves this user
-  if (msg.sender_id !== userId && msg.receiver_id !== userId) return;
+  if (!userId) return; // wait until userId is loaded
+
+if (msg.sender_id !== userId && msg.receiver_id !== userId) return;
+
 
   setSignalingState((prev) => {
     // remoteId = "the other person", stable across caller/callee
