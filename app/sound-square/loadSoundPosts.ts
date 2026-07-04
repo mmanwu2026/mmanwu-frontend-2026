@@ -17,10 +17,7 @@ export type SoundComment = {
   automask: number;
   positivity_ratio: number;
   user_id: string;
-  profiles: {
-    username: string | null;
-    avatar_url: string | null;
-  };
+  profiles: { username: string | null; avatar_url: string | null };
 };
 
 export type CardSoundPost = {
@@ -36,10 +33,7 @@ export type CardSoundPost = {
   reactions: ReactionCounts;
   share_count: number;
   share_score: number;
-  users: {
-    username: string | null;
-    avatar_url: string | null;
-  };
+  users: { username: string | null; avatar_url: string | null };
   comments: SoundComment[];
   comment_count: number;
 };
@@ -50,7 +44,7 @@ export async function loadSoundPosts() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Load posts + creator profile + creator_name
+  // ⭐ Load posts + creator_name + profile fallback
   const { data: posts, error } = await supabase
     .from("sound_posts")
     .select(`
@@ -74,14 +68,14 @@ export async function loadSoundPosts() {
 
   const ids = posts.map((p) => p.id);
 
-  // Load reactions
+  // ⭐ Load reactions
   const { data: reactionRows } = await supabase
     .from("reactions")
     .select("post_id, maskTier")
     .in("post_id", ids)
     .eq("post_type", "sound");
 
-  // Load shares — correct table
+  // ⭐ Load shares — correct table
   const { data: shareRows, error: shareError } = await supabase
     .from("sound_post_shares")
     .select("post_id")
@@ -89,7 +83,7 @@ export async function loadSoundPosts() {
 
   const safeShareRows = shareError ? [] : shareRows ?? [];
 
-  // Load comments
+  // ⭐ Load comments
   const { data: commentRows } = await supabase
     .from("sound_post_comments")
     .select(`
@@ -109,7 +103,7 @@ export async function loadSoundPosts() {
   const enriched: CardSoundPost[] = posts.map((p: any) => {
     const userObj = Array.isArray(p.users) ? p.users[0] : p.users;
 
-    // Reaction aggregation
+    // ⭐ Reaction aggregation
     const rows = (reactionRows ?? []).filter((r: any) => r.post_id === p.id);
 
     const counts: ReactionCounts = {
@@ -132,14 +126,14 @@ export async function loadSoundPosts() {
     if (spirit_score > 300) automask = 5;
     if (spirit_score > 500) automask = 6;
 
-    // Share aggregation
+    // ⭐ Share aggregation
     const share_count = safeShareRows.filter(
       (s: any) => s.post_id === p.id
     ).length;
 
     const share_score = share_count * 5;
 
-    // Comment aggregation
+    // ⭐ Comment aggregation
     const rawComments = (commentRows ?? []).filter(
       (c: any) => c.post_id === p.id
     );
@@ -157,6 +151,12 @@ export async function loadSoundPosts() {
 
     const comment_count = comments.length;
 
+    // ⭐ FINAL — correct creator name fallback
+    const username =
+      userObj?.username ??
+      p.creator_name ??
+      "Unknown";
+
     return {
       id: p.id,
       title: p.title,
@@ -164,13 +164,20 @@ export async function loadSoundPosts() {
       creator_id: p.creator_id,
       creator_name: p.creator_name,
       created_at: p.created_at,
+
       spirit_score,
       positivity_ratio,
       automask,
+
       reactions: counts,
       share_count,
       share_score,
-      users: userObj,
+
+      users: {
+        username,
+        avatar_url: userObj?.avatar_url ?? null,
+      },
+
       comments,
       comment_count,
     };

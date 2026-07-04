@@ -50,6 +50,26 @@ export default function SoundSquareFeed() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
+  // ⭐ REALTIME — new uploads appear instantly
+  useEffect(() => {
+    const channel = supabase
+      .channel("sound-posts-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sound_posts",
+        },
+        () => {
+          loadInitial(); // refresh feed when new sound is uploaded
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [supabase]);
+
   useEffect(() => {
     loadInitial();
   }, []);
@@ -174,6 +194,7 @@ export default function SoundSquareFeed() {
         id,
         post_id,
         content,
+        final_text,
         raw_input,
         created_at,
         automask,
@@ -225,6 +246,7 @@ export default function SoundSquareFeed() {
       const comments: SoundComment[] = rawComments.map((c: any) => ({
         id: c.id,
         content: c.content,
+        final_text: c.final_text,
         raw_input: c.raw_input,
         created_at: c.created_at,
         automask: c.automask,
@@ -248,7 +270,7 @@ export default function SoundSquareFeed() {
         automask: autoMask,
 
         users: {
-          username: post.users?.username ?? "Unknown",
+          username: post.users?.username ?? post.creator_name ?? "Unknown",
           avatar_url: post.users?.avatar_url ?? null,
         },
 
