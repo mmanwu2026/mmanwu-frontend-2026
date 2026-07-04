@@ -73,6 +73,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
+  // ⭐ Enhancements: call duration + connection quality + TURN indicator
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState("00:00");
   const [connectionQuality, setConnectionQuality] = useState<"good" | "fair" | "poor">("good");
@@ -181,7 +182,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
       await pc.setLocalDescription(offer);
       onSendOffer(participantId, offer);
-      console.log("CALLER SENT RESTART OFFER TO", participantId, offer);
 
       onNotify(`ICE restart offer sent to ${participantId}`);
     } catch (err) {
@@ -216,9 +216,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
       if (state === "connected") {
         hasEverConnectedRef.current[participantId] = true;
-        setConnectionQuality("good");
         onNotify(`Connection with ${participantId} established`);
+        setConnectionQuality("good");
 
+        // TURN detection (additive, does not affect restart)
         pc
           .getStats()
           .then((stats) => {
@@ -333,7 +334,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       onSendOffer(participantId, offer);
-      console.log("CALLER SENT OFFER TO", participantId, offer);
     }
   };
 
@@ -351,8 +351,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       console.log("Ignoring restart offer for callee");
       return;
     }
-
-    console.log("CALLEE RECEIVED OFFER FROM", from, offer);
 
     await setupLocalStream();
 
@@ -399,10 +397,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     if (!pc) {
       console.warn("handleIncomingAnswer: NO PC FOUND for", from, "— recreating");
       pc = createPeerConnection(from);
-    }
-
-    if (!pc.remoteDescription) {
-      console.log("CALLER: late answer — setting remote description now for", from);
     }
 
     try {
@@ -473,38 +467,29 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Caller: only answers + candidates, never offers
+    if (!signaling.isCaller) {
+      setIncomingOffers((prev) => {
+        const next = { ...prev };
+
+        Object.entries(signaling.offers).forEach(([from, offer]) => {
+          if ((offer as any).isRestart) {
+            console.log("Ignoring restart offer for callee");
+            return;
+          }
+
+          next[from] = offer;
+        });
+
+        return next;
+      });
+    }
+
     if (signaling.isCaller) {
       Object.entries(signaling.answers).forEach(([from, answer]) => {
         handleIncomingAnswer(from, answer);
       });
-
-      Object.entries(signaling.candidates).forEach(([from, list]) => {
-        list.forEach((c) => handleIncomingCandidate(from, c));
-      });
-
-      return;
     }
 
-    // Callee: collect offers
-    setIncomingOffers((prev) => {
-      const next = { ...prev };
-
-      Object.entries(signaling.offers).forEach(([from, offer]) => {
-        if ((offer as any).isRestart) {
-          console.log("Ignoring restart offer for callee");
-          return;
-        }
-
-        if (!next[from]) {
-          next[from] = offer;
-        }
-      });
-
-      return next;
-    });
-
-    // Callee: candidates
     Object.entries(signaling.candidates).forEach(([from, list]) => {
       list.forEach((c) => handleIncomingCandidate(from, c));
     });
@@ -517,26 +502,14 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   ]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (signaling.isCaller) return;
-
-    // Callee: auto-process buffered offers once PC is ready
-    Object.entries(incomingOffers).forEach(([from, offer]) => {
-      const pc = peerConnectionsRef.current[from];
-      if (pc && pc.signalingState === "stable") {
-        console.log("CALLEE: auto-processing buffered offer from", from);
-        handleIncomingOffer(from, offer);
-      }
-    });
-  }, [isOpen, incomingOffers, signaling.isCaller]);
-
-  useEffect(() => {
     console.log("VideoCallModal sees signaling.offers:", signaling.offers);
   }, [signaling.offers]);
 
   useEffect(() => {
     console.log("VideoCallModal incomingOffers:", incomingOffers);
   }, [incomingOffers]);
+
+  // ---------- Call duration effects (additive) ----------
 
   useEffect(() => {
     if (callActive && isOpen && !callStartTime) {
@@ -677,6 +650,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           </button>
         </div>
 
+        {/* Status line: duration + connection quality + TURN */}
         <div className="flex justify-between items-center mb-2 text-xs text-neutral-300">
           <span>Duration: {callDuration}</span>
           <span>
