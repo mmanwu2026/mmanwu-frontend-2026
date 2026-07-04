@@ -152,6 +152,7 @@ export default function SoundSquareUpload() {
       spirit_score: 0,
       positivity_ratio: 0.5,
       automask,
+      post_type: "sound",
     });
 
     if (dbError) {
