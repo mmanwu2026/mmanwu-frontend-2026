@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
 import type { CardSoundPost, SoundComment } from "@/app/sound-square/_server/loadSoundPosts";
+import Link from "next/dist/client/link";
 
 type ReactionCounts = {
   mask1: number;
@@ -208,6 +209,8 @@ export default function TrendingSoundSquare() {
       <h1 className="text-4xl font-bold mb-6">Trending Sounds</h1>
 
       {loading && <p>Loading trending sounds...</p>}
+
+      <Link href="/sound-square">Back to Sound Square</Link>
 
       <div className="flex flex-col gap-6 mb-6">
         {posts.map((post) => (
