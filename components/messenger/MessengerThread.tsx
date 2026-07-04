@@ -177,26 +177,35 @@ if (
   msg.message_type === "call_answer" ||
   msg.message_type === "ice_candidate"
 ) {
-  setSignalingState((prev) => {
+  // only process signaling that involves this user
+  if (msg.sender_id !== userId && msg.receiver_id !== userId) return;
 
-    // ⭐ FIX: participants must ONLY include real user IDs
+  setSignalingState((prev) => {
+    // remoteId = "the other person", stable across caller/callee
+    const remoteId =
+      msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+
     const participants = Array.from(
       new Set(
         [
           ...prev.participants,
-          msg.sender_id,
-          msg.receiver_id,
-        ].filter((id) => id && id !== userId) // remove null + self
+          remoteId,
+        ].filter(Boolean)
       )
     );
 
     const next = { ...prev, participants };
 
-    // ⭐ Offers (initial + ICE restart)
+    // mark caller vs callee
+    if (msg.message_type === "call_offer") {
+      next.isCaller = msg.sender_id === userId;
+    }
+
+    // ⭐ Offers
     if (msg.message_type === "call_offer" && msg.metadata?.offer) {
       next.offers = {
         ...prev.offers,
-        [msg.sender_id]: msg.metadata.offer,
+        [remoteId]: msg.metadata.offer,
       };
     }
 
@@ -204,16 +213,16 @@ if (
     if (msg.message_type === "call_answer" && msg.metadata?.answer) {
       next.answers = {
         ...prev.answers,
-        [msg.sender_id]: msg.metadata.answer,
+        [remoteId]: msg.metadata.answer,
       };
     }
 
     // ⭐ ICE candidates
     if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-      const existing = prev.candidates[msg.sender_id] || [];
+      const existing = prev.candidates[remoteId] || [];
       next.candidates = {
         ...prev.candidates,
-        [msg.sender_id]: [...existing, msg.metadata.candidate],
+        [remoteId]: [...existing, msg.metadata.candidate],
       };
     }
 
