@@ -73,7 +73,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
-  // ⭐ Enhancements: call duration + connection quality + TURN indicator
+  // Enhancements: call duration + connection quality + TURN indicator
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState("00:00");
   const [connectionQuality, setConnectionQuality] = useState<"good" | "fair" | "poor">("good");
@@ -219,7 +219,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         onNotify(`Connection with ${participantId} established`);
         setConnectionQuality("good");
 
-        // TURN detection (additive, does not affect restart)
         pc
           .getStats()
           .then((stats) => {
@@ -501,6 +500,17 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     signaling.isCaller,
   ]);
 
+  // CALLEE AUTO-ANSWER (restored)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (signaling.isCaller) return;
+
+    Object.entries(incomingOffers).forEach(([from, offer]) => {
+      console.log("CALLEE: auto-processing offer from", from);
+      handleIncomingOffer(from, offer);
+    });
+  }, [isOpen, incomingOffers, signaling.isCaller]);
+
   useEffect(() => {
     console.log("VideoCallModal sees signaling.offers:", signaling.offers);
   }, [signaling.offers]);
@@ -509,8 +519,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     console.log("VideoCallModal incomingOffers:", incomingOffers);
   }, [incomingOffers]);
 
-  // ---------- Call duration effects (additive) ----------
-
+  // Call duration effects
   useEffect(() => {
     if (callActive && isOpen && !callStartTime) {
       setCallStartTime(Date.now());
@@ -650,7 +659,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           </button>
         </div>
 
-        {/* Status line: duration + connection quality + TURN */}
         <div className="flex justify-between items-center mb-2 text-xs text-neutral-300">
           <span>Duration: {callDuration}</span>
           <span>
