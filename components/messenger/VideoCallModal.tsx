@@ -495,12 +495,31 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     signaling.isCaller,
   ]);
 
+  // MOBILE-SAFE CALLEE AUTO-ANSWER
   useEffect(() => {
     if (!isOpen) return;
     if (signaling.isCaller) return;
 
     Object.entries(incomingOffers).forEach(([from, offer]) => {
-      console.log("CALLEE: auto-processing offer from", from);
+      const videoEl = remoteVideoRefs.current[from];
+
+      if (!videoEl) {
+        console.log(
+          "CALLEE: delaying auto-answer until video element exists for",
+          from
+        );
+        return;
+      }
+
+      if (!localStreamRef.current) {
+        console.log(
+          "CALLEE: delaying auto-answer until local media is ready for",
+          from
+        );
+        return;
+      }
+
+      console.log("CALLEE: auto-processing offer (mobile-safe) from", from);
       handleIncomingOffer(from, offer);
     });
   }, [isOpen, incomingOffers, signaling.isCaller]);
