@@ -1,3 +1,5 @@
+"use client";
+
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import { loadSoundPosts } from "./_server/loadSoundPosts";
 
