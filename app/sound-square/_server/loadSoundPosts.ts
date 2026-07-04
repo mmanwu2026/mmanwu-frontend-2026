@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 
 /* -------------------- TYPES -------------------- */
 
@@ -82,10 +82,7 @@ type RawComment = {
 /* -------------------- MAIN FUNCTION -------------------- */
 
 export async function loadSoundPosts(): Promise<CardSoundPost[]> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createSupabaseServerClient();
 
   /* -------------------- LOAD POSTS -------------------- */
 
@@ -153,7 +150,6 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
   /* -------------------- ENRICH POSTS -------------------- */
 
   const enriched: CardSoundPost[] = posts.map((p: RawPost) => {
-    // 🔒 Hydration-safe user object: always a plain object, never null/array/undefined
     const userObj =
       p.users?.[0] ?? {
         username: null,
