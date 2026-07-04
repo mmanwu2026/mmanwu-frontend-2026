@@ -74,9 +74,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     .order("created_at", { ascending: false });
 
   return (
-    <div className="min-h-screen text-white p-6">
-      <TopBar />
-      <ProfileClient profile={profile} posts={posts || []} />
-    </div>
-  );
+  <div className="p-6 text-white">
+    <TopBar />
+    <div>Profile test page — static</div>
+  </div>
+);
 }
