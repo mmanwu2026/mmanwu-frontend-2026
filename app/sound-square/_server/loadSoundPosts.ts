@@ -19,7 +19,10 @@ export type SoundComment = {
   automask: number;
   positivity_ratio: number;
   user_id: string;
-  profiles: { username: string | null; avatar_url: string | null };
+  profiles: {
+    username: string | null;
+    avatar_url: string | null;
+  };
 };
 
 export type CardSoundPost = {
@@ -35,7 +38,10 @@ export type CardSoundPost = {
   reactions: ReactionCounts;
   share_count: number;
   share_score: number;
-  users: { username: string | null; avatar_url: string | null };
+  users: {
+    username: string | null;
+    avatar_url: string | null;
+  };
   comments: SoundComment[];
   comment_count: number;
 };
@@ -147,8 +153,12 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
   /* -------------------- ENRICH POSTS -------------------- */
 
   const enriched: CardSoundPost[] = posts.map((p: RawPost) => {
+    // 🔒 Hydration-safe user object: always a plain object, never null/array/undefined
     const userObj =
-      Array.isArray(p.users) && p.users.length > 0 ? p.users[0] : null;
+      p.users?.[0] ?? {
+        username: null,
+        avatar_url: null,
+      };
 
     /* -------------------- REACTIONS -------------------- */
 
@@ -193,26 +203,30 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
     const rawComments: RawComment[] =
       (commentRows ?? []).filter((c: RawComment) => c.post_id === p.id);
 
-    const comments: SoundComment[] = rawComments.map((c: RawComment) => ({
-      id: c.id,
-      content: c.content,
-      raw_input: c.raw_input,
-      created_at: c.created_at,
-      automask: c.automask,
-      positivity_ratio: c.positivity_ratio,
-      user_id: c.user_id,
-      profiles:
-        Array.isArray(c.profiles) && c.profiles.length > 0
-          ? c.profiles[0]
-          : { username: null, avatar_url: null },
-    }));
+    const comments: SoundComment[] = rawComments.map((c: RawComment) => {
+      const profileObj =
+        c.profiles?.[0] ?? {
+          username: null,
+          avatar_url: null,
+        };
+
+      return {
+        id: c.id,
+        content: c.content,
+        raw_input: c.raw_input,
+        created_at: c.created_at,
+        automask: c.automask,
+        positivity_ratio: c.positivity_ratio,
+        user_id: c.user_id,
+        profiles: profileObj,
+      };
+    });
 
     const comment_count = comments.length;
 
     /* -------------------- CREATOR NAME FALLBACK -------------------- */
 
-    const username =
-      userObj?.username ?? p.creator_name ?? "Unknown";
+    const username = userObj.username ?? p.creator_name ?? "Unknown";
 
     return {
       id: p.id,
@@ -229,7 +243,7 @@ export async function loadSoundPosts(): Promise<CardSoundPost[]> {
       share_score,
       users: {
         username,
-        avatar_url: userObj?.avatar_url ?? null,
+        avatar_url: userObj.avatar_url,
       },
       comments,
       comment_count,
