@@ -59,52 +59,23 @@ export default function SoundSquareUpload() {
     setFile(f);
   }
 
-async function uploadWithProgress(file: File, path: string) {
-  return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
-    const session = await supabase.auth.getSession();
-    const token = session.data.session?.access_token;
-
-    if (!token) {
-      reject(new Error("Authentication error. Please log in again."));
-      return;
-    }
-
-    const xhr = new XMLHttpRequest();
-
-    xhr.open(
-      "POST",
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/sound_files/${path}`
-    );
-
-    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-
-    // ⭐ FIX: Force correct MIME type for WAV
+  // ⭐ CORRECTED — Supabase official upload API with proper MIME type
+  async function uploadSound(file: File, path: string) {
     const mime =
       file.type ||
       (file.name.toLowerCase().endsWith(".wav") ? "audio/wav" : "application/octet-stream");
 
-    xhr.setRequestHeader("Content-Type", mime);
+    const { data, error } = await supabase.storage
+      .from("sound_files")
+      .upload(path, file, {
+        contentType: mime,
+        upsert: true,
+      });
 
-    xhr.upload.onprogress = (e: ProgressEvent) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        setProgress(pct);
-      }
-    };
+    if (error) throw error;
 
-    xhr.onload = () => {
-      if (xhr.status < 300) {
-        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/${path}`;
-        resolve({ publicUrl });
-      } else {
-        reject(new Error(xhr.responseText));
-      }
-    };
-
-    xhr.onerror = () => reject(new Error("Upload failed"));
-    xhr.send(file);
-  });
-}
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/${path}`;
+  }
 
   async function runGatekeeper(text: string) {
     try {
@@ -167,8 +138,7 @@ async function uploadWithProgress(file: File, path: string) {
     let publicUrl: string;
 
     try {
-      const result = await uploadWithProgress(file!, filePath);
-      publicUrl = result.publicUrl;
+      publicUrl = await uploadSound(file!, filePath);
     } catch (err: any) {
       setError(err.message);
       setUploading(false);
