@@ -48,35 +48,47 @@ export default function SoundPostCard({
   const [newComment, setNewComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
+  // ⭐ FIXED — WebAudio initialization only after metadata is ready
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioContext();
-    }
-    const ctx = audioCtxRef.current;
+    const handleReady = () => {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      const ctx = audioCtxRef.current;
 
-    if (!sourceRef.current) {
-      sourceRef.current = ctx.createMediaElementSource(audio);
-    }
+      if (!sourceRef.current) {
+        sourceRef.current = ctx.createMediaElementSource(audio);
+      }
 
-    if (!intensityAnalyserRef.current) {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      sourceRef.current.connect(analyser);
-      analyser.connect(ctx.destination);
-      intensityAnalyserRef.current = analyser;
-    }
+      if (!intensityAnalyserRef.current) {
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        sourceRef.current.connect(analyser);
+        analyser.connect(ctx.destination);
+        intensityAnalyserRef.current = analyser;
+      }
 
-    if (!waveformAnalyserRef.current) {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      sourceRef.current.connect(analyser);
-      waveformAnalyserRef.current = analyser;
-    }
+      if (!waveformAnalyserRef.current) {
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        sourceRef.current.connect(analyser);
+        waveformAnalyserRef.current = analyser;
+      }
+    };
+
+    audio.addEventListener("loadedmetadata", handleReady);
+    audio.addEventListener("canplay", handleReady);
+
+    return () => {
+      audio.removeEventListener("loadedmetadata", handleReady);
+      audio.removeEventListener("canplay", handleReady);
+    };
   }, []);
 
+  // ⭐ Intensity analyzer loop
   useEffect(() => {
     const analyser = intensityAnalyserRef.current;
     if (!analyser) return;
@@ -103,6 +115,7 @@ export default function SoundPostCard({
     return () => cancelAnimationFrame(frame);
   }, [autoMask]);
 
+  // ⭐ Waveform visualizer loop
   useEffect(() => {
     const canvas = canvasRef.current;
     const analyser = waveformAnalyserRef.current;
@@ -172,6 +185,7 @@ export default function SoundPostCard({
     setIsPlaying(false);
   }
 
+  // ⭐ Delete post
   async function handleDelete() {
     if (!user || user.id !== post.creator_id) return;
 
@@ -200,6 +214,7 @@ export default function SoundPostCard({
     router.refresh();
   }
 
+  // ⭐ Refresh reactions
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -250,6 +265,7 @@ export default function SoundPostCard({
     router.refresh();
   };
 
+  // ⭐ Submit comment
   async function submitComment() {
     setCommentError("");
 
@@ -285,114 +301,53 @@ export default function SoundPostCard({
   const scale = 1 + intensity * 0.2;
 
   return (
-    <div
-      className={`
-        bg-gray-800 p-6 rounded-lg shadow-lg transition-all
-        ${isTrending ? "shadow-[0_0_25px_rgba(168,85,247,0.7)] border border-purple-500 animate-pulse" : ""}
-      `}
-    >
-      {user?.id === post.creator_id && (
-        <button
-          onClick={handleDelete}
-          className="text-red-400 hover:text-red-300 text-sm mb-3"
-        >
-          Delete Post
-        </button>
-      )}
+    <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
+      {/* Title → Post Detail */}
+      <Link href={`/sound-square/post/${post.id}`}>
+        <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
+          {post.title}
+        </h2>
+      </Link>
 
-      {isTrending && (
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs bg-purple-600 px-2 py-1 rounded-full">
-            Trending
-          </span>
-          <span className="text-xl">{MASK_EMOJI[autoMask]}</span>
-        </div>
-      )}
+      {/* Creator → Profile */}
+      <Link
+        href={`/profile/${post.creator_id}`}
+        className="text-gray-400 hover:text-gray-200 text-sm"
+      >
+        @{post.creator_name}
+      </Link>
 
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex flex-col">
-          <h2 className="text-xl font-semibold">{post.title}</h2>
-          <p className="text-gray-400 text-sm">
-            Uploaded by{" "}
-            <Link
-              href={`/profile/${post.creator_id}`}
-              className="text-purple-300 hover:text-purple-400 underline"
+      {/* Audio Player */}
+      <div className="mt-4">
+        <audio ref={audioRef} src={post.audio_url} preload="metadata" />
+
+        <div className="flex items-center gap-3 mt-2">
+          {!isPlaying ? (
+            <button
+              onClick={handlePlay}
+              className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
             >
-              {post.users?.username ?? "Unknown"}
-            </Link>{" "}
-            • {post.created_at}
-          </p>
+              Play
+            </button>
+          ) : (
+            <button
+              onClick={handlePause}
+              className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
+            >
+              Pause
+            </button>
+          )}
+
+          <span className="text-purple-300 text-lg" style={{ transform: `scale(${scale})` }}>
+            {MASK_EMOJI[autoMask]}
+          </span>
         </div>
+
+        {/* Waveform */}
+        <canvas ref={canvasRef} className="w-full h-24 mt-3" />
       </div>
 
-      <audio ref={audioRef} src={post.audio_url} preload="metadata" />
-
-      <canvas
-        ref={canvasRef}
-        className="w-full h-24 bg-gray-700 rounded mb-4"
-        style={{ transform: `scale(${scale})` }}
-      />
-
-      <div className="flex gap-4 mb-4">
-        {!isPlaying ? (
-          <button
-            onClick={handlePlay}
-            className="bg-green-600 px-4 py-2 rounded hover:bg-green-500"
-          >
-            Play
-          </button>
-        ) : (
-          <button
-            onClick={handlePause}
-            className="bg-red-600 px-4 py-2 rounded hover:bg-red-500"
-          >
-            Pause
-          </button>
-        )}
-      </div>
-
-      {post.comments && post.comments.length > 0 && (
-        <div className="mt-4">
-          <p className="text-gray-300 text-sm font-medium mb-2">
-            💬 {post.comment_count} comments
-          </p>
-
-          {post.comments.slice(0, 2).map((comment) => (
-            <div key={comment.id} className="mb-3">
-              <div className="flex items-center gap-2">
-                <img
-                  src={comment.profiles?.avatar_url || "/default-avatar.png"}
-                  className="w-6 h-6 rounded-full"
-                />
-                <span className="text-sm font-semibold text-purple-200">
-                  {comment.profiles?.username || "unknown"}
-                </span>
-              </div>
-
-              <p className="ml-8 text-gray-400 text-sm">
-                {comment.content}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex gap-4 mt-4">
-        <button
-          onClick={() => setShowCommentsModal(true)}
-          className="text-purple-300 hover:text-purple-200 text-sm"
-        >
-          💬 Comment
-        </button>
-
-        <button
-          onClick={() => setShowShareModal(true)}
-          className="text-purple-300 hover:text-purple-200 text-sm"
-        >
-          🔗 Share
-        </button>
-      </div>
-
+      {/* Reaction Bar */}
       <SoundReactionBar
         postId={post.id}
         creatorId={post.creator_id}
@@ -400,94 +355,55 @@ export default function SoundPostCard({
         onReact={refreshReactions}
       />
 
-      {showCommentsModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9000] flex items-center justify-center p-4">
-          <div className="bg-gray-900 p-6 rounded-xl max-w-lg w-full shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Comments</h2>
+      {/* Comments */}
+      <div className="mt-4">
+        <button
+          onClick={() => setShowCommentsModal(true)}
+          className="text-gray-300 hover:text-gray-100"
+        >
+          Comments
+        </button>
 
-            {post.comments.map((comment) => (
-              <div key={comment.id} className="mb-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <img
-                    src={comment.profiles?.avatar_url || "/default-avatar.png"}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  <span className="text-purple-200 font-semibold">
-                    {comment.profiles?.username || "unknown"}
-                  </span>
-                </div>
-                <p className="text-gray-300 text-sm ml-8">{comment.content}</p>
-              </div>
-            ))}
+        {showCommentsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+            <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4">Comments</h3>
 
-            <textarea
-              className="w-full bg-gray-800 text-white rounded p-2 mt-4"
-              placeholder="Write a comment…"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              rows={3}
-            />
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="w-full p-2 rounded bg-gray-700 mb-2"
+                placeholder="Write a comment..."
+              />
 
-            {commentError && (
-              <p className="text-red-400 text-sm mt-1">{commentError}</p>
-            )}
-
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={() => setShowCommentsModal(false)}
-                className="text-gray-400 hover:text-gray-200"
-              >
-                Close
-              </button>
+              {commentError && <p className="text-red-400 mb-2">{commentError}</p>}
 
               <button
                 onClick={submitComment}
                 className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
               >
-                Post Comment
+                Submit
               </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9000] flex items-center justify-center p-4">
-          <div className="bg-gray-900 p-6 rounded-xl max-w-md w-full shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Share this Sound</h2>
-
-            <p className="text-gray-300 mb-4">
-              Copy the link below to share this sound:
-            </p>
-
-            <input
-              type="text"
-              readOnly
-              value={`${window.location.origin}/sound-square/post/${post.id}`}
-              className="w-full bg-gray-800 text-white p-2 rounded"
-            />
-
-            <div className="flex justify-between mt-4">
               <button
-                onClick={() => setShowShareModal(false)}
-                className="text-gray-400 hover:text-gray-200"
+                onClick={() => setShowCommentsModal(false)}
+                className="mt-4 text-gray-400 hover:text-gray-200"
               >
                 Close
               </button>
-
-              <button
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${window.location.origin}/sound-square/post/${post.id}`
-                  )
-                }
-                className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
-              >
-                Copy Link
-              </button>
             </div>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Delete (creator only) */}
+      {user?.id === post.creator_id && (
+        <button
+          onClick={handleDelete}
+          className="mt-4 text-red-400 hover:text-red-300"
+        >
+          Delete Post
+        </button>
       )}
     </div>
   );

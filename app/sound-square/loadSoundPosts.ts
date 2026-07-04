@@ -28,6 +28,7 @@ export type CardSoundPost = {
   title: string;
   audio_url: string;
   creator_id: string;
+  creator_name: string | null;
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
@@ -49,7 +50,7 @@ export async function loadSoundPosts() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // ⭐ Load posts + creator profile
+  // Load posts + creator profile + creator_name
   const { data: posts, error } = await supabase
     .from("sound_posts")
     .select(`
@@ -57,7 +58,11 @@ export async function loadSoundPosts() {
       title,
       audio_url,
       creator_id,
+      creator_name,
       created_at,
+      spirit_score,
+      positivity_ratio,
+      automask,
       users:creator_id ( username, avatar_url )
     `)
     .order("created_at", { ascending: false });
@@ -69,22 +74,22 @@ export async function loadSoundPosts() {
 
   const ids = posts.map((p) => p.id);
 
-  // ⭐ Load reactions
+  // Load reactions
   const { data: reactionRows } = await supabase
     .from("reactions")
     .select("post_id, maskTier")
     .in("post_id", ids)
     .eq("post_type", "sound");
 
-  // ⭐ Load shares (safe — no 404 noise)
+  // Load shares — correct table
   const { data: shareRows, error: shareError } = await supabase
-    .from("sound_share")
+    .from("sound_post_shares")
     .select("post_id")
     .in("post_id", ids);
 
   const safeShareRows = shareError ? [] : shareRows ?? [];
 
-  // ⭐ Load comments
+  // Load comments
   const { data: commentRows } = await supabase
     .from("sound_post_comments")
     .select(`
@@ -104,7 +109,7 @@ export async function loadSoundPosts() {
   const enriched: CardSoundPost[] = posts.map((p: any) => {
     const userObj = Array.isArray(p.users) ? p.users[0] : p.users;
 
-    // ⭐ Reaction aggregation
+    // Reaction aggregation
     const rows = (reactionRows ?? []).filter((r: any) => r.post_id === p.id);
 
     const counts: ReactionCounts = {
@@ -127,14 +132,14 @@ export async function loadSoundPosts() {
     if (spirit_score > 300) automask = 5;
     if (spirit_score > 500) automask = 6;
 
-    // ⭐ Share aggregation (safe)
+    // Share aggregation
     const share_count = safeShareRows.filter(
       (s: any) => s.post_id === p.id
     ).length;
 
     const share_score = share_count * 5;
 
-    // ⭐ Comment aggregation
+    // Comment aggregation
     const rawComments = (commentRows ?? []).filter(
       (c: any) => c.post_id === p.id
     );
@@ -157,6 +162,7 @@ export async function loadSoundPosts() {
       title: p.title,
       audio_url: p.audio_url,
       creator_id: p.creator_id,
+      creator_name: p.creator_name,
       created_at: p.created_at,
       spirit_score,
       positivity_ratio,
