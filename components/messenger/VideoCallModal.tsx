@@ -73,13 +73,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     Record<ParticipantId, RTCSessionDescriptionInit>
   >({});
 
-  // Enhancements: call duration + connection quality + TURN indicator
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState("00:00");
   const [connectionQuality, setConnectionQuality] = useState<"good" | "fair" | "poor">("good");
   const [usingTurn, setUsingTurn] = useState(false);
-
-  // ---------- LOCAL MEDIA ----------
+  const [showReconnectOverlay, setShowReconnectOverlay] = useState(false);
 
   const setupLocalStream = async () => {
     if (localStreamRef.current) {
@@ -155,8 +153,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     );
   };
 
-  // ---------- CALL-WIDE ICE RESTART ----------
-
   const lastIceRestartRef = useRef<Record<ParticipantId, number>>({});
 
   const restartIceForParticipant = async (
@@ -189,8 +185,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       onNotify(`Failed to restart ICE with ${participantId}`);
     }
   };
-
-  // ---------- PEER CONNECTION MANAGEMENT ----------
 
   const createPeerConnection = (participantId: ParticipantId): RTCPeerConnection => {
     let existing = peerConnectionsRef.current[participantId];
@@ -236,6 +230,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
             });
           })
           .catch(() => {});
+
+        setTimeout(() => {
+          const el = remoteVideoRefs.current[participantId];
+          if (el && el.isConnected) {
+            el.play().catch(() => {});
+          }
+        }, 150);
       }
 
       if (state === "disconnected" || state === "checking") {
@@ -312,8 +313,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     return pc;
   };
 
-  // ---------- CALLER START ----------
-
   const startCallAsCaller = async () => {
     if (hasStartedCallRef.current) return;
     hasStartedCallRef.current = true;
@@ -335,8 +334,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       onSendOffer(participantId, offer);
     }
   };
-
-  // ---------- INCOMING SIGNALING ----------
 
   const handleIncomingOffer = async (
     from: ParticipantId,
@@ -452,8 +449,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     }
   };
 
-  // ---------- EFFECTS ----------
-
   useEffect(() => {
     if (!isOpen) return;
     if (!signaling.isCaller) return;
@@ -500,7 +495,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     signaling.isCaller,
   ]);
 
-  // CALLEE AUTO-ANSWER (restored)
   useEffect(() => {
     if (!isOpen) return;
     if (signaling.isCaller) return;
@@ -519,7 +513,6 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     console.log("VideoCallModal incomingOffers:", incomingOffers);
   }, [incomingOffers]);
 
-  // Call duration effects
   useEffect(() => {
     if (callActive && isOpen && !callStartTime) {
       setCallStartTime(Date.now());
@@ -545,7 +538,13 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     return () => clearInterval(interval);
   }, [callStartTime]);
 
-  // ---------- CONTROLS & CLEANUP ----------
+  useEffect(() => {
+    if (connectionQuality === "fair" || connectionQuality === "poor") {
+      setShowReconnectOverlay(true);
+    } else {
+      setShowReconnectOverlay(false);
+    }
+  }, [connectionQuality]);
 
   const handleToggleMic = () => {
     setMicOn((prev) => {
@@ -624,11 +623,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     setCallDuration("00:00");
     setConnectionQuality("good");
     setUsingTurn(false);
+    setShowReconnectOverlay(false);
 
     onClose();
   };
-
-  // ---------- PARTICIPANTS ----------
 
   const participants = signaling.isCaller
     ? Object.keys(peerConnectionsRef.current)
@@ -644,11 +642,9 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
   if (!isOpen) return null;
 
-  // ---------- UI ----------
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-neutral-900 rounded-lg shadow-lg p-4 w-full max-w-4xl">
+      <div className="relative bg-neutral-900 rounded-lg shadow-lg p-4 w-full max-w-4xl">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-semibold text-white">Video Call</h2>
           <button
@@ -668,6 +664,14 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           </span>
           {usingTurn && <span>🔒 Relay: TURN active</span>}
         </div>
+
+        {showReconnectOverlay && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="bg-black/60 text-white text-sm px-4 py-2 rounded">
+              Reconnecting…
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="flex flex-col">
