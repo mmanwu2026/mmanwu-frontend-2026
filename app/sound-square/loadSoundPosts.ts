@@ -1,4 +1,5 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export type ReactionCounts = {
   mask1: number;
@@ -38,13 +39,63 @@ export type CardSoundPost = {
   comment_count: number;
 };
 
-export async function loadSoundPosts() {
-  const supabase = createBrowserClient(
+/* -------------------- RAW TYPES -------------------- */
+
+type RawPost = {
+  id: string;
+  title: string;
+  audio_url: string;
+  creator_id: string;
+  creator_name: string | null;
+  created_at: string;
+  users: { username: string | null; avatar_url: string | null }[] | null;
+};
+
+type RawReaction = {
+  post_id: string;
+  maskTier: number;
+};
+
+type RawShare = {
+  post_id: string;
+};
+
+type RawComment = {
+  id: string;
+  post_id: string;
+  content: string;
+  raw_input: string | null;
+  created_at: string;
+  automask: number;
+  positivity_ratio: number;
+  user_id: string;
+  profiles: { username: string | null; avatar_url: string | null }[] | null;
+};
+
+/* -------------------- MAIN FUNCTION -------------------- */
+
+export async function loadSoundPosts(): Promise<CardSoundPost[]> {
+  const cookieStore = await cookies(); // ⭐ FIX — await cookies()
+
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options });
+        },
+      },
+    }
   );
 
-  // ⭐ Load posts + creator_name + profile fallback
+  /* -------------------- LOAD POSTS -------------------- */
   const { data: posts, error } = await supabase
     .from("sound_posts")
     .select(`
@@ -54,10 +105,10 @@ export async function loadSoundPosts() {
       creator_id,
       creator_name,
       created_at,
-      spirit_score,
-      positivity_ratio,
-      automask,
-      users:creator_id ( username, avatar_url )
+      users:creator_id (
+        username,
+        avatar_url
+      )
     `)
     .order("created_at", { ascending: false });
 
@@ -66,24 +117,24 @@ export async function loadSoundPosts() {
     return [];
   }
 
-  const ids = posts.map((p) => p.id);
+  const ids = posts.map((p: RawPost) => p.id);
 
-  // ⭐ Load reactions
+  /* -------------------- LOAD REACTIONS -------------------- */
   const { data: reactionRows } = await supabase
     .from("reactions")
     .select("post_id, maskTier")
     .in("post_id", ids)
     .eq("post_type", "sound");
 
-  // ⭐ Load shares — correct table
+  /* -------------------- LOAD SHARES -------------------- */
   const { data: shareRows, error: shareError } = await supabase
     .from("sound_post_shares")
     .select("post_id")
     .in("post_id", ids);
 
-  const safeShareRows = shareError ? [] : shareRows ?? [];
+  const safeShareRows: RawShare[] = shareError ? [] : shareRows ?? [];
 
-  // ⭐ Load comments
+  /* -------------------- LOAD COMMENTS -------------------- */
   const { data: commentRows } = await supabase
     .from("sound_post_comments")
     .select(`
@@ -95,16 +146,23 @@ export async function loadSoundPosts() {
       automask,
       positivity_ratio,
       user_id,
-      profiles:user_id ( username, avatar_url )
+      profiles:user_id (
+        username,
+        avatar_url
+      )
     `)
     .in("post_id", ids)
     .order("created_at", { ascending: true });
 
-  const enriched: CardSoundPost[] = posts.map((p: any) => {
-    const userObj = Array.isArray(p.users) ? p.users[0] : p.users;
+  /* -------------------- ENRICH POSTS -------------------- */
 
-    // ⭐ Reaction aggregation
-    const rows = (reactionRows ?? []).filter((r: any) => r.post_id === p.id);
+  const enriched: CardSoundPost[] = posts.map((p: RawPost) => {
+    const userObj =
+      Array.isArray(p.users) && p.users.length > 0 ? p.users[0] : null;
+
+    /* -------------------- REACTIONS -------------------- */
+    const rows: RawReaction[] =
+      (reactionRows ?? []).filter((r: RawReaction) => r.post_id === p.id);
 
     const counts: ReactionCounts = {
       mask1: rows.filter((r) => r.maskTier === 1).length,
@@ -117,7 +175,12 @@ export async function loadSoundPosts() {
 
     const total = rows.length;
     const positive = rows.filter((r) => r.maskTier >= 3).length;
-    const spirit_score = rows.reduce((sum, r) => sum + r.maskTier, 0);
+
+    const spirit_score = rows.reduce(
+      (sum: number, r: RawReaction) => sum + r.maskTier,
+      0
+    );
+
     const positivity_ratio = total > 0 ? positive / total : 0.5;
 
     let automask = 2;
@@ -126,19 +189,18 @@ export async function loadSoundPosts() {
     if (spirit_score > 300) automask = 5;
     if (spirit_score > 500) automask = 6;
 
-    // ⭐ Share aggregation
+    /* -------------------- SHARES -------------------- */
     const share_count = safeShareRows.filter(
-      (s: any) => s.post_id === p.id
+      (s: RawShare) => s.post_id === p.id
     ).length;
 
     const share_score = share_count * 5;
 
-    // ⭐ Comment aggregation
-    const rawComments = (commentRows ?? []).filter(
-      (c: any) => c.post_id === p.id
-    );
+    /* -------------------- COMMENTS -------------------- */
+    const rawComments: RawComment[] =
+      (commentRows ?? []).filter((c: RawComment) => c.post_id === p.id);
 
-    const comments: SoundComment[] = rawComments.map((c: any) => ({
+    const comments: SoundComment[] = rawComments.map((c: RawComment) => ({
       id: c.id,
       content: c.content,
       raw_input: c.raw_input,
@@ -146,16 +208,17 @@ export async function loadSoundPosts() {
       automask: c.automask,
       positivity_ratio: c.positivity_ratio,
       user_id: c.user_id,
-      profiles: Array.isArray(c.profiles) ? c.profiles[0] : c.profiles,
+      profiles:
+        Array.isArray(c.profiles) && c.profiles.length > 0
+          ? c.profiles[0]
+          : { username: null, avatar_url: null },
     }));
 
     const comment_count = comments.length;
 
-    // ⭐ FINAL — correct creator name fallback
+    /* -------------------- CREATOR NAME FALLBACK -------------------- */
     const username =
-      userObj?.username ??
-      p.creator_name ??
-      "Unknown";
+      userObj?.username ?? p.creator_name ?? "Unknown";
 
     return {
       id: p.id,
@@ -164,20 +227,16 @@ export async function loadSoundPosts() {
       creator_id: p.creator_id,
       creator_name: p.creator_name,
       created_at: p.created_at,
-
       spirit_score,
       positivity_ratio,
       automask,
-
       reactions: counts,
       share_count,
       share_score,
-
       users: {
         username,
         avatar_url: userObj?.avatar_url ?? null,
       },
-
       comments,
       comment_count,
     };
