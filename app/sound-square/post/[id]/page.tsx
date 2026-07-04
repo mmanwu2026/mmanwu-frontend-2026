@@ -45,10 +45,10 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
     (async () => {
       setLoading(true);
 
+      // ⭐ Load post
       const { data, error } = await supabase
         .from("sound_posts")
-        .select(
-          `
+        .select(`
           id,
           title,
           audio_url,
@@ -57,11 +57,8 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
           spirit_score,
           positivity_ratio,
           automask,
-          share_count,
-          share_score,
           users:creator_id ( username, avatar_url )
-        `
-        )
+        `)
         .eq("id", params.id)
         .single();
 
@@ -73,9 +70,19 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       const raw = data as any;
 
+      // ⭐ Load shares
+      const { data: shareRows } = await supabase
+        .from("sound_share")
+        .select("post_id")
+        .eq("post_id", raw.id);
+
+      const share_count = shareRows?.length ?? 0;
+      const share_score = share_count * 5;
+
+      // ⭐ Load reactions (weighted)
       const { data: reactionRows } = await supabase
         .from("reactions")
-        .select("maskTier")
+        .select("maskTier, value")
         .eq("post_id", raw.id)
         .eq("post_type", "sound");
 
@@ -89,25 +96,28 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
       };
 
       let spirit = 0;
-      let positive = 0;
-      let total = 0;
+      let weightedPositive = 0;
+      let weightedTotal = 0;
 
-      (reactionRows || []).forEach((r: { maskTier: number }) => {
+      (reactionRows || []).forEach((r: { maskTier: number; value: number }) => {
         const key = `mask${r.maskTier}` as keyof typeof counts;
         counts[key] += 1;
 
         spirit += r.maskTier;
-        total += 1;
-        if (r.maskTier >= 3) positive += 1;
+
+        weightedTotal += Math.abs(r.value ?? 0);
+        if ((r.value ?? 0) > 0) weightedPositive += r.value ?? 0;
       });
 
-      const positivity = total > 0 ? positive / total : 0.5;
+      const positivity = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
+      // ⭐ Unified automask logic (matches feed)
       let automask = 2;
-      if (spirit > 20) automask = 3;
-      if (spirit > 100) automask = 4;
-      if (spirit > 300) automask = 5;
-      if (spirit > 500) automask = 6;
+      if (spirit <= 20) automask = 2;
+      else if (spirit <= 100) automask = 3;
+      else if (spirit <= 200) automask = 4;
+      else if (spirit <= 500) automask = 5;
+      else automask = 6;
 
       const card: SoundPostDetailCard = {
         id: raw.id,
@@ -118,8 +128,8 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         spirit_score: spirit,
         positivity_ratio: positivity,
         automask,
-        share_count: raw.share_count ?? 0,
-        share_score: raw.share_score ?? 0,
+        share_count,
+        share_score,
         users: {
           username: raw.users?.username ?? "Unknown",
           avatar_url: raw.users?.avatar_url ?? null,
@@ -179,9 +189,10 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         creatorId={post.creator_id}
         reactions={post.reactions}
         onReact={async () => {
+          // ⭐ Refresh reactions after reacting
           const { data: reactionRows } = await supabase
             .from("reactions")
-            .select("maskTier")
+            .select("maskTier, value")
             .eq("post_id", post.id)
             .eq("post_type", "sound");
 
@@ -195,25 +206,27 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
           };
 
           let spirit = 0;
-          let positive = 0;
-          let total = 0;
+          let weightedPositive = 0;
+          let weightedTotal = 0;
 
-          (reactionRows || []).forEach((r: { maskTier: number }) => {
+          (reactionRows || []).forEach((r: { maskTier: number; value: number }) => {
             const key = `mask${r.maskTier}` as keyof typeof counts;
             counts[key] += 1;
 
             spirit += r.maskTier;
-            total += 1;
-            if (r.maskTier >= 3) positive += 1;
+
+            weightedTotal += Math.abs(r.value ?? 0);
+            if ((r.value ?? 0) > 0) weightedPositive += r.value ?? 0;
           });
 
-          const positivity = total > 0 ? positive / total : 0.5;
+          const positivity = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
           let automask = 2;
-          if (spirit > 20) automask = 3;
-          if (spirit > 100) automask = 4;
-          if (spirit > 300) automask = 5;
-          if (spirit > 500) automask = 6;
+          if (spirit <= 20) automask = 2;
+          else if (spirit <= 100) automask = 3;
+          else if (spirit <= 200) automask = 4;
+          else if (spirit <= 500) automask = 5;
+          else automask = 6;
 
           setPost({
             ...post,
@@ -227,8 +240,8 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       <SoundShareButton postId={post.id} />
 
-      <SoundComments postId={post.id} onSubmitted={() => {}} />
-      <SoundCommentList postId={post.id} />
+<SoundComments postId={post.id} onSubmitted={() => {}} />
+<SoundCommentList postId={post.id} />
     </div>
   );
 }

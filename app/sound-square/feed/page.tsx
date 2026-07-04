@@ -134,7 +134,6 @@ export default function SoundSquareFeed() {
   async function mergeWithReactionsAndComments(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
     const postIds = rawPosts.map((p) => p.id);
 
-    // ⭐ Load reactions
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
@@ -143,7 +142,6 @@ export default function SoundSquareFeed() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    // ⭐ Load shares (safe — no 404 noise)
     const { data: shareRows, error: shareError } = await supabase
       .from("sound_share")
       .select("post_id")
@@ -151,7 +149,6 @@ export default function SoundSquareFeed() {
 
     const safeShareRows = shareError ? [] : shareRows ?? [];
 
-    // ⭐ Load comments
     const { data: commentRows } = await supabase
       .from("sound_post_comments")
       .select(`
@@ -199,14 +196,12 @@ export default function SoundSquareFeed() {
       else if (spiritScore <= 500) autoMask = 5;
       else autoMask = 6;
 
-      // ⭐ Share aggregation (safe)
       const share_count = safeShareRows.filter(
         (s: any) => s.post_id === post.id
       ).length;
 
       const share_score = share_count * 5;
 
-      // ⭐ Comment aggregation
       const rawComments = (commentRows ?? []).filter(
         (c: any) => c.post_id === post.id
       );
@@ -251,6 +246,10 @@ export default function SoundSquareFeed() {
     });
   }
 
+  const handleDeleted = (id: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
   return (
     <div className="min-h-screen text-white p-6">
       <TopBar />
@@ -262,7 +261,11 @@ export default function SoundSquareFeed() {
 
       <div className="flex flex-col gap-6 mb-6">
         {posts.map((post) => (
-          <SoundPostCard key={post.id} post={post} isTrending={false} />
+          <SoundPostCard
+            key={post.id}
+            post={{ ...post, onDeleted: handleDeleted }}
+            isTrending={false}
+          />
         ))}
       </div>
 

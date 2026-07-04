@@ -32,36 +32,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // ⭐ 1️⃣ Fetch current share_count
-  const { data: postData, error: fetchError } = await supabase
-    .from("sound_posts")
-    .select("share_count")
-    .eq("id", post_id)
-    .single();
+  // ⭐ Prevent duplicate shares
+  const { data: existingShare } = await supabase
+    .from("sound_post_shares")
+    .select("id")
+    .eq("post_id", post_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (fetchError || !postData) {
-    console.error(fetchError);
-    return NextResponse.json({ error: "Failed to fetch post" }, { status: 500 });
+  if (!existingShare) {
+    await supabase.from("sound_post_shares").insert({
+      post_id,
+      user_id: user.id,
+      post_type: "sound",
+    });
   }
-
-  const newCount = (postData.share_count ?? 0) + 1;
-
-  // ⭐ 2️⃣ Update share_count
-  const { error: updateError } = await supabase
-    .from("sound_posts")
-    .update({ share_count: newCount })
-    .eq("id", post_id);
-
-  if (updateError) {
-    console.error(updateError);
-    return NextResponse.json({ error: "Failed to update share count" }, { status: 500 });
-  }
-
-  // ⭐ 3️⃣ Insert share event (optional)
-  await supabase.from("sound_post_shares").insert({
-    post_id,
-    user_id: user.id,
-  });
 
   return NextResponse.json({ success: true });
 }

@@ -59,7 +59,7 @@ export default function SoundSquareUpload() {
     setFile(f);
   }
 
-  // ⭐ CORRECTED — Supabase official upload API with proper MIME type
+  // ⭐ Correct Supabase upload API
   async function uploadSound(file: File, path: string) {
     const mime =
       file.type ||
@@ -93,7 +93,7 @@ export default function SoundSquareUpload() {
       return {
         rewriteNeeded: false,
         autoApprove: true,
-        content: text,
+        finalText: text,
         automask: 3,
         positivityRatio: 0.5,
       };
@@ -145,14 +145,15 @@ export default function SoundSquareUpload() {
       return;
     }
 
+    // ⭐ FULLY CORRECT INSERT — matches SoundSquare schema
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title: finalTitle,
       audio_url: publicUrl,
       creator_id: user!.id,
       spirit_score: 0,
-      positivity_ratio: 0.5,
+      positivity_ratio: positivity,
       automask,
-      post_type: "sound",
+      post_type: "sound", // ⭐ REQUIRED for delete + cascade + feed
     });
 
     if (dbError) {

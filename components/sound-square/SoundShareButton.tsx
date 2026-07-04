@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext";
 
 export default function SoundShareButton({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const { user } = useUser();
 
   const shareUrl =
     typeof window !== "undefined"
@@ -17,18 +19,24 @@ export default function SoundShareButton({ postId }: { postId: string }) {
     try {
       await navigator.clipboard.writeText(shareUrl);
 
-      // ⭐ Correct analytics POST
+      // ⭐ Prevent duplicate shares
       await fetch("/api/sound-share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post_id: postId }),
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: user?.id ?? null,
+          post_type: "sound",
+        }),
       });
 
-      // ⭐ Refresh feed so share_count updates
       router.refresh();
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // ⭐ Close modal after copy
+      setOpen(false);
     } catch (err) {
       console.error("Copy failed:", err);
     }

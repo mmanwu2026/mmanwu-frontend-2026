@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
-import { useRouter } from "next/navigation";   // ⭐ ADDED
+import { useRouter } from "next/navigation";
 
 interface ReactionCounts {
   mask1: number;
@@ -27,20 +27,23 @@ export default function SoundReactionBar({
 }) {
   const supabase = useSupabase();
   const { user } = useUser();
-  const router = useRouter();                  // ⭐ ADDED
+  const router = useRouter();
+
   const [loading, setLoading] = useState(false);
 
   const isCreator = user?.id === creatorId;
 
   async function handleReact(maskTier: number) {
     if (!user || loading) return;
+
     setLoading(true);
 
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
-      post_type: "sound",
+      post_type: "sound",     // ⭐ REQUIRED for cascade + feed
       user_id: user.id,
       maskTier,
+      value: maskTier,        // ⭐ REQUIRED for positivity weighting
     });
 
     setLoading(false);
@@ -50,9 +53,8 @@ export default function SoundReactionBar({
       return;
     }
 
-    // ⭐ CRITICAL FIX: Refresh FEED after reaction
+    // ⭐ Refresh feed + local reaction state
     router.refresh();
-
     onReact();
   }
 
@@ -64,7 +66,7 @@ export default function SoundReactionBar({
         <>
           <button
             onClick={() => handleReact(1)}
-            className="text-3xl flex flex-col items-center"
+            className="text-3xl flex flex-col items-center hover:scale-110 transition"
           >
             😶‍🌫️
             <span className="text-xs text-gray-400">{reactions.mask1}</span>
@@ -72,7 +74,7 @@ export default function SoundReactionBar({
 
           <button
             onClick={() => handleReact(2)}
-            className="text-3xl flex flex-col items-center"
+            className="text-3xl flex flex-col items-center hover:scale-110 transition"
           >
             😈
             <span className="text-xs text-gray-400">{reactions.mask2}</span>
@@ -83,7 +85,7 @@ export default function SoundReactionBar({
       {/* ⭐ Public reactions */}
       <button
         onClick={() => handleReact(3)}
-        className="text-3xl flex flex-col items-center"
+        className="text-3xl flex flex-col items-center hover:scale-110 transition"
       >
         😊
         <span className="text-xs text-gray-400">{reactions.mask3}</span>
@@ -91,7 +93,7 @@ export default function SoundReactionBar({
 
       <button
         onClick={() => handleReact(4)}
-        className="text-3xl flex flex-col items-center"
+        className="text-3xl flex flex-col items-center hover:scale-110 transition"
       >
         🤩
         <span className="text-xs text-gray-400">{reactions.mask4}</span>
@@ -99,7 +101,7 @@ export default function SoundReactionBar({
 
       <button
         onClick={() => handleReact(5)}
-        className="text-3xl flex flex-col items-center"
+        className="text-3xl flex flex-col items-center hover:scale-110 transition"
       >
         😇
         <span className="text-xs text-gray-400">{reactions.mask5}</span>
@@ -108,7 +110,7 @@ export default function SoundReactionBar({
       {/* ⭐ Mask 6 — surprise tier */}
       <button
         onClick={() => handleReact(6)}
-        className="text-3xl flex flex-col items-center"
+        className="text-3xl flex flex-col items-center hover:scale-110 transition"
       >
         🔱
         <span className="text-xs text-gray-400">{reactions.mask6}</span>
