@@ -4,10 +4,10 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
-import type { CardSoundPost, SoundComment } from "@/app/sound-square/loadSoundPosts";
-
-import FloatingComposer from "@/components/sound-square/FloatingComposer";
 import FeedToggle from "@/components/sound-square/FeedToggle";
+import FloatingComposer from "@/components/sound-square/FloatingComposer";
+
+import type { CardSoundPost, SoundComment } from "@/app/sound-square/loadSoundPosts";
 
 type ReactionCounts = {
   mask1: number;
@@ -29,8 +29,11 @@ type RawSoundPost = {
   title: string;
   audio_url: string;
   creator_id: string;
+  creator_name: string | null;
   created_at: string;
   spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
   users?: { username: string | null; avatar_url?: string | null } | null;
 };
 
@@ -57,7 +60,15 @@ export default function SoundSquareFeed() {
     const { data, error } = await supabase
       .from("sound_posts")
       .select(`
-        *,
+        id,
+        title,
+        audio_url,
+        creator_id,
+        creator_name,
+        created_at,
+        spirit_score,
+        positivity_ratio,
+        automask,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
@@ -87,7 +98,15 @@ export default function SoundSquareFeed() {
     const { data, error } = await supabase
       .from("sound_posts")
       .select(`
-        *,
+        id,
+        title,
+        audio_url,
+        creator_id,
+        creator_name,
+        created_at,
+        spirit_score,
+        positivity_ratio,
+        automask,
         users:creator_id ( username, avatar_url )
       `)
       .lt("created_at", cursor)
@@ -160,10 +179,7 @@ export default function SoundSquareFeed() {
         automask,
         positivity_ratio,
         user_id,
-        profiles:user_id (
-          username,
-          avatar_url
-        )
+        profiles:user_id ( username, avatar_url )
       `)
       .in("post_id", postIds)
       .order("created_at", { ascending: true });
@@ -224,6 +240,7 @@ export default function SoundSquareFeed() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
+        creator_name: post.creator_name,
         created_at: post.created_at,
 
         spirit_score: spiritScore,

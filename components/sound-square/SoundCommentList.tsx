@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSupabase } from "@/context/SupabaseContext";   // ⭐ ADDED
+import { useSupabase } from "@/context/SupabaseContext";
 
 export default function SoundCommentList({ postId }: { postId: string }) {
-  const supabase = useSupabase();                          // ⭐ ADDED
+  const supabase = useSupabase();
   const [comments, setComments] = useState<any[]>([]);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
@@ -28,7 +28,7 @@ export default function SoundCommentList({ postId }: { postId: string }) {
   useEffect(() => {
     loadComments();
 
-    // ⭐ REALTIME SUBSCRIPTION — Sound Square updates instantly
+    // ⭐ FIXED — correct table name
     const channel = supabase
       .channel(`sound-comments-${postId}`)
       .on(
@@ -36,11 +36,11 @@ export default function SoundCommentList({ postId }: { postId: string }) {
         {
           event: "INSERT",
           schema: "public",
-          table: "sound_comments",
+          table: "sound_post_comments",   // ⭐ FIXED
           filter: `post_id=eq.${postId}`,
         },
         () => {
-          loadComments(); // ⭐ Refresh comments when new ones arrive
+          loadComments(); // refresh on new comment
         }
       )
       .subscribe();
@@ -66,7 +66,6 @@ export default function SoundCommentList({ postId }: { postId: string }) {
           "
         >
           <div className="flex items-center gap-3">
-            {/* Avatar */}
             {c.users?.avatar_url ? (
               <img
                 src={c.users.avatar_url}
@@ -78,7 +77,6 @@ export default function SoundCommentList({ postId }: { postId: string }) {
             )}
 
             <div className="flex flex-col">
-              {/* Username */}
               <Link
                 href={`/profile/${c.user_id}`}
                 className="text-purple-300 hover:text-purple-400 underline"
@@ -86,19 +84,14 @@ export default function SoundCommentList({ postId }: { postId: string }) {
                 @{c.users?.username ?? "Unknown"}
               </Link>
 
-              {/* Creator badge */}
               {creatorId && c.user_id === creatorId && (
-                <span className="text-xs text-purple-400">
-                  Creator
-                </span>
+                <span className="text-xs text-purple-400">Creator</span>
               )}
             </div>
           </div>
 
-          {/* Comment text */}
           <p className="mt-3 text-white leading-relaxed">{c.final_text}</p>
 
-          {/* Timestamp */}
           <p className="text-xs text-white/40 mt-2">
             {new Date(c.created_at).toLocaleString()}
           </p>

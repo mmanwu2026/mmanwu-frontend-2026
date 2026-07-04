@@ -26,8 +26,11 @@ type RawSoundPost = {
   title: string;
   audio_url: string;
   creator_id: string;
+  creator_name: string | null;
   created_at: string;
   spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
   users?: { username: string | null; avatar_url?: string | null } | null;
 };
 
@@ -47,7 +50,15 @@ export default function TrendingSoundSquare() {
     const { data: rawPosts, error } = await supabase
       .from("sound_posts")
       .select(`
-        *,
+        id,
+        title,
+        audio_url,
+        creator_id,
+        creator_name,
+        created_at,
+        spirit_score,
+        positivity_ratio,
+        automask,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
@@ -71,9 +82,9 @@ export default function TrendingSoundSquare() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    // ⭐ Load shares (safe — no 404 noise)
+    // ⭐ Load shares (correct table)
     const { data: shareRows, error: shareError } = await supabase
-      .from("sound_share")
+      .from("sound_post_shares")
       .select("post_id")
       .in("post_id", postIds);
 
@@ -86,15 +97,13 @@ export default function TrendingSoundSquare() {
         id,
         post_id,
         content,
+        final_text,
         raw_input,
         created_at,
         automask,
         positivity_ratio,
         user_id,
-        profiles:user_id (
-          username,
-          avatar_url
-        )
+        profiles:user_id ( username, avatar_url )
       `)
       .in("post_id", postIds)
       .order("created_at", { ascending: true });
@@ -128,14 +137,12 @@ export default function TrendingSoundSquare() {
       else if (spiritScore <= 500) autoMask = 5;
       else autoMask = 6;
 
-      // ⭐ Shares (safe)
       const share_count = safeShareRows.filter(
         (s: any) => s.post_id === post.id
       ).length;
 
       const share_score = share_count * 5;
 
-      // ⭐ Comments
       const rawComments = (commentRows ?? []).filter(
         (c: any) => c.post_id === post.id
       );
@@ -143,6 +150,7 @@ export default function TrendingSoundSquare() {
       const comments: SoundComment[] = rawComments.map((c: any) => ({
         id: c.id,
         content: c.content,
+        final_text: c.final_text,
         raw_input: c.raw_input,
         created_at: c.created_at,
         automask: c.automask,
@@ -165,6 +173,7 @@ export default function TrendingSoundSquare() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
+        creator_name: post.creator_name,
         created_at: post.created_at,
 
         spirit_score: spiritScore,
@@ -188,7 +197,6 @@ export default function TrendingSoundSquare() {
       };
     });
 
-    // ⭐ Sort by trending score
     enriched.sort((a, b) => b.trending_score - a.trending_score);
 
     setPosts(enriched);

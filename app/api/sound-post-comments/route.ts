@@ -3,7 +3,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
-  // ⭐ FIX — Edge runtime requires awaiting cookies()
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -25,9 +24,9 @@ export async function POST(req: Request) {
   );
 
   const body = await req.json();
-  const { post_id, final_text } = body;
+  const { post_id, final_text, raw_input, automask, positivity_ratio } = body;
 
-  // ⭐ Load authenticated user
+  // Load authenticated user
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -36,13 +35,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // ⭐ Insert into sound_comments (NOT vision_post_comments)
+  // ⭐ FIXED — correct table name
   const { error } = await supabase
-    .from("sound_comments")
+    .from("sound_post_comments")
     .insert({
       post_id,
       user_id: user.id,
-      final_text,
+      raw_input,
+      content: final_text,
+      final_text,              // ⭐ required for SoundCommentList
+      automask,
+      positivity_ratio,
     });
 
   if (error) {
