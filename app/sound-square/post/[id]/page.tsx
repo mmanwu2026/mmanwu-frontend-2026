@@ -4,20 +4,39 @@ import { useEffect, useState, useRef } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 import TopBar from "@/components/navigation/TopBar";
-
-// ❌ REMOVE Plaza ReactionBar
-// import ReactionBar from "@/components/plaza/ReactionBar";
-
-// ⭐ USE SoundReactionBar
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
-
 import SoundComments from "@/components/sound-square/SoundComments";
 import SoundCommentList from "@/components/sound-square/SoundCommentList";
 import SoundShareButton from "@/components/sound-square/SoundShareButton";
 
+type SoundPostDetailCard = {
+  id: string;
+  title: string;
+  audio_url: string;
+  creator_id: string;
+  created_at: string;
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
+  share_count: number;
+  share_score: number;
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+    mask6: number;
+  };
+};
+
 export default function SoundSquarePostDetail({ params }: { params: { id: string } }) {
   const supabase = useSupabase();
-  const [post, setPost] = useState<any>(null);
+  const [post, setPost] = useState<SoundPostDetailCard | null>(null);
   const [loading, setLoading] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -26,13 +45,23 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
     (async () => {
       setLoading(true);
 
-      // Load base post
       const { data, error } = await supabase
         .from("sound_posts")
-        .select(`
-          *,
+        .select(
+          `
+          id,
+          title,
+          audio_url,
+          creator_id,
+          created_at,
+          spirit_score,
+          positivity_ratio,
+          automask,
+          share_count,
+          share_score,
           users:creator_id ( username, avatar_url )
-        `)
+        `
+        )
         .eq("id", params.id)
         .single();
 
@@ -42,9 +71,8 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         return;
       }
 
-      const raw = data;
+      const raw = data as any;
 
-      // Load reactions for this post
       const { data: reactionRows } = await supabase
         .from("reactions")
         .select("maskTier")
@@ -64,7 +92,7 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
       let positive = 0;
       let total = 0;
 
-      (reactionRows || []).forEach((r: any) => {
+      (reactionRows || []).forEach((r: { maskTier: number }) => {
         const key = `mask${r.maskTier}` as keyof typeof counts;
         counts[key] += 1;
 
@@ -81,26 +109,21 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
       if (spirit > 300) automask = 5;
       if (spirit > 500) automask = 6;
 
-      const card = {
+      const card: SoundPostDetailCard = {
         id: raw.id,
         title: raw.title,
         audio_url: raw.audio_url,
         creator_id: raw.creator_id,
         created_at: raw.created_at,
-
         spirit_score: spirit,
         positivity_ratio: positivity,
         automask,
-
-        // ⭐ INSERT THESE TWO LINES HERE
-  share_count: raw.share_count ?? 0,
-  share_score: raw.share_score ?? 0,
-  
+        share_count: raw.share_count ?? 0,
+        share_score: raw.share_score ?? 0,
         users: {
           username: raw.users?.username ?? "Unknown",
           avatar_url: raw.users?.avatar_url ?? null,
         },
-
         reactions: counts,
       };
 
@@ -140,8 +163,8 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
           className="text-purple-300 hover:text-purple-400 underline"
         >
           {post.users.username}
-        </Link>
-        {" "}• {new Date(post.created_at).toLocaleString()}
+        </Link>{" "}
+        • {new Date(post.created_at).toLocaleString()}
       </p>
 
       <audio
@@ -151,13 +174,11 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
         className="w-full mb-6 rounded-lg bg-neutral-900"
       />
 
-      {/* ⭐ FIXED — use SoundReactionBar */}
       <SoundReactionBar
         postId={post.id}
         creatorId={post.creator_id}
         reactions={post.reactions}
         onReact={async () => {
-          // Refresh reactions after reacting
           const { data: reactionRows } = await supabase
             .from("reactions")
             .select("maskTier")
@@ -177,7 +198,7 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
           let positive = 0;
           let total = 0;
 
-          (reactionRows || []).forEach((r: any) => {
+          (reactionRows || []).forEach((r: { maskTier: number }) => {
             const key = `mask${r.maskTier}` as keyof typeof counts;
             counts[key] += 1;
 
