@@ -153,7 +153,6 @@ export default function SoundSquareUpload() {
       spirit_score: 0,
       positivity_ratio: positivity,
       automask,
-      post_type: "sound", // ⭐ REQUIRED for delete + cascade + feed
     });
 
     if (dbError) {
