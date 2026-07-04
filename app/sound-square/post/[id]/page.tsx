@@ -72,7 +72,7 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       // ⭐ Load shares
       const { data: shareRows } = await supabase
-        .from("sound_share")
+        .from("sound_post_shares")
         .select("post_id")
         .eq("post_id", raw.id);
 

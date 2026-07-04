@@ -143,7 +143,7 @@ export default function SoundSquareFeed() {
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
     const { data: shareRows, error: shareError } = await supabase
-      .from("sound_share")
+      .from("sound_post_shares")
       .select("post_id")
       .in("post_id", postIds);
 
