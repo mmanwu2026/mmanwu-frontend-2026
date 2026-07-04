@@ -44,7 +44,6 @@ export default function SoundPostCard({
   const [intensity, setIntensity] = useState(0);
 
   const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
@@ -299,6 +298,9 @@ export default function SoundPostCard({
 
   const scale = 1 + intensity * 0.2;
 
+  // ⭐ Inline latest comment
+  const latestComment = post.comments.length > 0 ? post.comments[post.comments.length - 1] : null;
+
   return (
     <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
       {/* Title → Post Detail */}
@@ -354,46 +356,72 @@ export default function SoundPostCard({
         onReact={refreshReactions}
       />
 
-      {/* Comments */}
-      <div className="mt-4">
+      {/* ⭐ Inline Latest Comment */}
+      {latestComment && (
+        <div className="mt-4 bg-gray-800 p-3 rounded">
+          <p className="text-sm text-gray-300">
+            <span className="font-semibold">@{latestComment.profiles?.username ?? "Unknown"}:</span>{" "}
+            {latestComment.content}
+          </p>
+
+          <button
+            onClick={() => setShowCommentsModal(true)}
+            className="text-purple-400 hover:text-purple-300 text-sm mt-2"
+          >
+            View all comments ({post.comment_count})
+          </button>
+        </div>
+      )}
+
+      {!latestComment && (
         <button
           onClick={() => setShowCommentsModal(true)}
-          className="text-gray-300 hover:text-gray-100"
+          className="text-gray-300 hover:text-gray-100 mt-4"
         >
-          Comments
+          No comments yet — add one
         </button>
+      )}
 
-        {showCommentsModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
-            <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Comments</h3>
+      {/* ⭐ Full Comments Modal */}
+      {showCommentsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Comments</h3>
 
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 mb-2"
-                placeholder="Write a comment..."
-              />
+            {post.comments.map((c) => (
+              <div key={c.id} className="mb-3">
+                <p className="text-gray-300 text-sm">
+                  <span className="font-semibold">@{c.profiles?.username ?? "Unknown"}:</span>{" "}
+                  {c.content}
+                </p>
+              </div>
+            ))}
 
-              {commentError && <p className="text-red-400 mb-2">{commentError}</p>}
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="w-full p-2 rounded bg-gray-700 mb-2"
+              placeholder="Write a comment..."
+            />
 
-              <button
-                onClick={submitComment}
-                className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
-              >
-                Submit
-              </button>
+            {commentError && <p className="text-red-400 mb-2">{commentError}</p>}
 
-              <button
-                onClick={() => setShowCommentsModal(false)}
-                className="mt-4 text-gray-400 hover:text-gray-200"
-              >
-                Close
-              </button>
-            </div>
+            <button
+              onClick={submitComment}
+              className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+            >
+              Submit
+            </button>
+
+            <button
+              onClick={() => setShowCommentsModal(false)}
+              className="mt-4 text-gray-400 hover:text-gray-200"
+            >
+              Close
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Delete (creator only) */}
       {user?.id === post.creator_id && (
