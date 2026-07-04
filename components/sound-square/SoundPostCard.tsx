@@ -48,7 +48,7 @@ export default function SoundPostCard({
   const [newComment, setNewComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
-  // ⭐ FIXED — WebAudio initialization only after metadata is ready
+  // ⭐ FIX — Initialize WebAudio ONLY after metadata loads
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -66,8 +66,7 @@ export default function SoundPostCard({
       if (!intensityAnalyserRef.current) {
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
-        sourceRef.current.connect(analyser);
-        analyser.connect(ctx.destination);
+        sourceRef.current.connect(analyser); // ⭐ DO NOT connect to ctx.destination
         intensityAnalyserRef.current = analyser;
       }
 
