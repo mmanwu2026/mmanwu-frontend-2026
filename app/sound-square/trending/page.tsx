@@ -97,7 +97,6 @@ export default function TrendingSoundSquare() {
         id,
         post_id,
         content,
-        final_text,
         raw_input,
         created_at,
         automask,
@@ -150,7 +149,6 @@ export default function TrendingSoundSquare() {
       const comments: SoundComment[] = rawComments.map((c: any) => ({
         id: c.id,
         content: c.content,
-        final_text: c.final_text,
         raw_input: c.raw_input,
         created_at: c.created_at,
         automask: c.automask,

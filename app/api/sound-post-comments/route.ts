@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   );
 
   const body = await req.json();
-  const { post_id, final_text, raw_input, automask, positivity_ratio } = body;
+  const { post_id, raw_input, automask, positivity_ratio } = body;
 
   // Load authenticated user
   const {
@@ -42,8 +42,7 @@ export async function POST(req: Request) {
       post_id,
       user_id: user.id,
       raw_input,
-      content: final_text,
-      final_text,              // ⭐ required for SoundCommentList
+      content: raw_input,             // ⭐ required for SoundCommentList
       automask,
       positivity_ratio,
     });

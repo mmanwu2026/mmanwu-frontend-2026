@@ -90,7 +90,7 @@ export default function SoundCommentList({ postId }: { postId: string }) {
             </div>
           </div>
 
-          <p className="mt-3 text-white leading-relaxed">{c.final_text}</p>
+<p className="mt-3 text-white leading-relaxed">{c.content}</p>
 
           <p className="text-xs text-white/40 mt-2">
             {new Date(c.created_at).toLocaleString()}
