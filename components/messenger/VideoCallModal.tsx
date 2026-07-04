@@ -459,6 +459,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   }, [isOpen, signaling.isCaller, signaling.participants.length]);
 
   useEffect(() => {
+    if (!isOpen) return;
 
     if (!signaling.isCaller) {
       setIncomingOffers((prev) => {
