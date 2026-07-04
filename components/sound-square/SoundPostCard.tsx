@@ -5,7 +5,6 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
-
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/loadSoundPosts";
 import Link from "next/link";
 
@@ -32,6 +31,12 @@ export default function SoundPostCard({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // ⭐ SINGLE AUDIO GRAPH (shared by intensity + waveform)
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const intensityAnalyserRef = useRef<AnalyserNode | null>(null);
+  const waveformAnalyserRef = useRef<AnalyserNode | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
   const [spiritScore, setSpiritScore] = useState(post.spirit_score);
@@ -39,67 +44,77 @@ export default function SoundPostCard({
   const [autoMask, setAutoMask] = useState(post.automask);
   const [intensity, setIntensity] = useState(0);
 
-  // ⭐ AUDIO INTENSITY VISUALIZER
+  // ⭐ INITIALIZE AUDIO GRAPH ONCE
   useEffect(() => {
-    if (!audioRef.current) return;
-
     const audio = audioRef.current;
-    const ctx = new AudioContext();
-    const src = ctx.createMediaElementSource(audio);
-    const analyser = ctx.createAnalyser();
+    if (!audio) return;
 
-    analyser.fftSize = 256;
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    const ctx = audioCtxRef.current;
+
+    if (!sourceRef.current) {
+      sourceRef.current = ctx.createMediaElementSource(audio);
+    }
+
+    // ⭐ INTENSITY ANALYSER
+    if (!intensityAnalyserRef.current) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      sourceRef.current.connect(analyser);
+      analyser.connect(ctx.destination);
+      intensityAnalyserRef.current = analyser;
+    }
+
+    // ⭐ WAVEFORM ANALYSER
+    if (!waveformAnalyserRef.current) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      sourceRef.current.connect(analyser);
+      waveformAnalyserRef.current = analyser;
+    }
+  }, []);
+
+  // ⭐ INTENSITY VISUALIZER LOOP
+  useEffect(() => {
+    const analyser = intensityAnalyserRef.current;
+    if (!analyser) return;
+
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    src.connect(analyser);
-    analyser.connect(ctx.destination);
-
-    let animationFrame: number;
+    let frame: number;
 
     const tick = () => {
       analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
+      const avg = dataArray.reduce((s, v) => s + v, 0) / bufferLength;
       const normalized = Math.min(avg / 180, 1);
       setIntensity(normalized);
 
-      // ⭐ SOUND-REACTIVE MASK BOOST
       if (normalized > 0.75 && autoMask < 6) {
         setAutoMask((prev) => Math.min(prev + 1, 6));
       }
 
-      animationFrame = requestAnimationFrame(tick);
+      frame = requestAnimationFrame(tick);
     };
 
     tick();
 
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      analyser.disconnect();
-      src.disconnect();
-      ctx.close();
-    };
+    return () => cancelAnimationFrame(frame);
   }, [autoMask]);
 
-  // ⭐ WAVEFORM VISUALIZER
+  // ⭐ WAVEFORM VISUALIZER LOOP
   useEffect(() => {
-    if (!canvasRef.current || !audioRef.current) return;
-
-    const audio = audioRef.current;
     const canvas = canvasRef.current;
+    const analyser = waveformAnalyserRef.current;
+    if (!canvas || !analyser) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const audioCtx = new AudioContext();
-    const src = audioCtx.createMediaElementSource(audio);
-    const analyser = audioCtx.createAnalyser();
-
-    analyser.fftSize = 2048;
     const bufferLength = analyser.fftSize;
     const dataArray = new Uint8Array(bufferLength);
-
-    src.connect(analyser);
-    analyser.connect(audioCtx.destination);
 
     let frame: number;
 
@@ -112,10 +127,8 @@ export default function SoundPostCard({
       const height = canvas.height;
 
       ctx.clearRect(0, 0, width, height);
-
       ctx.lineWidth = 2;
       ctx.strokeStyle = "#9b5cf6";
-
       ctx.beginPath();
 
       const sliceWidth = width / bufferLength;
@@ -142,19 +155,18 @@ export default function SoundPostCard({
 
     resize();
     window.addEventListener("resize", resize);
-
     draw();
 
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
-      audioCtx.close().catch(() => {});
     };
   }, []);
 
-  // ⭐ RESTORED — Play / Pause Controls
+  // ⭐ PLAY / PAUSE
   function handlePlay() {
     if (!audioRef.current) return;
+    audioCtxRef.current?.resume();
     audioRef.current.play();
     setIsPlaying(true);
   }
@@ -165,7 +177,7 @@ export default function SoundPostCard({
     setIsPlaying(false);
   }
 
-  // ⭐ REFRESH REACTIONS — post_type = "sound"
+  // ⭐ REFRESH REACTIONS
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -196,8 +208,7 @@ export default function SoundPostCard({
       if (r.maskTier >= 3) positiveCount += 1;
     });
 
-    const newPositivity =
-      totalCount > 0 ? positiveCount / totalCount : 0.5;
+    const newPositivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
 
     let newAutoMask = 2;
     if (newSpirit > 20) newAutoMask = 3;
@@ -205,7 +216,6 @@ export default function SoundPostCard({
     if (newSpirit > 300) newAutoMask = 5;
     if (newSpirit > 500) newAutoMask = 6;
 
-    // ⭐ SOUND-REACTIVE BOOST
     if (intensity > 0.75 && newAutoMask < 6) {
       newAutoMask += 1;
     }
@@ -215,7 +225,6 @@ export default function SoundPostCard({
     setPositivityRatio(newPositivity);
     setAutoMask(newAutoMask);
 
-    // ⭐ CRITICAL FIX: Refresh FEED
     router.refresh();
   };
 
@@ -279,32 +288,32 @@ export default function SoundPostCard({
         )}
       </div>
 
-{/* ⭐ COMMENTS PREVIEW */}
-{post.comments && post.comments.length > 0 && (
-  <div className="mt-4">
-    <p className="text-gray-300 text-sm font-medium mb-2">
-      💬 {post.comment_count} comments
-    </p>
+      {/* ⭐ COMMENTS PREVIEW */}
+      {post.comments && post.comments.length > 0 && (
+        <div className="mt-4">
+          <p className="text-gray-300 text-sm font-medium mb-2">
+            💬 {post.comment_count} comments
+          </p>
 
-    {post.comments.slice(0, 2).map((comment: any) => (
-      <div key={comment.id} className="mb-3">
-        <div className="flex items-center gap-2">
-          <img
-            src={comment.profiles?.avatar_url || "/default-avatar.png"}
-            className="w-6 h-6 rounded-full"
-          />
-          <span className="text-sm font-semibold text-purple-200">
-            {comment.profiles?.username || "unknown"}
-          </span>
+          {post.comments.slice(0, 2).map((comment: any) => (
+            <div key={comment.id} className="mb-3">
+              <div className="flex items-center gap-2">
+                <img
+                  src={comment.profiles?.avatar_url || "/default-avatar.png"}
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm font-semibold text-purple-200">
+                  {comment.profiles?.username || "unknown"}
+                </span>
+              </div>
+
+              <p className="ml-8 text-gray-400 text-sm">
+                {comment.content}
+              </p>
+            </div>
+          ))}
         </div>
-
-        <p className="ml-8 text-gray-400 text-sm">
-          {comment.content}
-        </p>
-      </div>
-    ))}
-  </div>
-)}
+      )}
 
       <SoundReactionBar
         postId={post.id}
