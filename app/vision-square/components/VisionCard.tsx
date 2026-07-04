@@ -198,7 +198,7 @@ export default function VisionCard({
     setCommentError("");
 
     if (!user) {
-      setCommentError("You must be logged in to comment.");
+      setCommentError("You must be loggedlogged in to comment.");
       return;
     }
 
@@ -403,6 +403,56 @@ export default function VisionCard({
         />
       </div>
 
+      {/* ⭐ DELETE BUTTON — ONLY FOR CREATOR */}
+      {isCreator && (
+        <button
+          onClick={async () => {
+            try {
+              // 1. Delete post (cascade deletes reactions)
+              const { error: deleteError } = await supabase
+                .from("vision_posts")
+                .delete()
+                .eq("id", post.id);
+
+              if (deleteError) {
+                console.error("Error deleting post:", deleteError);
+                return;
+              }
+
+              // 2. Delete video file
+              if (post.media_url) {
+                const mediaPath = post.media_url.split("/vision/")[1];
+                if (mediaPath) {
+                  await supabase.storage.from("vision").remove([mediaPath]);
+                }
+              }
+
+              // 3. Delete thumbnail file
+              if (post.thumbnail_url) {
+                const thumbPath = post.thumbnail_url.split("/vision-thumbnails/")[1];
+                if (thumbPath) {
+                  await supabase.storage
+                    .from("vision-thumbnails")
+                    .remove([thumbPath]);
+                }
+              }
+
+              // 4. Remove from feed UI
+              if (typeof post.onDeleted === "function") {
+                post.onDeleted(post.id);
+              }
+
+              router.refresh();
+            } catch (err) {
+              console.error("Delete failed:", err);
+            }
+          }}
+          className="mt-3 bg-red-600 px-4 py-2 rounded text-sm hover:bg-red-500"
+        >
+          Delete Vision
+        </button>
+      )}
+
       {post.comments && post.comments.length > 0 && (
         <div className="mt-4">
           <p className="text-gray-300 text-sm font-medium mb-2">
@@ -414,7 +464,8 @@ export default function VisionCard({
               <div className="flex items-center gap-2">
                 <img
                   src={comment.profiles?.avatar_url || FALLBACK_AVATAR}
-                  className={`${commentAvatarSize} rounded-full`}                />
+                  className={`${commentAvatarSize} rounded-full`}
+                />
                 <span className="text-sm font-semibold text-purple-200">
                   {comment.profiles?.username || "unknown"}
                 </span>

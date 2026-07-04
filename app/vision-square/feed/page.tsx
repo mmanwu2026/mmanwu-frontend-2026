@@ -153,10 +153,10 @@ export default function VisionSquareFeed() {
       return {
         ...post,
         media_url: post.media_url || null,
-        tags: Array.isArray(post.tags) ? post.tags : [], // ⭐ SAFE TAGS
+        tags: Array.isArray(post.tags) ? post.tags : [],
         users: {
           username: creator?.username ?? "unknown",
-          avatar_url: creator?.avatar_url || FALLBACK_AVATAR, // ⭐ FALLBACK AVATAR
+          avatar_url: creator?.avatar_url || FALLBACK_AVATAR,
         },
         comments,
         comment_count: comments.length,
@@ -254,7 +254,15 @@ export default function VisionSquareFeed() {
       {loading && <p className="text-gray-400">Loading Vision posts…</p>}
 
       {posts.map((post) => (
-        <VisionCard key={post.id} post={post} />
+        <VisionCard
+          key={post.id}
+          post={{
+            ...post,
+            onDeleted: (id: string) => {
+              setPosts((prev) => prev.filter((p) => p.id !== id));
+            },
+          }}
+        />
       ))}
 
       {fetchingMore && (

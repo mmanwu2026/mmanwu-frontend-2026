@@ -71,11 +71,13 @@ export default function TrendingSoundSquare() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    // ⭐ Load shares
-    const { data: shareRows } = await supabase
+    // ⭐ Load shares (safe — no 404 noise)
+    const { data: shareRows, error: shareError } = await supabase
       .from("sound_share")
       .select("post_id")
       .in("post_id", postIds);
+
+    const safeShareRows = shareError ? [] : shareRows ?? [];
 
     // ⭐ Load comments
     const { data: commentRows } = await supabase
@@ -126,8 +128,8 @@ export default function TrendingSoundSquare() {
       else if (spiritScore <= 500) autoMask = 5;
       else autoMask = 6;
 
-      // ⭐ Shares
-      const share_count = (shareRows ?? []).filter(
+      // ⭐ Shares (safe)
+      const share_count = safeShareRows.filter(
         (s: any) => s.post_id === post.id
       ).length;
 
@@ -186,13 +188,8 @@ export default function TrendingSoundSquare() {
       };
     });
 
-    // ⭐ FIXED — typed sort parameters
-    enriched.sort(
-      (
-        a: CardSoundPost & { trending_score: number },
-        b: CardSoundPost & { trending_score: number }
-      ) => b.trending_score - a.trending_score
-    );
+    // ⭐ Sort by trending score
+    enriched.sort((a, b) => b.trending_score - a.trending_score);
 
     setPosts(enriched);
     setLoading(false);

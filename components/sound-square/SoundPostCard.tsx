@@ -31,7 +31,6 @@ export default function SoundPostCard({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // ⭐ SINGLE AUDIO GRAPH (shared by intensity + waveform)
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const intensityAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -44,7 +43,7 @@ export default function SoundPostCard({
   const [autoMask, setAutoMask] = useState(post.automask);
   const [intensity, setIntensity] = useState(0);
 
-  // ⭐ INITIALIZE AUDIO GRAPH ONCE
+  // ⭐ INITIALIZE AUDIO GRAPH
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -58,7 +57,6 @@ export default function SoundPostCard({
       sourceRef.current = ctx.createMediaElementSource(audio);
     }
 
-    // ⭐ INTENSITY ANALYSER
     if (!intensityAnalyserRef.current) {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
@@ -67,7 +65,6 @@ export default function SoundPostCard({
       intensityAnalyserRef.current = analyser;
     }
 
-    // ⭐ WAVEFORM ANALYSER
     if (!waveformAnalyserRef.current) {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
@@ -76,7 +73,7 @@ export default function SoundPostCard({
     }
   }, []);
 
-  // ⭐ INTENSITY VISUALIZER LOOP
+  // ⭐ INTENSITY LOOP
   useEffect(() => {
     const analyser = intensityAnalyserRef.current;
     if (!analyser) return;
@@ -100,11 +97,10 @@ export default function SoundPostCard({
     };
 
     tick();
-
     return () => cancelAnimationFrame(frame);
   }, [autoMask]);
 
-  // ⭐ WAVEFORM VISUALIZER LOOP
+  // ⭐ WAVEFORM LOOP
   useEffect(() => {
     const canvas = canvasRef.current;
     const analyser = waveformAnalyserRef.current;
@@ -165,16 +161,41 @@ export default function SoundPostCard({
 
   // ⭐ PLAY / PAUSE
   function handlePlay() {
-    if (!audioRef.current) return;
     audioCtxRef.current?.resume();
-    audioRef.current.play();
+    audioRef.current?.play();
     setIsPlaying(true);
   }
 
   function handlePause() {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
+    audioRef.current?.pause();
     setIsPlaying(false);
+  }
+
+  // ⭐ DELETE POST (Creator Only)
+  async function handleDelete() {
+    if (!user || user.id !== post.creator_id) return;
+
+    // Delete DB row
+    const { error: dbError } = await supabase
+      .from("sound_posts")
+      .delete()
+      .eq("id", post.id)
+      .eq("creator_id", user.id);
+
+    if (dbError) {
+      console.error("Delete error:", dbError);
+      return;
+    }
+
+    // Delete audio file from storage
+    const audioPath = post.audio_url.replace(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+      ""
+    );
+
+    await supabase.storage.from("sound_files").remove([audioPath]);
+
+    router.refresh();
   }
 
   // ⭐ REFRESH REACTIONS
@@ -198,15 +219,15 @@ export default function SoundPostCard({
     let positiveCount = 0;
     let totalCount = 0;
 
-    reactionRows?.forEach((r: { maskTier: number }) => {
-      const key = `mask${r.maskTier}` as keyof ReactionCounts;
-      newCounts[key] += 1;
+reactionRows?.forEach((r: { maskTier: number }) => {
+  const key = `mask${r.maskTier}` as keyof ReactionCounts;
+  newCounts[key] += 1;
 
-      newSpirit += r.maskTier;
-      totalCount += 1;
+  newSpirit += r.maskTier;
+  totalCount += 1;
 
-      if (r.maskTier >= 3) positiveCount += 1;
-    });
+  if (r.maskTier >= 3) positiveCount += 1;
+});
 
     const newPositivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
 
@@ -237,6 +258,16 @@ export default function SoundPostCard({
         ${isTrending ? "shadow-[0_0_25px_rgba(168,85,247,0.7)] border border-purple-500 animate-pulse" : ""}
       `}
     >
+      {/* ⭐ DELETE BUTTON */}
+      {user?.id === post.creator_id && (
+        <button
+          onClick={handleDelete}
+          className="text-red-400 hover:text-red-300 text-sm mb-3"
+        >
+          Delete Post
+        </button>
+      )}
+
       {isTrending && (
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs bg-purple-600 px-2 py-1 rounded-full">
@@ -295,7 +326,7 @@ export default function SoundPostCard({
             💬 {post.comment_count} comments
           </p>
 
-          {post.comments.slice(0, 2).map((comment: any) => (
+          {post.comments.slice(0, 2).map((comment) => (
             <div key={comment.id} className="mb-3">
               <div className="flex items-center gap-2">
                 <img

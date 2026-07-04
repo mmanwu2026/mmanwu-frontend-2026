@@ -29,21 +29,16 @@ export type CardSoundPost = {
   audio_url: string;
   creator_id: string;
   created_at: string;
-
   spirit_score: number;
   positivity_ratio: number;
   automask: number;
-
   reactions: ReactionCounts;
-
   share_count: number;
   share_score: number;
-
   users: {
     username: string | null;
     avatar_url: string | null;
   };
-
   comments: SoundComment[];
   comment_count: number;
 };
@@ -63,10 +58,7 @@ export async function loadSoundPosts() {
       audio_url,
       creator_id,
       created_at,
-      users:creator_id (
-        username,
-        avatar_url
-      )
+      users:creator_id ( username, avatar_url )
     `)
     .order("created_at", { ascending: false });
 
@@ -84,11 +76,13 @@ export async function loadSoundPosts() {
     .in("post_id", ids)
     .eq("post_type", "sound");
 
-  // ⭐ Load shares
-  const { data: shareRows } = await supabase
+  // ⭐ Load shares (safe — no 404 noise)
+  const { data: shareRows, error: shareError } = await supabase
     .from("sound_share")
     .select("post_id")
     .in("post_id", ids);
+
+  const safeShareRows = shareError ? [] : shareRows ?? [];
 
   // ⭐ Load comments
   const { data: commentRows } = await supabase
@@ -102,10 +96,7 @@ export async function loadSoundPosts() {
       automask,
       positivity_ratio,
       user_id,
-      profiles:user_id (
-        username,
-        avatar_url
-      )
+      profiles:user_id ( username, avatar_url )
     `)
     .in("post_id", ids)
     .order("created_at", { ascending: true });
@@ -127,9 +118,7 @@ export async function loadSoundPosts() {
 
     const total = rows.length;
     const positive = rows.filter((r) => r.maskTier >= 3).length;
-
     const spirit_score = rows.reduce((sum, r) => sum + r.maskTier, 0);
-
     const positivity_ratio = total > 0 ? positive / total : 0.5;
 
     let automask = 2;
@@ -138,8 +127,8 @@ export async function loadSoundPosts() {
     if (spirit_score > 300) automask = 5;
     if (spirit_score > 500) automask = 6;
 
-    // ⭐ Share aggregation
-    const share_count = (shareRows ?? []).filter(
+    // ⭐ Share aggregation (safe)
+    const share_count = safeShareRows.filter(
       (s: any) => s.post_id === p.id
     ).length;
 
@@ -150,7 +139,6 @@ export async function loadSoundPosts() {
       (c: any) => c.post_id === p.id
     );
 
-    // ⭐ FIX: Normalize profiles (Supabase returns array)
     const comments: SoundComment[] = rawComments.map((c: any) => ({
       id: c.id,
       content: c.content,
@@ -170,18 +158,13 @@ export async function loadSoundPosts() {
       audio_url: p.audio_url,
       creator_id: p.creator_id,
       created_at: p.created_at,
-
       spirit_score,
       positivity_ratio,
       automask,
-
       reactions: counts,
-
       share_count,
       share_score,
-
       users: userObj,
-
       comments,
       comment_count,
     };

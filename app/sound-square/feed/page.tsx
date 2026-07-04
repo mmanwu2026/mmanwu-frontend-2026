@@ -143,11 +143,13 @@ export default function SoundSquareFeed() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    // ⭐ Load shares
-    const { data: shareRows } = await supabase
+    // ⭐ Load shares (safe — no 404 noise)
+    const { data: shareRows, error: shareError } = await supabase
       .from("sound_share")
       .select("post_id")
       .in("post_id", postIds);
+
+    const safeShareRows = shareError ? [] : shareRows ?? [];
 
     // ⭐ Load comments
     const { data: commentRows } = await supabase
@@ -197,8 +199,8 @@ export default function SoundSquareFeed() {
       else if (spiritScore <= 500) autoMask = 5;
       else autoMask = 6;
 
-      // ⭐ Share aggregation
-      const share_count = (shareRows ?? []).filter(
+      // ⭐ Share aggregation (safe)
+      const share_count = safeShareRows.filter(
         (s: any) => s.post_id === post.id
       ).length;
 
