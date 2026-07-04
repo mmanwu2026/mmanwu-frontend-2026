@@ -69,7 +69,6 @@ async function uploadWithProgress(file: File, path: string) {
       return;
     }
 
-    // ⭐ FIX: Use Supabase's official upload API
     const xhr = new XMLHttpRequest();
 
     xhr.open(
@@ -78,14 +77,12 @@ async function uploadWithProgress(file: File, path: string) {
     );
 
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.setRequestHeader("x-upsert", "true");
 
-    // ⭐ FIX: Correct MIME type for WAV (Supabase will honor this)
+    // ⭐ FIX: Force correct MIME type for WAV
     const mime =
       file.type ||
       (file.name.toLowerCase().endsWith(".wav") ? "audio/wav" : "application/octet-stream");
 
-    // Supabase allows Content-Type ONLY when using x-upsert
     xhr.setRequestHeader("Content-Type", mime);
 
     xhr.upload.onprogress = (e: ProgressEvent) => {
