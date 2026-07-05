@@ -28,15 +28,13 @@ export default function SoundPostCard({
   const { user } = useUser();
   const router = useRouter();
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+ const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const intensityAnalyserRef = useRef<AnalyserNode | null>(null);
   const waveformAnalyserRef = useRef<AnalyserNode | null>(null);
 
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
   const [spiritScore, setSpiritScore] = useState(post.spirit_score);
@@ -48,174 +46,172 @@ export default function SoundPostCard({
   const [newComment, setNewComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
-  /* ---------------------------------------------------------
-     ⭐ FETCH SIGNED URL (Fixes Supabase CORS for Web Audio API)
-     --------------------------------------------------------- */
-  useEffect(() => {
-    async function fetchSignedUrl() {
-      if (!post.audio_url) return;
+/* ---------------------------------------------------------
+   ⭐ REMOVE SIGNED URL LOGIC — NOT NEEDED ANYMORE
+   --------------------------------------------------------- */
+// No signed URL needed for ArrayBuffer decoding.
+// Remove the entire fetchSignedUrl() effect.
 
-      const path = post.audio_url.replace(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-        ""
-      );
+/* ---------------------------------------------------------
+   ⭐ REMOVE MEDIA ELEMENT INITIALIZATION — NOT USED ANYMORE
+   --------------------------------------------------------- */
+// Delete the entire "Initialize WebAudio AFTER metadata loads" effect.
 
-      const { data, error } = await supabase.storage
-        .from("sound_files")
-        .createSignedUrl(path, 60 * 60); // 1 hour
+/* ---------------------------------------------------------
+   ⭐ Intensity Analyzer Loop (unchanged)
+   --------------------------------------------------------- */
+useEffect(() => {
+  const analyser = intensityAnalyserRef.current;
+  if (!analyser) return;
 
-      if (error) {
-        console.error("Signed URL error:", error);
-        return;
-      }
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
 
-      setSignedUrl(data.signedUrl);
+  let frame: number;
+
+  const tick = () => {
+    analyser.getByteFrequencyData(dataArray);
+    const avg = dataArray.reduce((s, v) => s + v, 0) / bufferLength;
+    const normalized = Math.min(avg / 180, 1);
+    setIntensity(normalized);
+
+    if (normalized > 0.75 && autoMask < 6) {
+      setAutoMask((prev) => Math.min(prev + 1, 6));
     }
 
-    fetchSignedUrl();
-  }, [post.audio_url, supabase]);
+    frame = requestAnimationFrame(tick);
+  };
 
-  /* ---------------------------------------------------------
-     ⭐ Initialize WebAudio AFTER metadata loads
-     --------------------------------------------------------- */
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+  tick();
+  return () => cancelAnimationFrame(frame);
+}, [autoMask]);
 
-    const handleReady = () => {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext();
-      }
-      const ctx = audioCtxRef.current;
+/* ---------------------------------------------------------
+   ⭐ Waveform Visualizer Loop (unchanged)
+   --------------------------------------------------------- */
+useEffect(() => {
+  const canvas = canvasRef.current;
+  const analyser = waveformAnalyserRef.current;
+  if (!canvas || !analyser) return;
 
-      if (!sourceRef.current) {
-        sourceRef.current = ctx.createMediaElementSource(audio);
-      }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
-      if (!intensityAnalyserRef.current) {
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        sourceRef.current.connect(analyser);
-        intensityAnalyserRef.current = analyser;
-      }
+  const bufferLength = analyser.fftSize;
+  const dataArray = new Uint8Array(bufferLength);
 
-      if (!waveformAnalyserRef.current) {
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048;
-        sourceRef.current.connect(analyser);
-        waveformAnalyserRef.current = analyser;
-      }
-    };
+  let frame: number;
 
-    audio.addEventListener("loadedmetadata", handleReady);
-    audio.addEventListener("canplay", handleReady);
+  const draw = () => {
+    frame = requestAnimationFrame(draw);
 
-    return () => {
-      audio.removeEventListener("loadedmetadata", handleReady);
-      audio.removeEventListener("canplay", handleReady);
-    };
-  }, []);
+    analyser.getByteTimeDomainData(dataArray);
 
-  /* ---------------------------------------------------------
-     ⭐ Intensity Analyzer Loop
-     --------------------------------------------------------- */
-  useEffect(() => {
-    const analyser = intensityAnalyserRef.current;
-    if (!analyser) return;
+    const width = canvas.width;
+    const height = canvas.height;
 
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    ctx.clearRect(0, 0, width, height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#9b5cf6";
+    ctx.beginPath();
 
-    let frame: number;
+    const sliceWidth = width / bufferLength;
+    let x = 0;
 
-    const tick = () => {
-      analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((s, v) => s + v, 0) / bufferLength;
-      const normalized = Math.min(avg / 180, 1);
-      setIntensity(normalized);
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = (v * height) / 2;
 
-      if (normalized > 0.75 && autoMask < 6) {
-        setAutoMask((prev) => Math.min(prev + 1, 6));
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
 
-      frame = requestAnimationFrame(tick);
-    };
+      x += sliceWidth;
+    }
 
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [autoMask]);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+  };
 
-  /* ---------------------------------------------------------
-     ⭐ Waveform Visualizer Loop
-     --------------------------------------------------------- */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const analyser = waveformAnalyserRef.current;
-    if (!canvas || !analyser) return;
+  const resize = () => {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+  };
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  resize();
+  window.addEventListener("resize", resize);
+  draw();
 
-    const bufferLength = analyser.fftSize;
-    const dataArray = new Uint8Array(bufferLength);
+  return () => {
+    cancelAnimationFrame(frame);
+    window.removeEventListener("resize", resize);
+  };
+}, []);
 
-    let frame: number;
+/* ---------------------------------------------------------
+   ⭐ NEW: ArrayBuffer + AudioBufferSourceNode Playback
+   --------------------------------------------------------- */
+async function handlePlay() {
+  try {
+    const path = post.audio_url.replace(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+      ""
+    );
 
-    const draw = () => {
-      frame = requestAnimationFrame(draw);
+    const url = `${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(path)}`;
 
-      analyser.getByteTimeDomainData(dataArray);
+    // Fetch audio through your proxy
+    const res = await fetch(url);
+    const arrayBuffer = await res.arrayBuffer();
 
-      const width = canvas.width;
-      const height = canvas.height;
+    // Create AudioContext if needed
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    const ctx = audioCtxRef.current;
 
-      ctx.clearRect(0, 0, width, height);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#9b5cf6";
-      ctx.beginPath();
+    // Decode audio data
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-      const sliceWidth = width / bufferLength;
-      let x = 0;
+    // Create buffer source
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
 
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * height) / 2;
+    // Create analysers if needed
+    if (!intensityAnalyserRef.current) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      intensityAnalyserRef.current = analyser;
+    }
 
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+    if (!waveformAnalyserRef.current) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      waveformAnalyserRef.current = analyser;
+    }
 
-        x += sliceWidth;
-      }
+    // Connect nodes
+    source.connect(intensityAnalyserRef.current);
+    source.connect(waveformAnalyserRef.current);
+    source.connect(ctx.destination);
 
-      ctx.lineTo(width, height / 2);
-      ctx.stroke();
-    };
+    // Start playback
+    source.start(0);
+    sourceRef.current = source;
 
-    const resize = () => {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-    };
-
-    resize();
-    window.addEventListener("resize", resize);
-    draw();
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
-
-  function handlePlay() {
-    audioCtxRef.current?.resume();
-    audioRef.current?.play();
     setIsPlaying(true);
+  } catch (err) {
+    console.error("Audio play error:", err);
   }
+}
 
-  function handlePause() {
-    audioRef.current?.pause();
+function handlePause() {
+  try {
+    sourceRef.current?.stop();
     setIsPlaying(false);
+  } catch (err) {
+    console.error("Pause error:", err);
   }
+}
 
   /* ---------------------------------------------------------
      ⭐ Delete Post
@@ -366,27 +362,14 @@ export default function SoundPostCard({
 
   {/* Debug logs — OUTSIDE JSX */}
   {(() => {
-    console.log("RAW audio_url:", post.audio_url);
-    console.log(
-      "EXTRACTED path:",
-      post.audio_url.replace(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-        ""
-      )
+    const extractedPath = post.audio_url.replace(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+      ""
     );
+    console.log("RAW audio_url:", post.audio_url);
+    console.log("EXTRACTED path:", extractedPath);
     return null;
   })()}
-
-  <audio
-    ref={audioRef}
-    src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(
-      post.audio_url.replace(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-        ""
-      )
-    )}`}
-    preload="metadata"
-  />
 
   <div className="flex items-center gap-3 mt-2">
     {!isPlaying ? (
@@ -414,90 +397,90 @@ export default function SoundPostCard({
   <canvas ref={canvasRef} className="w-full h-24 mt-3" />
 </div>
 
-      {/* Reaction Bar */}
-      <SoundReactionBar
-        postId={post.id}
-        creatorId={post.creator_id}
-        reactions={reactions}
-        onReact={refreshReactions}
+{/* Reaction Bar */}
+<SoundReactionBar
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={reactions}
+  onReact={refreshReactions}
+/>
+
+{/* ⭐ Inline Latest Comment */}
+{latestComment && (
+  <div className="mt-4 bg-gray-800 p-3 rounded">
+    <p className="text-sm text-gray-300">
+      <span className="font-semibold">@{latestComment.profiles?.username ?? "Unknown"}:</span>{" "}
+      {latestComment.content}
+    </p>
+
+    <button
+      onClick={() => setShowCommentsModal(true)}
+      className="text-purple-400 hover:text-purple-300 text-sm mt-2"
+    >
+      View all comments ({post.comment_count})
+    </button>
+  </div>
+)}
+
+{!latestComment && (
+  <button
+    onClick={() => setShowCommentsModal(true)}
+    className="text-gray-300 hover:text-gray-100 mt-4"
+  >
+    No comments yet — add one
+  </button>
+)}
+
+{/* ⭐ Full Comments Modal */}
+{showCommentsModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+    <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+      <h3 className="text-xl font-bold mb-4">Comments</h3>
+
+      {post.comments.map((c) => (
+        <div key={c.id} className="mb-3">
+          <p className="text-gray-300 text-sm">
+            <span className="font-semibold">@{c.profiles?.username ?? "Unknown"}:</span>{" "}
+            {c.content}
+          </p>
+        </div>
+      ))}
+
+      <textarea
+        value={newComment}
+        onChange={(e) => setNewComment(e.target.value)}
+        className="w-full p-2 rounded bg-gray-700 mb-2"
+        placeholder="Write a comment..."
       />
 
-      {/* ⭐ Inline Latest Comment */}
-      {latestComment && (
-        <div className="mt-4 bg-gray-800 p-3 rounded">
-          <p className="text-sm text-gray-300">
-            <span className="font-semibold">@{latestComment.profiles?.username ?? "Unknown"}:</span>{" "}
-            {latestComment.content}
-          </p>
+      {commentError && <p className="text-red-400 mb-2">{commentError}</p>}
 
-          <button
-            onClick={() => setShowCommentsModal(true)}
-            className="text-purple-400 hover:text-purple-300 text-sm mt-2"
-          >
-            View all comments ({post.comment_count})
-          </button>
-        </div>
-      )}
+      <button
+        onClick={submitComment}
+        className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+      >
+        Submit
+      </button>
 
-      {!latestComment && (
-        <button
-          onClick={() => setShowCommentsModal(true)}
-          className="text-gray-300 hover:text-gray-100 mt-4"
-        >
-          No comments yet — add one
-        </button>
-      )}
+      <button
+        onClick={() => setShowCommentsModal(false)}
+        className="mt-4 text-gray-400 hover:text-gray-200"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
 
-      {/* ⭐ Full Comments Modal */}
-      {showCommentsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Comments</h3>
-
-            {post.comments.map((c) => (
-              <div key={c.id} className="mb-3">
-                <p className="text-gray-300 text-sm">
-                  <span className="font-semibold">@{c.profiles?.username ?? "Unknown"}:</span>{" "}
-                  {c.content}
-                </p>
-              </div>
-            ))}
-
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 mb-2"
-              placeholder="Write a comment..."
-            />
-
-            {commentError && <p className="text-red-400 mb-2">{commentError}</p>}
-
-            <button
-              onClick={submitComment}
-              className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
-            >
-              Submit
-            </button>
-
-            <button
-              onClick={() => setShowCommentsModal(false)}
-              className="mt-4 text-gray-400 hover:text-gray-200"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete (creator only) */}
-      {user?.id === post.creator_id && (
-        <button
-          onClick={handleDelete}
-          className="mt-4 text-red-400 hover:text-red-300"
-        >
-          Delete Post
-        </button>
-      )}
+{/* Delete (creator only) */}
+{user?.id === post.creator_id && (
+  <button
+    onClick={handleDelete}
+    className="mt-4 text-red-400 hover:text-red-300"
+  >
+    Delete Post
+  </button>
+)}
     </div>
   );
 }
