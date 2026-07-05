@@ -1,52 +1,13 @@
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 
-/* -------------------- TYPES -------------------- */
+/* -------------------- IMPORT SHARED TYPES -------------------- */
+import type {
+  ReactionCounts,
+  SoundComment,
+  CardSoundPost,
+} from "@/app/sound-square/types";
 
-export type ReactionCounts = {
-  mask1: number;
-  mask2: number;
-  mask3: number;
-  mask4: number;
-  mask5: number;
-  mask6: number;
-};
-
-export type SoundComment = {
-  id: string;
-  content: string;
-  raw_input: string | null;
-  created_at: string;
-  automask: number;
-  positivity_ratio: number;
-  user_id: string;
-  profiles: {
-    username: string | null;
-    avatar_url: string | null;
-  };
-};
-
-export type CardSoundPost = {
-  id: string;
-  title: string;
-  audio_url: string;
-  creator_id: string;
-  creator_name: string | null;
-  created_at: string;
-  spirit_score: number;
-  positivity_ratio: number;
-  automask: number;
-  reactions: ReactionCounts;
-  share_count: number;
-  share_score: number;
-  users: {
-    username: string | null;
-    avatar_url: string | null;
-  };
-  comments: SoundComment[];
-  comment_count: number;
-};
-
-/* -------------------- RAW TYPES -------------------- */
+/* -------------------- RAW TYPES (SERVER ONLY) -------------------- */
 
 type RawPost = {
   id: string;

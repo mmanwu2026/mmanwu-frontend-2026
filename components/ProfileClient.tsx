@@ -9,7 +9,7 @@ import PostCard from "@/components/plaza/PostCard";
 import AvatarUploader from "@/components/AvatarUploader";
 import Modal from "@/components/ui/Modal";
 import EditProfileForm from "@/components/profile/EditProfileForm";
-import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/_server/loadSoundPosts";
+import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/types";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import VisionCard from "@/app/vision-square/components/VisionCard";
 
