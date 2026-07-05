@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
 
@@ -13,38 +12,16 @@ type Post = {
   positivity_ratio: number;
 };
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  // ⭐ Promise-based params — this is the pattern that worked for you
+  const { id } = await params;
 
-  // ⭐ YOUR PROJECT REQUIRES AWAIT HERE
-  const cookieStore = await cookies();
-
-  // ⭐ Wrap cookieStore into Supabase's expected interface
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch {
-            // ignore SSR write errors
-          }
-        },
-        remove(name: string, options: any) {
-          try {
-            cookieStore.set({ name, value: "", ...options });
-          } catch {
-            // ignore SSR write errors
-          }
-        },
-      },
-    }
-  );
+  // ⭐ Your original helper that was known to work
+  const supabase = await createSupabaseServerClient();
 
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
