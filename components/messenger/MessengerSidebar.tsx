@@ -41,6 +41,9 @@ export default function MessengerSidebar({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [creating, setCreating] = useState<string | null>(null);
 
+  // ⭐ NEW: Search state
+  const [search, setSearch] = useState("");
+
   if (!userId) {
     return (
       <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 text-white">
@@ -135,68 +138,62 @@ export default function MessengerSidebar({
     loadThreads();
   }, [userId, supabase]);
 
-async function startChat(targetUserId: string) {
-  setCreating(targetUserId);
+  async function startChat(targetUserId: string) {
+    setCreating(targetUserId);
 
-  const session = await supabase.auth.getSession();
-  if (!session.data.session) {
-    console.error("Cannot create room — no Supabase session.");
-    setCreating(null);
-    return;
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) {
+      console.error("Cannot create room — no Supabase session.");
+      setCreating(null);
+      return;
+    }
+
+    const { data: existingRooms, error: findError } = await supabase
+      .from("room_participants")
+      .select("room_id")
+      .in("user_id", [userId, targetUserId]);
+
+    if (findError) {
+      console.error("Failed to check existing rooms:", findError);
+      setCreating(null);
+      return;
+    }
+
+    const counts: Record<string, number> = {};
+    for (const row of existingRooms ?? []) {
+      counts[row.room_id] = (counts[row.room_id] || 0) + 1;
+    }
+
+    const existingRoomId = Object.entries(counts)
+      .find(([_, count]) => count === 2)?.[0];
+
+    if (existingRoomId) {
+      window.location.href = `/messenger/${existingRoomId}`;
+      return;
+    }
+
+    const { data: room, error: roomError } = await supabase
+      .from("rooms")
+      .insert({
+        is_group: false,
+        created_by: userId,
+      })
+      .select()
+      .single();
+
+    if (roomError || !room) {
+      console.error("Failed to create room:", roomError);
+      setCreating(null);
+      return;
+    }
+
+    await supabase.from("room_participants").insert([
+      { room_id: room.id, user_id: userId },
+      { room_id: room.id, user_id: targetUserId },
+    ]);
+
+    window.location.href = `/messenger/${room.id}`;
   }
-
-  // 1. Find existing 1-to-1 room between these two users
-  const { data: existingRooms, error: findError } = await supabase
-    .from("room_participants")
-    .select("room_id")
-    .in("user_id", [userId, targetUserId]);
-
-  if (findError) {
-    console.error("Failed to check existing rooms:", findError);
-    setCreating(null);
-    return;
-  }
-
-  // Count participants per room_id
-  const counts: Record<string, number> = {};
-  for (const row of existingRooms ?? []) {
-    counts[row.room_id] = (counts[row.room_id] || 0) + 1;
-  }
-
-  // Find a room where BOTH users are participants
-  const existingRoomId = Object.entries(counts)
-    .find(([_, count]) => count === 2)?.[0];
-
-  if (existingRoomId) {
-    // ⭐ Reuse existing room — NO DUPLICATES
-    window.location.href = `/messenger/${existingRoomId}`;
-    return;
-  }
-
-  // 2. Create a new room only if none exists
-  const { data: room, error: roomError } = await supabase
-    .from("rooms")
-    .insert({
-      is_group: false,
-      created_by: userId,
-    })
-    .select()
-    .single();
-
-  if (roomError || !room) {
-    console.error("Failed to create room:", roomError);
-    setCreating(null);
-    return;
-  }
-
-  // 3. Add both participants
-  await supabase.from("room_participants").insert([
-    { room_id: room.id, user_id: userId },
-    { room_id: room.id, user_id: targetUserId },
-  ]);
-
-  window.location.href = `/messenger/${room.id}`;
-}
 
   return (
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
@@ -242,22 +239,37 @@ async function startChat(targetUserId: string) {
 
       <h3 className="text-white text-md mb-2">Start New Chat</h3>
 
+      {/* ⭐ NEW: Search bar */}
+      <input
+        type="text"
+        placeholder="Search users..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full mb-3 px-3 py-2 rounded bg-neutral-800 text-white placeholder-neutral-500"
+      />
+
       <div className="space-y-2">
-        {users.map((u: any) => (
-          <button
-            key={u.id}
-            onClick={() => startChat(u.id)}
-            disabled={creating === u.id}
-            className="w-full text-left px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white disabled:opacity-50"
-          >
-            <div className="font-bold">
-              {u.display_name ?? u.username}
-            </div>
-            <div className="text-neutral-400 text-sm">
-              Click to start a conversation
-            </div>
-          </button>
-        ))}
+        {users
+          .filter((u) =>
+            (u.display_name ?? u.username)
+              .toLowerCase()
+              .includes(search.toLowerCase())
+          )
+          .map((u) => (
+            <button
+              key={u.id}
+              onClick={() => startChat(u.id)}
+              disabled={creating === u.id}
+              className="w-full text-left px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white disabled:opacity-50"
+            >
+              <div className="font-bold">
+                {u.display_name ?? u.username}
+              </div>
+              <div className="text-neutral-400 text-sm">
+                Click to start a conversation
+              </div>
+            </button>
+          ))}
       </div>
     </div>
   );
