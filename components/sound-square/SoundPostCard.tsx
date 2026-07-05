@@ -419,7 +419,7 @@ export default function SoundPostCard({
           )}
 
 <span
-  className={`text-purple-300 text-lg no-levitate ${isBeat ? "beat-active" : ""}`}
+  className={`text-purple-300 text-lg no-levitate ${isBeat ? "beat-active beat-glow" : ""}`}
   style={{ transform: `scale(${scale})` }}
 >
   {MASK_EMOJI[autoMask]}

@@ -286,6 +286,23 @@ img {
   animation: none !important;
 }
 
+@keyframes beatGlow {
+  0% {
+    filter: drop-shadow(0 0 0px rgba(216, 180, 254, 0.0));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(216, 180, 254, 0.9))
+            drop-shadow(0 0 20px rgba(216, 180, 254, 0.7));
+  }
+  100% {
+    filter: drop-shadow(0 0 0px rgba(216, 180, 254, 0.0));
+  }
+}
+
+.beat-glow {
+  animation: beatGlow 0.25s ease-out;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
