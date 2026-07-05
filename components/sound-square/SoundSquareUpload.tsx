@@ -139,7 +139,7 @@ export default function SoundSquareUpload() {
     setProgress(0);
     setError("");
 
-    const fileExt = file!.name.split(".").pop();
+    const fileExt = file!.name.split(".").pop()?.toLowerCase();
     const filePath = `${currentUser.id}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
