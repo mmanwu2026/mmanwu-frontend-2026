@@ -8,6 +8,7 @@ import NewChatModal from "./NewChatModal";
 interface RoomParticipant {
   room_id: string;
   user_id: string;
+  last_seen?: string;
 }
 
 interface Room {
@@ -20,6 +21,7 @@ interface Message {
   sender_id: string;
   message_type: string;
   content: string | null;
+  created_at: string;
 }
 
 interface Thread {
@@ -29,6 +31,7 @@ interface Thread {
   otherUserId: string | null;
   lastMessage: Message | null;
   inCall: boolean;
+  unreadCount: number;
 }
 
 const FALLBACK_AVATAR =
@@ -63,9 +66,10 @@ export default function MessengerSidebar({
       const session = await supabase.auth.getSession();
       if (!session.data.session) return;
 
+      // Get rooms user is in
       const { data: userRooms } = await supabase
         .from("room_participants")
-        .select("room_id")
+        .select("*")
         .eq("user_id", userId);
 
       if (!userRooms) {
@@ -73,13 +77,14 @@ export default function MessengerSidebar({
         return;
       }
 
-      const roomIds = userRooms.map((r: { room_id: string }) => r.room_id);
+      const roomIds = userRooms.map((r: RoomParticipant) => r.room_id);
 
       if (roomIds.length === 0) {
         setThreads([]);
         return;
       }
 
+      // Fetch rooms
       const { data: roomsRaw } = await supabase
         .from("rooms")
         .select("*")
@@ -87,6 +92,7 @@ export default function MessengerSidebar({
 
       const rooms = (roomsRaw ?? []) as Room[];
 
+      // Fetch participants
       const { data: participantsRaw } = await supabase
         .from("room_participants")
         .select("*")
@@ -94,6 +100,7 @@ export default function MessengerSidebar({
 
       const participants = (participantsRaw ?? []) as RoomParticipant[];
 
+      // Fetch last messages
       const { data: lastMessagesRaw } = await supabase
         .from("messages")
         .select("*")
@@ -114,11 +121,23 @@ export default function MessengerSidebar({
           .filter((p: RoomParticipant) => p.room_id === room.id)
           .map((p: RoomParticipant) => p.user_id);
 
-        const otherUsers = roomParticipants.filter(
-          (id: string) => id !== userId
-        );
+        const otherUsers = roomParticipants.filter((id) => id !== userId);
 
         const last = lastMessageMap[room.id] || null;
+
+        // Find this user's participant record
+        const participantRecord = participants.find(
+          (p) => p.room_id === room.id && p.user_id === userId
+        );
+
+        // Compute unread count
+        const unreadCount = lastMessages.filter(
+          (m) =>
+            m.room_id === room.id &&
+            m.sender_id !== userId &&
+            participantRecord &&
+            new Date(m.created_at) > new Date(participantRecord.last_seen || 0)
+        ).length;
 
         return {
           roomId: room.id,
@@ -127,6 +146,7 @@ export default function MessengerSidebar({
           otherUserId: otherUsers.length === 1 ? otherUsers[0] : null,
           lastMessage: last,
           inCall: last?.message_type === "call_offer",
+          unreadCount,
         };
       });
 
@@ -165,17 +185,20 @@ export default function MessengerSidebar({
               className="block px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white"
             >
               <div className="flex items-center gap-3">
-                <img
-                  src={avatar}
-                  alt="avatar"
-                  className="avatar"
-                />
+                <img src={avatar} alt="avatar" className="avatar" />
 
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">
                       {t.isGroup ? "Group Chat" : displayName}
                     </span>
+
+                    {/* Unread badge */}
+                    {t.unreadCount > 0 && (
+                      <span className="ml-2 px-2 py-1 text-xs bg-red-600 text-white rounded-full">
+                        {t.unreadCount}
+                      </span>
+                    )}
 
                     {t.inCall && (
                       <span className="ml-2 text-xs px-2 py-1 rounded bg-green-700 text-green-100">
