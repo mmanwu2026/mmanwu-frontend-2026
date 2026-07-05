@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
+import NewChatModal from "./NewChatModal";
 
 interface RoomParticipant {
   room_id: string;
@@ -41,8 +42,11 @@ export default function MessengerSidebar({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [creating, setCreating] = useState<string | null>(null);
 
-  // ⭐ NEW: Search state
+  // Search state (kept from your version)
   const [search, setSearch] = useState("");
+
+  // New Chat modal state (new)
+  const [showNewChat, setShowNewChat] = useState(false);
 
   if (!userId) {
     return (
@@ -60,18 +64,15 @@ export default function MessengerSidebar({
   useEffect(() => {
     async function loadThreads() {
       const session = await supabase.auth.getSession();
-      if (!session.data.session) {
-        console.warn("No Supabase session yet — delaying thread load.");
-        return;
-      }
+      if (!session.data.session) return;
 
-      const { data: userRooms, error: roomsError } = await supabase
+      const { data: userRooms } = await supabase
         .from("room_participants")
         .select("room_id")
         .eq("user_id", userId);
 
-      if (roomsError || !userRooms) {
-        console.error("Failed to load rooms:", roomsError);
+      if (!userRooms) {
+        setThreads([]);
         return;
       }
 
@@ -148,16 +149,10 @@ export default function MessengerSidebar({
       return;
     }
 
-    const { data: existingRooms, error: findError } = await supabase
+    const { data: existingRooms } = await supabase
       .from("room_participants")
       .select("room_id")
       .in("user_id", [userId, targetUserId]);
-
-    if (findError) {
-      console.error("Failed to check existing rooms:", findError);
-      setCreating(null);
-      return;
-    }
 
     const counts: Record<string, number> = {};
     for (const row of existingRooms ?? []) {
@@ -172,7 +167,7 @@ export default function MessengerSidebar({
       return;
     }
 
-    const { data: room, error: roomError } = await supabase
+    const { data: room } = await supabase
       .from("rooms")
       .insert({
         is_group: false,
@@ -180,12 +175,6 @@ export default function MessengerSidebar({
       })
       .select()
       .single();
-
-    if (roomError || !room) {
-      console.error("Failed to create room:", roomError);
-      setCreating(null);
-      return;
-    }
 
     await supabase.from("room_participants").insert([
       { room_id: room.id, user_id: userId },
@@ -199,6 +188,15 @@ export default function MessengerSidebar({
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
       <h2 className="text-white text-lg mb-4">Chats</h2>
 
+      {/* New Chat Button */}
+      <button
+        onClick={() => setShowNewChat(true)}
+        className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-4"
+      >
+        + New Chat
+      </button>
+
+      {/* Active Chats */}
       <div className="space-y-2 mb-6">
         {threads.map((t) => {
           const profile = getUserProfile(t.otherUserId);
@@ -237,9 +235,9 @@ export default function MessengerSidebar({
         })}
       </div>
 
+      {/* Search bar (kept from your version) */}
       <h3 className="text-white text-md mb-2">Start New Chat</h3>
 
-      {/* ⭐ NEW: Search bar */}
       <input
         type="text"
         placeholder="Search users..."
@@ -248,6 +246,7 @@ export default function MessengerSidebar({
         className="w-full mb-3 px-3 py-2 rounded bg-neutral-800 text-white placeholder-neutral-500"
       />
 
+      {/* Inline list (kept) */}
       <div className="space-y-2">
         {users
           .filter((u) =>
@@ -260,17 +259,34 @@ export default function MessengerSidebar({
               key={u.id}
               onClick={() => startChat(u.id)}
               disabled={creating === u.id}
-              className="w-full text-left px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white disabled:opacity-50"
+              className="w-full flex items-center gap-3 text-left px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white disabled:opacity-50"
             >
-              <div className="font-bold">
-                {u.display_name ?? u.username}
-              </div>
-              <div className="text-neutral-400 text-sm">
-                Click to start a conversation
+              {/* Small avatar */}
+              <img
+                src={u.avatar_url ?? "/default-avatar.png"}
+                className="w-8 h-8 rounded-full object-cover shrink-0"
+                alt="avatar"
+              />
+
+              <div>
+                <div className="font-bold">
+                  {u.display_name ?? u.username}
+                </div>
+                <div className="text-neutral-400 text-sm">
+                  Click to start a conversation
+                </div>
               </div>
             </button>
           ))}
       </div>
+
+      {/* New Chat Modal */}
+      <NewChatModal
+        open={showNewChat}
+        onClose={() => setShowNewChat(false)}
+        users={users}
+        userId={userId}
+      />
     </div>
   );
 }
