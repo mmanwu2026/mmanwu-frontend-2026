@@ -40,12 +40,6 @@ export default function MessengerSidebar({
 }) {
   const supabase = useSupabase();
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [creating, setCreating] = useState<string | null>(null);
-
-  // Search state (kept from your version)
-  const [search, setSearch] = useState("");
-
-  // New Chat modal state (new)
   const [showNewChat, setShowNewChat] = useState(false);
 
   if (!userId) {
@@ -139,51 +133,6 @@ export default function MessengerSidebar({
     loadThreads();
   }, [userId, supabase]);
 
-  async function startChat(targetUserId: string) {
-    setCreating(targetUserId);
-
-    const session = await supabase.auth.getSession();
-    if (!session.data.session) {
-      console.error("Cannot create room — no Supabase session.");
-      setCreating(null);
-      return;
-    }
-
-    const { data: existingRooms } = await supabase
-      .from("room_participants")
-      .select("room_id")
-      .in("user_id", [userId, targetUserId]);
-
-    const counts: Record<string, number> = {};
-    for (const row of existingRooms ?? []) {
-      counts[row.room_id] = (counts[row.room_id] || 0) + 1;
-    }
-
-    const existingRoomId = Object.entries(counts)
-      .find(([_, count]) => count === 2)?.[0];
-
-    if (existingRoomId) {
-      window.location.href = `/messenger/${existingRoomId}`;
-      return;
-    }
-
-    const { data: room } = await supabase
-      .from("rooms")
-      .insert({
-        is_group: false,
-        created_by: userId,
-      })
-      .select()
-      .single();
-
-    await supabase.from("room_participants").insert([
-      { room_id: room.id, user_id: userId },
-      { room_id: room.id, user_id: targetUserId },
-    ]);
-
-    window.location.href = `/messenger/${room.id}`;
-  }
-
   return (
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
       <h2 className="text-white text-lg mb-4">Chats</h2>
@@ -233,51 +182,6 @@ export default function MessengerSidebar({
             </Link>
           );
         })}
-      </div>
-
-      {/* Search bar (kept from your version) */}
-      <h3 className="text-white text-md mb-2">Start New Chat</h3>
-
-      <input
-        type="text"
-        placeholder="Search users..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full mb-3 px-3 py-2 rounded bg-neutral-800 text-white placeholder-neutral-500"
-      />
-
-      {/* Inline list (kept) */}
-      <div className="space-y-2">
-        {users
-          .filter((u) =>
-            (u.display_name ?? u.username)
-              .toLowerCase()
-              .includes(search.toLowerCase())
-          )
-          .map((u) => (
-            <button
-              key={u.id}
-              onClick={() => startChat(u.id)}
-              disabled={creating === u.id}
-              className="w-full flex items-center gap-3 text-left px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white disabled:opacity-50"
-            >
-              {/* Small avatar */}
-              <img
-                src={u.avatar_url ?? "/default-avatar.png"}
-                className="w-8 h-8 rounded-full object-cover shrink-0"
-                alt="avatar"
-              />
-
-              <div>
-                <div className="font-bold">
-                  {u.display_name ?? u.username}
-                </div>
-                <div className="text-neutral-400 text-sm">
-                  Click to start a conversation
-                </div>
-              </div>
-            </button>
-          ))}
       </div>
 
       {/* New Chat Modal */}
