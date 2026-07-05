@@ -2,11 +2,26 @@ import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+// ⭐ Add Post type so TS stops complaining
+type Post = {
+  id: string;
+  creator_id: string;
+  content: string;
+  created_at: string;
+  spirit_score: number;
+  automask: number | null;
+  positivity_ratio: number;
+};
 
+export default async function Page({ params }: { params: { id: string } }) {
+  // ⭐ Correct params signature — no Promise, no await
+  const { id } = params;
+
+  console.log("PROFILE: starting supabase client");
   const supabase = await createSupabaseServerClient();
+  console.log("PROFILE: supabase client created");
 
+  console.log("PROFILE: fetching profile");
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -32,8 +47,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     `)
     .eq("id", id)
     .single();
+  console.log("PROFILE: profile fetched");
 
   if (profileError || !profileRaw) {
+    console.log("PROFILE: profile not found or error", profileError);
     return <div className="p-6">Profile not found</div>;
   }
 
@@ -59,7 +76,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     positivity_ratio,
   };
 
-  const { data: posts } = await supabase
+  console.log("PROFILE: fetching posts");
+  const { data: postsRaw } = await supabase
     .from("posts")
     .select(`
       id,
@@ -72,11 +90,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     `)
     .eq("creator_id", id)
     .order("created_at", { ascending: false });
+  console.log("PROFILE: posts fetched");
+
+  // ⭐ Ensure posts is always an array
+  const posts: Post[] = postsRaw ?? [];
+
+  console.log("PROFILE: rendering ProfileClient");
 
   return (
-  <div className="p-6 text-white">
-    <TopBar />
-    <div>Profile test page — static</div>
-  </div>
-);
+    <div className="p-6 text-white">
+      <TopBar />
+      <ProfileClient profile={profile} posts={posts} />
+    </div>
+  );
 }
