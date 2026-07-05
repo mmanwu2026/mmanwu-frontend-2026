@@ -84,7 +84,7 @@ useEffect(() => {
 
   tick();
   return () => cancelAnimationFrame(frame);
-}, [autoMask]);
+}, [intensityAnalyserRef.current, autoMask]);
 
 /* ---------------------------------------------------------
    ⭐ Waveform Visualizer Loop (unchanged)
@@ -145,7 +145,7 @@ useEffect(() => {
     cancelAnimationFrame(frame);
     window.removeEventListener("resize", resize);
   };
-}, []);
+}, [waveformAnalyserRef.current]);
 
 /* ---------------------------------------------------------
    ⭐ NEW: ArrayBuffer + AudioBufferSourceNode Playback
