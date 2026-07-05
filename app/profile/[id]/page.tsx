@@ -2,7 +2,6 @@ import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
 
-// ⭐ Add Post type so TS stops complaining
 type Post = {
   id: string;
   creator_id: string;
@@ -16,11 +15,8 @@ type Post = {
 export default async function Page({ params }: { params: { id: string } }) {
   const { id } = params;
 
-  console.log("PROFILE: starting supabase client");
   const supabase = await createSupabaseServerClient();
-  console.log("PROFILE: supabase client created");
 
-  console.log("PROFILE: fetching profile");
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -46,9 +42,7 @@ export default async function Page({ params }: { params: { id: string } }) {
     `)
     .eq("id", id)
     .single();
-  console.log("PROFILE: profile fetched");
 
-  // ⭐ Compute "profile not found" state WITHOUT early return
   const profileNotFound = profileError || !profileRaw;
 
   let profile = null;
@@ -77,7 +71,6 @@ export default async function Page({ params }: { params: { id: string } }) {
       positivity_ratio,
     };
 
-    console.log("PROFILE: fetching posts");
     const { data: postsRaw } = await supabase
       .from("posts")
       .select(`
@@ -91,17 +84,13 @@ export default async function Page({ params }: { params: { id: string } }) {
       `)
       .eq("creator_id", id)
       .order("created_at", { ascending: false });
-    console.log("PROFILE: posts fetched");
 
     posts = postsRaw ?? [];
   }
 
-  console.log("PROFILE: rendering ProfileClient");
-
   return (
     <div className="p-6 text-white">
       <TopBar />
-
       {profileNotFound ? (
         <div className="mt-6 text-lg">Profile not found</div>
       ) : (
