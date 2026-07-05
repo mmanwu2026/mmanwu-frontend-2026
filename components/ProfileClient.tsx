@@ -547,14 +547,22 @@ useEffect(() => {
 // ⭐⭐⭐ INSERTED LOADER PATCH — EXACT LOCATION ⭐⭐⭐
 // Build unified post map for Reactions tab
 useEffect(() => {
-  if (!posts || !soundPosts || !visionPosts) return;
+  // Wait until at least one source has data
+  if (
+    posts.length === 0 &&
+    soundPosts.length === 0 &&
+    visionPosts.length === 0
+  ) {
+    return;
+  }
 
   const map: Record<string, { username: string; content: string }> = {};
 
-  // Plaza posts (from server)
+  // Plaza posts (server-provided)
   posts.forEach((p) => {
     map[p.id] = {
-      username: profile.username,
+      // For now, plaza posts belong to this profile
+      username: profile.username ?? "unknown",
       content: p.content ?? "",
     };
   });
@@ -578,7 +586,6 @@ useEffect(() => {
   setReactionPostMap(map);
 }, [posts, soundPosts, visionPosts, profile.username]);
 // ⭐⭐⭐ END LOADER PATCH ⭐⭐⭐
-
 
 if (!hydrated) {
   return (
