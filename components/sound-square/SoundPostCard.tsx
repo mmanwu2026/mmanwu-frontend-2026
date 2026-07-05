@@ -374,13 +374,17 @@ export default function SoundPostCard({
         ""
       )
     );
-    console.log("SIGNED URL:", signedUrl);
-    return null; // prevents ReactNode error
+    return null;
   })()}
 
   <audio
     ref={audioRef}
-    src={signedUrl ?? ""}
+    src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(
+      post.audio_url.replace(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+        ""
+      )
+    )}`}
     preload="metadata"
   />
 

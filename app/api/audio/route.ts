@@ -16,10 +16,10 @@ export async function GET(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Generate signed URL properly
+    // Generate signed URL
     const { data, error } = await supabase.storage
       .from("sound_files")
-      .createSignedUrl(file, 60 * 60); // 1 hour
+      .createSignedUrl(file, 60 * 60);
 
     if (error || !data?.signedUrl) {
       console.error("Signed URL error:", error);
@@ -29,15 +29,14 @@ export async function GET(req: Request) {
     // Fetch the actual audio file
     const audioRes = await fetch(data.signedUrl);
 
-    if (!audioRes.ok) {
+    if (!audioRes.ok || !audioRes.body) {
       return new NextResponse("Failed to fetch audio file", {
         status: audioRes.status,
       });
     }
 
-    // ⭐ FIX: Correct MIME type based on extension
+    // Determine MIME type
     const ext = file.split(".").pop()?.toLowerCase();
-
     let contentType = "application/octet-stream";
     if (ext === "wav") contentType = "audio/wav";
     if (ext === "mp3") contentType = "audio/mpeg";
@@ -45,16 +44,17 @@ export async function GET(req: Request) {
     if (ext === "flac") contentType = "audio/flac";
     if (ext === "m4a") contentType = "audio/mp4";
 
-    // ⭐ FIX: Add CORS + correct MIME type
-    const headers = new Headers();
-    headers.set("Content-Type", contentType);
-    headers.set("Access-Control-Allow-Origin", "*");
-    headers.set("Access-Control-Allow-Headers", "*");
-    headers.set("Access-Control-Expose-Headers", "*");
-
+    // ⭐ CRITICAL FIX: Stream the audio with proper CORS headers
     return new NextResponse(audioRes.body, {
       status: 200,
-      headers,
+      headers: {
+        "Content-Type": contentType,
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Expose-Headers": "*",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      },
     });
   } catch (err) {
     console.error("Proxy error:", err);
