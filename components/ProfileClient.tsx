@@ -547,7 +547,7 @@ useEffect(() => {
 // ⭐⭐⭐ INSERTED LOADER PATCH — EXACT LOCATION ⭐⭐⭐
 // Build unified post map for Reactions tab
 useEffect(() => {
-  // Wait until at least one source has data
+  // Wait until at least one post type has actual data
   if (
     posts.length === 0 &&
     soundPosts.length === 0 &&
@@ -558,10 +558,9 @@ useEffect(() => {
 
   const map: Record<string, { username: string; content: string }> = {};
 
-  // Plaza posts (server-provided)
+  // Plaza posts
   posts.forEach((p) => {
     map[p.id] = {
-      // For now, plaza posts belong to this profile
       username: profile.username ?? "unknown",
       content: p.content ?? "",
     };
@@ -584,7 +583,12 @@ useEffect(() => {
   });
 
   setReactionPostMap(map);
-}, [posts, soundPosts, visionPosts, profile.username]);
+}, [
+  posts.length,
+  soundPosts.length,
+  visionPosts.length,
+  profile.username
+]);
 // ⭐⭐⭐ END LOADER PATCH ⭐⭐⭐
 
 if (!hydrated) {
