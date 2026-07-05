@@ -269,5 +269,22 @@ img {
 }
 
 /* ------------------------------------------------------------ */
+/* 12. BEAT PULSE ANIMATION                                     */
+/* ------------------------------------------------------------ */
+@keyframes beatPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+.beat-active {
+  animation: beatPulse 0.15s ease-out;
+}
+
+.no-levitate {
+  animation: none !important;
+}
+
+/* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */

@@ -418,15 +418,13 @@ export default function SoundPostCard({
             </button>
           )}
 
-          <span
-            className="text-purple-300 text-lg transition-transform duration-75"
-            style={{
-              transform: isBeat ? "scale(1.4)" : `scale(${scale})`,
-            }}
-            key={renderTick} // ⭐ forces React to re-render mask emoji
-          >
-            {MASK_EMOJI[autoMask]}
-          </span>
+<span
+  className={`text-purple-300 text-lg no-levitate ${isBeat ? "beat-active" : ""}`}
+  style={{ transform: `scale(${scale})` }}
+>
+  {MASK_EMOJI[autoMask]}
+</span>
+
         </div>
 
         {/* Playback progress + duration */}
