@@ -361,44 +361,58 @@ export default function SoundPostCard({
         @{post.creator_name}
       </Link>
 
-      {/* Audio Player */}
-      <div className="mt-4">
-        <audio
-  ref={audioRef}
-  src={`/api/audio?file=${encodeURIComponent(
-    post.audio_url.replace(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-      ""
-    )
-  )}`}
-  preload="metadata"
-/>
+{/* Audio Player */}
+<div className="mt-4">
 
-        <div className="flex items-center gap-3 mt-2">
-          {!isPlaying ? (
-            <button
-              onClick={handlePlay}
-              className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
-            >
-              Play
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
-            >
-              Pause
-            </button>
-          )}
+  {/* Debug logs — OUTSIDE JSX */}
+  {(() => {
+    console.log("RAW audio_url:", post.audio_url);
+    console.log(
+      "EXTRACTED path:",
+      post.audio_url.replace(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+        ""
+      )
+    );
+    return null; // prevents ReactNode error
+  })()}
 
-          <span className="text-purple-300 text-lg" style={{ transform: `scale(${scale})` }}>
-            {MASK_EMOJI[autoMask]}
-          </span>
-        </div>
+  <audio
+    ref={audioRef}
+    src={`/api/audio?file=${encodeURIComponent(
+      post.audio_url.replace(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+        ""
+      )
+    )}`}
+    preload="metadata"
+  />
 
-        {/* Waveform */}
-        <canvas ref={canvasRef} className="w-full h-24 mt-3" />
-      </div>
+  <div className="flex items-center gap-3 mt-2">
+    {!isPlaying ? (
+      <button
+        onClick={handlePlay}
+        className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
+      >
+        Play
+      </button>
+    ) : (
+      <button
+        onClick={handlePause}
+        className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
+      >
+        Pause
+      </button>
+    )}
+
+    <span className="text-purple-300 text-lg" style={{ transform: `scale(${scale})` }}>
+      {MASK_EMOJI[autoMask]}
+    </span>
+  </div>
+
+  {/* Waveform */}
+  <canvas ref={canvasRef} className="w-full h-24 mt-3" />
+</div>
 
       {/* Reaction Bar */}
       <SoundReactionBar
