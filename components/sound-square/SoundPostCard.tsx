@@ -363,7 +363,16 @@ export default function SoundPostCard({
 
       {/* Audio Player */}
       <div className="mt-4">
-        <audio ref={audioRef} src={signedUrl ?? ""} preload="metadata" />
+        <audio
+  ref={audioRef}
+  src={`/api/audio?file=${encodeURIComponent(
+    post.audio_url.replace(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+      ""
+    )
+  )}`}
+  preload="metadata"
+/>
 
         <div className="flex items-center gap-3 mt-2">
           {!isPlaying ? (
