@@ -336,6 +336,14 @@ img {
   );
 }
 
+.mask-wrapper {
+  position: relative;
+  overflow: visible !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
