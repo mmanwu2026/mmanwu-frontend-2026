@@ -929,41 +929,52 @@ if (!hydrated) {
 {/* REACTIONS */}
 {activeTab === "reactions" && (
   <div className="space-y-4">
-    {givenReactions.length === 0 ? (
+
+    {/* Wait until reactionPostMap is built */}
+    {Object.keys(reactionPostMap).length === 0 && (
       <p className="text-white/40 text-center mt-6">
-        No reactions yet…
+        Loading reactions…
       </p>
-    ) : (
-      givenReactions.map((r) => {
-        // ⭐ NEW: unified lookup from reactionPostMap
-        const info = reactionPostMap[r.post_id];
-        const username = info?.username ?? "unknown";
-        const content = info?.content ?? "";
+    )}
 
-        return (
-          <div
-            key={r.id}
-            className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-          >
-            <p className="text-sm text-white/70 mb-2">
-              You reacted{" "}
-              <span className="font-semibold text-white">
-                Mask {r.maskTier}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold">@{username}</span>
-            </p>
+    {Object.keys(reactionPostMap).length > 0 && (
+      <>
+        {givenReactions.length === 0 ? (
+          <p className="text-white/40 text-center mt-6">
+            No reactions yet…
+          </p>
+        ) : (
+          givenReactions.map((r) => {
+            const info = reactionPostMap[r.post_id];
+            const username = info?.username ?? "unknown";
+            const content = info?.content ?? "";
 
-            <p className="text-white/90 mb-2 italic">
-              “{content.slice(0, 120)}…”
-            </p>
+            return (
+              <div
+                key={r.id}
+                className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+              >
+                <p className="text-sm text-white/70 mb-2">
+                  You reacted{" "}
+                  <span className="font-semibold text-white">
+                    Mask {r.maskTier}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold">@{username}</span>
+                </p>
 
-            <p className="text-xs text-white/40">
-              {new Date(r.created_at).toLocaleString()}
-            </p>
-          </div>
-        );
-      })
+                <p className="text-white/90 mb-2 italic">
+                  “{content.slice(0, 120)}…”
+                </p>
+
+                <p className="text-xs text-white/40">
+                  {new Date(r.created_at).toLocaleString()}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </>
     )}
   </div>
 )}
