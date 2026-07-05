@@ -359,6 +359,16 @@ img {
 .beat-color {
   animation: beatColorFlash 0.18s ease-out;
 }
+/* ------------------------------------------------------------ */
+/* MESSENGER AVATARS                                            */
+/* ------------------------------------------------------------ */
+img.avatar {
+  width: inherit !important;
+  height: inherit !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+}
 
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */

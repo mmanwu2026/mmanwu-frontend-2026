@@ -31,6 +31,9 @@ interface Thread {
   inCall: boolean;
 }
 
+const FALLBACK_AVATAR =
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
+
 export default function MessengerSidebar({
   users,
   userId,
@@ -152,32 +155,48 @@ export default function MessengerSidebar({
           const displayName =
             profile?.display_name ?? profile?.username ?? "Unknown User";
 
+          const avatar =
+            profile?.avatar_url && profile.avatar_url.trim() !== ""
+              ? profile.avatar_url
+              : FALLBACK_AVATAR;
+
           return (
             <Link
               key={t.roomId}
               href={`/messenger/${t.roomId}`}
               className="block px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white"
             >
-              <div className="flex items-center justify-between">
-                <span className="font-bold">
-                  {t.isGroup ? "Group Chat" : `Chat with ${displayName}`}
-                </span>
+              <div className="flex items-center gap-3">
+                {/* Avatar */}
+                <img
+                  src={avatar}
+                  alt="avatar"
+                  className="avatar w-[32px] h-[32px] rounded-full object-cover shrink-0"
+                />
 
-                {t.inCall && (
-                  <span className="ml-2 text-xs px-2 py-1 rounded bg-green-700 text-green-100">
-                    In Call
-                  </span>
-                )}
-              </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">
+                      {t.isGroup ? "Group Chat" : displayName}
+                    </span>
 
-              <div className="text-neutral-400 text-sm">
-                {t.lastMessage
-                  ? t.lastMessage.message_type === "call_offer"
-                    ? `Call started by ${t.lastMessage.sender_id}`
-                    : `${t.lastMessage.sender_id}: ${
-                        t.lastMessage.content ?? t.lastMessage.message_type
-                      }`
-                  : "No messages yet"}
+                    {t.inCall && (
+                      <span className="ml-2 text-xs px-2 py-1 rounded bg-green-700 text-green-100">
+                        In Call
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-neutral-400 text-sm">
+                    {t.lastMessage
+                      ? t.lastMessage.message_type === "call_offer"
+                        ? `Call started by ${t.lastMessage.sender_id}`
+                        : `${t.lastMessage.sender_id}: ${
+                            t.lastMessage.content ?? t.lastMessage.message_type
+                          }`
+                      : "No messages yet"}
+                  </div>
+                </div>
               </div>
             </Link>
           );

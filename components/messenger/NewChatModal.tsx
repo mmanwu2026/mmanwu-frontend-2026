@@ -123,7 +123,7 @@ export default function NewChatModal({
     u.avatar_url ??
     "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"
   }
-  className="w-10 h-10 rounded-full object-cover shrink-0"
+  className="avatar w-[32px] h-[32px] rounded-full object-cover shrink-0"
   alt="avatar"
 />
 
