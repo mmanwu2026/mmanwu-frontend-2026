@@ -54,8 +54,11 @@ export default function SoundPostCard({
   const [duration, setDuration] = useState(0);
   const [isBeat, setIsBeat] = useState(false);
 
+  // ⭐ NEW: Render Tick — forces React to re-render every frame
+  const [renderTick, setRenderTick] = useState(0);
+
   /* ---------------------------------------------------------
-     ⭐ Intensity Analyzer Loop (with beat detection)
+     ⭐ Intensity Analyzer Loop (with beat detection + render tick)
      --------------------------------------------------------- */
   useEffect(() => {
     const analyser = intensityAnalyser;
@@ -77,6 +80,9 @@ export default function SoundPostCard({
         setIsBeat(true);
         setTimeout(() => setIsBeat(false), 100);
       }
+
+      // Force React to re-render
+      setRenderTick((t) => t + 1);
 
       if (normalized > 0.75 && autoMask < 6) {
         setAutoMask((prev) => Math.min(prev + 1, 6));
@@ -417,6 +423,7 @@ export default function SoundPostCard({
             style={{
               transform: isBeat ? "scale(1.4)" : `scale(${scale})`,
             }}
+            key={renderTick} // ⭐ forces React to re-render mask emoji
           >
             {MASK_EMOJI[autoMask]}
           </span>
