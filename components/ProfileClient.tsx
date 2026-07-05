@@ -885,35 +885,36 @@ useEffect(() => {
           )}
 
           {/* REACTIONS */}
-          {activeTab === "reactions" && (
-            <div className="space-y-4">
-              {givenReactions.length === 0 ? (
-                <p className="text-white/40 text-center mt-6">
-                  No reactions yet…
-                </p>
-              ) : (
-                givenReactions.map((r) => {
-                  const postType = r.post_type;
+ {activeTab === "reactions" && (
+  <div className="space-y-4">
+    {givenReactions.length === 0 ? (
+      <p className="text-white/40 text-center mt-6">
+        No reactions yet…
+      </p>
+    ) : (
+      givenReactions.map((r) => {
+        const postType = r.post_type;
 
-                  let username = "unknown";
-                  let content = "";
+        let username = "unknown";
+        let content = "";
 
-                  if (postType === "plaza") {
-                    const p = posts.find((x) => x.id === r.post_id);
-                    username = p?.creator_id ?? "unknown";
-                    content = p?.content ?? "";
-                  }
+        if (postType === "plaza") {
+          const p = posts.find((x) => x.id === r.post_id);
+          username = p ? profile.username : "unknown";
+          content = p?.content ?? "";
+        }
 
-                  if (postType === "sound") {
-                    const p = soundPosts.find((x) => x.id === r.post_id);
-                    username = p?.users?.username ?? "unknown";
-                    content = p?.title ?? "";
-                  }
+        if (postType === "sound") {
+          const p = soundPosts.find((x) => x.id === r.post_id);
+          username = p?.users?.username ?? "unknown";
+          content = p?.title ?? "";
+        }
 
-                  if (postType === "vision") {
-                    username = "vision_creator";
-                    content = "Vision post";
-                  }
+        if (postType === "vision") {
+          const p = visionPosts.find((x) => x.id === r.post_id);
+          username = p?.users?.username ?? "unknown";
+          content = p?.title ?? "";
+        }
 
                   return (
                     <div
