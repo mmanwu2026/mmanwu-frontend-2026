@@ -35,8 +35,19 @@ export async function GET(req: Request) {
       });
     }
 
-    // Add CORS headers so Web Audio API can extract PCM
-    const headers = new Headers(audioRes.headers);
+    // ⭐ FIX: Correct MIME type based on extension
+    const ext = file.split(".").pop()?.toLowerCase();
+
+    let contentType = "application/octet-stream";
+    if (ext === "wav") contentType = "audio/wav";
+    if (ext === "mp3") contentType = "audio/mpeg";
+    if (ext === "ogg") contentType = "audio/ogg";
+    if (ext === "flac") contentType = "audio/flac";
+    if (ext === "m4a") contentType = "audio/mp4";
+
+    // ⭐ FIX: Add CORS + correct MIME type
+    const headers = new Headers();
+    headers.set("Content-Type", contentType);
     headers.set("Access-Control-Allow-Origin", "*");
     headers.set("Access-Control-Allow-Headers", "*");
     headers.set("Access-Control-Expose-Headers", "*");
