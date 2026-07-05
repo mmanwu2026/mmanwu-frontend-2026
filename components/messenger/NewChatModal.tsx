@@ -118,12 +118,12 @@ export default function NewChatModal({
                 className="w-full flex items-center gap-3 px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white disabled:opacity-50"
               >
                 {/* Avatar */}
-                <img
+ <img
   src={
     u.avatar_url ??
     "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"
   }
-  className="avatar w-[32px] h-[32px] rounded-full object-cover shrink-0"
+  className="avatar"
   alt="avatar"
 />
 

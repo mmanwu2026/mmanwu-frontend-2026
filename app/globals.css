@@ -363,12 +363,14 @@ img {
 /* MESSENGER AVATARS                                            */
 /* ------------------------------------------------------------ */
 img.avatar {
-  width: inherit !important;
-  height: inherit !important;
-  max-width: none !important;
-  max-height: none !important;
+  width: 40px !important;
+  height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
   object-fit: cover !important;
+  border-radius: 9999px !important;
 }
+
 
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */

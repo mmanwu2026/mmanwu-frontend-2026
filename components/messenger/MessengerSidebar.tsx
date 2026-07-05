@@ -140,7 +140,6 @@ export default function MessengerSidebar({
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
       <h2 className="text-white text-lg mb-4">Chats</h2>
 
-      {/* New Chat Button */}
       <button
         onClick={() => setShowNewChat(true)}
         className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-4"
@@ -148,7 +147,6 @@ export default function MessengerSidebar({
         + New Chat
       </button>
 
-      {/* Active Chats */}
       <div className="space-y-2 mb-6">
         {threads.map((t) => {
           const profile = getUserProfile(t.otherUserId);
@@ -167,11 +165,10 @@ export default function MessengerSidebar({
               className="block px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white"
             >
               <div className="flex items-center gap-3">
-                {/* Avatar */}
                 <img
                   src={avatar}
                   alt="avatar"
-                  className="avatar w-[32px] h-[32px] rounded-full object-cover shrink-0"
+                  className="avatar"
                 />
 
                 <div className="flex-1">
@@ -203,7 +200,6 @@ export default function MessengerSidebar({
         })}
       </div>
 
-      {/* New Chat Modal */}
       <NewChatModal
         open={showNewChat}
         onClose={() => setShowNewChat(false)}
