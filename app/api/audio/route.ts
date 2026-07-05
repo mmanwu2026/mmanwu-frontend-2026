@@ -10,13 +10,11 @@ export async function GET(req: Request) {
       return new NextResponse("Missing file parameter", { status: 400 });
     }
 
-    // Create Supabase client (server-side)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Generate signed URL
     const { data, error } = await supabase.storage
       .from("sound_files")
       .createSignedUrl(file, 60 * 60);
@@ -26,7 +24,6 @@ export async function GET(req: Request) {
       return new NextResponse("Failed to generate signed URL", { status: 400 });
     }
 
-    // Fetch the actual audio file
     const audioRes = await fetch(data.signedUrl);
 
     if (!audioRes.ok || !audioRes.body) {
@@ -35,7 +32,6 @@ export async function GET(req: Request) {
       });
     }
 
-    // Determine MIME type
     const ext = file.split(".").pop()?.toLowerCase();
     let contentType = "application/octet-stream";
     if (ext === "wav") contentType = "audio/wav";
@@ -44,14 +40,17 @@ export async function GET(req: Request) {
     if (ext === "flac") contentType = "audio/flac";
     if (ext === "m4a") contentType = "audio/mp4";
 
-    // ⭐ CRITICAL FIX: Stream the audio with proper CORS headers
     return new NextResponse(audioRes.body, {
       status: 200,
       headers: {
         "Content-Type": contentType,
+
+        // ⭐ REQUIRED FOR WEB AUDIO API
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Expose-Headers": "*",
+
+        // ⭐ CRITICAL FIX — WITHOUT THESE, WEB AUDIO OUTPUTS ZEROES
         "Cross-Origin-Resource-Policy": "cross-origin",
         "Cross-Origin-Embedder-Policy": "require-corp",
       },
