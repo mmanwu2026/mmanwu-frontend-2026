@@ -36,6 +36,7 @@ export default function SoundPostCard({
   const intensityAnalyserRef = useRef<AnalyserNode | null>(null);
   const waveformAnalyserRef = useRef<AnalyserNode | null>(null);
 
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
   const [spiritScore, setSpiritScore] = useState(post.spirit_score);
@@ -47,7 +48,36 @@ export default function SoundPostCard({
   const [newComment, setNewComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
-  // ⭐ FIX — Initialize WebAudio ONLY after metadata loads
+  /* ---------------------------------------------------------
+     ⭐ FETCH SIGNED URL (Fixes Supabase CORS for Web Audio API)
+     --------------------------------------------------------- */
+  useEffect(() => {
+    async function fetchSignedUrl() {
+      if (!post.audio_url) return;
+
+      const path = post.audio_url.replace(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+        ""
+      );
+
+      const { data, error } = await supabase.storage
+        .from("sound_files")
+        .createSignedUrl(path, 60 * 60); // 1 hour
+
+      if (error) {
+        console.error("Signed URL error:", error);
+        return;
+      }
+
+      setSignedUrl(data.signedUrl);
+    }
+
+    fetchSignedUrl();
+  }, [post.audio_url, supabase]);
+
+  /* ---------------------------------------------------------
+     ⭐ Initialize WebAudio AFTER metadata loads
+     --------------------------------------------------------- */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -65,7 +95,7 @@ export default function SoundPostCard({
       if (!intensityAnalyserRef.current) {
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
-        sourceRef.current.connect(analyser); // ⭐ DO NOT connect to ctx.destination
+        sourceRef.current.connect(analyser);
         intensityAnalyserRef.current = analyser;
       }
 
@@ -86,7 +116,9 @@ export default function SoundPostCard({
     };
   }, []);
 
-  // ⭐ Intensity analyzer loop
+  /* ---------------------------------------------------------
+     ⭐ Intensity Analyzer Loop
+     --------------------------------------------------------- */
   useEffect(() => {
     const analyser = intensityAnalyserRef.current;
     if (!analyser) return;
@@ -113,7 +145,9 @@ export default function SoundPostCard({
     return () => cancelAnimationFrame(frame);
   }, [autoMask]);
 
-  // ⭐ Waveform visualizer loop
+  /* ---------------------------------------------------------
+     ⭐ Waveform Visualizer Loop
+     --------------------------------------------------------- */
   useEffect(() => {
     const canvas = canvasRef.current;
     const analyser = waveformAnalyserRef.current;
@@ -183,7 +217,9 @@ export default function SoundPostCard({
     setIsPlaying(false);
   }
 
-  // ⭐ Delete post
+  /* ---------------------------------------------------------
+     ⭐ Delete Post
+     --------------------------------------------------------- */
   async function handleDelete() {
     if (!user || user.id !== post.creator_id) return;
 
@@ -212,7 +248,9 @@ export default function SoundPostCard({
     router.refresh();
   }
 
-  // ⭐ Refresh reactions
+  /* ---------------------------------------------------------
+     ⭐ Refresh Reactions
+     --------------------------------------------------------- */
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -263,7 +301,9 @@ export default function SoundPostCard({
     router.refresh();
   };
 
-  // ⭐ Submit comment
+  /* ---------------------------------------------------------
+     ⭐ Submit Comment
+     --------------------------------------------------------- */
   async function submitComment() {
     setCommentError("");
 
@@ -298,9 +338,12 @@ export default function SoundPostCard({
 
   const scale = 1 + intensity * 0.2;
 
-  // ⭐ Inline latest comment
-  const latestComment = post.comments.length > 0 ? post.comments[post.comments.length - 1] : null;
+  const latestComment =
+    post.comments.length > 0 ? post.comments[post.comments.length - 1] : null;
 
+  /* ---------------------------------------------------------
+     ⭐ RENDER
+     --------------------------------------------------------- */
   return (
     <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
       {/* Title → Post Detail */}
@@ -320,7 +363,7 @@ export default function SoundPostCard({
 
       {/* Audio Player */}
       <div className="mt-4">
-        <audio ref={audioRef} src={post.audio_url} preload="metadata" />
+        <audio ref={audioRef} src={signedUrl ?? ""} preload="metadata" />
 
         <div className="flex items-center gap-3 mt-2">
           {!isPlaying ? (
