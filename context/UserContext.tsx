@@ -21,13 +21,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function loadInitialSession() {
-      // ⭐ Load session IMMEDIATELY on mount
+      // ⭐ Load session immediately
       const { data } = await supabase.auth.getSession();
 
       if (!active) return;
 
-      setUser(data.session?.user ?? null);
-      setLoading(false);
+      if (data.session) {
+        // ⭐ Session already restored — safe to set user
+        setUser(data.session.user);
+        setLoading(false);
+      } else {
+        // ⭐ No session yet — wait for onAuthStateChange
+        setLoading(true);
+      }
     }
 
     loadInitialSession();
@@ -37,8 +43,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       (_event: AuthChangeEvent, session: Session | null) => {
         if (!active) return;
 
-        setUser(session?.user ?? null);
-        setLoading(false);
+        if (session?.user) {
+          setUser(session.user);
+          setLoading(false);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
       }
     );
 
