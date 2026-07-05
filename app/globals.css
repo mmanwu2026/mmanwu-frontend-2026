@@ -344,6 +344,22 @@ img {
   justify-content: center;
 }
 
+@keyframes beatColorFlash {
+  0% {
+    color: #d8b4fe; /* soft purple */
+  }
+  50% {
+    color: #ffffff; /* bright white flash */
+  }
+  100% {
+    color: #d8b4fe;
+  }
+}
+
+.beat-color {
+  animation: beatColorFlash 0.18s ease-out;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */

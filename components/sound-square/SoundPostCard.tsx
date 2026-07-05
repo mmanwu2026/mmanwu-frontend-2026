@@ -418,14 +418,12 @@ export default function SoundPostCard({
             </button>
           )}
 
-<div className="mask-wrapper">
-  <span
-    className={`text-purple-300 text-lg no-levitate mask-base mask-glow ${isBeat ? "beat-active beat-glow" : ""}`}
-    style={{ transform: `scale(${scale})` }}
-  >
-    {MASK_EMOJI[autoMask]}
-  </span>
-</div>
+<span
+  className={`text-purple-300 text-lg no-levitate ${isBeat ? "beat-active beat-color" : ""}`}
+  style={{ transform: `scale(${scale})` }}
+>
+  {MASK_EMOJI[autoMask]}
+</span>
 
         </div>
 
