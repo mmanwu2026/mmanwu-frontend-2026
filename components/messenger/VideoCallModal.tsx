@@ -23,10 +23,9 @@ type VideoCallModalProps = {
 
 const iceConfig: RTCConfiguration = {
   iceServers: [
-    { urls: ["stun:us-turn8.xirsys.com"] },
+    { urls: ["stun:stun.l.google.com:19302"] },
     {
-      username:
-        "dbmO5NTrYER8pb4YZUw0FpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
+      username: "dbmO5NTrYER8pb4YZUw0FpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
       credential: "38c296aa-767d-11f1-b766-0242ac140004",
       urls: [
         "turn:us-turn8.xirsys.com:80?transport=udp",
