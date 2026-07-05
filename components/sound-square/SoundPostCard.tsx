@@ -32,9 +32,11 @@ export default function SoundPostCard({
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const intensityAnalyserRef = useRef<AnalyserNode | null>(null);
-  const waveformAnalyserRef = useRef<AnalyserNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+
+  // ⭐ NEW: analysers stored in state (NOT refs)
+  const [intensityAnalyser, setIntensityAnalyser] = useState<AnalyserNode | null>(null);
+  const [waveformAnalyser, setWaveformAnalyser] = useState<AnalyserNode | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [reactions, setReactions] = useState<ReactionCounts>(post.reactions);
@@ -56,7 +58,7 @@ export default function SoundPostCard({
      ⭐ Intensity Analyzer Loop (with beat detection)
      --------------------------------------------------------- */
   useEffect(() => {
-    const analyser = intensityAnalyserRef.current;
+    const analyser = intensityAnalyser;
     if (!analyser) return;
 
     const bufferLength = analyser.frequencyBinCount;
@@ -70,7 +72,7 @@ export default function SoundPostCard({
       const normalized = Math.min(avg / 180, 1);
       setIntensity(normalized);
 
-      // Beat detection: pulse when energy is high
+      // Beat detection
       if (normalized > 0.65) {
         setIsBeat(true);
         setTimeout(() => setIsBeat(false), 100);
@@ -85,14 +87,14 @@ export default function SoundPostCard({
 
     tick();
     return () => cancelAnimationFrame(frame);
-  }, [intensityAnalyserRef.current, autoMask]);
+  }, [intensityAnalyser, autoMask]);
 
   /* ---------------------------------------------------------
-     ⭐ Waveform Visualizer Loop (beat‑reactive)
+     ⭐ Waveform Visualizer Loop (beat-reactive)
      --------------------------------------------------------- */
   useEffect(() => {
     const canvas = canvasRef.current;
-    const analyser = waveformAnalyserRef.current;
+    const analyser = waveformAnalyser;
     if (!canvas || !analyser) return;
 
     const ctx = canvas.getContext("2d");
@@ -146,7 +148,7 @@ export default function SoundPostCard({
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
     };
-  }, [waveformAnalyserRef.current, isBeat]);
+  }, [waveformAnalyser, isBeat]);
 
   /* ---------------------------------------------------------
      ⭐ Playback Progress Loop
@@ -201,22 +203,22 @@ export default function SoundPostCard({
         gainRef.current.gain.value = volume;
       }
 
-      if (!intensityAnalyserRef.current) {
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        intensityAnalyserRef.current = analyser;
-      }
+      // Create analysers
+      const intensityNode = ctx.createAnalyser();
+      intensityNode.fftSize = 256;
 
-      if (!waveformAnalyserRef.current) {
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048;
-        waveformAnalyserRef.current = analyser;
-      }
+      const waveformNode = ctx.createAnalyser();
+      waveformNode.fftSize = 2048;
 
-      source.connect(intensityAnalyserRef.current);
-      source.connect(waveformAnalyserRef.current);
-      source.connect(gainRef.current!);
-      gainRef.current!.connect(ctx.destination);
+      // Save analysers in state (critical fix)
+      setIntensityAnalyser(intensityNode);
+      setWaveformAnalyser(waveformNode);
+
+      // Connect nodes
+      source.connect(intensityNode);
+      source.connect(waveformNode);
+      source.connect(gainRef.current);
+      gainRef.current.connect(ctx.destination);
 
       source.start(0);
       sourceRef.current = source;
@@ -382,7 +384,7 @@ export default function SoundPostCard({
 
       {/* Audio Player */}
       <div className="mt-4">
-        {/* Debug logs — OUTSIDE JSX */}
+        {/* Debug logs */}
         {(() => {
           const extractedPath = post.audio_url.replace(
             `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
