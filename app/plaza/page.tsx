@@ -58,7 +58,7 @@ export default function PlazaPage() {
 
   useEffect(() => setHydrated(true), []);
 
-  const sessionReady = hydrated && !userLoading && !!user;
+  const sessionReady = hydrated && !userLoading;
 
   // -----------------------------------------------------
   // FETCH POSTS (reactions batched per page)
