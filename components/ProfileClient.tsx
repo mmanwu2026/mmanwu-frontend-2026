@@ -128,114 +128,104 @@ export default function ProfileClient({
   const [showEditModal, setShowEditModal] = useState(false);
   const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
-  // Sound-Square posts
   const [soundPosts, setSoundPosts] = useState<CardSoundPost[]>([]);
 
-  // VisionSquare posts (with infinite scroll)
-const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
-const [visionLoading, setVisionLoading] = useState(false);
-const [visionFetchingMore, setVisionFetchingMore] = useState(false);
-const [visionEndReached, setVisionEndReached] = useState(false);
+  const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
+  const [visionLoading, setVisionLoading] = useState(false);
+  const [visionFetchingMore, setVisionFetchingMore] = useState(false);
+  const [visionEndReached, setVisionEndReached] = useState(false);
 
-// ⭐ ADD THIS RIGHT HERE — EXACT LOCATION
-const [reactionPostMap, setReactionPostMap] = useState<
-  Record<string, { username: string; content: string }>
->({});
+  const [reactionPostMap, setReactionPostMap] = useState<
+    Record<string, { username: string; content: string }>
+  >({});
 
-const PAGE_SIZE = 10;
+  const PAGE_SIZE = 10;
 
-const isOwnProfile = hydrated && user?.id === profile.id;
-const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
+  const isOwnProfile = hydrated && user?.id === profile.id;
+  const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
 
-  // Load Sound-Square posts with emotional engine
-useEffect(() => {
-  async function loadSoundPosts() {
-    const { data, error } = await supabase
-      .from("sound_posts")
-      .select(`
-        id,
-        title,
-        audio_url,
-        creator_id,
-        created_at,
-        users:creator_id ( username, avatar_url )
-      `)
-      .eq("creator_id", profile.id)
-      .order("created_at", { ascending: false });
+  // Load Sound posts
+  useEffect(() => {
+    async function loadSoundPosts() {
+      const { data, error } = await supabase
+        .from("sound_posts")
+        .select(`
+          id,
+          title,
+          audio_url,
+          creator_id,
+          created_at,
+          users:creator_id ( username, avatar_url )
+        `)
+        .eq("creator_id", profile.id)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("SoundPosts load error:", error);
-      return;
+      if (error) return;
+
+      const ids = (data || []).map((p: any) => p.id);
+
+      const { data: reactionsRows } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .in("post_id", ids)
+        .eq("post_type", "sound");
+
+      const mapped: CardSoundPost[] = (data || []).map((p: any) => {
+        const postReactions = (reactionsRows ?? []).filter(
+          (r: any) => r.post_id === p.id
+        );
+
+        const counts: ReactionCounts = {
+          mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
+          mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
+          mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
+          mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
+          mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
+          mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
+        };
+
+        const spirit_score = postReactions.reduce(
+          (sum: number, r: any) => sum + r.maskTier,
+          0
+        );
+
+        const total = postReactions.length;
+        const positive = postReactions.filter(
+          (r: any) => r.maskTier >= 3
+        ).length;
+        const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+        let automask = 2;
+        if (spirit_score > 20) automask = 3;
+        if (spirit_score > 100) automask = 4;
+        if (spirit_score > 300) automask = 5;
+        if (spirit_score > 500) automask = 6;
+
+        return {
+          id: p.id,
+          title: p.title ?? "",
+          audio_url: p.audio_url ?? "",
+          creator_id: p.creator_id ?? "",
+          creator_name: null,
+          created_at: p.created_at ?? "",
+          spirit_score,
+          positivity_ratio,
+          automask,
+          reactions: counts,
+          users: {
+            username: p.users?.username ?? "Unknown",
+            avatar_url: p.users?.avatar_url ?? null,
+          },
+        };
+      });
+
+      setSoundPosts(mapped);
     }
 
-    const ids = (data || []).map((p: any) => p.id);
-
-    const { data: reactionsRows, error: reactionsError } = await supabase
-      .from("reactions")
-      .select('post_id, "maskTier"')
-      .in("post_id", ids)
-      .eq("post_type", "sound");
-
-    if (reactionsError) {
-      console.error("SoundPosts reactions load error:", reactionsError);
-    }
-
-    const mapped: CardSoundPost[] = (data || []).map((p: any) => {
-      const postReactions = (reactionsRows ?? []).filter(
-        (r: any) => r.post_id === p.id
-      );
-
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
-      };
-
-      const spirit_score = postReactions.reduce(
-        (sum: number, r: any) => sum + r.maskTier,
-        0
-      );
-
-      const total = postReactions.length;
-      const positive = postReactions.filter(
-        (r: any) => r.maskTier >= 3
-      ).length;
-      const positivity_ratio = total > 0 ? positive / total : 0.5;
-
-      let automask = 2;
-      if (spirit_score > 20) automask = 3;
-      if (spirit_score > 100) automask = 4;
-      if (spirit_score > 300) automask = 5;
-      if (spirit_score > 500) automask = 6;
-
-      return {
-        id: p.id,
-        title: p.title ?? "",
-        audio_url: p.audio_url ?? "",
-        creator_id: p.creator_id ?? "",
-        creator_name: null, // ⭐ required by CardSoundPost type
-        created_at: p.created_at ?? "",
-        spirit_score,
-        positivity_ratio,
-        automask,
-        reactions: counts,
-        users: {
-          username: p.users?.username ?? "Unknown",
-          avatar_url: p.users?.avatar_url ?? null,
-        },
-      };
-    });
-
-    setSoundPosts(mapped);
-  }
-
-  loadSoundPosts();
-}, [profile.id, supabase]);
+    loadSoundPosts();
+  }, [profile.id, supabase]);
 
   // Load follow state
   useEffect(() => {
@@ -247,7 +237,7 @@ useEffect(() => {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("follows")
         .select("id")
         .eq("follower_id", user.id)
@@ -255,12 +245,6 @@ useEffect(() => {
         .maybeSingle();
 
       if (!active) return;
-
-      if (error) {
-        console.error("Follow state error:", error);
-        setIsFollowing(null);
-        return;
-      }
 
       setIsFollowing(!!data);
     }
@@ -310,22 +294,16 @@ useEffect(() => {
     async function loadReactions() {
       if (!posts || posts.length === 0) return;
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("reactions")
         .select("post_id, maskTier")
         .in("post_id", posts.map((p) => p.id))
         .eq("post_type", "plaza");
 
-      if (error) {
-        console.error("Reaction load error:", error);
-        return;
-      }
-
       const map: ReactionCountsMap = {};
 
       (data || []).forEach((r: { post_id: string; maskTier: number }) => {
         if (!map[r.post_id]) map[r.post_id] = { ...EMPTY_REACTIONS };
-
         const key = `mask${r.maskTier}` as keyof typeof EMPTY_REACTIONS;
         map[r.post_id][key] += 1;
       });
@@ -339,7 +317,7 @@ useEffect(() => {
   // Load reactions GIVEN by this user
   useEffect(() => {
     async function loadGivenReactions() {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("reactions")
         .select(`
           id,
@@ -351,15 +329,13 @@ useEffect(() => {
         .eq("user_id", profile.id)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setGivenReactions(data);
-      }
+      if (data) setGivenReactions(data);
     }
 
     loadGivenReactions();
   }, [profile.id, supabase]);
 
-  // Load VisionSquare posts (infinite scroll)
+  // Load Vision posts
   async function fetchVisionPosts(initial = false) {
     if (visionEndReached && !initial) return;
 
@@ -415,10 +391,9 @@ useEffect(() => {
       query = query.lt("created_at", lastCreatedAt);
     }
 
-    const { data, error } = await query;
+    const { data } = await query;
 
-    if (error) {
-      console.error("Vision posts load error:", error);
+    if (!data) {
       setVisionLoading(false);
       setVisionFetchingMore(false);
       return;
@@ -519,85 +494,125 @@ useEffect(() => {
     setVisionFetchingMore(false);
   }
 
-  // Trigger initial VisionSquare load when tab is opened
   useEffect(() => {
-    if (activeTab === "visionposts" && visionPosts.length === 0 && !visionLoading) {
+    if (
+      activeTab === "visionposts" &&
+      visionPosts.length === 0 &&
+      !visionLoading
+    ) {
       fetchVisionPosts(true);
     }
   }, [activeTab, visionPosts.length, visionLoading]);
 
-// Infinite scroll for VisionSquare tab
-useEffect(() => {
-  function onScroll() {
-    if (activeTab !== "visionposts") return;
-    if (visionEndReached || visionFetchingMore) return;
+  useEffect(() => {
+    function onScroll() {
+      if (activeTab !== "visionposts") return;
+      if (visionEndReached || visionFetchingMore) return;
 
-    const scrollPos =
-      window.innerHeight + document.documentElement.scrollTop;
-    const bottom = document.documentElement.offsetHeight - 300;
+      const scrollPos =
+        window.innerHeight + document.documentElement.scrollTop;
+      const bottom = document.documentElement.offsetHeight - 300;
 
-    if (scrollPos >= bottom) fetchVisionPosts(false);
-  }
+      if (scrollPos >= bottom) fetchVisionPosts(false);
+    }
 
-  window.addEventListener("scroll", onScroll);
-  return () => window.removeEventListener("scroll", onScroll);
-}, [activeTab, visionPosts, visionFetchingMore, visionEndReached]);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [activeTab, visionPosts, visionFetchingMore, visionEndReached]);
 
+  // ⭐ NEW reactionPostMap loader (correct)
+  useEffect(() => {
+    async function buildMap() {
+      if (givenReactions.length === 0) {
+        setReactionPostMap({});
+        return;
+      }
 
-// ⭐⭐⭐ INSERTED LOADER PATCH — EXACT LOCATION ⭐⭐⭐
-// Build unified post map for Reactions tab
-useEffect(() => {
-  // Wait until at least one post type has actual data
-  if (
-    posts.length === 0 &&
-    soundPosts.length === 0 &&
-    visionPosts.length === 0
-  ) {
-    return;
-  }
+      const plazaIds = givenReactions
+        .filter((r) => r.post_type === "plaza")
+        .map((r) => r.post_id);
 
-  const map: Record<string, { username: string; content: string }> = {};
+      const soundIds = givenReactions
+        .filter((r) => r.post_type === "sound")
+        .map((r) => r.post_id);
 
-  // Plaza posts
-  posts.forEach((p) => {
-    map[p.id] = {
-      username: profile.username ?? "unknown",
-      content: p.content ?? "",
-    };
-  });
+      const visionIds = givenReactions
+        .filter((r) => r.post_type === "vision")
+        .map((r) => r.post_id);
 
-  // Sound posts
-  soundPosts.forEach((p) => {
+      const map: Record<string, { username: string; content: string }> = {};
+
+      if (plazaIds.length > 0) {
+        const { data } = await supabase
+          .from("posts")
+          .select(`
+            id,
+            content,
+            creator_id,
+            profiles:creator_id ( username )
+          `)
+          .in("id", plazaIds);
+
+        (data || []).forEach((p: any) => {
+          map[p.id] = {
+            username: p.profiles?.username ?? "unknown",
+            content: p.content ?? "",
+          };
+        });
+      }
+
+      if (soundIds.length > 0) {
+        const { data } = await supabase
+          .from("sound_posts")
+          .select(`
+            id,
+            title,
+            creator_id,
+            users:creator_id ( username )
+          `)
+    .in("id", soundIds);
+
+  (data || []).forEach((p: any) => {
     map[p.id] = {
       username: p.users?.username ?? "unknown",
       content: p.title ?? "",
     };
   });
-
-  // Vision posts
-  visionPosts.forEach((p) => {
-    map[p.id] = {
-      username: p.users?.username ?? "unknown",
-      content: p.title ?? "",
-    };
-  });
-
-  setReactionPostMap(map);
-}, [
-  posts.length,
-  soundPosts.length,
-  visionPosts.length,
-  profile.username
-]);
-// ⭐⭐⭐ END LOADER PATCH ⭐⭐⭐
-
-if (!hydrated) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <p className="text-zinc-400 text-sm">Loading profile…</p>
-    </div>
-  );
 }
+
+// Vision posts
+if (visionIds.length > 0) {
+  const { data } = await supabase
+    .from("vision_posts")
+    .select(`
+      id,
+      title,
+      creator_id,
+      users:creator_id ( username )
+    `)
+    .in("id", visionIds);
+
+  (data || []).forEach((p: any) => {
+    map[p.id] = {
+      username: p.users?.username ?? "unknown",
+      content: p.title ?? "",
+    };
+  });
+}
+
+setReactionPostMap(map);
+}
+
+buildMap();
+}, [givenReactions, supabase]);
+
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <p className="text-zinc-400 text-sm">Loading profile…</p>
+      </div>
+    );
+  }
 
   if (userLoading && !user) {
     return (
@@ -714,73 +729,6 @@ if (!hydrated) {
                 <p className="text-xs text-white/60">Joined</p>
               </div>
             </div>
-
-            {/* Location + Website */}
-            <div className="mt-4 flex flex-row justify-end w-full">
-              <div className="flex flex-col items-end gap-1 text-sm text-neutral-300">
-                <div className="flex items-center gap-1">
-                  <span>📍</span>
-                  {profile.location ? (
-                    <span>{profile.location}</span>
-                  ) : (
-                    <button
-                      onClick={() => setShowEditModal(true)}
-                      className="text-white/40 italic hover:text-white/70 transition"
-                    >
-                      Add location
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <span>🌐</span>
-                  {profile.website_url ? (
-                    <a
-                      href={profile.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
-                    >
-                      {profile.website_url}
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() => setShowEditModal(true)}
-                      className="text-white/40 italic hover:text-white/70 transition"
-                    >
-                      Add website
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Edit Profile */}
-            {user?.id === profile.id && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="mt-4 inline-block px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white"
-              >
-                Edit Profile
-              </button>
-            )}
-
-            {/* Follow button */}
-            {user?.id !== profile.id && (
-              <div className="mt-4">
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={busy}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
-                    isFollowing
-                      ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
-                      : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
-                  } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -832,7 +780,7 @@ if (!hydrated) {
           </button>
         </div>
 
-        {/* Grid toggle for Plaza posts */}
+        {/* Grid toggle */}
         {activeTab === "posts" && (
           <div className="flex justify-end mt-2">
             <button
@@ -844,13 +792,41 @@ if (!hydrated) {
           </div>
         )}
 
-        {/* Content */}
-        <div className="mt-4">
-          {/* PLAZA POSTS */}
-          {activeTab === "posts" && (
-            <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-              {posts && posts.length > 0 ? (
-                posts.map((post) => (
+        {/* PLAZA POSTS — patched */}
+        {activeTab === "posts" && (
+          <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+            {posts && posts.length > 0 ? (
+              posts.map((post) => {
+                const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+
+                const total =
+                  counts.mask1 +
+                  counts.mask2 +
+                  counts.mask3 +
+                  counts.mask4 +
+                  counts.mask5 +
+                  counts.mask6;
+
+                const spirit_score =
+                  1 * counts.mask1 +
+                  2 * counts.mask2 +
+                  3 * counts.mask3 +
+                  4 * counts.mask4 +
+                  5 * counts.mask5 +
+                  6 * counts.mask6;
+
+                const positive =
+                  counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
+
+                const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+                let autoMask = 2;
+                if (spirit_score > 20) autoMask = 3;
+                if (spirit_score > 100) autoMask = 4;
+                if (spirit_score > 300) autoMask = 5;
+                if (spirit_score > 500) autoMask = 6;
+
+                return (
                   <div
                     key={post.id}
                     className={
@@ -865,11 +841,11 @@ if (!hydrated) {
                         creator_id: post.creator_id,
                         content: post.content,
                         created_at: post.created_at,
-                        spirit_score: post.spirit_score,
-                        autoMask: post.automask ?? 0,
+                        spirit_score,
+                        autoMask,
                       }}
-                      reactions={reactionCounts[post.id] ?? EMPTY_REACTIONS}
-                      positivityRatio={post.positivity_ratio}
+                      reactions={counts}
+                      positivityRatio={positivity_ratio}
                       onReact={() => {}}
                       showDelete={user?.id === profile.id}
                       onDelete={async (postId) => {
@@ -878,118 +854,112 @@ if (!hydrated) {
                       }}
                     />
                   </div>
-                ))
-              ) : (
-                <p className="text-white/40 text-center">No posts yet…</p>
-              )}
-            </div>
-          )}
-
-          {/* VISION-SQUARE POSTS */}
-          {activeTab === "visionposts" && (
-            <div className="space-y-6">
-              {visionLoading && visionPosts.length === 0 && (
-                <p className="text-white/40 text-center mt-6">
-                  Loading visions…
-                </p>
-              )}
-
-              {!visionLoading && visionPosts.length === 0 && (
-                <p className="text-white/40 text-center mt-6">
-                  No visions yet…
-                </p>
-              )}
-
-              {visionPosts.map((post) => (
-                <VisionCard key={post.id} post={post} smallAvatar />
-              ))}
-
-              {visionFetchingMore && (
-                <p className="text-white/40 text-center mt-4">
-                  Loading more visions…
-                </p>
-              )}
-
-              {visionEndReached && visionPosts.length > 0 && (
-                <p className="text-white/40 text-center mt-4">
-                  You’ve reached the end of this creator’s visions.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* SOUND-SQUARE POSTS */}
-          {activeTab === "soundposts" && (
-            <div className="space-y-6">
-              {soundPosts && soundPosts.length > 0 ? (
-                soundPosts.map((post) => (
-                  <SoundPostCard
-                    key={post.id}
-                    post={post}
-                    isTrending={false}
-                  />
-                ))
-              ) : (
-                <p className="text-white/40 text-center mt-6">
-                  No soundposts yet…
-                </p>
-              )}
-            </div>
-          )}
-
-{/* REACTIONS */}
-{activeTab === "reactions" && (
-  <div className="space-y-4">
-
-    {/* Wait until reactionPostMap is built */}
-    {Object.keys(reactionPostMap).length === 0 && (
-      <p className="text-white/40 text-center mt-6">
-        Loading reactions…
-      </p>
-    )}
-
-    {Object.keys(reactionPostMap).length > 0 && (
-      <>
-        {givenReactions.length === 0 ? (
-          <p className="text-white/40 text-center mt-6">
-            No reactions yet…
-          </p>
-        ) : (
-          givenReactions.map((r) => {
-            const info = reactionPostMap[r.post_id];
-            const username = info?.username ?? "unknown";
-            const content = info?.content ?? "";
-
-            return (
-              <div
-                key={r.id}
-                className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-              >
-                <p className="text-sm text-white/70 mb-2">
-                  You reacted{" "}
-                  <span className="font-semibold text-white">
-                    Mask {r.maskTier}
-                  </span>{" "}
-                  to{" "}
-                  <span className="font-semibold">@{username}</span>
-                </p>
-
-                <p className="text-white/90 mb-2 italic">
-                  “{content.slice(0, 120)}…”
-                </p>
-
-                <p className="text-xs text-white/40">
-                  {new Date(r.created_at).toLocaleString()}
-                </p>
-              </div>
-            );
-          })
+                );
+              })
+            ) : (
+              <p className="text-white/40 text-center">No posts yet…</p>
+            )}
+          </div>
         )}
-      </>
-    )}
-  </div>
-)}
-        </div>
+
+        {/* VISION POSTS */}
+        {activeTab === "visionposts" && (
+          <div className="space-y-6">
+            {visionLoading && visionPosts.length === 0 && (
+              <p className="text-white/40 text-center mt-6">
+                Loading visions…
+              </p>
+            )}
+
+            {!visionLoading && visionPosts.length === 0 && (
+              <p className="text-white/40 text-center mt-6">
+                No visions yet…
+              </p>
+            )}
+
+            {visionPosts.map((post) => (
+              <VisionCard key={post.id} post={post} smallAvatar />
+            ))}
+
+            {visionFetchingMore && (
+              <p className="text-white/40 text-center mt-4">
+                Loading more visions…
+              </p>
+            )}
+
+            {visionEndReached && visionPosts.length > 0 && (
+              <p className="text-white/40 text-center mt-4">
+                You’ve reached the end of this creator’s visions.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* SOUND POSTS */}
+        {activeTab === "soundposts" && (
+          <div className="space-y-6">
+            {soundPosts && soundPosts.length > 0 ? (
+              soundPosts.map((post) => (
+                <SoundPostCard key={post.id} post={post} isTrending={false} />
+              ))
+            ) : (
+              <p className="text-white/40 text-center mt-6">
+                No soundposts yet…
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* REACTIONS */}
+        {activeTab === "reactions" && (
+          <div className="space-y-4">
+            {Object.keys(reactionPostMap).length === 0 && (
+              <p className="text-white/40 text-center mt-6">
+                Loading reactions…
+              </p>
+            )}
+
+            {Object.keys(reactionPostMap).length > 0 && (
+              <>
+                {givenReactions.length === 0 ? (
+                  <p className="text-white/40 text-center mt-6">
+                    No reactions yet…
+                  </p>
+                ) : (
+                  givenReactions.map((r) => {
+                    const info = reactionPostMap[r.post_id];
+                    const username = info?.username ?? "unknown";
+                    const content = info?.content ?? "";
+
+                    return (
+                      <div
+                        key={r.id}
+                        className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+                      >
+                        <p className="text-sm text-white/70 mb-2">
+                          You reacted{" "}
+                          <span className="font-semibold text-white">
+                            Mask {r.maskTier}
+                          </span>{" "}
+                          to{" "}
+                          <span className="font-semibold">@{username}</span>
+                        </p>
+
+                        <p className="text-white/90 mb-2 italic">
+                          “{content.slice(0, 120)}…”
+                        </p>
+
+                        <p className="text-xs text-white/40">
+                          {new Date(r.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Edit Profile Modal */}
