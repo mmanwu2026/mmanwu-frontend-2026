@@ -14,7 +14,6 @@ type Post = {
 };
 
 export default async function Page({ params }: { params: { id: string } }) {
-  // ⭐ Correct params signature — no Promise, no await
   const { id } = params;
 
   console.log("PROFILE: starting supabase client");
@@ -49,58 +48,65 @@ export default async function Page({ params }: { params: { id: string } }) {
     .single();
   console.log("PROFILE: profile fetched");
 
-  if (profileError || !profileRaw) {
-    console.log("PROFILE: profile not found or error", profileError);
-    return <div className="p-6">Profile not found</div>;
-  }
+  // ⭐ Compute "profile not found" state WITHOUT early return
+  const profileNotFound = profileError || !profileRaw;
 
-  const spirit_score =
-    profileRaw.posts?.reduce(
-      (sum: number, p: any) => sum + (p.spirit_score ?? 0),
-      0
-    ) ?? 0;
+  let profile = null;
+  let posts: Post[] = [];
 
-  const positivity_ratio =
-    profileRaw.posts?.length > 0
-      ? profileRaw.posts.reduce(
-          (sum: number, p: any) => sum + (p.positivity_ratio ?? 0),
-          0
-        ) / profileRaw.posts.length
-      : 0.5;
+  if (!profileNotFound) {
+    const spirit_score =
+      profileRaw.posts?.reduce(
+        (sum: number, p: any) => sum + (p.spirit_score ?? 0),
+        0
+      ) ?? 0;
 
-  const profile = {
-    ...profileRaw,
-    followers_count: profileRaw.followers_count?.[0]?.count ?? 0,
-    following_count: profileRaw.following_count?.[0]?.count ?? 0,
-    spirit_score,
-    positivity_ratio,
-  };
+    const positivity_ratio =
+      profileRaw.posts?.length > 0
+        ? profileRaw.posts.reduce(
+            (sum: number, p: any) => sum + (p.positivity_ratio ?? 0),
+            0
+          ) / profileRaw.posts.length
+        : 0.5;
 
-  console.log("PROFILE: fetching posts");
-  const { data: postsRaw } = await supabase
-    .from("posts")
-    .select(`
-      id,
-      creator_id,
-      content,
-      created_at,
+    profile = {
+      ...profileRaw,
+      followers_count: profileRaw.followers_count?.[0]?.count ?? 0,
+      following_count: profileRaw.following_count?.[0]?.count ?? 0,
       spirit_score,
-      automask,
-      positivity_ratio
-    `)
-    .eq("creator_id", id)
-    .order("created_at", { ascending: false });
-  console.log("PROFILE: posts fetched");
+      positivity_ratio,
+    };
 
-  // ⭐ Ensure posts is always an array
-  const posts: Post[] = postsRaw ?? [];
+    console.log("PROFILE: fetching posts");
+    const { data: postsRaw } = await supabase
+      .from("posts")
+      .select(`
+        id,
+        creator_id,
+        content,
+        created_at,
+        spirit_score,
+        automask,
+        positivity_ratio
+      `)
+      .eq("creator_id", id)
+      .order("created_at", { ascending: false });
+    console.log("PROFILE: posts fetched");
+
+    posts = postsRaw ?? [];
+  }
 
   console.log("PROFILE: rendering ProfileClient");
 
   return (
     <div className="p-6 text-white">
       <TopBar />
-      <ProfileClient profile={profile} posts={posts} />
+
+      {profileNotFound ? (
+        <div className="mt-6 text-lg">Profile not found</div>
+      ) : (
+        <ProfileClient profile={profile!} posts={posts} />
+      )}
     </div>
   );
 }
