@@ -91,7 +91,7 @@ export default function MessengerThread({
       .from("messages")
       .select("*")
       .eq("room_id", finalRoomId)
-      .eq("message_type", "text")   // ⭐ ONLY LOAD CHAT MESSAGES
+      .eq("message_type", "text")
       .order("created_at", { ascending: true });
 
     setMessages(data || []);
@@ -101,7 +101,7 @@ export default function MessengerThread({
     loadMessages();
   }, [finalRoomId]);
 
-  // Load usernames
+  // ⭐ LOAD USERNAMES
   useEffect(() => {
     async function loadUsernames() {
       const ids = Array.from(
@@ -133,138 +133,120 @@ export default function MessengerThread({
     loadUsernames();
   }, [messages, userId, otherUserId]);
 
-  // Incoming call auto-open
+  // ⭐ AUTO-OPEN CALL MODAL FOR INCOMING CALL
   useEffect(() => {
     if (isIncoming) {
-      resetSignaling(); // ⭐ ensure clean state
+      resetSignaling();
       setCallActive(true);
       setCallModalOpen(true);
     }
   }, [isIncoming]);
 
-  // ⭐ REALTIME SIGNALING SUBSCRIPTION
+  // ⭐ REALTIME SUBSCRIPTION (MESSAGES + SIGNALING)
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
 
-const channel = supabase
-  .channel(`room-${finalRoomId}`)
-  .on(
-    "postgres_changes",
-    {
-      event: "INSERT",
-      schema: "public",
-      table: "messages",
-    },
-    (payload: { new: any }) => {
-      const msg = payload.new;
+    const channel = supabase
+      .channel(`room-${finalRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        async (payload: { new: any }) => {
+          const msg = payload.new;
 
-      if (msg.room_id !== finalRoomId) return;
+          if (msg.room_id !== finalRoomId) return;
 
-      // ⭐ Only add text messages to chat
-      if (msg.message_type === "text") {
-        if (!msg.content || msg.content.trim() === "") return;
+          // ⭐ TEXT MESSAGES
+          if (msg.message_type === "text") {
+            if (!msg.content || msg.content.trim() === "") return;
 
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-      }
+            // ⭐ MARK DELIVERED (recipient only)
+            if (msg.sender_id !== userId) {
+              await supabase
+                .from("messages")
+                .update({ delivered_at: new Date().toISOString() })
+                .eq("id", msg.id)
+                .is("delivered_at", null);
+            }
 
-// ⭐ SIGNALING ROUTING
-if (
-  msg.message_type === "call_offer" ||
-  msg.message_type === "call_answer" ||
-  msg.message_type === "ice_candidate"
-) {
-  // only process signaling that involves this user
-  if (!userId) return; // wait until userId is loaded
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+          }
 
-if (msg.sender_id !== userId && msg.receiver_id !== userId) return;
+          // ⭐ SIGNALING ROUTING
+          if (
+            msg.message_type === "call_offer" ||
+            msg.message_type === "call_answer" ||
+            msg.message_type === "ice_candidate"
+          ) {
+            if (!userId) return;
 
+            if (msg.sender_id !== userId && msg.receiver_id !== userId) return;
 
-  setSignalingState((prev) => {
-    // remoteId = "the other person", stable across caller/callee
-    const remoteId =
-      msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+            setSignalingState((prev) => {
+              const remoteId =
+                msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
 
-    const participants = Array.from(
-      new Set(
-        [
-          ...prev.participants,
-          remoteId,
-        ].filter(Boolean)
+              const participants = Array.from(
+                new Set([...prev.participants, remoteId].filter(Boolean))
+              );
+
+              const next = { ...prev, participants };
+
+              if (msg.message_type === "call_offer") {
+                next.isCaller = msg.sender_id === userId;
+              }
+
+              if (msg.message_type === "call_offer" && msg.metadata?.offer) {
+                next.offers = {
+                  ...prev.offers,
+                  [remoteId]: msg.metadata.offer,
+                };
+              }
+
+              if (msg.message_type === "call_answer" && msg.metadata?.answer) {
+                next.answers = {
+                  ...prev.answers,
+                  [remoteId]: msg.metadata.answer,
+                };
+              }
+
+              if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
+                const existing = prev.candidates[remoteId] || [];
+                next.candidates = {
+                  ...prev.candidates,
+                  [remoteId]: [...existing, msg.metadata.candidate],
+                };
+              }
+
+              return next;
+            });
+
+            // ⭐ AUTO-OPEN CALL MODAL FOR CALLEE (FIRST OFFER ONLY)
+            if (msg.message_type === "call_offer") {
+              if (msg.sender_id !== userId) {
+                if (!callActive) {
+                  setSignalingState(prev => ({
+                    ...prev,
+                    isCaller: false,
+                  }));
+
+                  setCallActive(true);
+                  setCallModalOpen(true);
+                }
+              }
+            }
+          }
+        }
       )
-    );
-
-    const next = { ...prev, participants };
-
-    // mark caller vs callee
-    if (msg.message_type === "call_offer") {
-      next.isCaller = msg.sender_id === userId;
-    }
-
-    // ⭐ Offers
-    if (msg.message_type === "call_offer" && msg.metadata?.offer) {
-      next.offers = {
-        ...prev.offers,
-        [remoteId]: msg.metadata.offer,
-      };
-    }
-
-    // ⭐ Answers
-    if (msg.message_type === "call_answer" && msg.metadata?.answer) {
-      next.answers = {
-        ...prev.answers,
-        [remoteId]: msg.metadata.answer,
-      };
-    }
-
-    // ⭐ ICE candidates
-    if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-      const existing = prev.candidates[remoteId] || [];
-      next.candidates = {
-        ...prev.candidates,
-        [remoteId]: [...existing, msg.metadata.candidate],
-      };
-    }
-
-    return next;
-  });
-}
-
-// ⭐ Auto-open modal ONLY for the FIRST offer
-// Auto-open modal for callee ONLY for the FIRST offer
-if (msg.message_type === "call_offer") {
-  if (msg.sender_id !== userId) {
-
-    // ⭐ DEBUG: Log every offer the callee receives (initial + restart)
-    console.log("CALLEE RECEIVED OFFER:", {
-      from: msg.sender_id,
-      offer: msg.metadata?.offer,
-      callActive,
-      signalingStateBefore: signalingState
-    });
-
-    // ⭐ Only auto-open modal if NOT already in a call
-    if (!callActive) {
-      setSignalingState(prev => ({
-        ...prev,
-        isCaller: false,
-      }));
-
-      setCallActive(true);
-      setCallModalOpen(true);
-    }
-
-    // ⭐ If already in a call, DO NOT reset modal or state.
-    // The ICE restart offer will flow into signaling.offers normally.
-  }
-}
-
-    }
-  )
-  .subscribe();
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -272,7 +254,21 @@ if (msg.message_type === "call_offer") {
     };
   }, [finalRoomId, userId, supabase]);
 
-  // Send message
+  // ⭐ MARK SEEN WHEN THREAD IS OPEN
+  useEffect(() => {
+    async function markSeen() {
+      await supabase
+        .from("messages")
+        .update({ seen_at: new Date().toISOString() })
+        .eq("room_id", finalRoomId)
+        .neq("sender_id", userId)
+        .is("seen_at", null);
+    }
+
+    markSeen();
+  }, [finalRoomId, userId]);
+
+  // ⭐ SEND MESSAGE
   async function sendMessage() {
     const trimmed = newMessage.trim();
     if (!trimmed || trimmed.length === 0) return;
@@ -288,7 +284,7 @@ if (msg.message_type === "call_offer") {
   }
 
   function joinCall() {
-    resetSignaling(); // ⭐ clean state before joining
+    resetSignaling();
     setCallModalOpen(true);
   }
 
@@ -301,7 +297,7 @@ if (msg.message_type === "call_offer") {
       )
     );
 
-    resetSignaling(); // ⭐ clean state before starting
+    resetSignaling();
 
     setSignalingState((prev) => ({
       ...prev,
@@ -313,6 +309,13 @@ if (msg.message_type === "call_offer") {
       setCallActive(true);
       setCallModalOpen(true);
     }, 50);
+  }
+
+  // ⭐ STATUS LABEL
+  function getStatusLabel(msg: any) {
+    if (msg.seen_at) return "Seen";
+    if (msg.delivered_at) return "Delivered";
+    return "Sent";
   }
 
   return (
@@ -335,14 +338,27 @@ if (msg.message_type === "call_offer") {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.map((m) => (
-          <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
-            <div className="text-xs font-semibold text-yellow-400">
-              {usernames[m.sender_id] || m.sender_id}
+        {messages.map((m, index) => {
+          const isOutgoing = m.sender_id === userId;
+          const isLastOutgoing =
+            isOutgoing &&
+            messages.filter((x) => x.sender_id === userId).slice(-1)[0]?.id === m.id;
+
+          return (
+            <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
+              <div className="text-xs font-semibold text-yellow-400">
+                {usernames[m.sender_id] || m.sender_id}
+              </div>
+              <div className="text-sm mt-1">{m.content}</div>
+
+              {isLastOutgoing && (
+                <div className="text-right text-xs text-neutral-400 mt-1">
+                  {getStatusLabel(m)}
+                </div>
+              )}
             </div>
-            <div className="text-sm mt-1">{m.content}</div>
-          </div>
-        ))}
+          );
+        })}
 
         {callActive && (
           <div className="mt-4 p-3 bg-blue-900/40 border border-blue-600 rounded flex items-center justify-between">
@@ -381,19 +397,19 @@ if (msg.message_type === "call_offer") {
 
       {/* Video Call Modal */}
       <VideoCallModal
-  isOpen={callModalOpen}
-  callActive={callActive}   // ⭐ ADD THIS
-  onClose={() => {
-    setCallModalOpen(false);
-    setCallActive(false);
-    resetSignaling();
-  }}
-  signaling={signalingState}
-  onSendOffer={signalingState.sendOffer}
-  onSendAnswer={signalingState.sendAnswer}
-  onSendCandidate={signalingState.sendCandidate}
-  onNotify={(msg) => console.log("NOTIFY:", msg)}
-/>
+        isOpen={callModalOpen}
+        callActive={callActive}
+        onClose={() => {
+          setCallModalOpen(false);
+          setCallActive(false);
+          resetSignaling();
+        }}
+        signaling={signalingState}
+        onSendOffer={signalingState.sendOffer}
+        onSendAnswer={signalingState.sendAnswer}
+        onSendCandidate={signalingState.sendCandidate}
+        onNotify={(msg) => console.log("NOTIFY:", msg)}
+      />
     </div>
   );
 }

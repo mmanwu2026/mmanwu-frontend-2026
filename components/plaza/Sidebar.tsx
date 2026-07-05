@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
+import { useSupabase } from "@/context/SupabaseContext";
+import { useEffect, useState } from "react";
 
 import {
   MusicalNoteIcon,
@@ -12,11 +14,72 @@ import {
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
   Cog6ToothIcon,
-} from "@heroicons/react/24/outline"; // outline = visually lighter
+} from "@heroicons/react/24/outline";
 
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
   const { user } = useUser();
+  const supabase = useSupabase();
+
+  // ⭐ UNREAD COUNTS
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // ⭐ LOAD UNREAD COUNTS
+ useEffect(() => {
+  if (!user) return;
+
+  async function loadUnread() {
+    if (!user) return;
+    const userId = user.id;
+
+    const { data } = await supabase
+      .from("messages")
+      .select("room_id")
+      .neq("sender_id", userId)
+      .is("seen_at", null);
+
+    const counts: Record<string, number> = {};
+
+    data?.forEach((m: { room_id: string }) => {
+      counts[m.room_id] = (counts[m.room_id] || 0) + 1;
+    });
+
+    setUnreadCounts(counts);
+  }
+
+  loadUnread();
+}, [user, supabase]);
+
+  // ⭐ REALTIME SUBSCRIPTION
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("sidebar-unread")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload: { new: any }) => {
+          const msg = payload.new;
+
+          if (msg.sender_id === user.id) return;
+          if (msg.seen_at !== null) return;
+
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [msg.room_id]: (prev[msg.room_id] || 0) + 1,
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase]);
+
+  // ⭐ TOTAL UNREAD
+  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
   const navItems = [
     {
@@ -41,10 +104,19 @@ export default function Sidebar() {
     },
     { label: "SpiritSquare", href: "/spirit", icon: SparklesIcon },
     { label: "Shrine", href: "/shrine", icon: FireIcon },
-    { label: "Messenger", href: "/messenger", icon: ChatBubbleLeftRightIcon },
+
+    // ⭐ Messenger with badge
+    {
+      label: "Messenger",
+      href: "/messenger",
+      icon: ChatBubbleLeftRightIcon,
+      badge: totalUnread,
+    },
+
     user
       ? { label: "Profile", href: `/profile/${user.id}`, icon: UserCircleIcon }
       : { label: "Profile", href: "/login", icon: UserCircleIcon },
+
     { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
   ];
 
@@ -80,16 +152,24 @@ export default function Sidebar() {
                   }
                 `}
               >
-                {/* ⭐ Forced scaling — this is what finally shrinks the icons */}
-                <Icon className="
-                  h-4 w-4 
-                  scale-[0.55] 
-                  transform origin-center 
-                  text-purple-300 
-                  shrink-0
-                " />
+                <Icon
+                  className="
+                    h-4 w-4 
+                    scale-[0.55] 
+                    transform origin-center 
+                    text-purple-300 
+                    shrink-0
+                  "
+                />
 
                 <span className="truncate">{item.label}</span>
+
+                {/* ⭐ UNREAD BADGE */}
+                {(item.badge ?? 0) > 0 && (
+                  <span className="ml-auto px-2 py-0.5 bg-red-600 text-white text-[9px] rounded-full">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
 
               {item.children && active && (
