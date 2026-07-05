@@ -380,14 +380,11 @@ export default function SoundPostCard({
   <audio
     ref={audioRef}
     src={`${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(
-post.audio_url
-  .replace(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-    ""
-  )
-  .replace(/\.WAV$/i, ".wav")
-)}`}
-
+      post.audio_url.replace(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+        ""
+      )
+    )}`}
     preload="metadata"
   />
 
