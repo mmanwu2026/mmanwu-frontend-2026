@@ -27,7 +27,6 @@ type RawSoundPost = {
   title: string;
   audio_url: string;
   creator_id: string;
-  creator_name: string | null;
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
@@ -55,7 +54,6 @@ export default function TrendingSoundSquare() {
         title,
         audio_url,
         creator_id,
-        creator_name,
         created_at,
         spirit_score,
         positivity_ratio,
@@ -83,7 +81,7 @@ export default function TrendingSoundSquare() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    // ⭐ Load shares (correct table)
+    // ⭐ Load shares
     const { data: shareRows, error: shareError } = await supabase
       .from("sound_post_shares")
       .select("post_id")
@@ -172,7 +170,7 @@ export default function TrendingSoundSquare() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
-        creator_name: post.creator_name,
+        creator_name: null, // ⭐ REQUIRED BY TYPE
         created_at: post.created_at,
 
         spirit_score: spiritScore,

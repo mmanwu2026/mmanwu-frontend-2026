@@ -127,62 +127,59 @@ export default function SoundSquareUpload() {
     await finalizeUpload(gate.finalText, gate.automask, gate.positivityRatio);
   }
 
- async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
-  if (!user) {
-    setError("You must be logged in.");
-    return;
-  }
+  async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
+    if (!user) {
+      setError("You must be logged in.");
+      return;
+    }
 
-  const currentUser = user; // ⭐ TS now knows user is non-null
+    const currentUser = user;
 
-  setUploading(true);
-  setProgress(0);
-  setError("");
+    setUploading(true);
+    setProgress(0);
+    setError("");
 
-  const fileExt = file!.name.split(".").pop();
-  const filePath = `${currentUser.id}/${crypto.randomUUID()}.${fileExt}`;
+    const fileExt = file!.name.split(".").pop();
+    const filePath = `${currentUser.id}/${crypto.randomUUID()}.${fileExt}`;
 
-  let publicUrl: string;
+    let publicUrl: string;
 
-  try {
-    publicUrl = await uploadSound(file!, filePath);
-  } catch (err: any) {
-    setError(err.message);
+    try {
+      publicUrl = await uploadSound(file!, filePath);
+    } catch (err: any) {
+      setError(err.message);
+      setUploading(false);
+      return;
+    }
+
+    // ⭐ Correct identity pipeline — NO creator_name stored
+    const { error: dbError } = await supabase.from("sound_posts").insert({
+      title: finalTitle,
+      audio_url: publicUrl,
+      creator_id: currentUser.id,   // ✔ correct identity
+      creator_name: null,           // ✔ required by CardSoundPost type
+      spirit_score: 0,
+      positivity_ratio: positivity,
+      automask,
+    });
+
+    if (dbError) {
+      setError(dbError.message);
+      setUploading(false);
+      return;
+    }
+
+    if (positivity >= 0.6) {
+      setToastMessage("The spirits approve your sound ✨");
+    }
+
     setUploading(false);
-    return;
+    setFile(null);
+    setTitle("");
+
+    router.refresh();
+    router.push("/sound-square/feed");
   }
-
-  const { error: dbError } = await supabase.from("sound_posts").insert({
-    title: finalTitle,
-    audio_url: publicUrl,
-    creator_id: currentUser.id,
-    creator_name:
-      currentUser.user_metadata?.username ??
-      currentUser.user_metadata?.full_name ??
-      currentUser.email ??
-      "Unknown",
-    spirit_score: 0,
-    positivity_ratio: positivity,
-    automask,
-  });
-
-  if (dbError) {
-    setError(dbError.message);
-    setUploading(false);
-    return;
-  }
-
-  if (positivity >= 0.6) {
-    setToastMessage("The spirits approve your sound ✨");
-  }
-
-  setUploading(false);
-  setFile(null);
-  setTitle("");
-
-  router.refresh();
-  router.push("/sound-square/feed");
-}
 
   return (
     <div className="max-w-xl mx-auto p-6 text-white">

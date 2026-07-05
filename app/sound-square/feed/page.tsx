@@ -9,7 +9,6 @@ import FloatingComposer from "@/components/sound-square/FloatingComposer";
 
 import type { CardSoundPost, SoundComment } from "@/app/sound-square/types";
 
-
 type ReactionCounts = {
   mask1: number;
   mask2: number;
@@ -30,7 +29,6 @@ type RawSoundPost = {
   title: string;
   audio_url: string;
   creator_id: string;
-  creator_name: string | null;
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
@@ -85,7 +83,6 @@ export default function SoundSquareFeed() {
         title,
         audio_url,
         creator_id,
-        creator_name,
         created_at,
         spirit_score,
         positivity_ratio,
@@ -123,7 +120,6 @@ export default function SoundSquareFeed() {
         title,
         audio_url,
         creator_id,
-        creator_name,
         created_at,
         spirit_score,
         positivity_ratio,
@@ -261,7 +257,7 @@ export default function SoundSquareFeed() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
-        creator_name: post.creator_name,
+        creator_name: null, // ⭐ REQUIRED BY TYPE
         created_at: post.created_at,
 
         spirit_score: spiritScore,
@@ -269,7 +265,7 @@ export default function SoundSquareFeed() {
         automask: autoMask,
 
         users: {
-          username: post.users?.username ?? post.creator_name ?? "Unknown",
+          username: post.users?.username ?? "Unknown",
           avatar_url: post.users?.avatar_url ?? null,
         },
 

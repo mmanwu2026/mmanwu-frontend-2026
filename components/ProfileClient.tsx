@@ -145,91 +145,92 @@ export default function ProfileClient({
   useEffect(() => setHydrated(true), []);
 
   // Load Sound-Square posts with emotional engine
-  useEffect(() => {
-    async function loadSoundPosts() {
-      const { data, error } = await supabase
-        .from("sound_posts")
-        .select(`
-          id,
-          title,
-          audio_url,
-          creator_id,
-          creator_name,
-          created_at
-        `)
-        .eq("creator_id", profile.id)
-        .order("created_at", { ascending: false });
+useEffect(() => {
+  async function loadSoundPosts() {
+    const { data, error } = await supabase
+      .from("sound_posts")
+      .select(`
+        id,
+        title,
+        audio_url,
+        creator_id,
+        created_at,
+        users:creator_id ( username, avatar_url )
+      `)
+      .eq("creator_id", profile.id)
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("SoundPosts load error:", error);
-        return;
-      }
-
-      const ids = (data || []).map((p: any) => p.id);
-
-      const { data: reactionsRows, error: reactionsError } = await supabase
-        .from("reactions")
-        .select('post_id, "maskTier"')
-        .in("post_id", ids)
-        .eq("post_type", "sound");
-
-      if (reactionsError) {
-        console.error("SoundPosts reactions load error:", reactionsError);
-      }
-
-      const mapped: CardSoundPost[] = (data || []).map((p: any) => {
-        const postReactions = (reactionsRows ?? []).filter(
-          (r: any) => r.post_id === p.id
-        );
-
-        const counts: ReactionCounts = {
-          mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
-          mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
-          mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
-          mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
-          mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
-          mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
-        };
-
-        const spirit_score = postReactions.reduce(
-          (sum: number, r: any) => sum + r.maskTier,
-          0
-        );
-
-        const total = postReactions.length;
-        const positive = postReactions.filter(
-          (r: any) => r.maskTier >= 3
-        ).length;
-        const positivity_ratio = total > 0 ? positive / total : 0.5;
-
-        let automask = 2;
-        if (spirit_score > 20) automask = 3;
-        if (spirit_score > 100) automask = 4;
-        if (spirit_score > 300) automask = 5;
-        if (spirit_score > 500) automask = 6;
-
-        return {
-          id: p.id,
-          title: p.title ?? "",
-          audio_url: p.audio_url ?? "",
-          creator_id: p.creator_id ?? "",
-          created_at: p.created_at ?? "",
-          spirit_score,
-          positivity_ratio,
-          automask,
-          reactions: counts,
-          users: {
-            username: p.creator_name ?? "Unknown",
-            avatar_url: null,
-          },
-        };
-      });
-
-      setSoundPosts(mapped);
+    if (error) {
+      console.error("SoundPosts load error:", error);
+      return;
     }
 
-    loadSoundPosts();
-  }, [profile.id, supabase]);
+    const ids = (data || []).map((p: any) => p.id);
+
+    const { data: reactionsRows, error: reactionsError } = await supabase
+      .from("reactions")
+      .select('post_id, "maskTier"')
+      .in("post_id", ids)
+      .eq("post_type", "sound");
+
+    if (reactionsError) {
+      console.error("SoundPosts reactions load error:", reactionsError);
+    }
+
+    const mapped: CardSoundPost[] = (data || []).map((p: any) => {
+      const postReactions = (reactionsRows ?? []).filter(
+        (r: any) => r.post_id === p.id
+      );
+
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
+      };
+
+      const spirit_score = postReactions.reduce(
+        (sum: number, r: any) => sum + r.maskTier,
+        0
+      );
+
+      const total = postReactions.length;
+      const positive = postReactions.filter(
+        (r: any) => r.maskTier >= 3
+      ).length;
+      const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+      let automask = 2;
+      if (spirit_score > 20) automask = 3;
+      if (spirit_score > 100) automask = 4;
+      if (spirit_score > 300) automask = 5;
+      if (spirit_score > 500) automask = 6;
+
+      return {
+        id: p.id,
+        title: p.title ?? "",
+        audio_url: p.audio_url ?? "",
+        creator_id: p.creator_id ?? "",
+        creator_name: null, // ⭐ required by CardSoundPost type
+        created_at: p.created_at ?? "",
+        spirit_score,
+        positivity_ratio,
+        automask,
+        reactions: counts,
+        users: {
+          username: p.users?.username ?? "Unknown",
+          avatar_url: p.users?.avatar_url ?? null,
+        },
+      };
+    });
+
+    setSoundPosts(mapped);
+  }
+
+  loadSoundPosts();
+}, [profile.id, supabase]);
 
   // Load follow state
   useEffect(() => {

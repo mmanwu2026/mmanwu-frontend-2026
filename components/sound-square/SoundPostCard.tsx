@@ -353,13 +353,13 @@ export default function SoundPostCard({
         </h2>
       </Link>
 
-      {/* Creator → Profile */}
-      <Link
-        href={`/profile/${post.creator_id}`}
-        className="text-gray-400 hover:text-gray-200 text-sm"
-      >
-        @{post.creator_name}
-      </Link>
+{/* Creator → Profile */}
+<Link
+  href={`/profile/${post.creator_id}`}
+  className="text-gray-400 hover:text-gray-200 text-sm"
+>
+  @{post.users?.username ?? "Unknown"}
+</Link>
 
 {/* Audio Player */}
 <div className="mt-4">
