@@ -132,15 +132,20 @@ export default function ProfileClient({
   const [soundPosts, setSoundPosts] = useState<CardSoundPost[]>([]);
 
   // VisionSquare posts (with infinite scroll)
-  const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
-  const [visionLoading, setVisionLoading] = useState(false);
-  const [visionFetchingMore, setVisionFetchingMore] = useState(false);
-  const [visionEndReached, setVisionEndReached] = useState(false);
+const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
+const [visionLoading, setVisionLoading] = useState(false);
+const [visionFetchingMore, setVisionFetchingMore] = useState(false);
+const [visionEndReached, setVisionEndReached] = useState(false);
 
-  const PAGE_SIZE = 10;
+// ⭐ ADD THIS RIGHT HERE — EXACT LOCATION
+const [reactionPostMap, setReactionPostMap] = useState<
+  Record<string, { username: string; content: string }>
+>({});
 
-  const isOwnProfile = hydrated && user?.id === profile.id;
-  const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
+const PAGE_SIZE = 10;
+
+const isOwnProfile = hydrated && user?.id === profile.id;
+const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
   useEffect(() => setHydrated(true), []);
 
@@ -521,30 +526,67 @@ useEffect(() => {
     }
   }, [activeTab, visionPosts.length, visionLoading]);
 
-  // Infinite scroll for VisionSquare tab
-  useEffect(() => {
-    function onScroll() {
-      if (activeTab !== "visionposts") return;
-      if (visionEndReached || visionFetchingMore) return;
+// Infinite scroll for VisionSquare tab
+useEffect(() => {
+  function onScroll() {
+    if (activeTab !== "visionposts") return;
+    if (visionEndReached || visionFetchingMore) return;
 
-      const scrollPos =
-        window.innerHeight + document.documentElement.scrollTop;
-      const bottom = document.documentElement.offsetHeight - 300;
+    const scrollPos =
+      window.innerHeight + document.documentElement.scrollTop;
+    const bottom = document.documentElement.offsetHeight - 300;
 
-      if (scrollPos >= bottom) fetchVisionPosts(false);
-    }
-
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [activeTab, visionPosts, visionFetchingMore, visionEndReached]);
-
-  if (!hydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
+    if (scrollPos >= bottom) fetchVisionPosts(false);
   }
+
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
+}, [activeTab, visionPosts, visionFetchingMore, visionEndReached]);
+
+
+// ⭐⭐⭐ INSERTED LOADER PATCH — EXACT LOCATION ⭐⭐⭐
+// Build unified post map for Reactions tab
+useEffect(() => {
+  if (!posts || !soundPosts || !visionPosts) return;
+
+  const map: Record<string, { username: string; content: string }> = {};
+
+  // Plaza posts (from server)
+  posts.forEach((p) => {
+    map[p.id] = {
+      username: profile.username,
+      content: p.content ?? "",
+    };
+  });
+
+  // Sound posts
+  soundPosts.forEach((p) => {
+    map[p.id] = {
+      username: p.users?.username ?? "unknown",
+      content: p.title ?? "",
+    };
+  });
+
+  // Vision posts
+  visionPosts.forEach((p) => {
+    map[p.id] = {
+      username: p.users?.username ?? "unknown",
+      content: p.title ?? "",
+    };
+  });
+
+  setReactionPostMap(map);
+}, [posts, soundPosts, visionPosts, profile.username]);
+// ⭐⭐⭐ END LOADER PATCH ⭐⭐⭐
+
+
+if (!hydrated) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <p className="text-zinc-400 text-sm">Loading profile…</p>
+    </div>
+  );
+}
 
   if (userLoading && !user) {
     return (
@@ -884,8 +926,8 @@ useEffect(() => {
             </div>
           )}
 
-          {/* REACTIONS */}
- {activeTab === "reactions" && (
+{/* REACTIONS */}
+{activeTab === "reactions" && (
   <div className="space-y-4">
     {givenReactions.length === 0 ? (
       <p className="text-white/40 text-center mt-6">
@@ -893,56 +935,38 @@ useEffect(() => {
       </p>
     ) : (
       givenReactions.map((r) => {
-        const postType = r.post_type;
+        // ⭐ NEW: unified lookup from reactionPostMap
+        const info = reactionPostMap[r.post_id];
+        const username = info?.username ?? "unknown";
+        const content = info?.content ?? "";
 
-        let username = "unknown";
-        let content = "";
+        return (
+          <div
+            key={r.id}
+            className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
+          >
+            <p className="text-sm text-white/70 mb-2">
+              You reacted{" "}
+              <span className="font-semibold text-white">
+                Mask {r.maskTier}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold">@{username}</span>
+            </p>
 
-        if (postType === "plaza") {
-          const p = posts.find((x) => x.id === r.post_id);
-          username = p ? profile.username : "unknown";
-          content = p?.content ?? "";
-        }
+            <p className="text-white/90 mb-2 italic">
+              “{content.slice(0, 120)}…”
+            </p>
 
-        if (postType === "sound") {
-          const p = soundPosts.find((x) => x.id === r.post_id);
-          username = p?.users?.username ?? "unknown";
-          content = p?.title ?? "";
-        }
-
-        if (postType === "vision") {
-          const p = visionPosts.find((x) => x.id === r.post_id);
-          username = p?.users?.username ?? "unknown";
-          content = p?.title ?? "";
-        }
-
-                  return (
-                    <div
-                      key={r.id}
-                      className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-                    >
-                      <p className="text-sm text-white/70 mb-2">
-                        You reacted{" "}
-                        <span className="font-semibold text-white">
-                          Mask {r.maskTier}
-                        </span>{" "}
-                        to{" "}
-                        <span className="font-semibold">@{username}</span>
-                      </p>
-
-                      <p className="text-white/90 mb-2 italic">
-                        “{content.slice(0, 120)}…”
-                      </p>
-
-                      <p className="text-xs text-white/40">
-                        {new Date(r.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
+            <p className="text-xs text-white/40">
+              {new Date(r.created_at).toLocaleString()}
+            </p>
+          </div>
+        );
+      })
+    )}
+  </div>
+)}
         </div>
       </div>
 
