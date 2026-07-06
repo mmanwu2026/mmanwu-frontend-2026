@@ -22,10 +22,8 @@ export default function MessengerThread({
   const [messages, setMessages] = useState<any[]>([]);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
-  const [incomingCall, setIncomingCall] = useState<any | null>(null);
 
   const subscribedRef = useRef(false);
-  const callSubscribedRef = useRef(false);
 
   // LOAD MESSAGES
   async function loadMessages() {
@@ -168,46 +166,6 @@ export default function MessengerThread({
     router.push(`/call/${newRoomId}`);
   }
 
-  // INCOMING CALL SUBSCRIPTION (callee)
-  useEffect(() => {
-    if (!userId || callSubscribedRef.current) return;
-    callSubscribedRef.current = true;
-
-    const channel = supabase
-      .channel(`incoming-call-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "call_events",
-          filter: `target_user_id=eq.${userId}`,
-        },
-        (payload: { new: any }) => {
-          const call = payload.new;
-          setIncomingCall(call);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      callSubscribedRef.current = false;
-    };
-  }, [userId, supabase]);
-
-  function acceptCall() {
-    if (!incomingCall) return;
-    const roomId = incomingCall.room_id;
-    setIncomingCall(null);
-    router.push(`/call/${roomId}`);
-  }
-
-  function declineCall() {
-    setIncomingCall(null);
-    // optional: update call_events status to "declined"
-  }
-
   return (
     <div className="flex flex-col h-full bg-neutral-950">
       {/* Header */}
@@ -273,30 +231,6 @@ export default function MessengerThread({
           </button>
         </div>
       </div>
-
-      {/* Incoming Call Popup */}
-      {incomingCall && (
-        <div className="fixed bottom-4 right-4 bg-neutral-800 p-4 rounded-lg shadow-lg border border-neutral-700">
-          <div className="text-white mb-2">
-            Incoming call from{" "}
-            {usernames[incomingCall.caller_id] || incomingCall.caller_id}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={acceptCall}
-              className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm"
-            >
-              Accept
-            </button>
-            <button
-              onClick={declineCall}
-              className="px-4 py-2 bg-red-600 rounded hover:bg-red-500 text-sm"
-            >
-              Decline
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
