@@ -597,13 +597,13 @@ async function handleFollowToggle() {
             id,
             title,
             creator_id,
-            users:creator_id ( username )
+            profiles:creator_id ( username )
           `)
     .in("id", soundIds);
 
   (data || []).forEach((p: any) => {
     map[p.id] = {
-      username: p.users?.username ?? "unknown",
+      username: p.profiles?.username ?? "unknown",
       content: p.title ?? "",
     };
   });
