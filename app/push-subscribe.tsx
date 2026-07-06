@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const VAPID_PUBLIC_KEY = "<YOUR_VAPID_PUBLIC_KEY_BASE64>";
+const VAPID_PUBLIC_KEY = "BALg6s-s9f1Y7SR6AeTsD78C1cMamfe7As7OeWLjHhXp-fVjUz6qj3jx9QFZvzv3xp_YLZklxUt-zIXnJTwJBCw";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

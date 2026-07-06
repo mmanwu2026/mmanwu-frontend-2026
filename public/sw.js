@@ -1,37 +1,25 @@
-// Install immediately
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-});
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", () => clients.claim());
 
-// Activate immediately
-self.addEventListener("activate", (event) => {
-  clients.claim();
-});
-
-// Handle incoming push messages
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
   const payload = event.data.json();
 
-  const title = payload.title || "Mman Plaza";
-  const body = payload.body || "New activity in Mman Plaza";
-
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: "/icons/mman-192.png",
+    self.registration.showNotification(payload.title || "Mman Plaza", {
+      body: payload.body || "New activity in Mman Plaza",
+      icon: payload.icon || "/icons/mman-192.png",
       badge: "/icons/mman-192.png",
-      data: payload.data || {},
+      data: { url: payload.url || "/" },
     })
   );
 });
 
-// Handle notification click
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const urlToOpen = "/";
+  const urlToOpen = event.notification.data.url || "/";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
