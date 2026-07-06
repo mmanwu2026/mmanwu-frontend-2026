@@ -13,6 +13,9 @@ import FloatingComposer from "@/components/plaza/FloatingComposer";
 import { useUser } from "@/context/UserContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
 
+// ⭐ SAFARI-SAFE UNREAD LISTENER
+import UnreadListener from "@/components/UnreadListener";
+
 interface ReactionCounts {
   mask1: number;
   mask2: number;
@@ -60,6 +63,9 @@ export default function PlazaPage() {
 
   const sessionReady = hydrated && !userLoading;
 
+  // ⭐ SAFARI-SAFE: mount unread listener ONLY after hydration
+  const unreadListener = hydrated ? <UnreadListener /> : null;
+
   // -----------------------------------------------------
   // FETCH POSTS (reactions batched per page)
   // -----------------------------------------------------
@@ -97,7 +103,6 @@ export default function PlazaPage() {
 
       const typedPosts = postsData as any[];
 
-      // If no posts, stop here
       if (typedPosts.length === 0) {
         setPosts((prev) => (append ? prev : []));
         setHasMore(false);
@@ -108,7 +113,6 @@ export default function PlazaPage() {
 
       const postIds = typedPosts.map((p) => p.id);
 
-      // Fetch all reactions for these posts in one query
       const { data: reactionRows, error: reactionError } = await supabase
         .from("reactions")
         .select("post_id, maskTier")
@@ -119,7 +123,6 @@ export default function PlazaPage() {
         console.error("Error fetching reactions:", reactionError);
       }
 
-      // Build reaction map
       const reactionMap: Record<
         string,
         {
@@ -167,7 +170,6 @@ export default function PlazaPage() {
         entry.spirit += tier;
       }
 
-      // Compute positivity + autoMask
       for (const postId of postIds) {
         const entry = reactionMap[postId];
 
@@ -194,7 +196,6 @@ export default function PlazaPage() {
         entry.autoMask = autoMask;
       }
 
-      // Merge posts with aggregates
       const merged: PlazaPostWithAggregates[] = [];
 
       for (const post of typedPosts) {
@@ -229,7 +230,6 @@ export default function PlazaPage() {
     [supabase, sessionReady]
   );
 
-  // INITIAL LOAD — do not refetch if posts already exist
   useEffect(() => {
     if (!sessionReady) return;
 
@@ -374,6 +374,8 @@ export default function PlazaPage() {
 
   return (
     <div className="min-h-screen w-full bg-black text-gray-100">
+      {unreadListener}
+
       <Sidebar />
 
       <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000] pointer-events-none">
@@ -415,13 +417,13 @@ export default function PlazaPage() {
 
               return (
                 <PlazaCard
-  key={post.id}
-  post={post}
-  creator={creator}
-  user={user}
-  onDeleteAction={handleDelete}
-  onReactAction={reloadPosts}
-/>
+                  key={post.id}
+                  post={post}
+                  creator={creator}
+                  user={user}
+                  onDeleteAction={handleDelete}
+                  onReactAction={reloadPosts}
+                />
               );
             })}
           </div>
