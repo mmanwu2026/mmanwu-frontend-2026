@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
-type Role = "caller" | "callee";
-
 export default function CallRoom({
   userId,
   roomId,
@@ -13,7 +11,7 @@ export default function CallRoom({
 }: {
   userId: string;
   roomId: string;
-  role: Role;
+  role: "caller" | "callee";
 }) {
   const supabase = useSupabase();
   const router = useRouter();
@@ -24,8 +22,10 @@ export default function CallRoom({
 
   const [joined, setJoined] = useState(false);
 
-  // 1. Create peer connection
+  // Create PC
   useEffect(() => {
+    console.log("🔵 Creating RTCPeerConnection, role:", role);
+
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -48,13 +48,9 @@ export default function CallRoom({
 
     pcRef.current = pc;
 
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
     pc.onicecandidate = (event) => {
+      console.log("🟡 ICE candidate generated:", event.candidate);
+
       if (event.candidate) {
         supabase.from("call_signaling").insert({
           room_id: roomId,
@@ -65,17 +61,39 @@ export default function CallRoom({
       }
     };
 
-    return () => pc.close();
-  }, [roomId, userId, supabase]);
+    pc.oniceconnectionstatechange = () => {
+      console.log("🔵 ICE connection state:", pc.iceConnectionState);
+    };
 
-  // 2. Get local media and attach tracks
+    pc.onsignalingstatechange = () => {
+      console.log("🟣 Signaling state:", pc.signalingState);
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log("🟠 ICE gathering state:", pc.iceGatheringState);
+    };
+
+    pc.ontrack = (event) => {
+      console.log("🟢 Remote track received:", event.streams);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    return () => pc.close();
+  }, [roomId, userId, role, supabase]);
+
+  // Join call
   async function joinCall() {
+    console.log("🔵 Joining call, getting media…");
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
     stream.getTracks().forEach((track) => {
+      console.log("🟢 Adding local track:", track.kind);
       pcRef.current?.addTrack(track, stream);
     });
 
@@ -86,7 +104,7 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // 3. Caller creates offer once joined
+  // Caller creates offer
   useEffect(() => {
     if (!joined) return;
     if (role !== "caller") return;
@@ -95,7 +113,11 @@ export default function CallRoom({
       const pc = pcRef.current;
       if (!pc) return;
 
+      console.log("🔵 Caller creating offer…");
+
       const offer = await pc.createOffer();
+      console.log("🟣 Offer SDP:", offer.sdp);
+
       await pc.setLocalDescription(offer);
 
       await supabase.from("call_signaling").insert({
@@ -107,12 +129,14 @@ export default function CallRoom({
           sdp: offer.sdp,
         },
       });
+
+      console.log("🟢 Offer sent to Supabase");
     }
 
     makeOffer();
   }, [joined, role, roomId, userId, supabase]);
 
-  // 4. Listen for signaling
+  // Signaling listener
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -131,12 +155,18 @@ export default function CallRoom({
           if (!pc) return;
           if (row.sender_id === userId) return;
 
+          console.log("🔵 Received signaling:", row);
+
           if (row.type === "offer" && role === "callee") {
+            console.log("🟣 Callee received offer SDP:", row.payload.sdp);
+
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
             );
 
             const answer = await pc.createAnswer();
+            console.log("🟢 Callee created answer SDP:", answer.sdp);
+
             await pc.setLocalDescription(answer);
 
             await supabase.from("call_signaling").insert({
@@ -148,20 +178,27 @@ export default function CallRoom({
                 sdp: answer.sdp,
               },
             });
+
+            console.log("🟢 Answer sent to Supabase");
           }
 
           if (row.type === "answer" && role === "caller") {
+            console.log("🟣 Caller received answer SDP:", row.payload.sdp);
+
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
             );
           }
 
           if (row.type === "candidate") {
+            console.log("🟠 Received ICE candidate:", row.payload);
+
             try {
               const candidate = new RTCIceCandidate(row.payload);
               await pc.addIceCandidate(candidate);
+              console.log("🟢 Candidate added");
             } catch (e) {
-              console.error("ICE error", e);
+              console.error("🔴 ICE error:", e);
             }
           }
         }
@@ -170,11 +207,6 @@ export default function CallRoom({
 
     return () => supabase.removeChannel(channel);
   }, [roomId, userId, role, supabase]);
-
-  async function endCall() {
-    pcRef.current?.close();
-    router.push("/messenger");
-  }
 
   return (
     <div className="flex flex-col h-full p-4 text-white">
@@ -200,15 +232,6 @@ export default function CallRoom({
           className="mt-4 px-4 py-2 bg-green-600 rounded"
         >
           Join Call
-        </button>
-      )}
-
-      {joined && (
-        <button
-          onClick={endCall}
-          className="mt-4 px-4 py-2 bg-red-600 rounded"
-        >
-          End Call
         </button>
       )}
     </div>
