@@ -16,41 +16,76 @@ import {
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 
+// ⭐ Types
+interface RoomParticipant {
+  room_id: string;
+  last_seen: string | null;
+}
+
+interface Message {
+  room_id: string;
+  created_at: string;
+  message_type: string;
+  sender_id: string;
+}
+
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
   const { user } = useUser();
   const supabase = useSupabase();
 
-  // ⭐ UNREAD COUNTS
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  // ⭐ LOAD UNREAD COUNTS
- useEffect(() => {
-  if (!user) return;
-
+  // ⭐ LOAD UNREAD COUNTS (Messenger logic)
+  useEffect(() => {
   async function loadUnread() {
-    if (!user) return;
-    const userId = user.id;
+    if (!user) return;   // ⭐ TS understands this
 
-    const { data } = await supabase
-      .from("messages")
-      .select("room_id")
-      .neq("sender_id", userId)
-      .is("seen_at", null);
+    const userId = user.id;  // ⭐ No more error
 
-    const counts: Record<string, number> = {};
+    // 1. Get rooms + last_seen
+    const { data: rooms } = await supabase
+      .from("room_participants")
+      .select("room_id, last_seen")
+      .eq("user_id", userId);
 
-    data?.forEach((m: { room_id: string }) => {
-      counts[m.room_id] = (counts[m.room_id] || 0) + 1;
-    });
+    if (!rooms) return;
 
-    setUnreadCounts(counts);
-  }
+      const typedRooms = rooms as RoomParticipant[];
+      const roomIds = typedRooms.map((r) => r.room_id);
 
-  loadUnread();
-}, [user, supabase]);
+      // 2. Get ONLY real chat messages
+      const { data: messages } = await supabase
+        .from("messages")
+        .select("room_id, created_at, message_type, sender_id")
+        .in("room_id", roomIds)
+        .in("message_type", ["text", "image", "audio"]);
 
-  // ⭐ REALTIME SUBSCRIPTION
+      const typedMessages = (messages ?? []) as Message[];
+
+      const counts: Record<string, number> = {};
+
+      typedMessages.forEach((m) => {
+        const participant = typedRooms.find((r) => r.room_id === m.room_id);
+        if (!participant) return;
+
+        const lastSeen = new Date(participant.last_seen || 0);
+
+        if (
+          m.sender_id !== userId &&
+          new Date(m.created_at) > lastSeen
+        ) {
+          counts[m.room_id] = (counts[m.room_id] || 0) + 1;
+        }
+      });
+
+      setUnreadCounts(counts);
+    }
+
+    loadUnread();
+  }, [user, supabase]);
+
+  // ⭐ REALTIME SUBSCRIPTION (Messenger logic)
   useEffect(() => {
     if (!user) return;
 
@@ -59,11 +94,11 @@ export default function Sidebar() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        (payload: { new: any }) => {
+        (payload: { new: Message }) => {
           const msg = payload.new;
 
           if (msg.sender_id === user.id) return;
-          if (msg.seen_at !== null) return;
+          if (!["text", "image", "audio"].includes(msg.message_type)) return;
 
           setUnreadCounts((prev) => ({
             ...prev,
@@ -105,7 +140,7 @@ export default function Sidebar() {
     { label: "SpiritSquare", href: "/spirit", icon: SparklesIcon },
     { label: "Shrine", href: "/shrine", icon: FireIcon },
 
-    // ⭐ Messenger with badge
+    // ⭐ Messenger with correct unread badge
     {
       label: "Messenger",
       href: "/messenger",
@@ -164,7 +199,6 @@ export default function Sidebar() {
 
                 <span className="truncate">{item.label}</span>
 
-                {/* ⭐ UNREAD BADGE */}
                 {(item.badge ?? 0) > 0 && (
                   <span className="ml-auto px-2 py-0.5 bg-red-600 text-white text-[9px] rounded-full">
                     {item.badge}

@@ -8,7 +8,7 @@ import NewChatModal from "./NewChatModal";
 interface RoomParticipant {
   room_id: string;
   user_id: string;
-  last_seen?: string;
+  last_seen: string | null;
 }
 
 interface Room {
@@ -63,53 +63,51 @@ export default function MessengerSidebar({
 
   useEffect(() => {
     async function loadThreads() {
-      const session = await supabase.auth.getSession();
-      if (!session.data.session) return;
+      if (!userId) return;
 
-      // Get rooms user is in
-      const { data: userRooms } = await supabase
+      // 1. Rooms user is in
+      const { data: userRoomsRaw } = await supabase
         .from("room_participants")
-        .select("*")
+        .select("room_id, user_id, last_seen")
         .eq("user_id", userId);
 
-      if (!userRooms) {
+      const userRooms = (userRoomsRaw ?? []) as RoomParticipant[];
+
+      if (userRooms.length === 0) {
         setThreads([]);
         return;
       }
 
+      // ⭐ FIX: Explicit typing removes TS error
       const roomIds = userRooms.map((r: RoomParticipant) => r.room_id);
 
-      if (roomIds.length === 0) {
-        setThreads([]);
-        return;
-      }
-
-      // Fetch rooms
+      // 2. Fetch rooms
       const { data: roomsRaw } = await supabase
         .from("rooms")
-        .select("*")
+        .select("id, is_group")
         .in("id", roomIds);
 
       const rooms = (roomsRaw ?? []) as Room[];
 
-      // Fetch participants
+      // 3. Fetch participants
       const { data: participantsRaw } = await supabase
         .from("room_participants")
-        .select("*")
+        .select("room_id, user_id, last_seen")
         .in("room_id", roomIds);
 
       const participants = (participantsRaw ?? []) as RoomParticipant[];
 
-      // Fetch last messages
+      // 4. Fetch ONLY real chat messages
       const { data: lastMessagesRaw } = await supabase
-  .from("messages")
-  .select("*")
-  .in("room_id", roomIds)
-  .in("message_type", ["text", "image", "audio"])   // ⭐ FIX
-  .order("created_at", { ascending: false });
+        .from("messages")
+        .select("room_id, sender_id, message_type, content, created_at")
+        .in("room_id", roomIds)
+        .in("message_type", ["text", "image", "audio"])
+        .order("created_at", { ascending: false });
 
       const lastMessages = (lastMessagesRaw ?? []) as Message[];
 
+      // Build lastMessage map
       const lastMessageMap: Record<string, Message> = {};
       for (const msg of lastMessages) {
         if (!lastMessageMap[msg.room_id]) {
@@ -117,29 +115,32 @@ export default function MessengerSidebar({
         }
       }
 
+      // Build threads
       const finalThreads: Thread[] = rooms.map((room: Room) => {
         const roomParticipants = participants
-          .filter((p: RoomParticipant) => p.room_id === room.id)
-          .map((p: RoomParticipant) => p.user_id);
+          .filter((p) => p.room_id === room.id)
+          .map((p) => p.user_id);
 
         const otherUsers = roomParticipants.filter((id) => id !== userId);
 
         const last = lastMessageMap[room.id] || null;
 
-        // Find this user's participant record
         const participantRecord = participants.find(
           (p) => p.room_id === room.id && p.user_id === userId
         );
 
-       // Compute unread count
-const unreadCount = lastMessages.filter(
-  (m) =>
-    m.room_id === room.id &&
-    m.sender_id !== userId &&
-    ["text", "image", "audio"].includes(m.message_type) &&
-    participantRecord &&
-    new Date(m.created_at) > new Date(participantRecord.last_seen || 0)
-).length;
+        const lastSeen = participantRecord?.last_seen
+          ? new Date(participantRecord.last_seen)
+          : new Date(0);
+
+        // ⭐ Correct unread logic using last_seen
+        const unreadCount = lastMessages.filter(
+          (m) =>
+            m.room_id === room.id &&
+            m.sender_id !== userId &&
+            ["text", "image", "audio"].includes(m.message_type) &&
+            new Date(m.created_at) > lastSeen
+        ).length;
 
         return {
           roomId: room.id,
@@ -195,7 +196,6 @@ const unreadCount = lastMessages.filter(
                       {t.isGroup ? "Group Chat" : displayName}
                     </span>
 
-                    {/* Unread badge */}
                     {t.unreadCount > 0 && (
                       <span className="ml-2 px-2 py-1 text-xs bg-red-600 text-white rounded-full">
                         {t.unreadCount}
