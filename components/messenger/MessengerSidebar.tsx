@@ -130,8 +130,8 @@ export default function MessengerSidebar({
           (p) => p.room_id === room.id && p.user_id === userId
         );
 
-        // Compute unread count
-        const unreadCount = lastMessages.filter(
+       // Compute unread count
+const unreadCount = lastMessages.filter(
   (m) =>
     m.room_id === room.id &&
     m.sender_id !== userId &&

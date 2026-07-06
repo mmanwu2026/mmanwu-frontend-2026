@@ -256,17 +256,18 @@ export default function MessengerThread({
 
   // ⭐ MARK SEEN WHEN THREAD IS OPEN
   useEffect(() => {
-    async function markSeen() {
-      await supabase
-        .from("messages")
-        .update({ seen_at: new Date().toISOString() })
-        .eq("room_id", finalRoomId)
-        .neq("sender_id", userId)
-        .is("seen_at", null);
-    }
+  if (!userId || !finalRoomId) return;
 
-    markSeen();
-  }, [finalRoomId, userId]);
+  async function markSeen() {
+    await supabase
+      .from("room_participants")
+      .update({ last_seen: new Date().toISOString() })
+      .eq("room_id", finalRoomId)
+      .eq("user_id", userId);
+  }
+
+  markSeen();
+}, [userId, finalRoomId, supabase]);
 
   // ⭐ SEND MESSAGE
   async function sendMessage() {
