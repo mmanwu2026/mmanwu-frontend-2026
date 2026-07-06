@@ -13,23 +13,31 @@ export default function CallListener() {
 
   const channelRef = useRef<any>(null);
 
-  // ⭐ Load authenticated user ID
+  // ⭐ Load authenticated user ID once
   useEffect(() => {
+    let mounted = true;
+
     async function loadUser() {
       const { data } = await supabase.auth.getUser();
-      setUserId(data.user?.id || null);
+      if (mounted) {
+        setUserId(data.user?.id || null);
+      }
     }
+
     loadUser();
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
-  // ⭐ Subscribe only once, only after userId is known
+  // ⭐ Create + attach + subscribe EXACTLY once
   useEffect(() => {
     if (!userId) return;
-    if (channelRef.current) return; // Prevent double subscription
+    if (channelRef.current) return; // Prevent ANY re-subscription
 
     const channel = supabase.channel(`incoming-call-${userId}`);
 
-    // ⭐ Attach callback BEFORE subscribe()
+    // ⭐ Attach callback BEFORE subscribe
     channel.on(
       "postgres_changes",
       {
@@ -43,10 +51,10 @@ export default function CallListener() {
       }
     );
 
-    // ⭐ Now subscribe ONCE
+    // ⭐ Subscribe ONCE
     channel.subscribe();
 
-    // Save reference
+    // ⭐ Save reference so React NEVER re-attaches callbacks
     channelRef.current = channel;
 
     return () => {
