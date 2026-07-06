@@ -374,177 +374,199 @@ export default function SoundPostCard({
      ⭐ RENDER
      --------------------------------------------------------- */
   return (
-    <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
-      {/* Title → Post Detail */}
-      <Link href={`/sound-square/post/${post.id}`}>
-        <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
-          {post.title}
-        </h2>
-      </Link>
+  <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
+    {/* Title → Post Detail */}
+    <Link href={`/sound-square/post/${post.id}`}>
+      <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
+        {post.title}
+      </h2>
+    </Link>
 
-      {/* Creator → Profile */}
-      <Link
-        href={`/profile/${post.creator_id}`}
-        className="text-gray-400 hover:text-gray-200 text-sm"
-      >
-        @{post.users?.username ?? "Unknown"}
-      </Link>
+    {/* Creator → Profile */}
+    <Link
+      href={`/profile/${post.creator_id}`}
+      className="text-gray-400 hover:text-gray-200 text-sm"
+    >
+      @{post.users?.username ?? "Unknown"}
+    </Link>
 
-      {/* Audio Player */}
-      <div className="mt-4">
-        {/* Debug logs */}
-        {(() => {
-          const extractedPath = post.audio_url.replace(
-            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-            ""
-          );
-          console.log("RAW audio_url:", post.audio_url);
-          console.log("EXTRACTED path:", extractedPath);
-          return null;
-        })()}
-
-        <div className="flex items-center gap-3 mt-2">
-          {!isPlaying ? (
-            <button
-              onClick={handlePlay}
-              className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
-            >
-              Play
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
-            >
-              Pause
-            </button>
-          )}
-
-<span
-  className={`text-purple-300 text-lg no-levitate ${isBeat ? "beat-active beat-color" : ""}`}
-  style={{ transform: `scale(${scale})` }}
->
-  {MASK_EMOJI[autoMask]}
-</span>
-
-        </div>
-
-        {/* Playback progress + duration */}
-        <div className="text-gray-400 text-sm mt-1">
-          {progress.toFixed(1)}s / {duration.toFixed(1)}s
-        </div>
-
-        {/* Volume control */}
-        <div className="mt-2">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setVolume(v);
-              if (gainRef.current) gainRef.current.gain.value = v;
-            }}
-            className="w-full"
-          />
-        </div>
-
-        {/* Waveform */}
-        <canvas ref={canvasRef} className="w-full h-24 mt-3" />
+    {/* ⭐ Sound Post Stats */}
+    <div className="flex flex-row items-center justify-between text-xs text-white/70 mt-3 mb-2">
+      <div>
+        <p className="font-semibold text-white">SpiritScore: {post.spirit_score}</p>
+        <p>Positivity: {Math.round(post.positivity_ratio * 100)}%</p>
+        <p>Mask: {post.automask}</p>
       </div>
 
-      {/* Reaction Bar */}
-      <SoundReactionBar
-        postId={post.id}
-        creatorId={post.creator_id}
-        reactions={reactions}
-        onReact={refreshReactions}
-      />
+      <div className="text-right">
+        <p>
+          Total Reactions:{" "}
+          {post.reactions.mask1 +
+            post.reactions.mask2 +
+            post.reactions.mask3 +
+            post.reactions.mask4 +
+            post.reactions.mask5 +
+            post.reactions.mask6}
+        </p>
+      </div>
+    </div>
 
-      {/* ⭐ Inline Latest Comment */}
-      {latestComment && (
-        <div className="mt-4 bg-gray-800 p-3 rounded">
-          <p className="text-sm text-gray-300">
-            <span className="font-semibold">
-              @{latestComment.profiles?.username ?? "Unknown"}:
-            </span>{" "}
-            {latestComment.content}
-          </p>
+    {/* Audio Player */}
+    <div className="mt-4">
+      {/* Debug logs */}
+      {(() => {
+        const extractedPath = post.audio_url.replace(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+          ""
+        );
+        console.log("RAW audio_url:", post.audio_url);
+        console.log("EXTRACTED path:", extractedPath);
+        return null;
+      })()}
 
+      <div className="flex items-center gap-3 mt-2">
+        {!isPlaying ? (
           <button
-            onClick={() => setShowCommentsModal(true)}
-            className="text-purple-400 hover:text-purple-300 text-sm mt-2"
+            onClick={handlePlay}
+            className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
           >
-            View all comments ({post.comment_count})
+            Play
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={handlePause}
+            className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
+          >
+            Pause
+          </button>
+        )}
 
-      {!latestComment && (
+        <span
+          className={`text-purple-300 text-lg no-levitate ${
+            isBeat ? "beat-active beat-color" : ""
+          }`}
+          style={{ transform: `scale(${scale})` }}
+        >
+          {MASK_EMOJI[autoMask]}
+        </span>
+      </div>
+
+      {/* Playback progress + duration */}
+      <div className="text-gray-400 text-sm mt-1">
+        {progress.toFixed(1)}s / {duration.toFixed(1)}s
+      </div>
+
+      {/* Volume control */}
+      <div className="mt-2">
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={volume}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVolume(v);
+            if (gainRef.current) gainRef.current.gain.value = v;
+          }}
+          className="w-full"
+        />
+      </div>
+
+      {/* Waveform */}
+      <canvas ref={canvasRef} className="w-full h-24 mt-3" />
+    </div>
+
+    {/* Reaction Bar */}
+    <SoundReactionBar
+      postId={post.id}
+      creatorId={post.creator_id}
+      reactions={reactions}
+      onReact={refreshReactions}
+    />
+
+    {/* ⭐ Inline Latest Comment */}
+    {latestComment && (
+      <div className="mt-4 bg-gray-800 p-3 rounded">
+        <p className="text-sm text-gray-300">
+          <span className="font-semibold">
+            @{latestComment.profiles?.username ?? "Unknown"}:
+          </span>{" "}
+          {latestComment.content}
+        </p>
+
         <button
           onClick={() => setShowCommentsModal(true)}
-          className="text-gray-300 hover:text-gray-100 mt-4"
+          className="text-purple-400 hover:text-purple-300 text-sm mt-2"
         >
-          No comments yet — add one
+          View all comments ({post.comments.length})
         </button>
-      )}
+      </div>
+    )}
 
-      {/* ⭐ Full Comments Modal */}
-      {showCommentsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Comments</h3>
+    {!latestComment && (
+      <button
+        onClick={() => setShowCommentsModal(true)}
+        className="text-gray-300 hover:text-gray-100 mt-4"
+      >
+        No comments yet — add one
+      </button>
+    )}
 
-            {post.comments.map((c) => (
-              <div key={c.id} className="mb-3">
-                <p className="text-gray-300 text-sm">
-                  <span className="font-semibold">
-                    @{c.profiles?.username ?? "Unknown"}:
-                  </span>{" "}
-                  {c.content}
-                </p>
-              </div>
-            ))}
+    {/* ⭐ Full Comments Modal */}
+    {showCommentsModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+        <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4">Comments</h3>
 
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 mb-2"
-              placeholder="Write a comment..."
-            />
+          {post.comments.map((c) => (
+            <div key={c.id} className="mb-3">
+              <p className="text-gray-300 text-sm">
+                <span className="font-semibold">
+                  @{c.profiles?.username ?? "Unknown"}:
+                </span>{" "}
+                {c.content}
+              </p>
+            </div>
+          ))}
 
-            {commentError && (
-              <p className="text-red-400 mb-2">{commentError}</p>
-            )}
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="w-full p-2 rounded bg-gray-700 mb-2"
+            placeholder="Write a comment..."
+          />
 
-            <button
-              onClick={submitComment}
-              className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
-            >
-              Submit
-            </button>
+          {commentError && (
+            <p className="text-red-400 mb-2">{commentError}</p>
+          )}
 
-            <button
-              onClick={() => setShowCommentsModal(false)}
-              className="mt-4 text-gray-400 hover:text-gray-200"
-            >
-              Close
-            </button>
-          </div>
+          <button
+            onClick={submitComment}
+            className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+          >
+            Submit
+          </button>
+
+          <button
+            onClick={() => setShowCommentsModal(false)}
+            className="mt-4 text-gray-400 hover:text-gray-200"
+          >
+            Close
+          </button>
         </div>
-      )}
+      </div>
+    )}
 
-      {/* Delete (creator only) */}
-      {user?.id === post.creator_id && (
-        <button
-          onClick={handleDelete}
-          className="mt-4 text-red-400 hover:text-red-300"
-        >
-          Delete Post
-        </button>
-      )}
-    </div>
-  );
+    {/* Delete (creator only) */}
+    {user?.id === post.creator_id && (
+      <button
+        onClick={handleDelete}
+        className="mt-4 text-red-400 hover:text-red-300"
+      >
+        Delete Post
+      </button>
+    )}
+  </div>
+);
 }

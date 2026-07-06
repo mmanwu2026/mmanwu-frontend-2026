@@ -146,87 +146,130 @@ export default function ProfileClient({
 
   useEffect(() => setHydrated(true), []);
 
-  // Load Sound posts
-  useEffect(() => {
-    async function loadSoundPosts() {
-      const { data, error } = await supabase
-        .from("sound_posts")
-        .select(`
+// Load Sound posts
+useEffect(() => {
+  async function loadSoundPosts() {
+    const { data, error } = await supabase
+      .from("sound_posts")
+      .select(`
+        id,
+        title,
+        audio_url,
+        creator_id,
+        created_at,
+
+        profiles:creator_id (
+          username,
+          avatar_url
+        ),
+
+        comments:sound_post_comments (
           id,
-          title,
-          audio_url,
-          creator_id,
+          content,
+          raw_input,
           created_at,
-          profiles:creator_id ( username, avatar_url )
-        `)
-        .eq("creator_id", profile.id)
-        .order("created_at", { ascending: false });
-
-      if (error) return;
-
-      const ids = (data || []).map((p: any) => p.id);
-
-      const { data: reactionsRows } = await supabase
-        .from("reactions")
-        .select('post_id, "maskTier"')
-        .in("post_id", ids)
-        .eq("post_type", "sound");
-
-      const mapped: CardSoundPost[] = (data || []).map((p: any) => {
-        const postReactions = (reactionsRows ?? []).filter(
-          (r: any) => r.post_id === p.id
-        );
-
-        const counts: ReactionCounts = {
-          mask1: postReactions.filter((r: any) => r.maskTier === 1).length,
-          mask2: postReactions.filter((r: any) => r.maskTier === 2).length,
-          mask3: postReactions.filter((r: any) => r.maskTier === 3).length,
-          mask4: postReactions.filter((r: any) => r.maskTier === 4).length,
-          mask5: postReactions.filter((r: any) => r.maskTier === 5).length,
-          mask6: postReactions.filter((r: any) => r.maskTier === 6).length,
-        };
-
-        const spirit_score = postReactions.reduce(
-          (sum: number, r: any) => sum + r.maskTier,
-          0
-        );
-
-        const total = postReactions.length;
-        const positive = postReactions.filter(
-          (r: any) => r.maskTier >= 3
-        ).length;
-        const positivity_ratio = total > 0 ? positive / total : 0.5;
-
-        let automask = 2;
-        if (spirit_score > 20) automask = 3;
-        if (spirit_score > 100) automask = 4;
-        if (spirit_score > 300) automask = 5;
-        if (spirit_score > 500) automask = 6;
-
-        return {
-          id: p.id,
-          title: p.title ?? "",
-          audio_url: p.audio_url ?? "",
-          creator_id: p.creator_id ?? "",
-          creator_name: null,
-          created_at: p.created_at ?? "",
-          spirit_score,
-          positivity_ratio,
           automask,
-          reactions: counts,
-          users: {
-            username: p.profiles?.username ?? "Unknown",
-            avatar_url: p.profiles?.avatar_url ?? null,
+          positivity_ratio,
+          user_id,
+          profiles:user_id (
+            username,
+            avatar_url
+          )
+        )
+      `)
+      .eq("creator_id", profile.id)
+      .order("created_at", { ascending: false });
+
+    if (error) return;
+
+    const ids = (data || []).map((p: any) => p.id);
+
+    const { data: reactionsRows } = await supabase
+      .from("reactions")
+      .select('post_id, "maskTier"')
+      .in("post_id", ids)
+      .eq("post_type", "sound");
+
+    // ⭐ Type for reaction rows
+    type ReactionRow = { post_id: string; maskTier: number };
+
+    const mapped: CardSoundPost[] = (data || []).map((p: any) => {
+      // ⭐ Fully typed reaction filtering
+      const postReactions: ReactionRow[] = (reactionsRows ?? []).filter(
+        (r: ReactionRow) => r.post_id === p.id
+      );
+
+      // ⭐ Fully typed reaction counts
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r: ReactionRow) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r: ReactionRow) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r: ReactionRow) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r: ReactionRow) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r: ReactionRow) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r: ReactionRow) => r.maskTier === 6).length,
+      };
+
+      // ⭐ Fully typed spirit score
+      const spirit_score = postReactions.reduce(
+        (sum: number, r: ReactionRow) => sum + r.maskTier,
+        0
+      );
+
+      // ⭐ Fully typed positivity
+      const total = postReactions.length;
+      const positive = postReactions.filter(
+        (r: ReactionRow) => r.maskTier >= 3
+      ).length;
+
+      const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+      // ⭐ Automask logic
+      let automask = 2;
+      if (spirit_score > 20) automask = 3;
+      if (spirit_score > 100) automask = 4;
+      if (spirit_score > 300) automask = 5;
+      if (spirit_score > 500) automask = 6;
+
+      // ⭐ Fully typed comments
+      const commentList =
+        p.comments?.map((c: any) => ({
+          id: c.id,
+          content: c.content,
+          raw_input: c.raw_input ?? null,
+          created_at: c.created_at,
+          automask: c.automask,
+          positivity_ratio: c.positivity_ratio ?? 0.5,
+          user_id: c.user_id,
+          profiles: {
+            username: c.profiles?.username ?? "unknown",
+            avatar_url: c.profiles?.avatar_url ?? null,
           },
-          comments: [], // ✅ ensure comments is always defined
-        };
-      });
+        })) ?? [];
 
-      setSoundPosts(mapped);
-    }
+      return {
+        id: p.id,
+        title: p.title ?? "",
+        audio_url: p.audio_url ?? "",
+        creator_id: p.creator_id ?? "",
+        creator_name: null,
+        created_at: p.created_at ?? "",
+        spirit_score,
+        positivity_ratio,
+        automask,
+        reactions: counts,
+        users: {
+          username: p.profiles?.username ?? "Unknown",
+          avatar_url: p.profiles?.avatar_url ?? null,
+        },
+        comments: commentList,
+      };
+    });
 
-    loadSoundPosts();
-  }, [profile.id, supabase]);
+    setSoundPosts(mapped);
+  }
+
+  loadSoundPosts();
+}, [profile.id, supabase]);
 
   // Load follow state
   useEffect(() => {
@@ -639,8 +682,9 @@ buildMap();
 // ⭐ Recompute Profile Header Stats (Plaza + Sound + Vision)
 useEffect(() => {
   // Plaza spirit score
-  const plazaSpirit = posts.reduce((sum, post) => {
+  const plazaSpirit = posts.reduce((sum: number, post: Post) => {
     const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+
     return (
       sum +
       counts.mask1 * 1 +
@@ -654,13 +698,13 @@ useEffect(() => {
 
   // Sound spirit score
   const soundSpirit = soundPosts.reduce(
-    (sum, post) => sum + (post.spirit_score ?? 0),
+    (sum: number, post: CardSoundPost) => sum + (post.spirit_score ?? 0),
     0
   );
 
   // Vision spirit score
   const visionSpirit = visionPosts.reduce(
-    (sum, post) => sum + (post.spirit_score ?? 0),
+    (sum: number, post: VisionPost) => sum + (post.spirit_score ?? 0),
     0
   );
 
