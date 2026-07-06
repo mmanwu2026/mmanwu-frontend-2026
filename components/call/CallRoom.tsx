@@ -41,10 +41,9 @@ export default function CallRoom({
         supabase.from("call_signaling").insert({
           room_id: roomId,
           sender_id: userId,
-          target_id: otherUserId,        // ⭐ REQUIRED
           target_user_id: otherUserId,
           type: "candidate",
-          payload: event.candidate.toJSON(),
+          payload: event.candidate.toJSON(), // serialize
         });
       }
     };
@@ -81,10 +80,12 @@ export default function CallRoom({
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
-        target_id: otherUserId,        // ⭐ REQUIRED
         target_user_id: otherUserId,
         type: "offer",
-        payload: offer,
+        payload: {
+          type: offer?.type,
+          sdp: offer?.sdp,
+        },
       });
     }
 
@@ -106,14 +107,13 @@ export default function CallRoom({
         async (payload: { new: any }) => {
           const row = payload.new;
 
-          // Ignore our own messages
           if (row.sender_id === userId) return;
-
-          // Only process messages meant for this user
           if (row.target_user_id !== userId) return;
 
           if (row.type === "offer") {
-            await pcRef.current?.setRemoteDescription(row.payload);
+            await pcRef.current?.setRemoteDescription(
+              new RTCSessionDescription(row.payload)
+            );
 
             const answer = await pcRef.current?.createAnswer();
             await pcRef.current?.setLocalDescription(answer);
@@ -121,20 +121,25 @@ export default function CallRoom({
             await supabase.from("call_signaling").insert({
               room_id: roomId,
               sender_id: userId,
-              target_id: row.sender_id,      // ⭐ REQUIRED
               target_user_id: row.sender_id,
               type: "answer",
-              payload: answer,
+              payload: {
+                type: answer?.type,
+                sdp: answer?.sdp,
+              },
             });
           }
 
           if (row.type === "answer") {
-            await pcRef.current?.setRemoteDescription(row.payload);
+            await pcRef.current?.setRemoteDescription(
+              new RTCSessionDescription(row.payload)
+            );
           }
 
           if (row.type === "candidate") {
             try {
-              await pcRef.current?.addIceCandidate(row.payload);
+              const candidate = new RTCIceCandidate(row.payload);
+              await pcRef.current?.addIceCandidate(candidate);
             } catch (e) {
               console.error("ICE error", e);
             }

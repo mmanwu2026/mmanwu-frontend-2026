@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
@@ -13,7 +13,7 @@ export default function CallListener() {
 
   const channelRef = useRef<any>(null);
 
-  // ⭐ Load authenticated user ID once
+  // Load authenticated user ID once
   useEffect(() => {
     let mounted = true;
 
@@ -30,14 +30,13 @@ export default function CallListener() {
     };
   }, [supabase]);
 
-  // ⭐ Create + attach + subscribe EXACTLY once
+  // Subscribe once
   useEffect(() => {
     if (!userId) return;
-    if (channelRef.current) return; // Prevent ANY re-subscription
+    if (channelRef.current) return;
 
     const channel = supabase.channel(`incoming-call-${userId}`);
 
-    // ⭐ Attach callback BEFORE subscribe
     channel.on(
       "postgres_changes",
       {
@@ -51,10 +50,7 @@ export default function CallListener() {
       }
     );
 
-    // ⭐ Subscribe ONCE
     channel.subscribe();
-
-    // ⭐ Save reference so React NEVER re-attaches callbacks
     channelRef.current = channel;
 
     return () => {
@@ -63,13 +59,28 @@ export default function CallListener() {
     };
   }, [userId, supabase]);
 
-  function acceptCall() {
+  async function acceptCall() {
     if (!incomingCall) return;
+
+    // Mark as answered
+    await supabase
+      .from("call_events")
+      .update({ status: "answered" })
+      .eq("id", incomingCall.id);
+
     router.push(`/call/${incomingCall.room_id}`);
     setIncomingCall(null);
   }
 
-  function declineCall() {
+  async function declineCall() {
+    if (!incomingCall) return;
+
+    // ⭐ Notify caller
+    await supabase
+      .from("call_events")
+      .update({ status: "declined" })
+      .eq("id", incomingCall.id);
+
     setIncomingCall(null);
   }
 
