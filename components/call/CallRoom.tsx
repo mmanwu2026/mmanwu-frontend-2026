@@ -136,11 +136,15 @@ export default function CallRoom({
     makeOffer();
   }, [joined, role, roomId, userId, supabase]);
 
-  // ⭐ CALLEE FETCHES LATEST OFFER FROM DB (critical fix)
+  // CALLEE: poll DB until offer exists
   useEffect(() => {
-    async function loadLatestOffer() {
-      if (role !== "callee") return;
-      if (!joined) return;
+    if (role !== "callee") return;
+    if (!joined) return;
+
+    let cancelled = false;
+
+    async function pollForOffer() {
+      if (cancelled) return;
 
       console.log("🔵 Callee checking DB for latest offer…");
 
@@ -153,12 +157,12 @@ export default function CallRoom({
         .limit(1);
 
       if (!data || data.length === 0) {
-        console.log("🔴 No offer found in DB yet");
+        console.log("🔴 No offer found in DB yet, will retry…");
+        setTimeout(pollForOffer, 1000);
         return;
       }
 
       const offer = data[0].payload;
-
       console.log("🟣 Callee loaded offer from DB:", offer);
 
       const pc = pcRef.current;
@@ -184,10 +188,14 @@ export default function CallRoom({
       console.log("🟢 Callee sent answer from DB load");
     }
 
-    loadLatestOffer();
+    pollForOffer();
+
+    return () => {
+      cancelled = true;
+    };
   }, [role, joined, roomId, userId, supabase]);
 
-  // Supabase realtime listener
+  // Realtime listener
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -207,31 +215,6 @@ export default function CallRoom({
           if (row.sender_id === userId) return;
 
           console.log("🔵 Received signaling:", row);
-
-          if (row.type === "offer" && role === "callee") {
-            console.log("🟣 Callee received offer SDP:", row.payload.sdp);
-
-            await pc.setRemoteDescription(
-              new RTCSessionDescription(row.payload)
-            );
-
-            const answer = await pc.createAnswer();
-            console.log("🟢 Callee created answer SDP:", answer.sdp);
-
-            await pc.setLocalDescription(answer);
-
-            await supabase.from("call_signaling").insert({
-              room_id: roomId,
-              sender_id: userId,
-              type: "answer",
-              payload: {
-                type: answer.type,
-                sdp: answer.sdp,
-              },
-            });
-
-            console.log("🟢 Answer sent to Supabase");
-          }
 
           if (row.type === "answer" && role === "caller") {
             console.log("🟣 Caller received answer SDP:", row.payload.sdp);
