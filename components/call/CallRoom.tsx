@@ -4,6 +4,30 @@ import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
+type CallSignalingType = "offer" | "answer" | "candidate";
+
+interface IceCandidatePayload extends RTCIceCandidateInit {}
+
+interface SdpPayload extends RTCSessionDescriptionInit {}
+
+interface CallSignalingRow {
+  id: number;
+  room_id: string;
+  sender_id: string;
+  type: CallSignalingType;
+  payload: SdpPayload | IceCandidatePayload;
+  created_at?: string;
+}
+
+interface SupabaseRealtimePayload<T> {
+  commit_timestamp: string;
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  schema: string;
+  table: string;
+  new: T;
+  old: T | null;
+}
+
 export default function CallRoom({
   userId,
   roomId,
@@ -20,12 +44,12 @@ export default function CallRoom({
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const [joined, setJoined] = useState(false);
+  const pendingRemoteStreamRef = useRef<MediaStream | null>(null);
+
+  const [joined, setJoined] = useState<boolean>(false);
 
   // Create PeerConnection
   useEffect(() => {
-    console.log("🔵 Creating RTCPeerConnection, role:", role);
-
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -48,66 +72,69 @@ export default function CallRoom({
 
     pcRef.current = pc;
 
-    pc.onicecandidate = (event) => {
-      console.log("🟡 ICE candidate generated:", event.candidate);
+    pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+      if (!event.candidate) return;
 
-      if (event.candidate) {
-        supabase.from("call_signaling").insert({
-          room_id: roomId,
-          sender_id: userId,
-          type: "candidate",
-          payload: event.candidate.toJSON(),
-        });
+      const candidatePayload: IceCandidatePayload = {
+        candidate: event.candidate.candidate,
+        sdpMid: event.candidate.sdpMid ?? undefined,
+        sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
+        usernameFragment: (event.candidate as any).usernameFragment,
+      };
+
+      void supabase.from("call_signaling").insert({
+        room_id: roomId,
+        sender_id: userId,
+        type: "candidate",
+        payload: candidatePayload,
+      } satisfies Partial<CallSignalingRow>);
+    };
+
+    pc.ontrack = (event: RTCTrackEvent) => {
+      const remoteStream = event.streams[0];
+      const el = remoteVideoRef.current;
+
+      if (!el || !el.isConnected) {
+        pendingRemoteStreamRef.current = remoteStream;
+        return;
       }
-    };
 
-    pc.oniceconnectionstatechange = () => {
-      console.log("🔵 ICE connection state:", pc.iceConnectionState);
-    };
-
-    pc.onsignalingstatechange = () => {
-      console.log("🟣 Signaling state:", pc.signalingState);
-    };
-
-    pc.onicegatheringstatechange = () => {
-      console.log("🟠 ICE gathering state:", pc.iceGatheringState);
-    };
-
-    pc.ontrack = (event) => {
-      console.log("🟢 Remote track received:", event.streams);
-
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-
-        remoteVideoRef.current
-          .play()
-          .catch((err) =>
-            console.error("🔴 Remote video play error:", err)
-          );
+      if (el.srcObject !== remoteStream) {
+        el.srcObject = remoteStream;
       }
+
+      el.play().catch(() => {});
+      setTimeout(() => {
+        if (el.isConnected) el.play().catch(() => {});
+      }, 50);
+      setTimeout(() => {
+        if (el.isConnected) el.play().catch(() => {});
+      }, 300);
     };
 
-    return () => pc.close();
+    return () => {
+      pc.close();
+      pcRef.current = null;
+    };
   }, [roomId, userId, role, supabase]);
 
-  // Join call
-  async function joinCall() {
-    console.log("🔵 Joining call, getting media…");
-
+  async function joinCall(): Promise<void> {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
-    stream.getTracks().forEach((track) => {
-      console.log("🟢 Adding local track:", track.kind);
-      pcRef.current?.addTrack(track, stream);
-    });
+    const pc = pcRef.current;
+    if (pc) {
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+    }
 
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
       localVideoRef.current.muted = true;
-      localVideoRef.current.play().catch(console.error);
+      localVideoRef.current.play().catch(() => {});
     }
 
     setJoined(true);
@@ -115,47 +142,34 @@ export default function CallRoom({
 
   // Caller creates offer
   useEffect(() => {
-    if (!joined) return;
-    if (role !== "caller") return;
+    if (!joined || role !== "caller") return;
 
-    async function makeOffer() {
+    async function makeOffer(): Promise<void> {
       const pc = pcRef.current;
       if (!pc) return;
 
-      console.log("🔵 Caller creating offer…");
-
-      const offer = await pc.createOffer();
-      console.log("🟣 Offer SDP:", offer.sdp);
-
+      const offer: SdpPayload = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
         type: "offer",
-        payload: {
-          type: offer.type,
-          sdp: offer.sdp,
-        },
-      });
-
-      console.log("🟢 Offer sent to Supabase");
+        payload: offer,
+      } satisfies Partial<CallSignalingRow>);
     }
 
-    makeOffer();
+    void makeOffer();
   }, [joined, role, roomId, userId, supabase]);
 
-  // CALLEE: poll DB until offer exists
+  // Callee polls for offer
   useEffect(() => {
-    if (role !== "callee") return;
-    if (!joined) return;
+    if (!joined || role !== "callee") return;
 
     let cancelled = false;
 
-    async function pollForOffer() {
+    async function pollForOffer(): Promise<void> {
       if (cancelled) return;
-
-      console.log("🔵 Callee checking DB for latest offer…");
 
       const { data } = await supabase
         .from("call_signaling")
@@ -165,44 +179,38 @@ export default function CallRoom({
         .order("id", { ascending: false })
         .limit(1);
 
-      if (!data || data.length === 0) {
-        console.log("🔴 No offer found in DB yet, will retry…");
-        setTimeout(pollForOffer, 1000);
+      const rows = data as CallSignalingRow[] | null;
+
+      if (!rows || rows.length === 0) {
+        setTimeout(() => void pollForOffer(), 500);
         return;
       }
 
-      const offer = data[0].payload;
-      console.log("🟣 Callee loaded offer from DB:", offer);
+      const offerRow = rows[0];
+      const offer = offerRow.payload as SdpPayload;
 
       const pc = pcRef.current;
       if (!pc) return;
 
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      await pc.setRemoteDescription(offer);
 
-      const answer = await pc.createAnswer();
-      console.log("🟢 Callee created answer SDP:", answer.sdp);
-
+      const answer: SdpPayload = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
         type: "answer",
-        payload: {
-          type: answer.type,
-          sdp: answer.sdp,
-        },
-      });
-
-      console.log("🟢 Callee sent answer from DB load");
+        payload: answer,
+      } satisfies Partial<CallSignalingRow>);
     }
 
-    pollForOffer();
+    void pollForOffer();
 
     return () => {
       cancelled = true;
     };
-  }, [role, joined, roomId, userId, supabase]);
+  }, [joined, role, roomId, userId, supabase]);
 
   // Realtime listener
   useEffect(() => {
@@ -216,59 +224,61 @@ export default function CallRoom({
           table: "call_signaling",
           filter: `room_id=eq.${roomId}`,
         },
-        async (payload: { new: any }) => {
+        async (payload: SupabaseRealtimePayload<CallSignalingRow>) => {
           const row = payload.new;
           const pc = pcRef.current;
 
           if (!pc) return;
           if (row.sender_id === userId) return;
 
-          console.log("🔵 Received signaling:", row);
-
           if (row.type === "answer" && role === "caller") {
-            console.log("🟣 Caller received answer SDP:", row.payload.sdp);
-
-            await pc.setRemoteDescription(
-              new RTCSessionDescription(row.payload)
-            );
+            const answer = row.payload as SdpPayload;
+            await pc.setRemoteDescription(answer);
           }
 
           if (row.type === "candidate") {
-            console.log("🟠 Received ICE candidate:", row.payload);
-
-            try {
-              const candidate = new RTCIceCandidate(row.payload);
-              await pc.addIceCandidate(candidate);
-              console.log("🟢 Candidate added");
-            } catch (e) {
-              console.error("🔴 ICE error:", e);
-            }
+            const candidateInit = row.payload as IceCandidatePayload;
+            const candidate = new RTCIceCandidate(candidateInit);
+            await pc.addIceCandidate(candidate);
           }
         }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [roomId, userId, role, supabase]);
 
-  // END CALL
-  function endCall() {
-    console.log("🔴 Ending call…");
+  // Attach buffered remote stream once DOM is ready
+  useEffect(() => {
+    const el = remoteVideoRef.current;
+    const stream = pendingRemoteStreamRef.current;
 
+    if (el && el.isConnected && stream) {
+      el.srcObject = stream;
+
+      el.play().catch(() => {});
+      setTimeout(() => {
+        if (el.isConnected) el.play().catch(() => {});
+      }, 50);
+      setTimeout(() => {
+        if (el.isConnected) el.play().catch(() => {});
+      }, 300);
+
+      pendingRemoteStreamRef.current = null;
+    }
+  });
+
+  function endCall(): void {
     const pc = pcRef.current;
-    if (pc) pc.close();
+    pc?.close();
 
-    if (localVideoRef.current?.srcObject) {
-      (localVideoRef.current.srcObject as MediaStream)
-        .getTracks()
-        .forEach((t) => t.stop());
-    }
+    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
+    localStream?.getTracks().forEach((t) => t.stop());
 
-    if (remoteVideoRef.current?.srcObject) {
-      (remoteVideoRef.current.srcObject as MediaStream)
-        .getTracks()
-        .forEach((t) => t.stop());
-    }
+    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
+    remoteStream?.getTracks().forEach((t) => t.stop());
 
     router.push("/messages");
   }
