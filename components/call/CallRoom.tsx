@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 export default function CallRoom({
   userId,
   roomId,
-  otherUserId,   // ⭐ REQUIRED
+  otherUserId,
 }: {
   userId: string;
   roomId: string;
@@ -21,13 +21,6 @@ export default function CallRoom({
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [joined, setJoined] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-
-  // ⭐ Timer
-  useEffect(() => {
-    const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // ⭐ Initialize WebRTC
   useEffect(() => {
@@ -48,7 +41,8 @@ export default function CallRoom({
         supabase.from("call_signaling").insert({
           room_id: roomId,
           sender_id: userId,
-          target_user_id: otherUserId,   // ⭐ FIXED
+          target_id: otherUserId,        // ⭐ REQUIRED
+          target_user_id: otherUserId,
           type: "candidate",
           payload: event.candidate.toJSON(),
         });
@@ -76,21 +70,26 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // ⭐ Leave detection
+  // ⭐ Auto-start offer when caller joins
   useEffect(() => {
-    const handleLeave = async () => {
+    if (!joined) return;
+
+    async function startOffer() {
+      const offer = await pcRef.current?.createOffer();
+      await pcRef.current?.setLocalDescription(offer);
+
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
+        target_id: otherUserId,        // ⭐ REQUIRED
         target_user_id: otherUserId,
-        type: "leave",
-        payload: {},
+        type: "offer",
+        payload: offer,
       });
-    };
+    }
 
-    window.addEventListener("beforeunload", handleLeave);
-    return () => window.removeEventListener("beforeunload", handleLeave);
-  }, [roomId, userId, otherUserId, supabase]);
+    startOffer();
+  }, [joined, roomId, userId, otherUserId, supabase]);
 
   // ⭐ Listen for signaling
   useEffect(() => {
@@ -110,7 +109,7 @@ export default function CallRoom({
           // Ignore our own messages
           if (row.sender_id === userId) return;
 
-          // ⭐ FIX — Only process messages meant for this user
+          // Only process messages meant for this user
           if (row.target_user_id !== userId) return;
 
           if (row.type === "offer") {
@@ -122,7 +121,8 @@ export default function CallRoom({
             await supabase.from("call_signaling").insert({
               room_id: roomId,
               sender_id: userId,
-              target_user_id: row.sender_id,   // ⭐ FIXED
+              target_id: row.sender_id,      // ⭐ REQUIRED
+              target_user_id: row.sender_id,
               type: "answer",
               payload: answer,
             });
@@ -151,20 +151,6 @@ export default function CallRoom({
     return () => supabase.removeChannel(channel);
   }, [roomId, userId, otherUserId, supabase, router]);
 
-  // ⭐ Caller creates offer
-  async function startOffer() {
-    const offer = await pcRef.current?.createOffer();
-    await pcRef.current?.setLocalDescription(offer);
-
-    await supabase.from("call_signaling").insert({
-      room_id: roomId,
-      sender_id: userId,
-      target_user_id: otherUserId,   // ⭐ FIXED
-      type: "offer",
-      payload: offer,
-    });
-  }
-
   // ⭐ End call
   async function endCall() {
     await supabase
@@ -183,10 +169,6 @@ export default function CallRoom({
         <video ref={remoteVideoRef} autoPlay playsInline className="w-1/2 bg-black" />
       </div>
 
-      <div className="text-neutral-300 mt-2">
-        Call duration: {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
-      </div>
-
       {!joined && (
         <button onClick={joinCall} className="mt-4 px-4 py-2 bg-green-600 rounded">
           Join Call
@@ -194,15 +176,9 @@ export default function CallRoom({
       )}
 
       {joined && (
-        <>
-          <button onClick={startOffer} className="mt-4 px-4 py-2 bg-blue-600 rounded">
-            Start WebRTC Offer
-          </button>
-
-          <button onClick={endCall} className="mt-4 px-4 py-2 bg-red-600 rounded">
-            End Call
-          </button>
-        </>
+        <button onClick={endCall} className="mt-4 px-4 py-2 bg-red-600 rounded">
+          End Call
+        </button>
       )}
     </div>
   );
