@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
+type Role = "caller" | "callee";
+
 export default function CallRoom({
   userId,
   roomId,
-  callerId,
+  role,
 }: {
   userId: string;
   roomId: string;
-  callerId: string;
+  role: Role;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
@@ -21,38 +23,9 @@ export default function CallRoom({
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [joined, setJoined] = useState(false);
-  const [otherUserId, setOtherUserId] = useState<string | null>(null);
-  const earlyAnswerRef = useRef<any>(null);
 
-  const isCaller = userId === callerId;
-
-  // Load call event to determine other user
+  // 1. Create peer connection
   useEffect(() => {
-    async function loadCallEvent() {
-      const { data } = await supabase
-        .from("call_events")
-        .select("caller_id, target_user_id")
-        .eq("room_id", roomId)
-        .single();
-
-      if (!data) return;
-
-      const { caller_id, target_user_id } = data;
-
-      if (userId === caller_id) {
-        setOtherUserId(target_user_id);
-      } else {
-        setOtherUserId(caller_id);
-      }
-    }
-
-    loadCallEvent();
-  }, [roomId, userId, supabase]);
-
-  // Initialize WebRTC with STUN + TURN
-  useEffect(() => {
-    if (!otherUserId) return;
-
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -86,7 +59,6 @@ export default function CallRoom({
         supabase.from("call_signaling").insert({
           room_id: roomId,
           sender_id: userId,
-          target_user_id: otherUserId,
           type: "candidate",
           payload: event.candidate.toJSON(),
         });
@@ -94,9 +66,9 @@ export default function CallRoom({
     };
 
     return () => pc.close();
-  }, [otherUserId, roomId, userId, supabase]);
+  }, [roomId, userId, supabase]);
 
-  // Join call (get local media)
+  // 2. Get local media and attach tracks
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -114,13 +86,12 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // Caller-only offer creation
+  // 3. Caller creates offer once joined
   useEffect(() => {
     if (!joined) return;
-    if (!isCaller) return;
-    if (!otherUserId) return;
+    if (role !== "caller") return;
 
-    async function startOffer() {
+    async function makeOffer() {
       const pc = pcRef.current;
       if (!pc) return;
 
@@ -130,29 +101,19 @@ export default function CallRoom({
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
-        target_user_id: otherUserId,
         type: "offer",
         payload: {
           type: offer.type,
           sdp: offer.sdp,
         },
       });
-
-      if (earlyAnswerRef.current) {
-        await pc.setRemoteDescription(
-          new RTCSessionDescription(earlyAnswerRef.current)
-        );
-        earlyAnswerRef.current = null;
-      }
     }
 
-    startOffer();
-  }, [joined, isCaller, otherUserId, roomId, userId, supabase]);
+    makeOffer();
+  }, [joined, role, roomId, userId, supabase]);
 
-  // Signaling listener
+  // 4. Listen for signaling
   useEffect(() => {
-    if (!otherUserId) return;
-
     const channel = supabase
       .channel(`call-${roomId}`)
       .on(
@@ -169,10 +130,8 @@ export default function CallRoom({
 
           if (!pc) return;
           if (row.sender_id === userId) return;
-          if (row.target_user_id !== userId) return;
 
-          // Callee receives offer
-          if (row.type === "offer" && !isCaller) {
+          if (row.type === "offer" && role === "callee") {
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
             );
@@ -183,7 +142,6 @@ export default function CallRoom({
             await supabase.from("call_signaling").insert({
               room_id: roomId,
               sender_id: userId,
-              target_user_id: row.sender_id,
               type: "answer",
               payload: {
                 type: answer.type,
@@ -192,18 +150,12 @@ export default function CallRoom({
             });
           }
 
-          // Caller receives answer
-          if (row.type === "answer" && isCaller) {
-            if (pc.signalingState === "have-local-offer") {
-              await pc.setRemoteDescription(
-                new RTCSessionDescription(row.payload)
-              );
-            } else {
-              earlyAnswerRef.current = row.payload;
-            }
+          if (row.type === "answer" && role === "caller") {
+            await pc.setRemoteDescription(
+              new RTCSessionDescription(row.payload)
+            );
           }
 
-          // ICE candidates
           if (row.type === "candidate") {
             try {
               const candidate = new RTCIceCandidate(row.payload);
@@ -217,15 +169,9 @@ export default function CallRoom({
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [otherUserId, isCaller, roomId, userId, supabase]);
+  }, [roomId, userId, role, supabase]);
 
-  // End call
   async function endCall() {
-    await supabase
-      .from("call_events")
-      .update({ status: "ended" })
-      .eq("room_id", roomId);
-
     pcRef.current?.close();
     router.push("/messenger");
   }

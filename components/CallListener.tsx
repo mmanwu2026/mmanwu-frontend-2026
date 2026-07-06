@@ -68,8 +68,8 @@ export default function CallListener() {
       .update({ status: "answered" })
       .eq("id", incomingCall.id);
 
-    router.push(`/call/${incomingCall.room_id}`);
-    setIncomingCall(null);
+    router.push(`/call/${incomingCall.room_id}?role=callee`);
+setIncomingCall(null);
   }
 
   async function declineCall() {

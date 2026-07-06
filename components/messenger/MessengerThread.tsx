@@ -163,7 +163,7 @@ export default function MessengerThread({
       status: "ringing",
     });
 
-    router.push(`/call/${newRoomId}`);
+    router.push(`/call/${newRoomId}?role=caller`);
   }
 
   return (
