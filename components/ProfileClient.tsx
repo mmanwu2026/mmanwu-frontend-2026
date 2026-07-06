@@ -218,6 +218,7 @@ export default function ProfileClient({
             username: p.profiles?.username ?? "Unknown",
             avatar_url: p.profiles?.avatar_url ?? null,
           },
+          comments: [], // ✅ ensure comments is always defined
         };
       });
 

@@ -366,7 +366,9 @@ export default function SoundPostCard({
   const scale = 1 + intensity * 0.2;
 
   const latestComment =
-    post.comments.length > 0 ? post.comments[post.comments.length - 1] : null;
+  (post.comments?.length ?? 0) > 0
+    ? post.comments![post.comments!.length - 1]
+    : null;
 
   /* ---------------------------------------------------------
      ⭐ RENDER
