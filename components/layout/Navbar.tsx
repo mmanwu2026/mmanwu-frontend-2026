@@ -52,7 +52,7 @@ export default function Navbar() {
   return (
     <nav className="flex items-center justify-between p-4 bg-black text-white border-b border-white/10">
       <Link href="/" className="text-lg font-bold">
-        MMANWU
+        MMAN
       </Link>
 
       <Link href="/notifications" className="relative text-sm">
