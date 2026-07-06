@@ -21,8 +21,9 @@ export default function CallRoom({
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [joined, setJoined] = useState(false);
+  const earlyAnswerRef = useRef<any>(null);
 
-  // ⭐ Initialize WebRTC
+  // Initialize WebRTC
   useEffect(() => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
@@ -43,7 +44,7 @@ export default function CallRoom({
           sender_id: userId,
           target_user_id: otherUserId,
           type: "candidate",
-          payload: event.candidate.toJSON(), // serialize
+          payload: event.candidate.toJSON(),
         });
       }
     };
@@ -51,7 +52,7 @@ export default function CallRoom({
     return () => pc.close();
   }, [roomId, userId, otherUserId, supabase]);
 
-  // ⭐ Join call (get media)
+  // Join call (get media)
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -69,13 +70,16 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // ⭐ Auto-start offer when caller joins
+  // Auto-start offer when caller joins
   useEffect(() => {
     if (!joined) return;
 
     async function startOffer() {
-      const offer = await pcRef.current?.createOffer();
-      await pcRef.current?.setLocalDescription(offer);
+      const pc = pcRef.current;
+      if (!pc) return;
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
@@ -83,16 +87,24 @@ export default function CallRoom({
         target_user_id: otherUserId,
         type: "offer",
         payload: {
-          type: offer?.type,
-          sdp: offer?.sdp,
+          type: offer.type,
+          sdp: offer.sdp,
         },
       });
+
+      // If an early answer was buffered, apply it now
+      if (earlyAnswerRef.current) {
+        await pc.setRemoteDescription(
+          new RTCSessionDescription(earlyAnswerRef.current)
+        );
+        earlyAnswerRef.current = null;
+      }
     }
 
     startOffer();
   }, [joined, roomId, userId, otherUserId, supabase]);
 
-  // ⭐ Listen for signaling
+  // Listen for signaling
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -106,17 +118,19 @@ export default function CallRoom({
         },
         async (payload: { new: any }) => {
           const row = payload.new;
+          const pc = pcRef.current;
 
+          if (!pc) return;
           if (row.sender_id === userId) return;
           if (row.target_user_id !== userId) return;
 
           if (row.type === "offer") {
-            await pcRef.current?.setRemoteDescription(
+            await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
             );
 
-            const answer = await pcRef.current?.createAnswer();
-            await pcRef.current?.setLocalDescription(answer);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
 
             await supabase.from("call_signaling").insert({
               room_id: roomId,
@@ -124,29 +138,34 @@ export default function CallRoom({
               target_user_id: row.sender_id,
               type: "answer",
               payload: {
-                type: answer?.type,
-                sdp: answer?.sdp,
+                type: answer.type,
+                sdp: answer.sdp,
               },
             });
           }
 
           if (row.type === "answer") {
-            await pcRef.current?.setRemoteDescription(
-              new RTCSessionDescription(row.payload)
-            );
+            if (pc.signalingState === "have-local-offer") {
+              await pc.setRemoteDescription(
+                new RTCSessionDescription(row.payload)
+              );
+            } else {
+              // Buffer early answer until offer is set
+              earlyAnswerRef.current = row.payload;
+            }
           }
 
           if (row.type === "candidate") {
             try {
               const candidate = new RTCIceCandidate(row.payload);
-              await pcRef.current?.addIceCandidate(candidate);
+              await pc.addIceCandidate(candidate);
             } catch (e) {
               console.error("ICE error", e);
             }
           }
 
           if (row.type === "leave") {
-            pcRef.current?.close();
+            pc.close();
             router.push("/messenger");
           }
         }
@@ -156,7 +175,7 @@ export default function CallRoom({
     return () => supabase.removeChannel(channel);
   }, [roomId, userId, otherUserId, supabase, router]);
 
-  // ⭐ End call
+  // End call
   async function endCall() {
     await supabase
       .from("call_events")
@@ -170,18 +189,35 @@ export default function CallRoom({
   return (
     <div className="flex flex-col h-full p-4 text-white">
       <div className="flex gap-4">
-        <video ref={localVideoRef} autoPlay playsInline muted className="w-1/2 bg-black" />
-        <video ref={remoteVideoRef} autoPlay playsInline className="w-1/2 bg-black" />
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-1/2 bg-black"
+        />
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className="w-1/2 bg-black"
+        />
       </div>
 
       {!joined && (
-        <button onClick={joinCall} className="mt-4 px-4 py-2 bg-green-600 rounded">
+        <button
+          onClick={joinCall}
+          className="mt-4 px-4 py-2 bg-green-600 rounded"
+        >
           Join Call
         </button>
       )}
 
       {joined && (
-        <button onClick={endCall} className="mt-4 px-4 py-2 bg-red-600 rounded">
+        <button
+          onClick={endCall}
+          className="mt-4 px-4 py-2 bg-red-600 rounded"
+        >
           End Call
         </button>
       )}
