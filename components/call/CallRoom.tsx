@@ -75,8 +75,15 @@ export default function CallRoom({
 
     pc.ontrack = (event) => {
       console.log("🟢 Remote track received:", event.streams);
+
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
+
+        remoteVideoRef.current
+          .play()
+          .catch((err) =>
+            console.error("🔴 Remote video play error:", err)
+          );
       }
     };
 
@@ -99,6 +106,8 @@ export default function CallRoom({
 
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
+      localVideoRef.current.muted = true;
+      localVideoRef.current.play().catch(console.error);
     }
 
     setJoined(true);
@@ -242,6 +251,28 @@ export default function CallRoom({
     return () => supabase.removeChannel(channel);
   }, [roomId, userId, role, supabase]);
 
+  // END CALL
+  function endCall() {
+    console.log("🔴 Ending call…");
+
+    const pc = pcRef.current;
+    if (pc) pc.close();
+
+    if (localVideoRef.current?.srcObject) {
+      (localVideoRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((t) => t.stop());
+    }
+
+    if (remoteVideoRef.current?.srcObject) {
+      (remoteVideoRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((t) => t.stop());
+    }
+
+    router.push("/messages");
+  }
+
   return (
     <div className="flex flex-col h-full p-4 text-white">
       <div className="flex gap-4">
@@ -250,13 +281,13 @@ export default function CallRoom({
           autoPlay
           playsInline
           muted
-          className="w-1/2 bg-black"
+          className="w-1/2 bg-black rounded-lg"
         />
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
-          className="w-1/2 bg-black"
+          className="w-1/2 bg-black rounded-lg"
         />
       </div>
 
@@ -266,6 +297,15 @@ export default function CallRoom({
           className="mt-4 px-4 py-2 bg-green-600 rounded"
         >
           Join Call
+        </button>
+      )}
+
+      {joined && (
+        <button
+          onClick={endCall}
+          className="mt-4 px-4 py-2 bg-red-600 rounded"
+        >
+          End Call
         </button>
       )}
     </div>
