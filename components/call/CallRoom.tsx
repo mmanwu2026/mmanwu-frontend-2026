@@ -22,7 +22,7 @@ export default function CallRoom({
 
   const [joined, setJoined] = useState(false);
 
-  // Create PC
+  // Create PeerConnection
   useEffect(() => {
     console.log("🔵 Creating RTCPeerConnection, role:", role);
 
@@ -136,7 +136,58 @@ export default function CallRoom({
     makeOffer();
   }, [joined, role, roomId, userId, supabase]);
 
-  // Signaling listener
+  // ⭐ CALLEE FETCHES LATEST OFFER FROM DB (critical fix)
+  useEffect(() => {
+    async function loadLatestOffer() {
+      if (role !== "callee") return;
+      if (!joined) return;
+
+      console.log("🔵 Callee checking DB for latest offer…");
+
+      const { data } = await supabase
+        .from("call_signaling")
+        .select("*")
+        .eq("room_id", roomId)
+        .eq("type", "offer")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (!data || data.length === 0) {
+        console.log("🔴 No offer found in DB yet");
+        return;
+      }
+
+      const offer = data[0].payload;
+
+      console.log("🟣 Callee loaded offer from DB:", offer);
+
+      const pc = pcRef.current;
+      if (!pc) return;
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      const answer = await pc.createAnswer();
+      console.log("🟢 Callee created answer SDP:", answer.sdp);
+
+      await pc.setLocalDescription(answer);
+
+      await supabase.from("call_signaling").insert({
+        room_id: roomId,
+        sender_id: userId,
+        type: "answer",
+        payload: {
+          type: answer.type,
+          sdp: answer.sdp,
+        },
+      });
+
+      console.log("🟢 Callee sent answer from DB load");
+    }
+
+    loadLatestOffer();
+  }, [role, joined, roomId, userId, supabase]);
+
+  // Supabase realtime listener
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
