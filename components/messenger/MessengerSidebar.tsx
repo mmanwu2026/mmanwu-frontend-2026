@@ -102,10 +102,11 @@ export default function MessengerSidebar({
 
       // Fetch last messages
       const { data: lastMessagesRaw } = await supabase
-        .from("messages")
-        .select("*")
-        .in("room_id", roomIds)
-        .order("created_at", { ascending: false });
+  .from("messages")
+  .select("*")
+  .in("room_id", roomIds)
+  .in("message_type", ["text", "image", "audio"])   // ⭐ FIX
+  .order("created_at", { ascending: false });
 
       const lastMessages = (lastMessagesRaw ?? []) as Message[];
 
