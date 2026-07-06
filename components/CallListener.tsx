@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
@@ -11,6 +11,8 @@ export default function CallListener() {
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
+  const channelRef = useRef<any>(null);
+
   // ⭐ Load authenticated user ID
   useEffect(() => {
     async function loadUser() {
@@ -20,28 +22,36 @@ export default function CallListener() {
     loadUser();
   }, [supabase]);
 
-  // ⭐ Subscribe only after userId is known
+  // ⭐ Subscribe only once, only after userId is known
   useEffect(() => {
     if (!userId) return;
+    if (channelRef.current) return; // Prevent double subscription
 
-    const channel = supabase
-      .channel(`incoming-call-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "call_events",
-          filter: `target_user_id=eq.${userId}`,
-        },
-        (payload: { new: any }) => {
-          setIncomingCall(payload.new);
-        }
-      )
-      .subscribe();
+    const channel = supabase.channel(`incoming-call-${userId}`);
+
+    // ⭐ Attach callback BEFORE subscribe()
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "call_events",
+        filter: `target_user_id=eq.${userId}`,
+      },
+      (payload: { new: any }) => {
+        setIncomingCall(payload.new);
+      }
+    );
+
+    // ⭐ Now subscribe ONCE
+    channel.subscribe();
+
+    // Save reference
+    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [userId, supabase]);
 
