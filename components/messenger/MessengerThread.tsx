@@ -257,23 +257,22 @@ export default function MessengerThread({
 
   // ⭐ MARK SEEN WHEN THREAD IS OPEN (FINAL FIX)
   useEffect(() => {
-    if (!userId) return;
+  if (!userId) return;
 
-    // ⭐ App Router: router.query does NOT exist
-    // roomId is already passed as a prop — use it directly
-    const activeRoomId = roomId;
-    if (!activeRoomId) return;
+  // ⭐ Use the URL roomId, not the prop
+  const activeRoomId = finalRoomId;  
+  if (!activeRoomId) return;
 
-    async function markSeen() {
-      await supabase
-        .from("room_participants")
-        .update({ last_seen: new Date().toISOString() })
-        .eq("room_id", activeRoomId)
-        .eq("user_id", userId);
-    }
+  async function markSeen() {
+    await supabase
+      .from("room_participants")
+      .update({ last_seen: new Date().toISOString() })
+      .eq("room_id", activeRoomId)
+      .eq("user_id", userId);
+  }
 
-    markSeen();
-  }, [userId, roomId]);
+  markSeen();
+}, [userId, finalRoomId]);
 
   // ⭐ SEND MESSAGE
   async function sendMessage() {
