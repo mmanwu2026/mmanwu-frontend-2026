@@ -636,6 +636,54 @@ setReactionPostMap(map);
 buildMap();
 }, [givenReactions, supabase]);
 
+// ⭐ Recompute Profile Header Stats (Plaza + Sound + Vision)
+useEffect(() => {
+  // Plaza spirit score
+  const plazaSpirit = posts.reduce((sum, post) => {
+    const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+    return (
+      sum +
+      counts.mask1 * 1 +
+      counts.mask2 * 2 +
+      counts.mask3 * 3 +
+      counts.mask4 * 4 +
+      counts.mask5 * 5 +
+      counts.mask6 * 6
+    );
+  }, 0);
+
+  // Sound spirit score
+  const soundSpirit = soundPosts.reduce(
+    (sum, post) => sum + (post.spirit_score ?? 0),
+    0
+  );
+
+  // Vision spirit score
+  const visionSpirit = visionPosts.reduce(
+    (sum, post) => sum + (post.spirit_score ?? 0),
+    0
+  );
+
+  const totalSpirit = plazaSpirit + soundSpirit + visionSpirit;
+
+  // Positivity (simple version — can refine later)
+  const totalPosts =
+    posts.length + soundPosts.length + visionPosts.length;
+
+  const totalPositivity =
+    totalPosts > 0 ? profile.positivity_ratio : 0.5;
+
+  // Update header values
+  profile.spirit_score = totalSpirit;
+  profile.positivity_ratio = totalPositivity;
+
+}, [
+  posts,
+  reactionCounts,
+  soundPosts,
+  visionPosts
+]);
+
   if (!hydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
