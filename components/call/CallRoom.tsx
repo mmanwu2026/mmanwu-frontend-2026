@@ -21,13 +21,12 @@ export default function CallRoom({
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [joined, setJoined] = useState(false);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const earlyAnswerRef = useRef<any>(null);
 
   const isCaller = userId === callerId;
 
   // Load call event to determine other user
-  const [otherUserId, setOtherUserId] = useState<string | null>(null);
-
   useEffect(() => {
     async function loadCallEvent() {
       const { data } = await supabase
@@ -50,12 +49,28 @@ export default function CallRoom({
     loadCallEvent();
   }, [roomId, userId, supabase]);
 
-  // Initialize WebRTC
+  // Initialize WebRTC with STUN + TURN
   useEffect(() => {
     if (!otherUserId) return;
 
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        {
+          username:
+            "dbmO5NTrYER8pb4YZUw0FpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
+          credential: "38c296aa-767d-11f1-b766-0242ac140004",
+          urls: [
+            "turn:us-turn8.xirsys.com:80?transport=udp",
+            "turn:us-turn8.xirsys.com:3478?transport=udp",
+            "turn:us-turn8.xirsys.com:80?transport=tcp",
+            "turn:us-turn8.xirsys.com:3478?transport=tcp",
+            "turns:us-turn8.xirsys.com:443?transport=tcp",
+            "turns:us-turn8.xirsys.com:5349?transport=tcp",
+          ],
+        },
+      ],
+      iceTransportPolicy: "all",
     });
 
     pcRef.current = pc;
@@ -81,7 +96,7 @@ export default function CallRoom({
     return () => pc.close();
   }, [otherUserId, roomId, userId, supabase]);
 
-  // Join call
+  // Join call (get local media)
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
