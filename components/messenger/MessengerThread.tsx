@@ -87,6 +87,7 @@ export default function MessengerThread({
     }));
   }
 
+  // ⭐ LOAD MESSAGES
   async function loadMessages() {
     const { data } = await supabase
       .from("messages")
@@ -255,24 +256,23 @@ export default function MessengerThread({
     };
   }, [finalRoomId, userId, supabase]);
 
-  // ⭐ MARK SEEN WHEN THREAD IS OPEN (FINAL FIX)
+  // ⭐ MARK SEEN WHEN THREAD IS OPEN
   useEffect(() => {
-  if (!userId) return;
+    if (!userId) return;
 
-  // ⭐ Use the URL roomId, not the prop
-  const activeRoomId = finalRoomId;  
-  if (!activeRoomId) return;
+    const activeRoomId = finalRoomId;
+    if (!activeRoomId) return;
 
-  async function markSeen() {
-    await supabase
-      .from("room_participants")
-      .update({ last_seen: new Date().toISOString() })
-      .eq("room_id", activeRoomId)
-      .eq("user_id", userId);
-  }
+    async function markSeen() {
+      await supabase
+        .from("room_participants")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("room_id", activeRoomId)
+        .eq("user_id", userId);
+    }
 
-  markSeen();
-}, [userId, finalRoomId]);
+    markSeen();
+  }, [userId, finalRoomId]);
 
   // ⭐ SEND MESSAGE
   async function sendMessage() {
@@ -293,6 +293,21 @@ export default function MessengerThread({
     resetSignaling();
     setCallModalOpen(true);
   }
+
+  // ⭐⭐⭐ STEP 3 — START CALL (NEW)
+  async function startCall() {
+    if (!otherUserId) return;
+
+    await supabase.from("call_events").insert({
+      room_id: finalRoomId,
+      caller_id: userId,
+      target_user_id: otherUserId,
+    });
+
+    router.push(`/call/${finalRoomId}`);
+  }
+
+  // ⭐ You will add the call button in part 2 (UI section)
 
   async function startGroupCall() {
     const inferredParticipants = Array.from(
@@ -334,12 +349,25 @@ export default function MessengerThread({
           <span className="text-xs text-neutral-400">{finalRoomId}</span>
         </div>
 
-        <button
-          onClick={startGroupCall}
-          className="px-3 py-1 bg-blue-600 rounded text-sm hover:bg-blue-500"
-        >
-          Start Group Call
-        </button>
+        <div className="flex gap-2">
+          {/* ⭐ NEW: 1-to-1 Call Button */}
+          {otherUserId && (
+            <button
+              onClick={startCall}
+              className="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-500"
+            >
+              Call
+            </button>
+          )}
+
+          {/* Existing Group Call Button */}
+          <button
+            onClick={startGroupCall}
+            className="px-3 py-1 bg-blue-600 rounded text-sm hover:bg-blue-500"
+          >
+            Start Group Call
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
