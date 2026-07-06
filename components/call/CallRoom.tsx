@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 export default function CallRoom({
   userId,
   roomId,
+  otherUserId,   // ⭐ REQUIRED
 }: {
   userId: string;
   roomId: string;
+  otherUserId: string;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
@@ -21,12 +23,9 @@ export default function CallRoom({
   const [joined, setJoined] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
-  // ⭐ Step 7.4 — Call Timer
+  // ⭐ Timer
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSeconds((s) => s + 1);
-    }, 1000);
-
+    const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -49,19 +48,17 @@ export default function CallRoom({
         supabase.from("call_signaling").insert({
           room_id: roomId,
           sender_id: userId,
-          target_id: "all",
+          target_user_id: otherUserId,   // ⭐ FIXED
           type: "candidate",
           payload: event.candidate.toJSON(),
         });
       }
     };
 
-    return () => {
-      pc.close();
-    };
-  }, [roomId, userId, supabase]);
+    return () => pc.close();
+  }, [roomId, userId, otherUserId, supabase]);
 
-  // ⭐ Get media
+  // ⭐ Join call (get media)
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -79,13 +76,13 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // ⭐ Step 7.3 — Leave Detection
+  // ⭐ Leave detection
   useEffect(() => {
     const handleLeave = async () => {
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
-        target_id: "all",
+        target_user_id: otherUserId,
         type: "leave",
         payload: {},
       });
@@ -93,7 +90,7 @@ export default function CallRoom({
 
     window.addEventListener("beforeunload", handleLeave);
     return () => window.removeEventListener("beforeunload", handleLeave);
-  }, [roomId, userId, supabase]);
+  }, [roomId, userId, otherUserId, supabase]);
 
   // ⭐ Listen for signaling
   useEffect(() => {
@@ -113,18 +110,19 @@ export default function CallRoom({
           // Ignore our own messages
           if (row.sender_id === userId) return;
 
-          // ⭐ Multi-participant readiness
-          if (!(row.target_id === "all" || row.target_id === userId)) return;
+          // ⭐ FIX — Only process messages meant for this user
+          if (row.target_user_id !== userId) return;
 
           if (row.type === "offer") {
             await pcRef.current?.setRemoteDescription(row.payload);
+
             const answer = await pcRef.current?.createAnswer();
             await pcRef.current?.setLocalDescription(answer);
 
             await supabase.from("call_signaling").insert({
               room_id: roomId,
               sender_id: userId,
-              target_id: row.sender_id,
+              target_user_id: row.sender_id,   // ⭐ FIXED
               type: "answer",
               payload: answer,
             });
@@ -142,7 +140,6 @@ export default function CallRoom({
             }
           }
 
-          // ⭐ Step 7.3 — Remote user left
           if (row.type === "leave") {
             pcRef.current?.close();
             router.push("/messenger");
@@ -151,10 +148,8 @@ export default function CallRoom({
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [roomId, userId, supabase, router]);
+    return () => supabase.removeChannel(channel);
+  }, [roomId, userId, otherUserId, supabase, router]);
 
   // ⭐ Caller creates offer
   async function startOffer() {
@@ -164,13 +159,13 @@ export default function CallRoom({
     await supabase.from("call_signaling").insert({
       room_id: roomId,
       sender_id: userId,
-      target_id: "all",
+      target_user_id: otherUserId,   // ⭐ FIXED
       type: "offer",
       payload: offer,
     });
   }
 
-  // ⭐ Step 7.2 — End Call Button
+  // ⭐ End call
   async function endCall() {
     await supabase
       .from("call_events")
@@ -184,48 +179,27 @@ export default function CallRoom({
   return (
     <div className="flex flex-col h-full p-4 text-white">
       <div className="flex gap-4">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-1/2 bg-black"
-        />
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-1/2 bg-black"
-        />
+        <video ref={localVideoRef} autoPlay playsInline muted className="w-1/2 bg-black" />
+        <video ref={remoteVideoRef} autoPlay playsInline className="w-1/2 bg-black" />
       </div>
 
       <div className="text-neutral-300 mt-2">
-        Call duration: {Math.floor(seconds / 60)}:
-        {String(seconds % 60).padStart(2, "0")}
+        Call duration: {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
       </div>
 
       {!joined && (
-        <button
-          onClick={joinCall}
-          className="mt-4 px-4 py-2 bg-green-600 rounded"
-        >
+        <button onClick={joinCall} className="mt-4 px-4 py-2 bg-green-600 rounded">
           Join Call
         </button>
       )}
 
       {joined && (
         <>
-          <button
-            onClick={startOffer}
-            className="mt-4 px-4 py-2 bg-blue-600 rounded"
-          >
+          <button onClick={startOffer} className="mt-4 px-4 py-2 bg-blue-600 rounded">
             Start WebRTC Offer
           </button>
 
-          <button
-            onClick={endCall}
-            className="mt-4 px-4 py-2 bg-red-600 rounded"
-          >
+          <button onClick={endCall} className="mt-4 px-4 py-2 bg-red-600 rounded">
             End Call
           </button>
         </>
