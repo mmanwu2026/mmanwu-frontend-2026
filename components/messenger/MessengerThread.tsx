@@ -1,161 +1,112 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useRouter } from "next/navigation";
 
-export default function CallRoom({
+export default function MessengerThread({
   userId,
+  otherUserId,
   roomId,
 }: {
   userId: string;
-  roomId: string;
+  otherUserId?: string;
+  roomId?: string;
 }) {
+  if (!roomId) return null;
+
   const supabase = useSupabase();
   const router = useRouter();
+  const finalRoomId = roomId;
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [newMessage, setNewMessage] = useState("");
 
-  const [joined, setJoined] = useState(false);
-  const [seconds, setSeconds] = useState(0);
+  const subscribedRef = useRef(false);
 
-  const [cameraOn, setCameraOn] = useState(true);
-  const [micOn, setMicOn] = useState(true);
-  const [screenSharing, setScreenSharing] = useState(false);
-  const [audioOnly, setAudioOnly] = useState(false);
-  const [usingFrontCamera, setUsingFrontCamera] = useState(true);
+  // ⭐ LOAD MESSAGES
+  async function loadMessages() {
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("room_id", finalRoomId)
+      .eq("message_type", "text")
+      .order("created_at", { ascending: true });
 
-  // Timer
+    setMessages(data || []);
+  }
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSeconds((s) => s + 1);
-    }, 1000);
+    loadMessages();
+  }, [finalRoomId]);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  // Initialize WebRTC
+  // ⭐ LOAD USERNAMES
   useEffect(() => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
-    });
+    async function loadUsernames() {
+      const ids = Array.from(
+        new Set([
+          userId,
+          otherUserId,
+          ...messages.map((m) => m.sender_id),
+          ...messages.map((m) => m.receiver_id),
+        ].filter(Boolean))
+      );
 
-    pcRef.current = pc;
+      if (ids.length === 0) return;
 
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, display_name")
+        .in("id", ids);
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        supabase.from("call_signaling").insert({
-          room_id: roomId,
-          sender_id: userId,
-          target_id: "all",
-          type: "candidate",
-          payload: event.candidate.toJSON(),
-        });
-      }
-    };
+      const map: Record<string, string> = {};
+      data?.forEach(
+        (u: { id: string; username: string | null; display_name: string | null }) => {
+          map[u.id] = u.display_name || u.username || u.id;
+        }
+      );
 
-    return () => {
-      pc.close();
-    };
-  }, [roomId, userId, supabase]);
-
-  // Join call (with audio-only option)
-  async function joinCall() {
-    const constraints: MediaStreamConstraints = audioOnly
-      ? { audio: true, video: false }
-      : {
-          video: {
-            facingMode: usingFrontCamera ? "user" : "environment",
-          },
-          audio: true,
-        };
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    localStreamRef.current = stream;
-
-    stream.getTracks().forEach((track) => {
-      pcRef.current?.addTrack(track, stream);
-    });
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+      setUsernames(map);
     }
 
-    setJoined(true);
-  }
+    loadUsernames();
+  }, [messages, userId, otherUserId]);
 
-  // ICE restart (renegotiation)
-  async function restartIce() {
-    if (!pcRef.current) return;
-
-    const offer = await pcRef.current.createOffer({ iceRestart: true });
-    await pcRef.current.setLocalDescription(offer);
-
-    await supabase.from("call_signaling").insert({
-      room_id: roomId,
-      sender_id: userId,
-      target_id: "all",
-      type: "offer",
-      payload: offer,
-    });
-  }
-
-  // Signaling listener
+  // ⭐ REALTIME SUBSCRIPTION (TEXT ONLY)
   useEffect(() => {
+    if (subscribedRef.current) return;
+    subscribedRef.current = true;
+
     const channel = supabase
-      .channel(`call-${roomId}`)
+      .channel(`room-${finalRoomId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "call_signaling",
-          filter: `room_id=eq.${roomId}`,
+          table: "messages",
         },
         async (payload: { new: any }) => {
-          const row = payload.new;
+          const msg = payload.new;
 
-          if (row.sender_id === userId) return;
-          if (!(row.target_id === "all" || row.target_id === userId)) return;
+          if (msg.room_id !== finalRoomId) return;
 
-          if (row.type === "offer") {
-            await pcRef.current?.setRemoteDescription(row.payload);
-            const answer = await pcRef.current?.createAnswer();
-            await pcRef.current?.setLocalDescription(answer);
+          if (msg.message_type === "text") {
+            if (!msg.content || msg.content.trim() === "") return;
 
-            await supabase.from("call_signaling").insert({
-              room_id: roomId,
-              sender_id: userId,
-              target_id: row.sender_id,
-              type: "answer",
-              payload: answer,
-            });
-          }
-
-          if (row.type === "answer") {
-            await pcRef.current?.setRemoteDescription(row.payload);
-          }
-
-          if (row.type === "candidate") {
-            try {
-              await pcRef.current?.addIceCandidate(row.payload);
-            } catch (e) {
-              console.error("ICE error", e);
+            if (msg.sender_id !== userId) {
+              await supabase
+                .from("messages")
+                .update({ delivered_at: new Date().toISOString() })
+                .eq("id", msg.id)
+                .is("delivered_at", null);
             }
-          }
 
-          if (row.type === "leave") {
-            pcRef.current?.close();
-            router.push("/messenger");
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
           }
         }
       )
@@ -163,258 +114,121 @@ export default function CallRoom({
 
     return () => {
       supabase.removeChannel(channel);
+      subscribedRef.current = false;
     };
-  }, [roomId, userId, supabase, router]);
+  }, [finalRoomId, userId, supabase]);
 
-  // Caller creates offer
-  async function startOffer() {
-    const offer = await pcRef.current?.createOffer();
-    await pcRef.current?.setLocalDescription(offer);
+  // ⭐ MARK SEEN WHEN THREAD IS OPEN
+  useEffect(() => {
+    if (!userId) return;
 
-    await supabase.from("call_signaling").insert({
-      room_id: roomId,
+    async function markSeen() {
+      await supabase
+        .from("room_participants")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("room_id", finalRoomId)
+        .eq("user_id", userId);
+    }
+
+    markSeen();
+  }, [userId, finalRoomId]);
+
+  // ⭐ SEND MESSAGE
+  async function sendMessage() {
+    const trimmed = newMessage.trim();
+    if (!trimmed || trimmed.length === 0) return;
+
+    await supabase.from("messages").insert({
+      room_id: finalRoomId,
       sender_id: userId,
-      target_id: "all",
-      type: "offer",
-      payload: offer,
+      content: trimmed,
+      message_type: "text",
     });
+
+    setNewMessage("");
   }
 
-  // End call
-  async function endCall() {
-    await supabase
-      .from("call_events")
-      .update({ status: "ended" })
-      .eq("room_id", roomId);
+  // ⭐ NEW CALL SYSTEM — 1-to-1 Call
+  async function startCall() {
+    if (!otherUserId) return;
 
-    pcRef.current?.close();
-    router.push("/messenger");
-  }
+    const newRoomId = crypto.randomUUID();
 
-  // Camera toggle
-  function toggleCamera() {
-    const stream = localStreamRef.current;
-    if (!stream) return;
+    await supabase.from("call_events").insert({
+      room_id: newRoomId,
+      caller_id: userId,
+      target_user_id: otherUserId,
+      status: "ringing",
+    });
 
-    const videoTrack = stream.getVideoTracks()[0];
-    if (!videoTrack) return;
-
-    videoTrack.enabled = !videoTrack.enabled;
-    setCameraOn(videoTrack.enabled);
-  }
-
-  // Mic mute
-  function toggleMic() {
-    const stream = localStreamRef.current;
-    if (!stream) return;
-
-    const audioTrack = stream.getAudioTracks()[0];
-    if (!audioTrack) return;
-
-    audioTrack.enabled = !audioTrack.enabled;
-    setMicOn(audioTrack.enabled);
-  }
-
-  // Screen sharing
-  async function toggleScreenShare() {
-    if (!pcRef.current) return;
-
-    if (!screenSharing) {
-      const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
-        video: true,
-      });
-
-      const screenTrack = displayStream.getVideoTracks()[0];
-      const sender = pcRef.current
-        .getSenders()
-        .find((s) => s.track && s.track.kind === "video");
-
-      if (sender && screenTrack) {
-        sender.replaceTrack(screenTrack);
-        setScreenSharing(true);
-
-        screenTrack.onended = () => {
-          if (localStreamRef.current) {
-            const originalTrack = localStreamRef.current.getVideoTracks()[0];
-            if (originalTrack && sender) {
-              sender.replaceTrack(originalTrack);
-            }
-          }
-          setScreenSharing(false);
-        };
-      }
-    } else {
-      if (localStreamRef.current) {
-        const originalTrack = localStreamRef.current.getVideoTracks()[0];
-        const sender = pcRef.current
-          .getSenders()
-          .find((s) => s.track && s.track.kind === "video");
-
-        if (sender && originalTrack) {
-          sender.replaceTrack(originalTrack);
-        }
-      }
-      setScreenSharing(false);
-    }
-  }
-
-  // Audio-only mode (must be set before join)
-  function toggleAudioOnly() {
-    if (joined) return; // avoid mid-call mode switch
-    setAudioOnly((prev) => !prev);
-  }
-
-  // Flip camera (mobile)
-  async function flipCamera() {
-    setUsingFrontCamera((prev) => !prev);
-
-    if (!joined) return;
-
-    const constraints: MediaStreamConstraints = {
-      video: {
-        facingMode: !usingFrontCamera ? "user" : "environment",
-      },
-      audio: true,
-    };
-
-    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-    localStreamRef.current = newStream;
-
-    const videoTrack = newStream.getVideoTracks()[0];
-    const sender = pcRef.current
-      ?.getSenders()
-      .find((s) => s.track && s.track.kind === "video");
-
-    if (sender && videoTrack) {
-      sender.replaceTrack(videoTrack);
-    }
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = newStream;
-    }
+    router.push(`/call/${newRoomId}`);
   }
 
   return (
-    <div className="flex flex-col h-full p-4 text-white bg-neutral-950">
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col h-full bg-neutral-950">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold">Call Room</span>
-          <span className="text-xs text-neutral-400">{roomId}</span>
-        </div>
-        <div className="text-xs text-neutral-300">
-          Duration: {Math.floor(seconds / 60)}:
-          {String(seconds % 60).padStart(2, "0")}
-        </div>
-      </div>
-
-      {/* Video area */}
-      <div className="flex-1 flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full bg-black rounded-lg object-cover"
-          />
-          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-xs rounded">
-            Remote
-          </div>
+          <span className="text-sm font-semibold">Room</span>
+          <span className="text-xs text-neutral-400">{finalRoomId}</span>
         </div>
 
-        <div className="w-full md:w-1/3 relative">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-40 md:h-full bg-black rounded-lg object-cover"
-          />
-          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-xs rounded">
-            You {audioOnly ? "(Audio only)" : ""}
-          </div>
+        <div className="flex gap-2">
+          {otherUserId && (
+            <button
+              onClick={startCall}
+              className="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-500"
+            >
+              Call
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="mt-4 flex flex-wrap gap-2 items-center justify-center">
-        {!joined && (
-          <>
-            <button
-              onClick={joinCall}
-              className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm"
-            >
-              Join Call
-            </button>
-            <button
-              onClick={toggleAudioOnly}
-              className={`px-4 py-2 rounded text-sm ${
-                audioOnly ? "bg-yellow-600" : "bg-neutral-700"
-              }`}
-            >
-              {audioOnly ? "Audio Only (On)" : "Audio Only (Off)"}
-            </button>
-          </>
-        )}
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {messages.map((m) => {
+          const isOutgoing = m.sender_id === userId;
+          const isLastOutgoing =
+            isOutgoing &&
+            messages.filter((x) => x.sender_id === userId).slice(-1)[0]?.id === m.id;
 
-        {joined && (
-          <>
-            <button
-              onClick={startOffer}
-              className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 text-sm"
-            >
-              Start WebRTC Offer
-            </button>
+          return (
+            <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
+              <div className="text-xs font-semibold text-yellow-400">
+                {usernames[m.sender_id] || m.sender_id}
+              </div>
+              <div className="text-sm mt-1">{m.content}</div>
 
-            <button
-              onClick={restartIce}
-              className="px-4 py-2 bg-purple-600 rounded hover:bg-purple-500 text-sm"
-            >
-              Restart ICE
-            </button>
+              {isLastOutgoing && (
+                <div className="text-right text-xs text-neutral-400 mt-1">
+                  {m.seen_at ? "Seen" : m.delivered_at ? "Delivered" : "Sent"}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
-            <button
-              onClick={toggleCamera}
-              className={`px-4 py-2 rounded text-sm ${
-                cameraOn ? "bg-neutral-700" : "bg-yellow-700"
-              }`}
-            >
-              {cameraOn ? "Camera On" : "Camera Off"}
-            </button>
+      {/* Composer */}
+      <div className="p-4 border-t border-neutral-700 bg-neutral-900">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="flex-1 px-3 py-2 rounded bg-neutral-800 text-white outline-none"
+            placeholder="Type a message…"
+          />
 
-            <button
-              onClick={toggleMic}
-              className={`px-4 py-2 rounded text-sm ${
-                micOn ? "bg-neutral-700" : "bg-red-700"
-              }`}
-            >
-              {micOn ? "Mic On" : "Mic Muted"}
-            </button>
-
-            <button
-              onClick={toggleScreenShare}
-              className={`px-4 py-2 rounded text-sm ${
-                screenSharing ? "bg-orange-600" : "bg-neutral-700"
-              }`}
-            >
-              {screenSharing ? "Stop Screen Share" : "Share Screen"}
-            </button>
-
-            <button
-              onClick={flipCamera}
-              className="px-4 py-2 bg-teal-600 rounded hover:bg-teal-500 text-sm"
-            >
-              Flip Camera
-            </button>
-
-            <button
-              onClick={endCall}
-              className="px-4 py-2 bg-red-600 rounded hover:bg-red-500 text-sm"
-            >
-              End Call
-            </button>
-          </>
-        )}
+          <button
+            onClick={sendMessage}
+            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
