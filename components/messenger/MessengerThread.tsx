@@ -1,250 +1,161 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";   // ⭐ FIXED
+import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import VideoCallModal from "./VideoCallModal";
+import { useRouter } from "next/navigation";
 
-export default function MessengerThread({
+export default function CallRoom({
   userId,
-  otherUserId,
   roomId,
 }: {
   userId: string;
-  otherUserId?: string;
-  roomId?: string;
+  roomId: string;
 }) {
-  if (!roomId) return null;
-
   const supabase = useSupabase();
-  const router = useRouter();   // ⭐ Now valid in App Router
-  const finalRoomId = roomId;
+  const router = useRouter();
 
-  const searchParams = useSearchParams();
-  const isIncoming = searchParams?.get("incoming") === "1";
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
-  const [messages, setMessages] = useState<any[]>([]);
-  const [callModalOpen, setCallModalOpen] = useState(false);
-  const [callActive, setCallActive] = useState(false);
+  const [joined, setJoined] = useState(false);
+  const [seconds, setSeconds] = useState(0);
 
-  const subscribedRef = useRef(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [micOn, setMicOn] = useState(true);
+  const [screenSharing, setScreenSharing] = useState(false);
+  const [audioOnly, setAudioOnly] = useState(false);
+  const [usingFrontCamera, setUsingFrontCamera] = useState(true);
 
-  const [usernames, setUsernames] = useState<Record<string, string>>({});
-  const [newMessage, setNewMessage] = useState("");
-
-  // ⭐ SIGNALING STATE
-  const [signalingState, setSignalingState] = useState({
-    isCaller: false,
-    roomId: finalRoomId,
-    participants: [] as string[],
-    offers: {} as Record<string, RTCSessionDescriptionInit>,
-    answers: {} as Record<string, RTCSessionDescriptionInit>,
-    candidates: {} as Record<string, RTCIceCandidateInit[]>,
-
-    sendOffer: async (targetId: string, offer: RTCSessionDescriptionInit) => {
-      if (!offer || !offer.sdp) return;
-      await supabase.from("messages").insert({
-        sender_id: userId,
-        receiver_id: targetId,
-        room_id: finalRoomId,
-        message_type: "call_offer",
-        metadata: { offer },
-      });
-    },
-
-    sendAnswer: async (targetId: string, answer: RTCSessionDescriptionInit) => {
-      if (!answer || !answer.sdp) return;
-      await supabase.from("messages").insert({
-        sender_id: userId,
-        receiver_id: targetId,
-        room_id: finalRoomId,
-        message_type: "call_answer",
-        metadata: { answer },
-      });
-    },
-
-    sendCandidate: async (targetId: string, candidate: RTCIceCandidateInit) => {
-      if (!candidate || !candidate.candidate) return;
-      await supabase.from("messages").insert({
-        sender_id: userId,
-        receiver_id: targetId,
-        room_id: finalRoomId,
-        message_type: "ice_candidate",
-        metadata: { candidate },
-      });
-    },
-  });
-
-  // ⭐ RESET SIGNALING BETWEEN CALLS
-  function resetSignaling() {
-    setSignalingState(prev => ({
-      ...prev,
-      isCaller: false,
-      participants: [],
-      offers: {},
-      answers: {},
-      candidates: {},
-    }));
-  }
-
-  // ⭐ LOAD MESSAGES
-  async function loadMessages() {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("room_id", finalRoomId)
-      .eq("message_type", "text")
-      .order("created_at", { ascending: true });
-
-    setMessages(data || []);
-  }
-
+  // Timer
   useEffect(() => {
-    loadMessages();
-  }, [finalRoomId]);
+    const interval = setInterval(() => {
+      setSeconds((s) => s + 1);
+    }, 1000);
 
-  // ⭐ LOAD USERNAMES
+    return () => clearInterval(interval);
+  }, []);
+
+  // Initialize WebRTC
   useEffect(() => {
-    async function loadUsernames() {
-      const ids = Array.from(
-        new Set([
-          userId,
-          otherUserId,
-          ...messages.map((m) => m.sender_id),
-          ...messages.map((m) => m.receiver_id),
-        ].filter(Boolean))
-      );
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
+    });
 
-      if (ids.length === 0) return;
+    pcRef.current = pc;
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, display_name")
-        .in("id", ids);
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
 
-      const map: Record<string, string> = {};
-      data?.forEach(
-        (u: { id: string; username: string | null; display_name: string | null }) => {
-          map[u.id] = u.display_name || u.username || u.id;
-        }
-      );
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        supabase.from("call_signaling").insert({
+          room_id: roomId,
+          sender_id: userId,
+          target_id: "all",
+          type: "candidate",
+          payload: event.candidate.toJSON(),
+        });
+      }
+    };
 
-      setUsernames(map);
+    return () => {
+      pc.close();
+    };
+  }, [roomId, userId, supabase]);
+
+  // Join call (with audio-only option)
+  async function joinCall() {
+    const constraints: MediaStreamConstraints = audioOnly
+      ? { audio: true, video: false }
+      : {
+          video: {
+            facingMode: usingFrontCamera ? "user" : "environment",
+          },
+          audio: true,
+        };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    localStreamRef.current = stream;
+
+    stream.getTracks().forEach((track) => {
+      pcRef.current?.addTrack(track, stream);
+    });
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
     }
 
-    loadUsernames();
-  }, [messages, userId, otherUserId]);
+    setJoined(true);
+  }
 
-  // ⭐ AUTO-OPEN CALL MODAL FOR INCOMING CALL
+  // ICE restart (renegotiation)
+  async function restartIce() {
+    if (!pcRef.current) return;
+
+    const offer = await pcRef.current.createOffer({ iceRestart: true });
+    await pcRef.current.setLocalDescription(offer);
+
+    await supabase.from("call_signaling").insert({
+      room_id: roomId,
+      sender_id: userId,
+      target_id: "all",
+      type: "offer",
+      payload: offer,
+    });
+  }
+
+  // Signaling listener
   useEffect(() => {
-    if (isIncoming) {
-      resetSignaling();
-      setCallActive(true);
-      setCallModalOpen(true);
-    }
-  }, [isIncoming]);
-
-  // ⭐ REALTIME SUBSCRIPTION (MESSAGES + SIGNALING)
-  useEffect(() => {
-    if (subscribedRef.current) return;
-    subscribedRef.current = true;
-
     const channel = supabase
-      .channel(`room-${finalRoomId}`)
+      .channel(`call-${roomId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "messages",
+          table: "call_signaling",
+          filter: `room_id=eq.${roomId}`,
         },
         async (payload: { new: any }) => {
-          const msg = payload.new;
+          const row = payload.new;
 
-          if (msg.room_id !== finalRoomId) return;
+          if (row.sender_id === userId) return;
+          if (!(row.target_id === "all" || row.target_id === userId)) return;
 
-          // ⭐ TEXT MESSAGES
-          if (msg.message_type === "text") {
-            if (!msg.content || msg.content.trim() === "") return;
+          if (row.type === "offer") {
+            await pcRef.current?.setRemoteDescription(row.payload);
+            const answer = await pcRef.current?.createAnswer();
+            await pcRef.current?.setLocalDescription(answer);
 
-            // ⭐ MARK DELIVERED (recipient only)
-            if (msg.sender_id !== userId) {
-              await supabase
-                .from("messages")
-                .update({ delivered_at: new Date().toISOString() })
-                .eq("id", msg.id)
-                .is("delivered_at", null);
-            }
-
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg];
+            await supabase.from("call_signaling").insert({
+              room_id: roomId,
+              sender_id: userId,
+              target_id: row.sender_id,
+              type: "answer",
+              payload: answer,
             });
           }
 
-          // ⭐ SIGNALING ROUTING
-          if (
-            msg.message_type === "call_offer" ||
-            msg.message_type === "call_answer" ||
-            msg.message_type === "ice_candidate"
-          ) {
-            if (!userId) return;
+          if (row.type === "answer") {
+            await pcRef.current?.setRemoteDescription(row.payload);
+          }
 
-            if (msg.sender_id !== userId && msg.receiver_id !== userId) return;
-
-            setSignalingState((prev) => {
-              const remoteId =
-                msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
-
-              const participants = Array.from(
-                new Set([...prev.participants, remoteId].filter(Boolean))
-              );
-
-              const next = { ...prev, participants };
-
-              if (msg.message_type === "call_offer") {
-                next.isCaller = msg.sender_id === userId;
-              }
-
-              if (msg.message_type === "call_offer" && msg.metadata?.offer) {
-                next.offers = {
-                  ...prev.offers,
-                  [remoteId]: msg.metadata.offer,
-                };
-              }
-
-              if (msg.message_type === "call_answer" && msg.metadata?.answer) {
-                next.answers = {
-                  ...prev.answers,
-                  [remoteId]: msg.metadata.answer,
-                };
-              }
-
-              if (msg.message_type === "ice_candidate" && msg.metadata?.candidate) {
-                const existing = prev.candidates[remoteId] || [];
-                next.candidates = {
-                  ...prev.candidates,
-                  [remoteId]: [...existing, msg.metadata.candidate],
-                };
-              }
-
-              return next;
-            });
-
-            // ⭐ AUTO-OPEN CALL MODAL FOR CALLEE (FIRST OFFER ONLY)
-            if (msg.message_type === "call_offer") {
-              if (msg.sender_id !== userId) {
-                if (!callActive) {
-                  setSignalingState(prev => ({
-                    ...prev,
-                    isCaller: false,
-                  }));
-
-                  setCallActive(true);
-                  setCallModalOpen(true);
-                }
-              }
+          if (row.type === "candidate") {
+            try {
+              await pcRef.current?.addIceCandidate(row.payload);
+            } catch (e) {
+              console.error("ICE error", e);
             }
+          }
+
+          if (row.type === "leave") {
+            pcRef.current?.close();
+            router.push("/messenger");
           }
         }
       )
@@ -252,198 +163,259 @@ export default function MessengerThread({
 
     return () => {
       supabase.removeChannel(channel);
-      subscribedRef.current = false;
     };
-  }, [finalRoomId, userId, supabase]);
+  }, [roomId, userId, supabase, router]);
 
-  // ⭐ MARK SEEN WHEN THREAD IS OPEN
-  useEffect(() => {
-    if (!userId) return;
+  // Caller creates offer
+  async function startOffer() {
+    const offer = await pcRef.current?.createOffer();
+    await pcRef.current?.setLocalDescription(offer);
 
-    const activeRoomId = finalRoomId;
-    if (!activeRoomId) return;
+    await supabase.from("call_signaling").insert({
+      room_id: roomId,
+      sender_id: userId,
+      target_id: "all",
+      type: "offer",
+      payload: offer,
+    });
+  }
 
-    async function markSeen() {
-      await supabase
-        .from("room_participants")
-        .update({ last_seen: new Date().toISOString() })
-        .eq("room_id", activeRoomId)
-        .eq("user_id", userId);
+  // End call
+  async function endCall() {
+    await supabase
+      .from("call_events")
+      .update({ status: "ended" })
+      .eq("room_id", roomId);
+
+    pcRef.current?.close();
+    router.push("/messenger");
+  }
+
+  // Camera toggle
+  function toggleCamera() {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    videoTrack.enabled = !videoTrack.enabled;
+    setCameraOn(videoTrack.enabled);
+  }
+
+  // Mic mute
+  function toggleMic() {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+
+    const audioTrack = stream.getAudioTracks()[0];
+    if (!audioTrack) return;
+
+    audioTrack.enabled = !audioTrack.enabled;
+    setMicOn(audioTrack.enabled);
+  }
+
+  // Screen sharing
+  async function toggleScreenShare() {
+    if (!pcRef.current) return;
+
+    if (!screenSharing) {
+      const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
+        video: true,
+      });
+
+      const screenTrack = displayStream.getVideoTracks()[0];
+      const sender = pcRef.current
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "video");
+
+      if (sender && screenTrack) {
+        sender.replaceTrack(screenTrack);
+        setScreenSharing(true);
+
+        screenTrack.onended = () => {
+          if (localStreamRef.current) {
+            const originalTrack = localStreamRef.current.getVideoTracks()[0];
+            if (originalTrack && sender) {
+              sender.replaceTrack(originalTrack);
+            }
+          }
+          setScreenSharing(false);
+        };
+      }
+    } else {
+      if (localStreamRef.current) {
+        const originalTrack = localStreamRef.current.getVideoTracks()[0];
+        const sender = pcRef.current
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "video");
+
+        if (sender && originalTrack) {
+          sender.replaceTrack(originalTrack);
+        }
+      }
+      setScreenSharing(false);
+    }
+  }
+
+  // Audio-only mode (must be set before join)
+  function toggleAudioOnly() {
+    if (joined) return; // avoid mid-call mode switch
+    setAudioOnly((prev) => !prev);
+  }
+
+  // Flip camera (mobile)
+  async function flipCamera() {
+    setUsingFrontCamera((prev) => !prev);
+
+    if (!joined) return;
+
+    const constraints: MediaStreamConstraints = {
+      video: {
+        facingMode: !usingFrontCamera ? "user" : "environment",
+      },
+      audio: true,
+    };
+
+    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+    localStreamRef.current = newStream;
+
+    const videoTrack = newStream.getVideoTracks()[0];
+    const sender = pcRef.current
+      ?.getSenders()
+      .find((s) => s.track && s.track.kind === "video");
+
+    if (sender && videoTrack) {
+      sender.replaceTrack(videoTrack);
     }
 
-    markSeen();
-  }, [userId, finalRoomId]);
-
-  // ⭐ SEND MESSAGE
-  async function sendMessage() {
-    const trimmed = newMessage.trim();
-    if (!trimmed || trimmed.length === 0) return;
-
-    await supabase.from("messages").insert({
-      room_id: finalRoomId,
-      sender_id: userId,
-      content: trimmed,
-      message_type: "text",
-    });
-
-    setNewMessage("");
-  }
-
-  function joinCall() {
-    resetSignaling();
-    setCallModalOpen(true);
-  }
-
-  // ⭐⭐⭐ STEP 3 — START CALL (NEW)
-  async function startCall() {
-    if (!otherUserId) return;
-
-    await supabase.from("call_events").insert({
-      room_id: finalRoomId,
-      caller_id: userId,
-      target_user_id: otherUserId,
-    });
-
-    router.push(`/call/${finalRoomId}`);
-  }
-
-  // ⭐ You will add the call button in part 2 (UI section)
-
-  async function startGroupCall() {
-    const inferredParticipants = Array.from(
-      new Set(
-        messages
-          .map((m) => m.sender_id)
-          .filter((id: string) => id && id !== userId)
-      )
-    );
-
-    resetSignaling();
-
-    setSignalingState((prev) => ({
-      ...prev,
-      isCaller: true,
-      participants: inferredParticipants,
-    }));
-
-    setTimeout(() => {
-      setCallActive(true);
-      setCallModalOpen(true);
-    }, 50);
-  }
-
-  // ⭐ STATUS LABEL
-  function getStatusLabel(msg: any) {
-    if (msg.seen_at) return "Seen";
-    if (msg.delivered_at) return "Delivered";
-    return "Sent";
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = newStream;
+    }
   }
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950">
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
+    <div className="flex flex-col h-full p-4 text-white bg-neutral-950">
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold">Room</span>
-          <span className="text-xs text-neutral-400">{finalRoomId}</span>
+          <span className="text-sm font-semibold">Call Room</span>
+          <span className="text-xs text-neutral-400">{roomId}</span>
         </div>
-
-        <div className="flex gap-2">
-          {/* ⭐ NEW: 1-to-1 Call Button */}
-          {otherUserId && (
-            <button
-              onClick={startCall}
-              className="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-500"
-            >
-              Call
-            </button>
-          )}
-
-          {/* Existing Group Call Button */}
-          <button
-            onClick={startGroupCall}
-            className="px-3 py-1 bg-blue-600 rounded text-sm hover:bg-blue-500"
-          >
-            Start Group Call
-          </button>
+        <div className="text-xs text-neutral-300">
+          Duration: {Math.floor(seconds / 60)}:
+          {String(seconds % 60).padStart(2, "0")}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.map((m, index) => {
-          const isOutgoing = m.sender_id === userId;
-          const isLastOutgoing =
-            isOutgoing &&
-            messages.filter((x) => x.sender_id === userId).slice(-1)[0]?.id === m.id;
+      {/* Video area */}
+      <div className="flex-1 flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative">
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full bg-black rounded-lg object-cover"
+          />
+          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-xs rounded">
+            Remote
+          </div>
+        </div>
 
-          return (
-            <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
-              <div className="text-xs font-semibold text-yellow-400">
-                {usernames[m.sender_id] || m.sender_id}
-              </div>
-              <div className="text-sm mt-1">{m.content}</div>
+        <div className="w-full md:w-1/3 relative">
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-40 md:h-full bg-black rounded-lg object-cover"
+          />
+          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-xs rounded">
+            You {audioOnly ? "(Audio only)" : ""}
+          </div>
+        </div>
+      </div>
 
-              {isLastOutgoing && (
-                <div className="text-right text-xs text-neutral-400 mt-1">
-                  {getStatusLabel(m)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {callActive && (
-          <div className="mt-4 p-3 bg-blue-900/40 border border-blue-600 rounded flex items-center justify-between">
-            <span className="text-sm text-blue-100">
-              Call in progress in this room.
-            </span>
+      {/* Controls */}
+      <div className="mt-4 flex flex-wrap gap-2 items-center justify-center">
+        {!joined && (
+          <>
             <button
               onClick={joinCall}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-500"
+              className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm"
             >
               Join Call
             </button>
-          </div>
+            <button
+              onClick={toggleAudioOnly}
+              className={`px-4 py-2 rounded text-sm ${
+                audioOnly ? "bg-yellow-600" : "bg-neutral-700"
+              }`}
+            >
+              {audioOnly ? "Audio Only (On)" : "Audio Only (Off)"}
+            </button>
+          </>
+        )}
+
+        {joined && (
+          <>
+            <button
+              onClick={startOffer}
+              className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 text-sm"
+            >
+              Start WebRTC Offer
+            </button>
+
+            <button
+              onClick={restartIce}
+              className="px-4 py-2 bg-purple-600 rounded hover:bg-purple-500 text-sm"
+            >
+              Restart ICE
+            </button>
+
+            <button
+              onClick={toggleCamera}
+              className={`px-4 py-2 rounded text-sm ${
+                cameraOn ? "bg-neutral-700" : "bg-yellow-700"
+              }`}
+            >
+              {cameraOn ? "Camera On" : "Camera Off"}
+            </button>
+
+            <button
+              onClick={toggleMic}
+              className={`px-4 py-2 rounded text-sm ${
+                micOn ? "bg-neutral-700" : "bg-red-700"
+              }`}
+            >
+              {micOn ? "Mic On" : "Mic Muted"}
+            </button>
+
+            <button
+              onClick={toggleScreenShare}
+              className={`px-4 py-2 rounded text-sm ${
+                screenSharing ? "bg-orange-600" : "bg-neutral-700"
+              }`}
+            >
+              {screenSharing ? "Stop Screen Share" : "Share Screen"}
+            </button>
+
+            <button
+              onClick={flipCamera}
+              className="px-4 py-2 bg-teal-600 rounded hover:bg-teal-500 text-sm"
+            >
+              Flip Camera
+            </button>
+
+            <button
+              onClick={endCall}
+              className="px-4 py-2 bg-red-600 rounded hover:bg-red-500 text-sm"
+            >
+              End Call
+            </button>
+          </>
         )}
       </div>
-
-      {/* Composer */}
-      <div className="p-4 border-t border-neutral-700 bg-neutral-900">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-1 px-3 py-2 rounded bg-neutral-800 text-white outline-none"
-            placeholder="Type a message…"
-          />
-
-          <button
-            onClick={sendMessage}
-            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500"
-          >
-            Send
-          </button>
-        </div>
-      </div>
-
-      {/* Video Call Modal */}
-      <VideoCallModal
-        isOpen={callModalOpen}
-        callActive={callActive}
-        onClose={() => {
-          setCallModalOpen(false);
-          setCallActive(false);
-          resetSignaling();
-        }}
-        signaling={signalingState}
-        onSendOffer={signalingState.sendOffer}
-        onSendAnswer={signalingState.sendAnswer}
-        onSendCandidate={signalingState.sendCandidate}
-        onNotify={(msg) => console.log("NOTIFY:", msg)}
-      />
     </div>
   );
 }
