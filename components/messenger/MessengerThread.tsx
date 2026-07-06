@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";   // ⭐ FIXED
 import { useSupabase } from "@/context/SupabaseContext";
 import VideoCallModal from "./VideoCallModal";
-import { useRouter } from "next/router";
 
 export default function MessengerThread({
   userId,
@@ -18,7 +17,7 @@ export default function MessengerThread({
   if (!roomId) return null;
 
   const supabase = useSupabase();
-  const router = useRouter();   // ⭐ FIX: hooks must be inside component
+  const router = useRouter();   // ⭐ Now valid in App Router
   const finalRoomId = roomId;
 
   const searchParams = useSearchParams();
@@ -259,9 +258,10 @@ export default function MessengerThread({
   // ⭐ MARK SEEN WHEN THREAD IS OPEN (FINAL FIX)
   useEffect(() => {
     if (!userId) return;
-    if (!router.isReady) return;
 
-    const activeRoomId = router.query.roomId as string;
+    // ⭐ App Router: router.query does NOT exist
+    // roomId is already passed as a prop — use it directly
+    const activeRoomId = roomId;
     if (!activeRoomId) return;
 
     async function markSeen() {
@@ -273,7 +273,7 @@ export default function MessengerThread({
     }
 
     markSeen();
-  }, [userId, router.isReady, router.query.roomId]);
+  }, [userId, roomId]);
 
   // ⭐ SEND MESSAGE
   async function sendMessage() {
