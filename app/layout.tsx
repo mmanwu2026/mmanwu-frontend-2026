@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import ProvidersWrapper from "./providers-wrapper";
 import { createSupabaseServerClient } from "./lib/supabase/server";
+import Navbar from "@/components/layout/Navbar";
 
 export const metadata: Metadata = {
   title: "Mman Plaza",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className="bg-black">
         <ProvidersWrapper>
+           <Navbar />
           <div className="contents">{children}</div>
           <div id="modal-root"></div>
         </ProvidersWrapper>

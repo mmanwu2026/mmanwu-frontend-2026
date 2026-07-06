@@ -46,7 +46,6 @@ export default function PlazaComments({
 
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Threaded reply state
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
@@ -92,6 +91,7 @@ export default function PlazaComments({
 
     const user = await supabase.auth.getUser();
     const uid = user.data.user?.id;
+    const email = user.data.user?.email || "Someone";
     if (!uid) return;
 
     const response = await fetch("/api/plaza/comment", {
@@ -113,6 +113,43 @@ export default function PlazaComments({
       return;
     }
 
+// 2. Fetch creator's push subscription
+const { data: sub } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", postCreatorId)
+  .single();
+
+// ⭐ Insert notification into database
+await supabase.from("notifications").insert({
+  user_id: postCreatorId,
+  actor_id: uid,
+  event_type: "comment",
+  post_id: postId,
+  post_type: "plaza",
+  message: `${user.data.user?.email || "Someone"} commented on your post`,
+});
+
+// 3. Trigger push notification
+if (sub?.subscription) {
+      await fetch(
+        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub.subscription,
+            payload: {
+              title: "New Comment 💬",
+              body: `${email} commented on your post`,
+              icon: "/icons/mman-192.png",
+              url: `/post/${postId}`,
+            },
+          }),
+        }
+      );
+    }
+
     setText("");
     setRewriteMode(false);
     setToast(result.toast);
@@ -127,6 +164,7 @@ export default function PlazaComments({
 
     const user = await supabase.auth.getUser();
     const uid = user.data.user?.id;
+    const email = user.data.user?.email || "Someone";
     if (!uid) return;
 
     const response = await fetch("/api/plaza/comment", {
@@ -146,6 +184,44 @@ export default function PlazaComments({
       setRewriteMode(true);
       setRewriteMessage(result.toast);
       return;
+    }
+
+// ⭐ Push Notification Trigger for Replies
+const { data: sub } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", postCreatorId)
+  .single();
+
+// ⭐ Insert notification into database (reply)
+await supabase.from("notifications").insert({
+  user_id: postCreatorId,
+  actor_id: uid,
+  event_type: "reply",
+  post_id: postId,
+  post_type: "plaza",
+  comment_id: parentId,
+  message: `${user.data.user?.email || "Someone"} replied to a comment on your post`,
+});
+
+// 3. Trigger push notification
+if (sub?.subscription) {
+      await fetch(
+        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub.subscription,
+            payload: {
+              title: "New Reply 💬",
+              body: `${email} replied to a comment on your post`,
+              icon: "/icons/mman-192.png",
+              url: `/post/${postId}`,
+            },
+          }),
+        }
+      );
     }
 
     setReplyText("");
@@ -194,7 +270,7 @@ export default function PlazaComments({
   const isGatekeeper = userId === postCreatorId;
 
   // -----------------------------
-  // BUILD COMMENT TREE (TS SAFE)
+  // BUILD COMMENT TREE
   // -----------------------------
   function buildCommentTree(flat: PlazaComment[]): PlazaCommentNode[] {
     const lookup: Record<string, PlazaCommentNode> = {};
@@ -222,7 +298,7 @@ export default function PlazaComments({
   }
 
   // -----------------------------
-  // RECURSIVE COMMENT NODE
+  // COMMENT NODE
   // -----------------------------
   function CommentNode({
     node,
@@ -311,19 +387,16 @@ export default function PlazaComments({
   return (
     <div className="mt-6 w-full px-2">
 
-      {/* COMMENTS HEADER */}
       <h3 className="text-sm text-gray-300 mb-2">Comments</h3>
 
       {loading && <p className="text-gray-500 text-xs">Loading…</p>}
 
-      {/* COMMENT TREE */}
       <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1">
         {buildCommentTree(comments).map((node) => (
           <CommentNode key={node.id} node={node} depth={0} />
         ))}
       </div>
 
-      {/* REWRITE MODE */}
       {rewriteMode && (
         <div className="mt-4 p-3 bg-neutral-800 rounded border border-red-500">
           <p className="text-red-300 text-sm mb-2">{rewriteMessage}</p>
@@ -342,7 +415,6 @@ export default function PlazaComments({
         </div>
       )}
 
-      {/* NORMAL COMPOSER */}
       {!rewriteMode && (
         <div className="mt-3 flex gap-2">
           <input
@@ -360,7 +432,6 @@ export default function PlazaComments({
         </div>
       )}
 
-      {/* SPIRIT TOAST */}
       {toast && (
         <p className="mt-2 text-xs text-green-400">{toast}</p>
       )}

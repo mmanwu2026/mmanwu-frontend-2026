@@ -10,10 +10,10 @@ import { useRouter } from "next/navigation";
 
 export default function SoundComments({
   postId,
-  onSubmitted,
+  onSubmittedAction,   // ⭐ renamed to satisfy Next.js serialization rules
 }: {
   postId: string;
-  onSubmitted: () => void;
+  onSubmittedAction: () => void;
 }) {
   const supabase = useSupabase();
   const { user } = useUser();
@@ -74,24 +74,63 @@ export default function SoundComments({
     automask: number,
     positivityRatio: number
   ) {
+    // 1. Save comment
     await fetch("/api/sound-comments", {
       method: "POST",
       body: JSON.stringify({
         post_id: postId,
         raw_input: text,
-        content: finalText,            // ⭐ FIXED
+        content: finalText,
         automask,
         positivity_ratio: positivityRatio,
       }),
     });
 
+    // 2. Fetch creator's push subscription
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", creatorId)
+      .single();
+
+    // ⭐ Insert notification into database (sound comment)
+    await supabase.from("notifications").insert({
+      user_id: creatorId || "",
+      actor_id: user?.id || "",
+      event_type: "comment",
+      post_id: postId,
+      post_type: "sound",
+      message: `${user?.email || "Someone"} commented on your sound`,
+    });
+
+    // 3. Trigger push notification
+    if (sub?.subscription) {
+      await fetch(
+        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub.subscription,
+            payload: {
+              title: "New Comment 🔊",
+              body: `${user?.email || "Someone"} commented on your sound`,
+              icon: "/icons/mman-192.png",
+              url: `/sound/${postId}`,
+            },
+          }),
+        }
+      );
+    }
+
+    // 4. Reset UI
     setText("");
     setShowGateModal(false);
     setGateData(null);
     setBusy(false);
 
     router.refresh();
-    onSubmitted();
+    onSubmittedAction();   // ⭐ updated name
   }
 
   return (

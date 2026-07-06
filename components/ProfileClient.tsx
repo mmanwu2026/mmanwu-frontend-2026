@@ -255,39 +255,68 @@ export default function ProfileClient({
     };
   }, [supabase, user, userLoading, profile.id, isOwnProfile]);
 
-  // Follow toggle
-  async function handleFollowToggle() {
-    if (!user || userLoading || isOwnProfile || busy) return;
+// Follow toggle
+async function handleFollowToggle() {
+  if (!user || userLoading || isOwnProfile || busy) return;
 
-    setBusy(true);
+  setBusy(true);
 
-    try {
-      if (!isFollowing) {
-        const { error } = await supabase.from("follows").insert({
-          follower_id: user.id,
-          following_id: profile.id,
-        });
+  try {
+    if (!isFollowing) {
+      // 1. Save follow
+      const { error } = await supabase.from("follows").insert({
+        follower_id: user.id,
+        following_id: profile.id,
+      });
 
-        if (!error) {
-          setIsFollowing(true);
-          setFollowersCount((c) => c + 1);
-        }
-      } else {
-        const { error } = await supabase
-          .from("follows")
-          .delete()
-          .eq("follower_id", user.id)
-          .eq("following_id", profile.id);
+      if (!error) {
+        setIsFollowing(true);
+        setFollowersCount((c) => c + 1);
 
-        if (!error) {
-          setIsFollowing(false);
-          setFollowersCount((c) => Math.max(0, c - 1));
+        // 2. Fetch creator's push subscription
+        const { data: sub } = await supabase
+          .from("push_subscriptions")
+          .select("subscription")
+          .eq("user_id", profile.id)
+          .single();
+
+        // 3. Trigger push notification
+        if (sub?.subscription) {
+          await fetch(
+            "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                subscription: sub.subscription,
+                payload: {
+                  title: "New Follower 👣",
+                  body: `${user.email || "Someone"} started following you`,
+                  icon: "/icons/mman-192.png",   // ⭐ FIXED
+                  url: `/profile/${user.id}`,
+                },
+              }),
+            }
+          );
         }
       }
-    } finally {
-      setBusy(false);
+    } else {
+      // UNFOLLOW — no push notification
+      const { error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", user.id)
+        .eq("following_id", profile.id);
+
+      if (!error) {
+        setIsFollowing(false);
+        setFollowersCount((c) => Math.max(0, c - 1));
+      }
     }
+  } finally {
+    setBusy(false);
   }
+}
 
   // Load reactions ON plaza posts
   useEffect(() => {

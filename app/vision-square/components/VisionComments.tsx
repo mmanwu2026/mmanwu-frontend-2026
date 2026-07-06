@@ -23,6 +23,22 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
   const [showGateModal, setShowGateModal] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [creatorId, setCreatorId] = useState<string | null>(null);
+
+  // ⭐ Load creator ID
+  useEffect(() => {
+    async function loadCreator() {
+      const { data } = await supabase
+        .from("vision_posts")
+        .select("creator_id")
+        .eq("id", postId)
+        .single();
+
+      if (data?.creator_id) setCreatorId(data.creator_id);
+    }
+
+    loadCreator();
+  }, [postId, supabase]);
 
   async function runGatekeeper(rawText: string) {
     try {
@@ -52,21 +68,59 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     automask: number,
     positivity: number
   ) {
+    // 1. Save comment
     const { error: dbError } = await supabase
       .from("vision_post_comments")
       .insert({
         post_id: postId,
         user_id: user?.id,
-        content: finalText,        // ⭐ REQUIRED
-        raw_input: content,        // ⭐ REQUIRED
+        content: finalText,
+        raw_input: content,
         automask,
-        positivity_ratio: positivity, // ⭐ REQUIRED
+        positivity_ratio: positivity,
       });
 
     if (dbError) {
       console.error(dbError);
       setError("Failed to post comment.");
       return false;
+    }
+
+    // 2. Fetch creator's push subscription
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", creatorId)
+      .single();
+
+    // ⭐ Insert notification into database (vision comment)
+    await supabase.from("notifications").insert({
+      user_id: creatorId || "",
+      actor_id: user?.id || "",
+      event_type: "comment",
+      post_id: postId,
+      post_type: "vision",
+      message: `${user?.email || "Someone"} commented on your vision`,
+    });
+
+    // 3. Trigger push notification
+    if (sub?.subscription) {
+      await fetch(
+        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub.subscription,
+            payload: {
+              title: "New Comment 👁️",
+              body: `${user?.email || "Someone"} commented on your vision`,
+              icon: "/icons/mman-192.png",
+              url: `/vision/${postId}`,
+            },
+          }),
+        }
+      );
     }
 
     router.refresh();
