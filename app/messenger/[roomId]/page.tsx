@@ -22,6 +22,21 @@ export default function RoomPage() {
     loadUser();
   }, [supabase]);
 
+  // ⭐ NEW: Mark messages as read when entering the room
+  useEffect(() => {
+    if (!userId || !roomId) return;
+
+    async function markRoomAsSeen() {
+      await supabase
+        .from("room_participants")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("room_id", roomId)
+        .eq("user_id", userId);
+    }
+
+    markRoomAsSeen();
+  }, [userId, roomId, supabase]);
+
   if (!userId) {
     return <div className="p-6 text-white">Loading user…</div>;
   }

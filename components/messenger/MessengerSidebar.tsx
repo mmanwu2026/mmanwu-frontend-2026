@@ -132,12 +132,13 @@ export default function MessengerSidebar({
 
         // Compute unread count
         const unreadCount = lastMessages.filter(
-          (m) =>
-            m.room_id === room.id &&
-            m.sender_id !== userId &&
-            participantRecord &&
-            new Date(m.created_at) > new Date(participantRecord.last_seen || 0)
-        ).length;
+  (m) =>
+    m.room_id === room.id &&
+    m.sender_id !== userId &&
+    ["text", "image", "audio"].includes(m.message_type) &&
+    participantRecord &&
+    new Date(m.created_at) > new Date(participantRecord.last_seen || 0)
+).length;
 
         return {
           roomId: room.id,
