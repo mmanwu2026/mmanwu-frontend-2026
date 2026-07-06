@@ -8,6 +8,7 @@ const UnreadContext = createContext<Record<string, number>>({});
 
 // ⭐ Push Notification Helper
 function showNotification(title: string, body: string) {
+  if (typeof window === "undefined") return;
   if (!("Notification" in window)) return;
 
   if (Notification.permission === "granted") {
@@ -30,7 +31,7 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ⭐ Load unread counts
+  // ⭐ Load unread counts (chat only)
   useEffect(() => {
     if (!user) return;
 
@@ -56,13 +57,15 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
     loadUnread();
   }, [user, supabase]);
 
-  // ⭐ Realtime subscription + push notifications
+  // ⭐ FULL PLAZA REALTIME NOTIFICATIONS
   useEffect(() => {
     if (!user) return;
     const userId = user.id;
 
     const channel = supabase
-      .channel("global-unread")
+      .channel("global-plaza-events")
+
+      // ⭐ CHAT MESSAGES
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
@@ -72,16 +75,70 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
           if (msg.sender_id === userId) return;
           if (msg.seen_at !== null) return;
 
-          // ⭐ Push notification
           showNotification("New Message", msg.content);
 
-          // ⭐ Update unread counts
           setUnreadCounts((prev) => ({
             ...prev,
             [msg.room_id]: (prev[msg.room_id] || 0) + 1,
           }));
         }
       )
+
+      // ⭐ COMMENTS (notify post owner)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        (payload: { new: any }) => {
+          const c = payload.new;
+
+          if (c.author_id === userId) return;
+          if (c.post_owner_id !== userId) return;
+
+          showNotification("New Comment", c.content);
+        }
+      )
+
+      // ⭐ REACTIONS (notify post owner)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "reactions" },
+        (payload: { new: any }) => {
+          const r = payload.new;
+
+          if (r.actor_id === userId) return;
+          if (r.target_owner_id !== userId) return;
+
+          showNotification("New Reaction", `${r.emoji} on your post`);
+        }
+      )
+
+      // ⭐ UPLOADS (notify if author is followed — optional)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts" },
+        (payload: { new: any }) => {
+          const p = payload.new;
+
+          // Optional: only notify if user follows the author
+          // if (!userFollows.has(p.author_id)) return;
+
+          showNotification("New Upload", p.title ?? "New post in Plaza");
+        }
+      )
+
+      // ⭐ FOLLOWS (notify when someone follows you)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "follows" },
+        (payload: { new: any }) => {
+          const f = payload.new;
+
+          if (f.followed_id !== userId) return;
+
+          showNotification("New Follower", "Someone just followed you");
+        }
+      )
+
       .subscribe();
 
     return () => {
