@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 import VideoCallModal from "./VideoCallModal";
+import { useRouter } from "next/router";
 
 export default function MessengerThread({
   userId,
@@ -17,6 +18,7 @@ export default function MessengerThread({
   if (!roomId) return null;
 
   const supabase = useSupabase();
+  const router = useRouter();   // ⭐ FIX: hooks must be inside component
   const finalRoomId = roomId;
 
   const searchParams = useSearchParams();
@@ -254,20 +256,24 @@ export default function MessengerThread({
     };
   }, [finalRoomId, userId, supabase]);
 
-  // ⭐ MARK SEEN WHEN THREAD IS OPEN
+  // ⭐ MARK SEEN WHEN THREAD IS OPEN (FINAL FIX)
   useEffect(() => {
-  if (!userId || !finalRoomId) return;
+    if (!userId) return;
+    if (!router.isReady) return;
 
-  async function markSeen() {
-    await supabase
-      .from("room_participants")
-      .update({ last_seen: new Date().toISOString() })
-      .eq("room_id", finalRoomId)
-      .eq("user_id", userId);
-  }
+    const activeRoomId = router.query.roomId as string;
+    if (!activeRoomId) return;
 
-  markSeen();
-}, [userId, finalRoomId, supabase]);
+    async function markSeen() {
+      await supabase
+        .from("room_participants")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("room_id", activeRoomId)
+        .eq("user_id", userId);
+    }
+
+    markSeen();
+  }, [userId, router.isReady, router.query.roomId]);
 
   // ⭐ SEND MESSAGE
   async function sendMessage() {
