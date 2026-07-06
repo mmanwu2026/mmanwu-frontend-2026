@@ -240,7 +240,7 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       <SoundShareButton postId={post.id} />
 
-<SoundComments postId={post.id} onSubmitted={() => {}} />
+<SoundComments postId={post.id} onSubmittedAction={() => {}} />
 <SoundCommentList postId={post.id} />
     </div>
   );
