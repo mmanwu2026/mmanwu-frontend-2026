@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 export default function CallRoom({
   userId,
   roomId,
+  callerId,
 }: {
   userId: string;
   roomId: string;
+  callerId: string;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
@@ -19,34 +21,38 @@ export default function CallRoom({
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [joined, setJoined] = useState(false);
-  const [callEvent, setCallEvent] = useState<any | null>(null);
   const earlyAnswerRef = useRef<any>(null);
 
-  // ⭐ Fetch call event (caller_id, target_user_id)
+  const isCaller = userId === callerId;
+
+  // Load call event to determine other user
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadCallEvent() {
       const { data } = await supabase
         .from("call_events")
-        .select("*")
+        .select("caller_id, target_user_id")
         .eq("room_id", roomId)
         .single();
 
-      setCallEvent(data);
+      if (!data) return;
+
+      const { caller_id, target_user_id } = data;
+
+      if (userId === caller_id) {
+        setOtherUserId(target_user_id);
+      } else {
+        setOtherUserId(caller_id);
+      }
     }
 
     loadCallEvent();
-  }, [roomId, supabase]);
+  }, [roomId, userId, supabase]);
 
-  const isCaller = callEvent && callEvent.caller_id === userId;
-  const otherUserId = callEvent
-    ? isCaller
-      ? callEvent.target_user_id
-      : callEvent.caller_id
-    : null;
-
-  // ⭐ Initialize WebRTC
+  // Initialize WebRTC
   useEffect(() => {
-    if (!callEvent) return;
+    if (!otherUserId) return;
 
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
@@ -73,9 +79,9 @@ export default function CallRoom({
     };
 
     return () => pc.close();
-  }, [callEvent, roomId, userId, otherUserId, supabase]);
+  }, [otherUserId, roomId, userId, supabase]);
 
-  // ⭐ Join call (get media)
+  // Join call
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -93,10 +99,11 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // ⭐ Caller-only offer creation
+  // Caller-only offer creation
   useEffect(() => {
     if (!joined) return;
-    if (!isCaller) return; // ⭐ Callee must NOT create offer
+    if (!isCaller) return;
+    if (!otherUserId) return;
 
     async function startOffer() {
       const pc = pcRef.current;
@@ -116,7 +123,6 @@ export default function CallRoom({
         },
       });
 
-      // Apply buffered answer if any
       if (earlyAnswerRef.current) {
         await pc.setRemoteDescription(
           new RTCSessionDescription(earlyAnswerRef.current)
@@ -126,11 +132,11 @@ export default function CallRoom({
     }
 
     startOffer();
-  }, [joined, isCaller, roomId, userId, otherUserId, supabase]);
+  }, [joined, isCaller, otherUserId, roomId, userId, supabase]);
 
-  // ⭐ Listen for signaling
+  // Signaling listener
   useEffect(() => {
-    if (!callEvent) return;
+    if (!otherUserId) return;
 
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -150,7 +156,7 @@ export default function CallRoom({
           if (row.sender_id === userId) return;
           if (row.target_user_id !== userId) return;
 
-          // ⭐ Callee receives offer
+          // Callee receives offer
           if (row.type === "offer" && !isCaller) {
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
@@ -171,7 +177,7 @@ export default function CallRoom({
             });
           }
 
-          // ⭐ Caller receives answer
+          // Caller receives answer
           if (row.type === "answer" && isCaller) {
             if (pc.signalingState === "have-local-offer") {
               await pc.setRemoteDescription(
@@ -182,7 +188,7 @@ export default function CallRoom({
             }
           }
 
-          // ⭐ ICE candidates
+          // ICE candidates
           if (row.type === "candidate") {
             try {
               const candidate = new RTCIceCandidate(row.payload);
@@ -191,19 +197,14 @@ export default function CallRoom({
               console.error("ICE error", e);
             }
           }
-
-          if (row.type === "leave") {
-            pc.close();
-            router.push("/messenger");
-          }
         }
       )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [callEvent, isCaller, roomId, userId, otherUserId, supabase, router]);
+  }, [otherUserId, isCaller, roomId, userId, supabase]);
 
-  // ⭐ End call
+  // End call
   async function endCall() {
     await supabase
       .from("call_events")

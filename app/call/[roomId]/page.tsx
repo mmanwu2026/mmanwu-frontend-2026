@@ -11,6 +11,7 @@ export default function CallPage() {
 
   const supabase = useSupabase();
   const [userId, setUserId] = useState<string | null>(null);
+  const [callerId, setCallerId] = useState<string | null>(null);
 
   // Load current user
   useEffect(() => {
@@ -21,7 +22,26 @@ export default function CallPage() {
     loadUser();
   }, [supabase]);
 
-  if (!userId) {
+  // Load caller_id from call_events
+  useEffect(() => {
+    if (!roomIdParam) return;
+
+    async function loadCallEvent() {
+      const { data } = await supabase
+        .from("call_events")
+        .select("caller_id")
+        .eq("room_id", roomIdParam)
+        .single();
+
+      if (data) {
+        setCallerId(data.caller_id);
+      }
+    }
+
+    loadCallEvent();
+  }, [roomIdParam, supabase]);
+
+  if (!userId || !callerId) {
     return <div className="p-6 text-white">Loading call…</div>;
   }
 
@@ -29,6 +49,7 @@ export default function CallPage() {
     <CallRoom
       userId={userId}
       roomId={roomIdParam}
+      callerId={callerId}   // ⭐ REQUIRED
     />
   );
 }
