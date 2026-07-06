@@ -45,7 +45,6 @@ export default function RoomPage() {
     <div className="flex flex-col h-full bg-black">
       <MessengerThread
         userId={userId}
-        otherUserId={undefined}
         roomId={roomId}
       />
     </div>
