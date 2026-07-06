@@ -157,7 +157,7 @@ export default function ProfileClient({
           audio_url,
           creator_id,
           created_at,
-          users:creator_id ( username, avatar_url )
+          profiles:creator_id ( username, avatar_url )
         `)
         .eq("creator_id", profile.id)
         .order("created_at", { ascending: false });
@@ -215,8 +215,8 @@ export default function ProfileClient({
           automask,
           reactions: counts,
           users: {
-            username: p.users?.username ?? "Unknown",
-            avatar_url: p.users?.avatar_url ?? null,
+            username: p.profiles?.username ?? "Unknown",
+            avatar_url: p.profiles?.avatar_url ?? null,
           },
         };
       });
