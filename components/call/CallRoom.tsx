@@ -7,11 +7,9 @@ import { useRouter } from "next/navigation";
 export default function CallRoom({
   userId,
   roomId,
-  otherUserId,
 }: {
   userId: string;
   roomId: string;
-  otherUserId: string;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
@@ -21,10 +19,35 @@ export default function CallRoom({
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [joined, setJoined] = useState(false);
+  const [callEvent, setCallEvent] = useState<any | null>(null);
   const earlyAnswerRef = useRef<any>(null);
 
-  // Initialize WebRTC
+  // ⭐ Fetch call event (caller_id, target_user_id)
   useEffect(() => {
+    async function loadCallEvent() {
+      const { data } = await supabase
+        .from("call_events")
+        .select("*")
+        .eq("room_id", roomId)
+        .single();
+
+      setCallEvent(data);
+    }
+
+    loadCallEvent();
+  }, [roomId, supabase]);
+
+  const isCaller = callEvent && callEvent.caller_id === userId;
+  const otherUserId = callEvent
+    ? isCaller
+      ? callEvent.target_user_id
+      : callEvent.caller_id
+    : null;
+
+  // ⭐ Initialize WebRTC
+  useEffect(() => {
+    if (!callEvent) return;
+
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
     });
@@ -50,9 +73,9 @@ export default function CallRoom({
     };
 
     return () => pc.close();
-  }, [roomId, userId, otherUserId, supabase]);
+  }, [callEvent, roomId, userId, otherUserId, supabase]);
 
-  // Join call (get media)
+  // ⭐ Join call (get media)
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -70,9 +93,10 @@ export default function CallRoom({
     setJoined(true);
   }
 
-  // Auto-start offer when caller joins
+  // ⭐ Caller-only offer creation
   useEffect(() => {
     if (!joined) return;
+    if (!isCaller) return; // ⭐ Callee must NOT create offer
 
     async function startOffer() {
       const pc = pcRef.current;
@@ -92,7 +116,7 @@ export default function CallRoom({
         },
       });
 
-      // If an early answer was buffered, apply it now
+      // Apply buffered answer if any
       if (earlyAnswerRef.current) {
         await pc.setRemoteDescription(
           new RTCSessionDescription(earlyAnswerRef.current)
@@ -102,10 +126,12 @@ export default function CallRoom({
     }
 
     startOffer();
-  }, [joined, roomId, userId, otherUserId, supabase]);
+  }, [joined, isCaller, roomId, userId, otherUserId, supabase]);
 
-  // Listen for signaling
+  // ⭐ Listen for signaling
   useEffect(() => {
+    if (!callEvent) return;
+
     const channel = supabase
       .channel(`call-${roomId}`)
       .on(
@@ -124,7 +150,8 @@ export default function CallRoom({
           if (row.sender_id === userId) return;
           if (row.target_user_id !== userId) return;
 
-          if (row.type === "offer") {
+          // ⭐ Callee receives offer
+          if (row.type === "offer" && !isCaller) {
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
             );
@@ -144,17 +171,18 @@ export default function CallRoom({
             });
           }
 
-          if (row.type === "answer") {
+          // ⭐ Caller receives answer
+          if (row.type === "answer" && isCaller) {
             if (pc.signalingState === "have-local-offer") {
               await pc.setRemoteDescription(
                 new RTCSessionDescription(row.payload)
               );
             } else {
-              // Buffer early answer until offer is set
               earlyAnswerRef.current = row.payload;
             }
           }
 
+          // ⭐ ICE candidates
           if (row.type === "candidate") {
             try {
               const candidate = new RTCIceCandidate(row.payload);
@@ -173,9 +201,9 @@ export default function CallRoom({
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [roomId, userId, otherUserId, supabase, router]);
+  }, [callEvent, isCaller, roomId, userId, otherUserId, supabase, router]);
 
-  // End call
+  // ⭐ End call
   async function endCall() {
     await supabase
       .from("call_events")
