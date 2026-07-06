@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function MessengerThread({
@@ -22,10 +22,12 @@ export default function MessengerThread({
   const [messages, setMessages] = useState<any[]>([]);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
+  const [incomingCall, setIncomingCall] = useState<any | null>(null);
 
   const subscribedRef = useRef(false);
+  const callSubscribedRef = useRef(false);
 
-  // ⭐ LOAD MESSAGES
+  // LOAD MESSAGES
   async function loadMessages() {
     const { data } = await supabase
       .from("messages")
@@ -41,16 +43,18 @@ export default function MessengerThread({
     loadMessages();
   }, [finalRoomId]);
 
-  // ⭐ LOAD USERNAMES
+  // LOAD USERNAMES
   useEffect(() => {
     async function loadUsernames() {
       const ids = Array.from(
-        new Set([
-          userId,
-          otherUserId,
-          ...messages.map((m) => m.sender_id),
-          ...messages.map((m) => m.receiver_id),
-        ].filter(Boolean))
+        new Set(
+          [
+            userId,
+            otherUserId,
+            ...messages.map((m) => m.sender_id),
+            ...messages.map((m) => m.receiver_id),
+          ].filter(Boolean)
+        )
       );
 
       if (ids.length === 0) return;
@@ -71,9 +75,9 @@ export default function MessengerThread({
     }
 
     loadUsernames();
-  }, [messages, userId, otherUserId]);
+  }, [messages, userId, otherUserId, supabase]);
 
-  // ⭐ REALTIME SUBSCRIPTION (TEXT ONLY)
+  // REALTIME SUBSCRIPTION (TEXT ONLY)
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -118,7 +122,7 @@ export default function MessengerThread({
     };
   }, [finalRoomId, userId, supabase]);
 
-  // ⭐ MARK SEEN WHEN THREAD IS OPEN
+  // MARK SEEN WHEN THREAD IS OPEN
   useEffect(() => {
     if (!userId) return;
 
@@ -131,9 +135,9 @@ export default function MessengerThread({
     }
 
     markSeen();
-  }, [userId, finalRoomId]);
+  }, [userId, finalRoomId, supabase]);
 
-  // ⭐ SEND MESSAGE
+  // SEND MESSAGE
   async function sendMessage() {
     const trimmed = newMessage.trim();
     if (!trimmed || trimmed.length === 0) return;
@@ -148,7 +152,7 @@ export default function MessengerThread({
     setNewMessage("");
   }
 
-  // ⭐ NEW CALL SYSTEM — 1-to-1 Call
+  // NEW CALL SYSTEM — 1-to-1 Call (caller)
   async function startCall() {
     if (!otherUserId) return;
 
@@ -164,9 +168,48 @@ export default function MessengerThread({
     router.push(`/call/${newRoomId}`);
   }
 
+  // INCOMING CALL SUBSCRIPTION (callee)
+  useEffect(() => {
+    if (!userId || callSubscribedRef.current) return;
+    callSubscribedRef.current = true;
+
+    const channel = supabase
+      .channel(`incoming-call-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "call_events",
+          filter: `target_user_id=eq.${userId}`,
+        },
+        (payload: { new: any }) => {
+          const call = payload.new;
+          setIncomingCall(call);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      callSubscribedRef.current = false;
+    };
+  }, [userId, supabase]);
+
+  function acceptCall() {
+    if (!incomingCall) return;
+    const roomId = incomingCall.room_id;
+    setIncomingCall(null);
+    router.push(`/call/${roomId}`);
+  }
+
+  function declineCall() {
+    setIncomingCall(null);
+    // optional: update call_events status to "declined"
+  }
+
   return (
     <div className="flex flex-col h-full bg-neutral-950">
-
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
         <div className="flex flex-col">
@@ -230,6 +273,30 @@ export default function MessengerThread({
           </button>
         </div>
       </div>
+
+      {/* Incoming Call Popup */}
+      {incomingCall && (
+        <div className="fixed bottom-4 right-4 bg-neutral-800 p-4 rounded-lg shadow-lg border border-neutral-700">
+          <div className="text-white mb-2">
+            Incoming call from{" "}
+            {usernames[incomingCall.caller_id] || incomingCall.caller_id}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={acceptCall}
+              className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm"
+            >
+              Accept
+            </button>
+            <button
+              onClick={declineCall}
+              className="px-4 py-2 bg-red-600 rounded hover:bg-red-500 text-sm"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
