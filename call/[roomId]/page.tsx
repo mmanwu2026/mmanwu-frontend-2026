@@ -1,15 +1,19 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useEffect, useState } from "react";
-// import your WebRTC call UI
+import CallRoom from "@/components/call/CallRoom";
 
 export default function CallRoomPage() {
   const params = useParams<{ roomId: string }>();
+  const searchParams = useSearchParams();
+
   if (!params) return null;
 
-  const roomId = params.roomId;
+  const roomId = params.roomId; // URL room ID
+  const roleParam = searchParams?.get("role") ?? "caller";
+
   const supabase = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
@@ -21,7 +25,7 @@ export default function CallRoomPage() {
     loadUser();
   }, [supabase]);
 
-  // ⭐ NEW: record call subscription
+  // Record call subscription
   useEffect(() => {
     if (!userId || !roomId) return;
 
@@ -44,7 +48,10 @@ export default function CallRoomPage() {
 
   return (
     <div className="flex flex-col h-full bg-black">
-      {/* Your WebRTC call UI goes here */}
+      <CallRoom
+        userId={userId}
+        role={roleParam === "callee" ? "callee" : "caller"}
+      />
     </div>
   );
 }
