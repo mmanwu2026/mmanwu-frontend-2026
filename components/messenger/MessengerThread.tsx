@@ -22,6 +22,7 @@ export default function MessengerThread({
   const [messages, setMessages] = useState<any[]>([]);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const subscribedRef = useRef(false);
 
@@ -40,6 +41,21 @@ export default function MessengerThread({
   useEffect(() => {
     loadMessages();
   }, [finalRoomId]);
+
+  // CLEAR CHAT
+  async function clearChat() {
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("room_id", finalRoomId);
+
+    if (error) {
+      console.error("Clear Chat ERROR →", error);
+      return;
+    }
+
+    loadMessages();
+  }
 
   // LOAD USERNAMES
   useEffect(() => {
@@ -168,14 +184,48 @@ export default function MessengerThread({
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
+
+      {/* Clear Chat Confirmation Modal */}
+      {confirmClear && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-neutral-800 p-6 rounded-xl w-64 text-center">
+            <p className="text-white mb-4">Clear all messages in this room?</p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  clearChat();
+                  setConfirmClear(false);
+                }}
+                className="px-4 py-2 bg-red-600 rounded text-white"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="px-4 py-2 bg-gray-500 rounded text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-40">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">Room</span>
           <span className="text-xs text-neutral-400">{finalRoomId}</span>
         </div>
 
         <div className="flex gap-2">
+          <button
+            onClick={() => setConfirmClear(true)}
+            className="px-3 py-1 bg-red-600 rounded text-sm hover:bg-red-500"
+          >
+            Clear
+          </button>
+
           {otherUserId && (
             <button
               onClick={startCall}
