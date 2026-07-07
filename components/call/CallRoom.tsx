@@ -41,12 +41,10 @@ export default function CallRoom({
   const hasSentOfferRef = useRef(false);
   const hasProcessedOfferRef = useRef(false);
 
-  // UI states
   const [callDuration, setCallDuration] = useState(0);
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
 
-  // Incoming call UI
   const [incomingCall, setIncomingCall] = useState(false);
   const [ringing, setRinging] = useState(false);
 
@@ -78,7 +76,6 @@ export default function CallRoom({
     setCamEnabled(!camEnabled);
   }
 
-  // Create PeerConnection
   useEffect(() => {
     const pc = new RTCPeerConnection({
       iceServers: [
@@ -114,7 +111,6 @@ export default function CallRoom({
       });
     };
 
-    // Dual-track merge (Safari fix)
     pc.ontrack = (event) => {
       const el = remoteVideoRef.current;
 
@@ -157,7 +153,6 @@ export default function CallRoom({
 
     setJoined(true);
 
-    // Caller auto-offer
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
 
@@ -181,12 +176,10 @@ export default function CallRoom({
     }
   }
 
-  // Caller auto-joins immediately
   useEffect(() => {
     if (role === "caller") {
       joinCall();
 
-      // Notify callee
       supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
@@ -196,7 +189,6 @@ export default function CallRoom({
     }
   }, [role]);
 
-  // Realtime signaling
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -215,18 +207,15 @@ export default function CallRoom({
           if (!pc) return;
           if (row.sender_id === userId) return;
 
-          // Incoming call
           if (row.type === "call_start" && role === "callee") {
             setIncomingCall(true);
             setRinging(true);
           }
 
-          // Decline
           if (row.type === "call_decline") {
             router.push("/messages");
           }
 
-          // Accept → auto-join
           if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
             hasProcessedOfferRef.current = true;
 
@@ -253,7 +242,6 @@ export default function CallRoom({
             });
           }
 
-          // Caller receives answer
           if (row.type === "answer" && role === "caller") {
             const answerPayload = row.payload;
 
@@ -270,7 +258,6 @@ export default function CallRoom({
             pendingCandidatesRef.current = [];
           }
 
-          // ICE
           if (row.type === "candidate") {
             const candidateInit = row.payload;
 
@@ -290,6 +277,19 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
+  useEffect(() => {
+    if (pendingRemoteStreamRef.current && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = pendingRemoteStreamRef.current;
+
+      const tryPlay = () => {
+        remoteVideoRef.current!.play().catch(() => setTimeout(tryPlay, 250));
+      };
+      tryPlay();
+
+      pendingRemoteStreamRef.current = null;
+    }
+  }, [remoteVideoRef]);
+
   function acceptCall() {
     setIncomingCall(false);
     setRinging(false);
@@ -304,7 +304,7 @@ export default function CallRoom({
       payload: {},
     });
 
-    router.push("/messenger");
+    router.push("/messages");
   }
 
   function endCall() {
@@ -321,25 +321,30 @@ export default function CallRoom({
   }
 
   return (
-    <div className="flex flex-col h-full p-4 text-white">
+    <div className="flex flex-col h-full p-4 text-white relative">
 
-      {/* Incoming Call UI */}
       {incomingCall && (
-        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-6 text-center">
-          <div className="text-3xl font-bold">Incoming Call…</div>
-          {ringing && <div className="text-xl animate-pulse">Ringing…</div>}
+        <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center gap-8 text-center px-6">
+          <div className="text-4xl md:text-5xl font-extrabold">
+            Incoming Call
+          </div>
+          {ringing && (
+            <div className="text-2xl md:text-3xl font-semibold animate-pulse">
+              Ringing…
+            </div>
+          )}
 
-          <div className="flex gap-6 mt-4">
+          <div className="flex flex-col md:flex-row gap-6 mt-4 w-full md:w-auto justify-center">
             <button
               onClick={acceptCall}
-              className="px-6 py-3 bg-green-600 rounded text-xl"
+              className="flex-1 md:flex-none px-8 py-4 bg-green-600 rounded-2xl text-2xl md:text-3xl font-bold"
             >
               Accept
             </button>
 
             <button
               onClick={declineCall}
-              className="px-6 py-3 bg-red-600 rounded text-xl"
+              className="flex-1 md:flex-none px-8 py-4 bg-red-600 rounded-2xl text-2xl md:text-3xl font-bold"
             >
               Decline
             </button>
@@ -363,7 +368,6 @@ export default function CallRoom({
         />
       </div>
 
-      {/* Controls */}
       <div className="mt-4 flex items-center gap-4">
         {joined && (
           <div className="text-lg font-mono">{formatDuration(callDuration)}</div>
