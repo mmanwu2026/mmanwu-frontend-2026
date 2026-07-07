@@ -102,14 +102,23 @@ export default function CallRoom({
       const remoteStream = event.streams[0];
       const el = remoteVideoRef.current;
 
-      if (!el || !el.isConnected) {
-        console.log("TRACK DEBUG → remote video not ready, buffering stream");
+      if (!el) {
+        console.log("TRACK DEBUG → remote video element not ready, buffering stream");
         pendingRemoteStreamRef.current = remoteStream;
         return;
       }
 
       el.srcObject = remoteStream;
-      el.play().catch((e) => console.warn("TRACK DEBUG → play error:", e));
+
+      // Safari autoplay fix — retry until Safari allows playback
+      const tryPlay = () => {
+        el.play().catch((err) => {
+          console.warn("TRACK DEBUG → Safari play() blocked, retrying:", err);
+          setTimeout(tryPlay, 250);
+        });
+      };
+
+      tryPlay();
     };
 
     return () => {
@@ -142,6 +151,14 @@ export default function CallRoom({
         .play()
         .catch((e) => console.warn("JOIN DEBUG → local play error:", e));
     }
+
+    // Safari remote playback retry after user gesture
+    setTimeout(() => {
+      const el = remoteVideoRef.current;
+      if (el?.srcObject) {
+        el.play().catch((e) => console.warn("Safari retry play error:", e));
+      }
+    }, 500);
 
     setJoined(true);
 
@@ -312,6 +329,24 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
+  // ⭐ SAFARI delayed remote playback block
+  useEffect(() => {
+    if (pendingRemoteStreamRef.current && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = pendingRemoteStreamRef.current;
+
+      const tryPlay = () => {
+        remoteVideoRef.current!.play().catch((err) => {
+          console.warn("TRACK DEBUG → delayed Safari play retry:", err);
+          setTimeout(tryPlay, 250);
+        });
+      };
+
+      tryPlay();
+
+      pendingRemoteStreamRef.current = null;
+    }
+  }, [remoteVideoRef]);
+
   function endCall() {
     console.log("END DEBUG → ending call");
 
@@ -324,7 +359,7 @@ export default function CallRoom({
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
     remoteStream?.getTracks().forEach((t) => t.stop());
 
-    router.push("/messages"); // adjust to an existing route
+    router.push("/messenger");
   }
 
   return (
