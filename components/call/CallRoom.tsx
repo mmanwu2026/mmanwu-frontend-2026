@@ -96,42 +96,85 @@ export default function CallRoom({
       }
     };
 
-pc.ontrack = (event) => {
-  console.log("TRACK DEBUG → ontrack fired:", event.streams);
+    // negotiationneeded for Safari / mobile timing
+    pc.onnegotiationneeded = async () => {
+      console.log("NEGOTIATION DEBUG → negotiationneeded fired");
 
-  const el = remoteVideoRef.current;
+      if (role === "caller" && !hasSentOfferRef.current) {
+        hasSentOfferRef.current = true;
 
-  if (!el) {
-    console.log("TRACK DEBUG → remote video element not ready, buffering stream");
-    pendingRemoteStreamRef.current = event.streams[0];
-    return;
-  }
+        // force Safari to finalize state
+        await pc.getStats();
 
-  // Merge tracks into a single stream
-  if (!pendingRemoteStreamRef.current) {
-    pendingRemoteStreamRef.current = new MediaStream();
-  }
+        console.log("NEGOTIATION DEBUG → creating offer from negotiationneeded");
 
-  pendingRemoteStreamRef.current.addTrack(event.track);
-  el.srcObject = pendingRemoteStreamRef.current;
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true,
+        });
+        await pc.setLocalDescription(offer);
 
-  // Safari autoplay fix — retry until allowed
-  const tryPlay = () => {
-    el.play().catch((err) => {
-      console.warn("TRACK DEBUG → Safari/Chrome play() blocked, retrying:", err);
-      setTimeout(tryPlay, 250);
-    });
-  };
+        console.log("NEGOTIATION DEBUG → localDescription set:", offer);
 
-  tryPlay();
-};
+        if (!userId || !roomId) {
+          console.warn("NEGOTIATION DEBUG → Skipping offer insert: userId or roomId undefined");
+          return;
+        }
+
+        try {
+          const res: PostgrestResponse<any> = await supabase
+            .from("call_signaling")
+            .insert({
+              room_id: roomId,
+              sender_id: userId,
+              type: "offer",
+              payload: {
+                sdp: offer.sdp,
+                type: offer.type,
+              },
+            });
+          console.log("NEGOTIATION DEBUG → insert result:", res);
+        } catch (err) {
+          console.error("NEGOTIATION DEBUG → insert error:", err);
+        }
+      }
+    };
+
+    // dual-track merge for Safari mobile
+    pc.ontrack = (event) => {
+      console.log("TRACK DEBUG → ontrack fired:", event.streams, "track:", event.track);
+
+      const el = remoteVideoRef.current;
+
+      if (!pendingRemoteStreamRef.current) {
+        pendingRemoteStreamRef.current = new MediaStream();
+      }
+
+      pendingRemoteStreamRef.current.addTrack(event.track);
+
+      if (!el) {
+        console.log("TRACK DEBUG → remote video element not ready, keeping merged stream buffered");
+        return;
+      }
+
+      el.srcObject = pendingRemoteStreamRef.current;
+
+      const tryPlay = () => {
+        el.play().catch((err) => {
+          console.warn("TRACK DEBUG → play() blocked, retrying:", err);
+          setTimeout(tryPlay, 250);
+        });
+      };
+
+      tryPlay();
+    };
 
     return () => {
       console.log("PC DEBUG → closing RTCPeerConnection");
       pc.close();
       pcRef.current = null;
     };
-  }, [roomId, userId, supabase]);
+  }, [roomId, userId, supabase, role]);
 
   async function joinCall() {
     console.log("JOIN DEBUG → joinCall invoked");
@@ -167,12 +210,19 @@ pc.ontrack = (event) => {
 
     setJoined(true);
 
+    // explicit offer path (still useful outside negotiationneeded)
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
 
-      console.log("OFFER DEBUG → creating offer");
+      console.log("OFFER DEBUG → creating offer (joinCall path)");
 
-      const offer = await pc!.createOffer();
+      // force Safari to flush state
+      await pc!.getStats();
+
+      const offer = await pc!.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
       await pc!.setLocalDescription(offer);
 
       console.log("OFFER DEBUG → localDescription set:", offer);
@@ -291,7 +341,6 @@ pc.ontrack = (event) => {
 
             console.log("RT DEBUG → remoteDescription set from answer (caller)");
 
-            // Flush buffered ICE candidates
             console.log("RT DEBUG → flushing buffered ICE candidates");
             for (const c of pendingCandidatesRef.current) {
               try {
@@ -334,7 +383,7 @@ pc.ontrack = (event) => {
     };
   }, [roomId, userId, role, supabase]);
 
-  // ⭐ SAFARI delayed remote playback block
+  // Safari delayed remote playback block
   useEffect(() => {
     if (pendingRemoteStreamRef.current && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = pendingRemoteStreamRef.current;
@@ -364,7 +413,7 @@ pc.ontrack = (event) => {
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
     remoteStream?.getTracks().forEach((t) => t.stop());
 
-    router.push("/messenger");
+    router.push("/messages");
   }
 
   return (
