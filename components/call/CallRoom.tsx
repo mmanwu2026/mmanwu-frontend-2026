@@ -4,6 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
+type Role = "caller" | "callee";
+
+type CallSignalingRow = {
+  id: string;
+  room_id: string;
+  sender_id: string;
+  type: "offer" | "answer" | "candidate";
+  payload: any; // Supabase returns JSON already parsed
+  created_at: string;
+};
+
 export default function CallRoom({
   userId,
   roomId,
@@ -11,7 +22,7 @@ export default function CallRoom({
 }: {
   userId: string;
   roomId: string;
-  role: "caller" | "callee";
+  role: Role;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
@@ -19,7 +30,6 @@ export default function CallRoom({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-
   const pendingRemoteStreamRef = useRef<MediaStream | null>(null);
 
   const [joined, setJoined] = useState(false);
@@ -55,7 +65,7 @@ export default function CallRoom({
         room_id: roomId,
         sender_id: userId,
         type: "candidate",
-        payload: event.candidate.toJSON(), // SCHEMA MATCH
+        payload: event.candidate.toJSON(), // candidate JSON
       });
     };
 
@@ -72,7 +82,6 @@ export default function CallRoom({
         el.srcObject = remoteStream;
       }
 
-      // Old modal triple-play pattern
       el.play().catch(() => {});
       setTimeout(() => el.isConnected && el.play().catch(() => {}), 50);
       setTimeout(() => el.isConnected && el.play().catch(() => {}), 300);
@@ -120,7 +129,7 @@ export default function CallRoom({
         payload: {
           sdp: offer.sdp,
           type: offer.type,
-        }, // SCHEMA MATCH
+        },
       });
     }
 
@@ -133,7 +142,7 @@ export default function CallRoom({
 
     let cancelled = false;
 
-    async function poll() {
+    async function pollForOffer() {
       if (cancelled) return;
 
       const { data } = await supabase
@@ -141,24 +150,26 @@ export default function CallRoom({
         .select("*")
         .eq("room_id", roomId)
         .eq("type", "offer")
-        .order("id", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1);
 
-      if (!data || data.length === 0) {
-        setTimeout(poll, 500);
+      const rows = (data || []) as CallSignalingRow[];
+
+      if (!rows.length) {
+        setTimeout(pollForOffer, 500);
         return;
       }
 
-      const row = data[0];
-      const parsed = JSON.parse(row.payload); // CRITICAL
+      const offerRow = rows[0];
+      const payload = offerRow.payload as { sdp: string; type: "offer" };
 
       const pc = pcRef.current;
       if (!pc) return;
 
       await pc.setRemoteDescription(
         new RTCSessionDescription({
-          type: parsed.type,
-          sdp: parsed.sdp,
+          type: payload.type,
+          sdp: payload.sdp,
         })
       );
 
@@ -172,17 +183,18 @@ export default function CallRoom({
         payload: {
           sdp: answer.sdp,
           type: answer.type,
-        }, // SCHEMA MATCH
+        },
       });
     }
 
-    poll();
+    pollForOffer();
+
     return () => {
       cancelled = true;
     };
   }, [joined, role, roomId, userId, supabase]);
 
-  // Realtime listener
+  // Realtime listener for answers/candidates
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -194,26 +206,26 @@ export default function CallRoom({
           table: "call_signaling",
           filter: `room_id=eq.${roomId}`,
         },
-        async (payload: { new: any }) => {
+        async (payload: { new: CallSignalingRow }) => {
           const row = payload.new;
           const pc = pcRef.current;
 
           if (!pc) return;
           if (row.sender_id === userId) return;
 
-          const parsed = JSON.parse(row.payload); // CRITICAL
-
           if (row.type === "answer" && role === "caller") {
+            const answerPayload = row.payload as { sdp: string; type: "answer" };
             await pc.setRemoteDescription(
               new RTCSessionDescription({
-                type: parsed.type,
-                sdp: parsed.sdp,
+                type: answerPayload.type,
+                sdp: answerPayload.sdp,
               })
             );
           }
 
           if (row.type === "candidate") {
-            const candidate = new RTCIceCandidate(parsed);
+            const candidateInit = row.payload as RTCIceCandidateInit;
+            const candidate = new RTCIceCandidate(candidateInit);
             await pc.addIceCandidate(candidate);
           }
         }
@@ -225,7 +237,7 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
-  // Attach buffered remote stream
+  // Attach buffered remote stream once DOM is ready
   useEffect(() => {
     const el = remoteVideoRef.current;
     const stream = pendingRemoteStreamRef.current;
@@ -245,11 +257,11 @@ export default function CallRoom({
     const pc = pcRef.current;
     pc?.close();
 
-    const local = localVideoRef.current?.srcObject as MediaStream | null;
-    local?.getTracks().forEach((t) => t.stop());
+    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
+    localStream?.getTracks().forEach((t) => t.stop());
 
-    const remote = remoteVideoRef.current?.srcObject as MediaStream | null;
-    remote?.getTracks().forEach((t) => t.stop());
+    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
+    remoteStream?.getTracks().forEach((t) => t.stop());
 
     router.push("/messages");
   }
