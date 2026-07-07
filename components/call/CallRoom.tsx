@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 
 type Role = "caller" | "callee";
 
@@ -17,19 +17,22 @@ type CallSignalingRow = {
 
 export default function CallRoom({
   userId,
-  roomId,
   role: initialRole,
 }: {
   userId: string;
-  roomId: string;
   role?: Role;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
 
-  const roleParam = searchParams?.get("role");
-const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
+  // ⭐ FIX: roomId now comes from URL
+  const roomId = params?.id as string;
+
+  // ⭐ FIX: searchParams null-safe
+  const roleParam = searchParams?.get("role") ?? "caller";
+  const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
