@@ -43,19 +43,20 @@ export default function MessengerThread({
   }, [finalRoomId]);
 
   // CLEAR CHAT
-  async function clearChat() {
-    const { error } = await supabase
-      .from("messages")
-      .delete()
-      .eq("room_id", finalRoomId);
+async function clearChat() {
+  const { error } = await supabase
+    .from("messages")
+    .delete()
+    .eq("room_id", finalRoomId);
 
-    if (error) {
-      console.error("Clear Chat ERROR →", error);
-      return;
-    }
-
-    loadMessages();
+  if (error) {
+    console.error("Clear Chat ERROR →", error);
+    return;
   }
+
+  // Clear local UI state
+  setMessages([]);
+}
 
   // LOAD USERNAMES
   useEffect(() => {
