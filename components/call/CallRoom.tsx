@@ -96,51 +96,7 @@ export default function CallRoom({
       }
     };
 
-    // negotiationneeded for Safari / mobile timing
-    pc.onnegotiationneeded = async () => {
-      console.log("NEGOTIATION DEBUG → negotiationneeded fired");
-
-      if (role === "caller" && !hasSentOfferRef.current) {
-        hasSentOfferRef.current = true;
-
-        // force Safari to finalize state
-        await pc.getStats();
-
-        console.log("NEGOTIATION DEBUG → creating offer from negotiationneeded");
-
-        const offer = await pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-        });
-        await pc.setLocalDescription(offer);
-
-        console.log("NEGOTIATION DEBUG → localDescription set:", offer);
-
-        if (!userId || !roomId) {
-          console.warn("NEGOTIATION DEBUG → Skipping offer insert: userId or roomId undefined");
-          return;
-        }
-
-        try {
-          const res: PostgrestResponse<any> = await supabase
-            .from("call_signaling")
-            .insert({
-              room_id: roomId,
-              sender_id: userId,
-              type: "offer",
-              payload: {
-                sdp: offer.sdp,
-                type: offer.type,
-              },
-            });
-          console.log("NEGOTIATION DEBUG → insert result:", res);
-        } catch (err) {
-          console.error("NEGOTIATION DEBUG → insert error:", err);
-        }
-      }
-    };
-
-    // dual-track merge for Safari mobile
+    // Dual-track merge for Safari mobile and general remote handling
     pc.ontrack = (event) => {
       console.log("TRACK DEBUG → ontrack fired:", event.streams, "track:", event.track);
 
@@ -210,13 +166,13 @@ export default function CallRoom({
 
     setJoined(true);
 
-    // explicit offer path (still useful outside negotiationneeded)
+    // Forced-offer logic: do NOT rely on negotiationneeded
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
 
-      console.log("OFFER DEBUG → creating offer (joinCall path)");
+      console.log("OFFER DEBUG → creating offer (forced path)");
 
-      // force Safari to flush state
+      // Force Safari (and others) to flush internal state
       await pc!.getStats();
 
       const offer = await pc!.createOffer({
