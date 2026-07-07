@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useRouter, useSearchParams, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { PostgrestResponse } from "@supabase/supabase-js";
 
 type Role = "caller" | "callee";
@@ -18,30 +18,28 @@ type CallSignalingRow = {
 
 export default function CallRoom({
   userId,
+  roomId,
   role: initialRole,
 }: {
   userId: string;
+  roomId: string;
   role?: Role;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const params = useParams();
 
-  const roomId = params?.roomId as string;
-
-  const roleParam = searchParams?.get("role") ?? "caller";
-  const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
+  const role: Role = initialRole ?? "caller";
 
   console.log("DEBUG → userId:", userId);
-  console.log("DEBUG → params:", params);
   console.log("DEBUG → roomId:", roomId);
   console.log("DEBUG → role:", role);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
   const pendingRemoteStreamRef = useRef<MediaStream | null>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
   const [joined, setJoined] = useState(false);
   const hasSentOfferRef = useRef(false);
@@ -140,7 +138,9 @@ export default function CallRoom({
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
       localVideoRef.current.muted = true;
-      localVideoRef.current.play().catch((e) => console.warn("JOIN DEBUG → local play error:", e));
+      localVideoRef.current
+        .play()
+        .catch((e) => console.warn("JOIN DEBUG → local play error:", e));
     }
 
     setJoined(true);
@@ -209,6 +209,7 @@ export default function CallRoom({
             return;
           }
 
+          // Callee: process offer → create answer
           if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
             console.log("RT DEBUG → processing offer");
 
@@ -223,7 +224,7 @@ export default function CallRoom({
               })
             );
 
-            console.log("RT DEBUG → remoteDescription set");
+            console.log("RT DEBUG → remoteDescription set (callee)");
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
@@ -253,6 +254,7 @@ export default function CallRoom({
             }
           }
 
+          // Caller: apply answer and then flush buffered candidates
           if (row.type === "answer" && role === "caller") {
             console.log("RT DEBUG → applying answer");
 
@@ -265,28 +267,41 @@ export default function CallRoom({
               })
             );
 
-            console.log("RT DEBUG → remoteDescription set from answer");
+            console.log("RT DEBUG → remoteDescription set from answer (caller)");
+
+            // Flush buffered ICE candidates
+            console.log("RT DEBUG → flushing buffered ICE candidates");
+            for (const c of pendingCandidatesRef.current) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(c));
+                console.log("RT DEBUG → flushed ICE candidate", c);
+              } catch (err) {
+                console.error("RT DEBUG → error flushing candidate", err);
+              }
+            }
+            pendingCandidatesRef.current = [];
           }
 
- // Both: apply candidates
-if (row.type === "candidate") {
-  console.log("RT DEBUG → applying ICE candidate");
+          // Both: buffer/apply candidates
+          if (row.type === "candidate") {
+            console.log("RT DEBUG → applying ICE candidate");
 
-  const candidateInit = row.payload as RTCIceCandidateInit;
-  const candidate = new RTCIceCandidate(candidateInit);
+            const candidateInit = row.payload as RTCIceCandidateInit;
 
-  if (!pc.remoteDescription) {
-    console.warn(
-      "RT DEBUG → remoteDescription is null, skipping ICE candidate for now",
-      candidateInit
-    );
-    return;
-  }
+            if (!pc.remoteDescription) {
+              console.warn(
+                "RT DEBUG → remoteDescription is null, buffering ICE candidate",
+                candidateInit
+              );
+              pendingCandidatesRef.current.push(candidateInit);
+              return;
+            }
 
-  await pc.addIceCandidate(candidate);
+            const candidate = new RTCIceCandidate(candidateInit);
+            await pc.addIceCandidate(candidate);
 
-  console.log("RT DEBUG → ICE candidate added");
-}
+            console.log("RT DEBUG → ICE candidate added");
+          }
         }
       )
       .subscribe();
@@ -309,7 +324,7 @@ if (row.type === "candidate") {
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
     remoteStream?.getTracks().forEach((t) => t.stop());
 
-    router.push("/messages"); // adjust this route to avoid 404
+    router.push("/messages"); // adjust to an existing route
   }
 
   return (

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useSearchParams } from "next/navigation";
@@ -51,6 +50,7 @@ export default function CallRoomPage() {
     <div className="flex flex-col h-full bg-black">
       <CallRoom
         userId={userId}
+        roomId={roomId}
         role={roleParam === "callee" ? "callee" : "caller"}
       />
     </div>
