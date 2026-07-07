@@ -27,7 +27,7 @@ export default function CallRoom({
   const searchParams = useSearchParams();
   const params = useParams();
 
-  const roomId = params?.id as string;
+  const roomId = params?.roomId as string;
 
   const roleParam = searchParams?.get("role") ?? "caller";
   const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
