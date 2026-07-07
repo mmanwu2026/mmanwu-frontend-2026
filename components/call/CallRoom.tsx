@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
+import type { PostgrestResponse } from "@supabase/supabase-js";
 
 type Role = "caller" | "callee";
 
@@ -32,6 +33,11 @@ export default function CallRoom({
   const roleParam = searchParams?.get("role") ?? "caller";
   const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
 
+  console.log("DEBUG → userId:", userId);
+  console.log("DEBUG → params:", params);
+  console.log("DEBUG → roomId:", roomId);
+  console.log("DEBUG → role:", role);
+
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -43,6 +49,8 @@ export default function CallRoom({
 
   // Create PeerConnection
   useEffect(() => {
+    console.log("PC DEBUG → creating RTCPeerConnection");
+
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -65,91 +73,116 @@ export default function CallRoom({
 
     pcRef.current = pc;
 
-    pc.onicecandidate = (event) => {
+    pc.onicecandidate = async (event) => {
+      console.log("ICE DEBUG → candidate:", event.candidate);
+
       if (!event.candidate) return;
 
-      // ⭐ SAFETY GUARD
       if (!userId || !roomId) {
-        console.warn("Skipping ICE candidate insert: userId or roomId undefined");
+        console.warn("ICE DEBUG → Skipping ICE candidate insert: userId or roomId undefined");
         return;
       }
 
-      supabase.from("call_signaling").insert({
-        room_id: roomId,
-        sender_id: userId,
-        type: "candidate",
-        payload: event.candidate.toJSON(),
-      });
+      try {
+        const res: PostgrestResponse<any> = await supabase
+          .from("call_signaling")
+          .insert({
+            room_id: roomId,
+            sender_id: userId,
+            type: "candidate",
+            payload: event.candidate.toJSON(),
+          });
+        console.log("ICE DEBUG → insert result:", res);
+      } catch (err) {
+        console.error("ICE DEBUG → insert error:", err);
+      }
     };
 
     pc.ontrack = (event) => {
+      console.log("TRACK DEBUG → ontrack fired:", event.streams);
+
       const remoteStream = event.streams[0];
       const el = remoteVideoRef.current;
 
       if (!el || !el.isConnected) {
+        console.log("TRACK DEBUG → remote video not ready, buffering stream");
         pendingRemoteStreamRef.current = remoteStream;
         return;
       }
 
-      if (el.srcObject !== remoteStream) {
-        el.srcObject = remoteStream;
-      }
-
-      el.play().catch(() => {});
-      setTimeout(() => el.isConnected && el.play().catch(() => {}), 50);
-      setTimeout(() => el.isConnected && el.play().catch(() => {}), 300);
+      el.srcObject = remoteStream;
+      el.play().catch((e) => console.warn("TRACK DEBUG → play error:", e));
     };
 
     return () => {
+      console.log("PC DEBUG → closing RTCPeerConnection");
       pc.close();
       pcRef.current = null;
     };
   }, [roomId, userId, supabase]);
 
   async function joinCall() {
+    console.log("JOIN DEBUG → joinCall invoked");
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
+    console.log("JOIN DEBUG → got local stream:", stream);
+
     const pc = pcRef.current;
-    stream.getTracks().forEach((track) => pc?.addTrack(track, stream));
+    stream.getTracks().forEach((track) => {
+      console.log("JOIN DEBUG → adding track:", track);
+      pc?.addTrack(track, stream);
+    });
 
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
       localVideoRef.current.muted = true;
-      localVideoRef.current.play().catch(() => {});
+      localVideoRef.current.play().catch((e) => console.warn("JOIN DEBUG → local play error:", e));
     }
 
     setJoined(true);
 
-    // Caller sends offer once joined
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
+
+      console.log("OFFER DEBUG → creating offer");
 
       const offer = await pc!.createOffer();
       await pc!.setLocalDescription(offer);
 
-      // ⭐ SAFETY GUARD
+      console.log("OFFER DEBUG → localDescription set:", offer);
+
       if (!userId || !roomId) {
-        console.warn("Skipping offer insert: userId or roomId undefined");
+        console.warn("OFFER DEBUG → Skipping offer insert: userId or roomId undefined");
         return;
       }
 
-      await supabase.from("call_signaling").insert({
-        room_id: roomId,
-        sender_id: userId,
-        type: "offer",
-        payload: {
-          sdp: offer.sdp,
-          type: offer.type,
-        },
-      });
+      try {
+        const res: PostgrestResponse<any> = await supabase
+          .from("call_signaling")
+          .insert({
+            room_id: roomId,
+            sender_id: userId,
+            type: "offer",
+            payload: {
+              sdp: offer.sdp,
+              type: offer.type,
+            },
+          });
+        console.log("OFFER DEBUG → insert result:", res);
+      } catch (err) {
+        console.error("OFFER DEBUG → insert error:", err);
+      }
     }
   }
 
-  // Realtime signaling: offers, answers, candidates
+  // Realtime signaling
   useEffect(() => {
+    console.log("RT DEBUG → subscribing to realtime channel:", roomId);
+
     const channel = supabase
       .channel(`call-${roomId}`)
       .on(
@@ -161,14 +194,24 @@ export default function CallRoom({
           filter: `room_id=eq.${roomId}`,
         },
         async (payload: { new: CallSignalingRow }) => {
+          console.log("RT DEBUG → received payload:", payload);
+
           const row = payload.new;
           const pc = pcRef.current;
 
-          if (!pc) return;
-          if (row.sender_id === userId) return;
+          if (!pc) {
+            console.warn("RT DEBUG → pcRef.current is null");
+            return;
+          }
 
-          // Callee: process offer, create answer
+          if (row.sender_id === userId) {
+            console.log("RT DEBUG → ignoring own row");
+            return;
+          }
+
           if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
+            console.log("RT DEBUG → processing offer");
+
             hasProcessedOfferRef.current = true;
 
             const offerPayload = row.payload as { sdp: string; type: "offer" };
@@ -180,28 +223,39 @@ export default function CallRoom({
               })
             );
 
+            console.log("RT DEBUG → remoteDescription set");
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
-            // ⭐ SAFETY GUARD
+            console.log("RT DEBUG → answer created");
+
             if (!userId || !roomId) {
-              console.warn("Skipping answer insert: userId or roomId undefined");
+              console.warn("ANSWER DEBUG → Skipping answer insert: userId or roomId undefined");
               return;
             }
 
-            await supabase.from("call_signaling").insert({
-              room_id: roomId,
-              sender_id: userId,
-              type: "answer",
-              payload: {
-                sdp: answer.sdp,
-                type: answer.type,
-              },
-            });
+            try {
+              const res: PostgrestResponse<any> = await supabase
+                .from("call_signaling")
+                .insert({
+                  room_id: roomId,
+                  sender_id: userId,
+                  type: "answer",
+                  payload: {
+                    sdp: answer.sdp,
+                    type: answer.type,
+                  },
+                });
+              console.log("ANSWER DEBUG → insert result:", res);
+            } catch (err) {
+              console.error("ANSWER DEBUG → insert error:", err);
+            }
           }
 
-          // Caller: apply answer
           if (row.type === "answer" && role === "caller") {
+            console.log("RT DEBUG → applying answer");
+
             const answerPayload = row.payload as { sdp: string; type: "answer" };
 
             await pc.setRemoteDescription(
@@ -210,40 +264,32 @@ export default function CallRoom({
                 sdp: answerPayload.sdp,
               })
             );
+
+            console.log("RT DEBUG → remoteDescription set from answer");
           }
 
-          // Both: apply candidates
           if (row.type === "candidate") {
+            console.log("RT DEBUG → applying ICE candidate");
+
             const candidateInit = row.payload as RTCIceCandidateInit;
             const candidate = new RTCIceCandidate(candidateInit);
             await pc.addIceCandidate(candidate);
+
+            console.log("RT DEBUG → ICE candidate added");
           }
         }
       )
       .subscribe();
 
     return () => {
+      console.log("RT DEBUG → unsubscribing channel");
       supabase.removeChannel(channel);
     };
   }, [roomId, userId, role, supabase]);
 
-  // Attach buffered remote stream once DOM is ready
-  useEffect(() => {
-    const el = remoteVideoRef.current;
-    const stream = pendingRemoteStreamRef.current;
-
-    if (el && el.isConnected && stream) {
-      el.srcObject = stream;
-
-      el.play().catch(() => {});
-      setTimeout(() => el.isConnected && el.play().catch(() => {}), 50);
-      setTimeout(() => el.isConnected && el.play().catch(() => {}), 300);
-
-      pendingRemoteStreamRef.current = null;
-    }
-  });
-
   function endCall() {
+    console.log("END DEBUG → ending call");
+
     const pc = pcRef.current;
     pc?.close();
 
@@ -253,7 +299,7 @@ export default function CallRoom({
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
     remoteStream?.getTracks().forEach((t) => t.stop());
 
-    router.push("/messages");
+    router.push("/messages"); // adjust this route to avoid 404
   }
 
   return (
