@@ -85,49 +85,6 @@ export default function PlazaPage() {
   const unreadListener = hydrated ? <UnreadListener /> : null;
 
   // -----------------------------------------------------
-  // SAFE PUSH SUBSCRIPTION (Safari-stable)
-  // -----------------------------------------------------
-  useEffect(() => {
-    async function registerPush() {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-
-        const vapidPublicKey =
-          "BALg6s-s9f1Y7SR6AeTsD78C1cMamfe7As7OeWLjHhXp-fVjUz6qj3jx9QFZvzv3xp_YLZklxUt-zIXnJTwJBCw";
-
-        const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-
-        // Check if already subscribed
-        const existing = await registration.pushManager.getSubscription();
-        if (existing) {
-          console.log("Already subscribed:", existing);
-          return;
-        }
-
-        // SAFE subscription — no Notification.requestPermission()
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey,
-        });
-
-        // Store subscription in Supabase
-        await supabase.from("push_subscriptions").upsert({
-          user_id: user?.id,
-          subscription,
-        });
-
-        console.log("Push subscription created:", subscription);
-      } catch (err) {
-        console.error("Failed to create push subscription:", err);
-      }
-    }
-
-    if (sessionReady && user?.id) {
-      registerPush();
-    }
-  }, [sessionReady, user?.id, supabase]);
-
-  // -----------------------------------------------------
   // FETCH POSTS (reactions batched per page)
   // -----------------------------------------------------
   const fetchPosts = useCallback(
