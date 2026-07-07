@@ -1,36 +1,23 @@
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", () => clients.claim());
-
-self.addEventListener("push", (event) => {
-  if (!event.data) return;
-
-  const payload = event.data.json();
-
-  event.waitUntil(
-    self.registration.showNotification(payload.title || "Mman Plaza", {
-      body: payload.body || "New activity in Mman Plaza",
-      icon: payload.icon || "/icons/mman-192.png",
-      badge: "/icons/mman-192.png",
-      data: { url: payload.url || "/" },
-    })
-  );
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
 });
 
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
-  const urlToOpen = event.notification.data.url || "/";
+// REQUIRED: Fetch handler (even empty) so Edge allows push subscription
+self.addEventListener("fetch", () => {});
+
+// REQUIRED: Push handler
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() || {};
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url.includes(urlToOpen) && "focus" in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
+    self.registration.showNotification(data.title || "New Message", {
+      body: data.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/badge-72.png",
     })
   );
 });
