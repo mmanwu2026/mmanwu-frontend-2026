@@ -9,7 +9,10 @@ self.addEventListener("activate", (event) => {
 });
 
 // REQUIRED: Fetch handler (even empty) so Edge allows push subscription
-self.addEventListener("fetch", () => {});
+self.addEventListener("fetch", (event) => {
+  // Minimal valid fetch handler
+  event.respondWith(fetch(event.request));
+});
 
 // REQUIRED: Push handler
 self.addEventListener("push", (event) => {
