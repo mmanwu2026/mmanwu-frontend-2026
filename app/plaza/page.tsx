@@ -16,6 +16,24 @@ import PlazaCard from "@/components/plaza/PlazaCard";
 // ⭐ SAFARI-SAFE UNREAD LISTENER
 import UnreadListener from "@/components/UnreadListener";
 
+// -----------------------------------------------------
+// SAFE VAPID KEY CONVERTER
+// -----------------------------------------------------
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 interface ReactionCounts {
   mask1: number;
   mask2: number;
@@ -65,6 +83,49 @@ export default function PlazaPage() {
 
   // ⭐ SAFARI-SAFE: mount unread listener ONLY after hydration
   const unreadListener = hydrated ? <UnreadListener /> : null;
+
+  // -----------------------------------------------------
+  // SAFE PUSH SUBSCRIPTION (Safari-stable)
+  // -----------------------------------------------------
+  useEffect(() => {
+    async function registerPush() {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+
+        const vapidPublicKey =
+          "BALg6s-s9f1Y7SR6AeTsD78C1cMamfe7As7OeWLjHhXp-fVjUz6qj3jx9QFZvzv3xp_YLZklxUt-zIXnJTwJBCw";
+
+        const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+
+        // Check if already subscribed
+        const existing = await registration.pushManager.getSubscription();
+        if (existing) {
+          console.log("Already subscribed:", existing);
+          return;
+        }
+
+        // SAFE subscription — no Notification.requestPermission()
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+
+        // Store subscription in Supabase
+        await supabase.from("push_subscriptions").upsert({
+          user_id: user?.id,
+          subscription,
+        });
+
+        console.log("Push subscription created:", subscription);
+      } catch (err) {
+        console.error("Failed to create push subscription:", err);
+      }
+    }
+
+    if (sessionReady && user?.id) {
+      registerPush();
+    }
+  }, [sessionReady, user?.id, supabase]);
 
   // -----------------------------------------------------
   // FETCH POSTS (reactions batched per page)
