@@ -268,15 +268,25 @@ export default function CallRoom({
             console.log("RT DEBUG → remoteDescription set from answer");
           }
 
-          if (row.type === "candidate") {
-            console.log("RT DEBUG → applying ICE candidate");
+ // Both: apply candidates
+if (row.type === "candidate") {
+  console.log("RT DEBUG → applying ICE candidate");
 
-            const candidateInit = row.payload as RTCIceCandidateInit;
-            const candidate = new RTCIceCandidate(candidateInit);
-            await pc.addIceCandidate(candidate);
+  const candidateInit = row.payload as RTCIceCandidateInit;
+  const candidate = new RTCIceCandidate(candidateInit);
 
-            console.log("RT DEBUG → ICE candidate added");
-          }
+  if (!pc.remoteDescription) {
+    console.warn(
+      "RT DEBUG → remoteDescription is null, skipping ICE candidate for now",
+      candidateInit
+    );
+    return;
+  }
+
+  await pc.addIceCandidate(candidate);
+
+  console.log("RT DEBUG → ICE candidate added");
+}
         }
       )
       .subscribe();
