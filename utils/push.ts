@@ -18,33 +18,37 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 // -----------------------------------------------------
-// SAFARI-SAFE PUSH SUBSCRIPTION
+// EDGE-SAFE PUSH SUBSCRIPTION
 // -----------------------------------------------------
-export async function registerPush(userId: string, supabase: any) {
-  const registration = await navigator.serviceWorker.ready;
+export function registerPush(userId: string, supabase: any) {
+  // MUST be called directly inside the click handler
+  navigator.serviceWorker.ready.then((registration) => {
+    const vapidPublicKey =
+      "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
 
-  const vapidPublicKey =
-    "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWPghKWzbcEMy83eHQl4yOdxFSUW6ai-jOg6qalk";
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
+    // Check existing subscription synchronously
+    registration.pushManager.getSubscription().then((existing) => {
+      if (existing) return existing;
 
-  const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-
-  // Check if already subscribed
-  const existing = await registration.pushManager.getSubscription();
-  if (existing) return existing;
-
-  // SAFE: subscription only happens after user gesture
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey,
+      // *** CRITICAL ***
+      // subscribe() MUST happen in this synchronous chain
+      registration.pushManager
+        .subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        })
+        .then((subscription) => {
+          // AFTER subscription succeeds, async work is allowed
+          supabase.from("push_subscriptions").upsert({
+            user_id: userId,
+            subscription,
+          });
+        })
+        .catch((err) => {
+          console.error("Subscribe error:", err);
+        });
+    });
   });
-
-  // Store subscription in Supabase
-  await supabase.from("push_subscriptions").upsert({
-    user_id: userId,
-    subscription,
-  });
-
-  return subscription;
 }
-
