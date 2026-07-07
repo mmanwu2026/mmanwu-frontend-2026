@@ -96,30 +96,35 @@ export default function CallRoom({
       }
     };
 
-    pc.ontrack = (event) => {
-      console.log("TRACK DEBUG → ontrack fired:", event.streams);
+pc.ontrack = (event) => {
+  console.log("TRACK DEBUG → ontrack fired:", event.streams);
 
-      const remoteStream = event.streams[0];
-      const el = remoteVideoRef.current;
+  const el = remoteVideoRef.current;
 
-      if (!el) {
-        console.log("TRACK DEBUG → remote video element not ready, buffering stream");
-        pendingRemoteStreamRef.current = remoteStream;
-        return;
-      }
+  if (!el) {
+    console.log("TRACK DEBUG → remote video element not ready, buffering stream");
+    pendingRemoteStreamRef.current = event.streams[0];
+    return;
+  }
 
-      el.srcObject = remoteStream;
+  // Merge tracks into a single stream
+  if (!pendingRemoteStreamRef.current) {
+    pendingRemoteStreamRef.current = new MediaStream();
+  }
 
-      // Safari autoplay fix — retry until Safari allows playback
-      const tryPlay = () => {
-        el.play().catch((err) => {
-          console.warn("TRACK DEBUG → Safari play() blocked, retrying:", err);
-          setTimeout(tryPlay, 250);
-        });
-      };
+  pendingRemoteStreamRef.current.addTrack(event.track);
+  el.srcObject = pendingRemoteStreamRef.current;
 
-      tryPlay();
-    };
+  // Safari autoplay fix — retry until allowed
+  const tryPlay = () => {
+    el.play().catch((err) => {
+      console.warn("TRACK DEBUG → Safari/Chrome play() blocked, retrying:", err);
+      setTimeout(tryPlay, 250);
+    });
+  };
+
+  tryPlay();
+};
 
     return () => {
       console.log("PC DEBUG → closing RTCPeerConnection");
