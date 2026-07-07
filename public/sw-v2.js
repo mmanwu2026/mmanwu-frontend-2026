@@ -1,4 +1,5 @@
-// version: 2
+// version: 3
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
@@ -12,7 +13,7 @@ self.addEventListener("fetch", () => {});
 
 // REQUIRED: Push handler
 self.addEventListener("push", (event) => {
-  const data = event.data?.json() || {};
+  const data = event.data ? event.data.json() : {};
 
   event.waitUntil(
     self.registration.showNotification(data.title || "New Message", {
