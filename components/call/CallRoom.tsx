@@ -1,33 +1,8 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
-
-type CallSignalingType = "offer" | "answer" | "candidate";
-
-interface IceCandidatePayload extends RTCIceCandidateInit {}
-
-interface SdpPayload extends RTCSessionDescriptionInit {}
-
-interface CallSignalingRow {
-  id: number;
-  room_id: string;
-  sender_id: string;
-  type: CallSignalingType;
-  payload: SdpPayload | IceCandidatePayload;
-  created_at?: string;
-}
-
-interface SupabaseRealtimePayload<T> {
-  commit_timestamp: string;
-  eventType: "INSERT" | "UPDATE" | "DELETE";
-  schema: string;
-  table: string;
-  new: T;
-  old: T | null;
-}
 
 export default function CallRoom({
   userId,
@@ -47,7 +22,7 @@ export default function CallRoom({
 
   const pendingRemoteStreamRef = useRef<MediaStream | null>(null);
 
-  const [joined, setJoined] = useState<boolean>(false);
+  const [joined, setJoined] = useState(false);
 
   // Create PeerConnection
   useEffect(() => {
@@ -73,25 +48,18 @@ export default function CallRoom({
 
     pcRef.current = pc;
 
-    pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+    pc.onicecandidate = (event) => {
       if (!event.candidate) return;
 
-      const candidatePayload: IceCandidatePayload = {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid ?? undefined,
-        sdpMLineIndex: event.candidate.sdpMLineIndex ?? undefined,
-        usernameFragment: (event.candidate as any).usernameFragment,
-      };
-
-      void supabase.from("call_signaling").insert({
+      supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
         type: "candidate",
-        payload: candidatePayload,
-      } satisfies Partial<CallSignalingRow>);
+        payload: event.candidate.toJSON(), // SCHEMA MATCH
+      });
     };
 
-    pc.ontrack = (event: RTCTrackEvent) => {
+    pc.ontrack = (event) => {
       const remoteStream = event.streams[0];
       const el = remoteVideoRef.current;
 
@@ -104,13 +72,10 @@ export default function CallRoom({
         el.srcObject = remoteStream;
       }
 
+      // Old modal triple-play pattern
       el.play().catch(() => {});
-      setTimeout(() => {
-        if (el.isConnected) el.play().catch(() => {});
-      }, 50);
-      setTimeout(() => {
-        if (el.isConnected) el.play().catch(() => {});
-      }, 300);
+      setTimeout(() => el.isConnected && el.play().catch(() => {}), 50);
+      setTimeout(() => el.isConnected && el.play().catch(() => {}), 300);
     };
 
     return () => {
@@ -119,18 +84,14 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
-  async function joinCall(): Promise<void> {
+  async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
     const pc = pcRef.current;
-    if (pc) {
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-    }
+    stream.getTracks().forEach((track) => pc?.addTrack(track, stream));
 
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
@@ -145,22 +106,25 @@ export default function CallRoom({
   useEffect(() => {
     if (!joined || role !== "caller") return;
 
-    async function makeOffer(): Promise<void> {
+    async function makeOffer() {
       const pc = pcRef.current;
       if (!pc) return;
 
-      const offer: SdpPayload = await pc.createOffer();
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
         type: "offer",
-        payload: offer,
-      } satisfies Partial<CallSignalingRow>);
+        payload: {
+          sdp: offer.sdp,
+          type: offer.type,
+        }, // SCHEMA MATCH
+      });
     }
 
-    void makeOffer();
+    makeOffer();
   }, [joined, role, roomId, userId, supabase]);
 
   // Callee polls for offer
@@ -169,7 +133,7 @@ export default function CallRoom({
 
     let cancelled = false;
 
-    async function pollForOffer(): Promise<void> {
+    async function poll() {
       if (cancelled) return;
 
       const { data } = await supabase
@@ -180,34 +144,39 @@ export default function CallRoom({
         .order("id", { ascending: false })
         .limit(1);
 
-      const rows = data as CallSignalingRow[] | null;
-
-      if (!rows || rows.length === 0) {
-        setTimeout(() => void pollForOffer(), 500);
+      if (!data || data.length === 0) {
+        setTimeout(poll, 500);
         return;
       }
 
-      const offerRow = rows[0];
-      const offer = offerRow.payload as SdpPayload;
+      const row = data[0];
+      const parsed = JSON.parse(row.payload); // CRITICAL
 
       const pc = pcRef.current;
       if (!pc) return;
 
-      await pc.setRemoteDescription(offer);
+      await pc.setRemoteDescription(
+        new RTCSessionDescription({
+          type: parsed.type,
+          sdp: parsed.sdp,
+        })
+      );
 
-      const answer: SdpPayload = await pc.createAnswer();
+      const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
         type: "answer",
-        payload: answer,
-      } satisfies Partial<CallSignalingRow>);
+        payload: {
+          sdp: answer.sdp,
+          type: answer.type,
+        }, // SCHEMA MATCH
+      });
     }
 
-    void pollForOffer();
-
+    poll();
     return () => {
       cancelled = true;
     };
@@ -225,21 +194,26 @@ export default function CallRoom({
           table: "call_signaling",
           filter: `room_id=eq.${roomId}`,
         },
-        async (payload: SupabaseRealtimePayload<CallSignalingRow>) => {
+        async (payload: { new: any }) => {
           const row = payload.new;
           const pc = pcRef.current;
 
           if (!pc) return;
           if (row.sender_id === userId) return;
 
+          const parsed = JSON.parse(row.payload); // CRITICAL
+
           if (row.type === "answer" && role === "caller") {
-            const answer = row.payload as SdpPayload;
-            await pc.setRemoteDescription(answer);
+            await pc.setRemoteDescription(
+              new RTCSessionDescription({
+                type: parsed.type,
+                sdp: parsed.sdp,
+              })
+            );
           }
 
           if (row.type === "candidate") {
-            const candidateInit = row.payload as IceCandidatePayload;
-            const candidate = new RTCIceCandidate(candidateInit);
+            const candidate = new RTCIceCandidate(parsed);
             await pc.addIceCandidate(candidate);
           }
         }
@@ -251,7 +225,7 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
-  // Attach buffered remote stream once DOM is ready
+  // Attach buffered remote stream
   useEffect(() => {
     const el = remoteVideoRef.current;
     const stream = pendingRemoteStreamRef.current;
@@ -260,26 +234,22 @@ export default function CallRoom({
       el.srcObject = stream;
 
       el.play().catch(() => {});
-      setTimeout(() => {
-        if (el.isConnected) el.play().catch(() => {});
-      }, 50);
-      setTimeout(() => {
-        if (el.isConnected) el.play().catch(() => {});
-      }, 300);
+      setTimeout(() => el.isConnected && el.play().catch(() => {}), 50);
+      setTimeout(() => el.isConnected && el.play().catch(() => {}), 300);
 
       pendingRemoteStreamRef.current = null;
     }
   });
 
-  function endCall(): void {
+  function endCall() {
     const pc = pcRef.current;
     pc?.close();
 
-    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
-    localStream?.getTracks().forEach((t) => t.stop());
+    const local = localVideoRef.current?.srcObject as MediaStream | null;
+    local?.getTracks().forEach((t) => t.stop());
 
-    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
-    remoteStream?.getTracks().forEach((t) => t.stop());
+    const remote = remoteVideoRef.current?.srcObject as MediaStream | null;
+    remote?.getTracks().forEach((t) => t.stop());
 
     router.push("/messages");
   }
