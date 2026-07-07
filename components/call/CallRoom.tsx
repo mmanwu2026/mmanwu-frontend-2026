@@ -298,7 +298,7 @@ export default function CallRoom({
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
     remoteStream?.getTracks().forEach((t) => t.stop());
 
-    router.push("/messages");
+    router.push("/messenger");
   }
 
   return (
