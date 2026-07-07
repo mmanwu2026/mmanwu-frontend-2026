@@ -24,7 +24,7 @@ export async function registerPush(userId: string, supabase: any) {
   const registration = await navigator.serviceWorker.ready;
 
   const vapidPublicKey =
-    "BALg6s-s9f1Y7SR6AeTsD78C1cMamfe7As7OeWLjHhXp-fVjUz6qj3jx9QFZvzv3xp_YLZklxUt-zIXnJTwJBCw";
+    "BKyvZk6p8qk8tqV8mJmVt0mYV7pC8sJ0u3V4u0x0Qm0yZl8qY8Qm8GxqYV7m0sJ0u3V4u0x0Qm0yZl8qY8Qm8GxqYV7m0sJ0";
 
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
