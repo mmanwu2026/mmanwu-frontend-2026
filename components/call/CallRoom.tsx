@@ -11,7 +11,7 @@ type CallSignalingRow = {
   id: string;
   room_id: string;
   sender_id: string;
-  type: "offer" | "answer" | "candidate" | "call_start" | "call_decline";
+  type: "offer" | "answer" | "candidate";
   payload: any;
   created_at: string;
 };
@@ -41,12 +41,12 @@ export default function CallRoom({
   const hasSentOfferRef = useRef(false);
   const hasProcessedOfferRef = useRef(false);
 
+  // UI Enhancements
+  const [incomingCall, setIncomingCall] = useState(false);
+  const [ringing, setRinging] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
-
-  const [incomingCall, setIncomingCall] = useState(false);
-  const [ringing, setRinging] = useState(false);
 
   function formatDuration(seconds: number) {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -76,6 +76,7 @@ export default function CallRoom({
     setCamEnabled(!camEnabled);
   }
 
+  // Create PeerConnection
   useEffect(() => {
     const pc = new RTCPeerConnection({
       iceServers: [
@@ -176,19 +177,7 @@ export default function CallRoom({
     }
   }
 
-  useEffect(() => {
-    if (role === "caller") {
-      joinCall();
-
-      supabase.from("call_signaling").insert({
-        room_id: roomId,
-        sender_id: userId,
-        type: "call_start",
-        payload: {},
-      });
-    }
-  }, [role]);
-
+  // Realtime signaling
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -207,18 +196,14 @@ export default function CallRoom({
           if (!pc) return;
           if (row.sender_id === userId) return;
 
-          if (row.type === "call_start" && role === "callee") {
+          // Incoming call triggered by offer arrival (Option B)
+          if (row.type === "offer" && role === "callee" && !joined) {
             setIncomingCall(true);
             setRinging(true);
           }
 
-          if (row.type === "call_decline") {
-            router.push("/messages");
-          }
-
-          if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
-            hasProcessedOfferRef.current = true;
-
+          // Callee: process offer → create answer
+          if (row.type === "offer" && role === "callee" && hasProcessedOfferRef.current) {
             const offerPayload = row.payload;
 
             await pc.setRemoteDescription(
@@ -242,6 +227,7 @@ export default function CallRoom({
             });
           }
 
+          // Caller: apply answer
           if (row.type === "answer" && role === "caller") {
             const answerPayload = row.payload;
 
@@ -258,6 +244,7 @@ export default function CallRoom({
             pendingCandidatesRef.current = [];
           }
 
+          // ICE
           if (row.type === "candidate") {
             const candidateInit = row.payload;
 
@@ -293,17 +280,11 @@ export default function CallRoom({
   function acceptCall() {
     setIncomingCall(false);
     setRinging(false);
+    hasProcessedOfferRef.current = true;
     joinCall();
   }
 
   function declineCall() {
-    supabase.from("call_signaling").insert({
-      room_id: roomId,
-      sender_id: userId,
-      type: "call_decline",
-      payload: {},
-    });
-
     router.push("/messages");
   }
 
@@ -323,6 +304,7 @@ export default function CallRoom({
   return (
     <div className="flex flex-col h-full p-4 text-white relative">
 
+      {/* Incoming Call UI */}
       {incomingCall && (
         <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center gap-8 text-center px-6">
           <div className="text-4xl md:text-5xl font-extrabold">
@@ -391,6 +373,15 @@ export default function CallRoom({
           </button>
         )}
       </div>
+
+      {!joined && role === "caller" && (
+        <button
+          onClick={joinCall}
+          className="mt-4 px-4 py-2 bg-green-600 rounded"
+        >
+          Join Call
+        </button>
+      )}
 
       {joined && (
         <button
