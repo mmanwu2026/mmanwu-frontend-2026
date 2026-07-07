@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createClient, type User } from "@supabase/supabase-js";
 
 const SupabaseContext = createContext<any>(null);
 
@@ -13,8 +13,28 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Load session immediately
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
   return (
-    <SupabaseContext.Provider value={supabase}>
+    <SupabaseContext.Provider value={{ supabase, user }}>
       {children}
     </SupabaseContext.Provider>
   );
