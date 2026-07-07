@@ -14,7 +14,7 @@ export default function NewChatModal({
   users: any[];
   userId: string;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState<string | null>(null);
 

@@ -35,7 +35,7 @@ type RawSoundPost = {
 };
 
 export default function TrendingSoundSquare() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [posts, setPosts] = useState<(CardSoundPost & { trending_score: number })[]>([]);
   const [loading, setLoading] = useState(true);
 

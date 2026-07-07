@@ -11,7 +11,7 @@ interface VisionCommentsProps {
 }
 
 export default function VisionComments({ postId }: VisionCommentsProps) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

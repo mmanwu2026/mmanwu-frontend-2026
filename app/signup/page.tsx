@@ -5,7 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 
 export default function SignupPage() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

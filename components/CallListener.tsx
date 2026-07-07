@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function CallListener() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const router = useRouter();
 
   const [incomingCall, setIncomingCall] = useState<any | null>(null);

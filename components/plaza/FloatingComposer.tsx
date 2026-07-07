@@ -23,7 +23,7 @@ interface FloatingComposerProps {
 
 export default function FloatingComposer({ onPost }: FloatingComposerProps) {
   // ⭐ GLOBAL SUPABASE CLIENT — SAFE
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const { user, loading } = useUser();
 

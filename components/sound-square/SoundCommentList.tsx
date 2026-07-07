@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function SoundCommentList({ postId }: { postId: string }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [comments, setComments] = useState<any[]>([]);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 

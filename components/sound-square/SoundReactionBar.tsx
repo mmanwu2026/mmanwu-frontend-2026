@@ -25,7 +25,7 @@ export default function SoundReactionBar({
   reactions: ReactionCounts;
   onReact: () => void;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

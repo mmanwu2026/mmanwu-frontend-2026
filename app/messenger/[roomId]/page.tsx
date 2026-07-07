@@ -9,7 +9,7 @@ export default function RoomPage() {
   const params = useParams<{ roomId: string }>();
   const roomId = params?.roomId;
 
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [otherUserId, setOtherUserId] = useState<string | undefined>(undefined);
 

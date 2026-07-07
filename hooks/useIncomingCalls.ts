@@ -15,7 +15,7 @@ interface CallEventPayload {
 }
 
 export function useIncomingCalls(userId: string | null) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const [incomingCall, setIncomingCall] = useState<{
     id: string;

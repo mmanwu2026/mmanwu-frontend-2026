@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function VisionCommentList({ postId }: { postId: string }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();;
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

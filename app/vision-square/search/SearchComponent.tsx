@@ -11,7 +11,7 @@ interface ReactionRow {
 }
 
 export default function SearchComponent() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const searchParams = useSearchParams();
 
   const [query, setQuery] = useState("");

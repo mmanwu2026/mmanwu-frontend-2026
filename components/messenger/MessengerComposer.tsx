@@ -12,7 +12,7 @@ export default function MessengerComposer({
   otherUserId: string;
   roomId: string;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [text, setText] = useState("");
 
   async function sendMessage() {

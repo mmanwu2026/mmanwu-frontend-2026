@@ -13,7 +13,7 @@ interface UserRow {
 }
 
 export default function MessengerPage() {
-  const supabase = useSupabase();   // ⭐ FIXED
+  const { supabase } = useSupabase(); 
   const { user, loading: userLoading } = useUser();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);

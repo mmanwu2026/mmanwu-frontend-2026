@@ -5,7 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import Link from "next/link";
 
 export default function TrendingHashtags() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [tags, setTags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -6,7 +6,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useState, useEffect } from "react";
 
 export default function AuthNav() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user, loading } = useUser();
 
   const [hydrated, setHydrated] = useState(false);

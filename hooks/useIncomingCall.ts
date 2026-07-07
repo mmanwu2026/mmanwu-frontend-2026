@@ -14,7 +14,7 @@ interface CallMessage {
 }
 
 export default function useIncomingCall(userId: string | undefined) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const router = useRouter();
 
   useEffect(() => {

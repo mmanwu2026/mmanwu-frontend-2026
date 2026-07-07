@@ -20,7 +20,7 @@ type EditProfileFormProps = {
 };
 
 export default function EditProfileForm({ profile, onClose }: EditProfileFormProps) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const router = useRouter();
 
   const [displayName, setDisplayName] = useState(profile.display_name || "");

@@ -39,7 +39,7 @@ type RawSoundPost = {
 const PAGE_SIZE = 20;
 
 export default function SoundSquareFeed() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const [posts, setPosts] = useState<CardSoundPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);

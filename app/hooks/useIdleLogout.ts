@@ -1,21 +1,24 @@
+"use client";
+
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function useIdleLogout(timeoutMs = 30 * 60 * 1000) {
   const router = useRouter();
-  const supabase = useSupabase();
+  const { supabase } = useSupabase(); // ⭐ FIXED
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
 
     const resetTimer = () => {
       clearTimeout(timer);
+
       timer = setTimeout(async () => {
-        const session = await supabase.auth.getSession();
+        const session = await supabase.auth.getSession(); // ⭐ FIXED
 
         if (!session.data.session) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut(); // ⭐ FIXED
           router.push("/login");
         }
       }, timeoutMs);

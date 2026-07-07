@@ -55,7 +55,7 @@ interface VisionPost {
 }
 
 export default function VisionPostPage() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const params = useParams();
   const id = params?.id as string;

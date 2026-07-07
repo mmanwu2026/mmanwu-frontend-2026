@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase(); // ⭐ FIXED
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -15,39 +15,36 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (loading) return;
+    if (loading) return;
 
-  setLoading(true);
-  setErrorMsg("");
+    setLoading(true);
+    setErrorMsg("");
 
-  // ⭐ Run the login request
-  const result = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const result = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  // ⭐ ADD THIS — diagnostic output
-  console.log("LOGIN RESULT:", result);
+    console.log("LOGIN RESULT:", result);
 
-  const { error } = result;
+    const { error } = result;
 
-  if (error) {
-    if (error.message.includes("Invalid login credentials")) {
-      setErrorMsg("Incorrect email or password");
-    } else {
-      setErrorMsg(error.message);
+    if (error) {
+      if (error.message.includes("Invalid login credentials")) {
+        setErrorMsg("Incorrect email or password");
+      } else {
+        setErrorMsg(error.message);
+      }
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-    return;
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    router.push("/plaza");
   }
-
-  // ⭐ Ensure Supabase finishes writing the session cookie
-  await new Promise((resolve) => setTimeout(resolve, 250));
-
-  router.push("/plaza");
-}
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-gray-200 px-6">
@@ -84,7 +81,7 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-4 text-sm">
-        Don’t have an account?{" "}
+        Don’t have an account{" "}
         <Link href="/signup" className="text-purple-400 hover:text-purple-300">
           Sign up
         </Link>

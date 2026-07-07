@@ -9,7 +9,7 @@ type AvatarUploaderProps = {
 };
 
 export default function AvatarUploader({ userId, currentAvatar }: AvatarUploaderProps) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Hydration-safe

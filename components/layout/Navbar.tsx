@@ -6,7 +6,7 @@ import { useUser } from "@/context/UserContext";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
 
   const [unreadCount, setUnreadCount] = useState(0);

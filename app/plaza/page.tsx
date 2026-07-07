@@ -63,7 +63,7 @@ interface CreatorProfile {
 const PAGE_SIZE = 20;
 
 export default function PlazaPage() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user, loading: userLoading } = useUser();
 
   const [hydrated, setHydrated] = useState(false);

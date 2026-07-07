@@ -111,7 +111,7 @@ export default function ProfileClient({
   profile: Profile;
   posts: Post[];
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 

@@ -52,7 +52,7 @@ interface VisionPost {
 }
 
 export default function VisionSquareFeed() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
 
   const [posts, setPosts] = useState<VisionPost[]>([]);

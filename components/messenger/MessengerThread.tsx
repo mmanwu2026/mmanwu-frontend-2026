@@ -15,7 +15,7 @@ export default function MessengerThread({
 }) {
   if (!roomId) return null;
 
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const router = useRouter();
   const finalRoomId = roomId;
 

@@ -32,7 +32,7 @@ interface Message {
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
   const { user } = useUser();
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 

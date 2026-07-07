@@ -39,7 +39,7 @@ export default function PostCard({
   onDelete,
 }: PostCardProps) {
 
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
 
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);

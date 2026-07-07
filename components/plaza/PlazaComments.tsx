@@ -35,7 +35,7 @@ export default function PlazaComments({
   postId: string;
   postCreatorId: string;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [comments, setComments] = useState<PlazaComment[]>([]);
   const [loading, setLoading] = useState(true);
 

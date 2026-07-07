@@ -6,7 +6,7 @@ import { useUser } from "@/context/UserContext";
 import { useUnread } from "@/context/UnreadContext";
 
 export default function UnreadListener() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const { setUnreadCounts } = useUnread();
 

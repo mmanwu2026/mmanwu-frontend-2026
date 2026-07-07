@@ -14,7 +14,7 @@ export default function CallRoomPage() {
   const roomId = params.roomId; // URL room ID
   const roleParam = searchParams?.get("role") ?? "caller";
 
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
   useEffect(() => {

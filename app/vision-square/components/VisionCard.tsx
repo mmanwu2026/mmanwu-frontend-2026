@@ -27,7 +27,7 @@ export default function VisionCard({
   const mainAvatarSize = smallAvatar ? "w-[24px] h-[24px]" : "w-[40px] h-[40px]";
   const commentAvatarSize = smallAvatar ? "w-[20px] h-[20px]" : "w-[24px] h-[24px]";
 
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

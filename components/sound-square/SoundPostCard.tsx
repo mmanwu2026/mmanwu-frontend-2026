@@ -24,7 +24,7 @@ export default function SoundPostCard({
   post: CardSoundPost & { onDeleted?: (id: string) => void };
   isTrending?: boolean;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

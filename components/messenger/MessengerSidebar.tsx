@@ -44,7 +44,7 @@ export default function MessengerSidebar({
   users: any[];
   userId: string;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
 

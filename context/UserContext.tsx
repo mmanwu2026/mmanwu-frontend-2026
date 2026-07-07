@@ -12,7 +12,7 @@ interface UserContextValue {
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

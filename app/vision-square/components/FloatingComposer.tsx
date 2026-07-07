@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import SpiritToast from "@/components/SpiritToast";
 
 export default function FloatingComposerVision() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

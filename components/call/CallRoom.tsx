@@ -25,7 +25,7 @@ export default function CallRoom({
   roomId: string;
   role?: Role;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const router = useRouter();
 
   const role: Role = initialRole ?? "caller";

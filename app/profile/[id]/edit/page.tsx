@@ -18,7 +18,7 @@ export default function EditProfilePage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user, loading: userLoading } = useUser();
 
   const [hydrated, setHydrated] = useState(false);

@@ -32,7 +32,7 @@ export default function ReactionBar({
   positivityRatio,
   onReact,
 }: ReactionBarProps) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
 
   const [loading, setLoading] = useState(false);

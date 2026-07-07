@@ -43,7 +43,7 @@ interface CreatorPost {
 export default function CreatorProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user, loading } = useUser();
 
   const [creator, setCreator] = useState<CreatorProfile | null>(null);

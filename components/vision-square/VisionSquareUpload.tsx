@@ -8,7 +8,7 @@ import Link from "next/link";
 import SpiritToast from "@/components/SpiritToast";
 
 export default function VisionSquareUpload() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

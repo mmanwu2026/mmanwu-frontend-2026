@@ -18,7 +18,7 @@ export function IncomingCallModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   // ⭐ Step 7.1 — Auto-timeout if callee does not answer
   useEffect(() => {

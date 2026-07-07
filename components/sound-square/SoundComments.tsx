@@ -15,7 +15,7 @@ export default function SoundComments({
   postId: string;
   onSubmittedAction: () => void;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

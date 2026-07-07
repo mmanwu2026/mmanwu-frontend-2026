@@ -8,7 +8,7 @@ import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
 
 export default function SoundSquareUpload() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const { user } = useUser();
   const router = useRouter();
 

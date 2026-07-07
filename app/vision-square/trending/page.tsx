@@ -10,7 +10,7 @@ interface ReactionRow {
 }
 
 export default function VisionSquareTrending() {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

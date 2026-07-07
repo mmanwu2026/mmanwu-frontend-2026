@@ -35,7 +35,7 @@ type SoundPostDetailCard = {
 };
 
 export default function SoundSquarePostDetail({ params }: { params: { id: string } }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const [post, setPost] = useState<SoundPostDetailCard | null>(null);
   const [loading, setLoading] = useState(true);
 

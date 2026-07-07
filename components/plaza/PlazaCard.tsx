@@ -45,7 +45,7 @@ export default function PlazaCard({
   onDeleteAction: (id: string) => void;
   onReactAction: () => void;
 }) {
-  const supabase = useSupabase();
+  const { supabase } = useSupabase();
   const isCreator = user?.id === post.creator_id;
 
   const FALLBACK_AVATAR =
