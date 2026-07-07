@@ -13,16 +13,25 @@ export default function ProvidersWrapper({ children }: { children: React.ReactNo
   const router = useRouter();
   const { supabase } = useSupabase();
 
-  // ⭐ GLOBAL SESSION GUARD
+  // ⭐ Prevent running during Next.js prerender
+  if (typeof window === "undefined") {
+    return (
+      <ClientProviders>
+        <AuthNavWrapper />
+        <UnreadProvider>
+          <SWRegister />
+          {children}
+        </UnreadProvider>
+      </ClientProviders>
+    );
+  }
+
+  // ⭐ GLOBAL SESSION GUARD (client-only)
   useEffect(() => {
     async function checkSession() {
-      // Prevent stale cached sessions
       await supabase.auth.refreshSession();
-
       const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        router.push("/login");
-      }
+      if (!data.session) router.push("/login");
     }
 
     checkSession();
