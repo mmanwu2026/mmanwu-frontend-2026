@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Role = "caller" | "callee";
 
@@ -11,21 +11,25 @@ type CallSignalingRow = {
   room_id: string;
   sender_id: string;
   type: "offer" | "answer" | "candidate";
-  payload: any; // Supabase returns JSON already parsed
+  payload: any;
   created_at: string;
 };
 
 export default function CallRoom({
   userId,
   roomId,
-  role,
+  role: initialRole,
 }: {
   userId: string;
   roomId: string;
-  role: Role;
+  role?: Role;
 }) {
   const supabase = useSupabase();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const roleParam = searchParams?.get("role");
+const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -33,6 +37,8 @@ export default function CallRoom({
   const pendingRemoteStreamRef = useRef<MediaStream | null>(null);
 
   const [joined, setJoined] = useState(false);
+  const hasSentOfferRef = useRef(false);
+  const hasProcessedOfferRef = useRef(false);
 
   // Create PeerConnection
   useEffect(() => {
@@ -65,7 +71,7 @@ export default function CallRoom({
         room_id: roomId,
         sender_id: userId,
         type: "candidate",
-        payload: event.candidate.toJSON(), // candidate JSON
+        payload: event.candidate.toJSON(),
       });
     };
 
@@ -91,7 +97,7 @@ export default function CallRoom({
       pc.close();
       pcRef.current = null;
     };
-  }, [roomId, userId, role, supabase]);
+  }, [roomId, userId, supabase]);
 
   async function joinCall() {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -109,18 +115,12 @@ export default function CallRoom({
     }
 
     setJoined(true);
-  }
 
-  // Caller creates offer
-  useEffect(() => {
-    if (!joined || role !== "caller") return;
-
-    async function makeOffer() {
-      const pc = pcRef.current;
-      if (!pc) return;
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+    // Caller sends offer once joined
+    if (role === "caller" && !hasSentOfferRef.current) {
+      hasSentOfferRef.current = true;
+      const offer = await pc!.createOffer();
+      await pc!.setLocalDescription(offer);
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
@@ -132,69 +132,9 @@ export default function CallRoom({
         },
       });
     }
+  }
 
-    makeOffer();
-  }, [joined, role, roomId, userId, supabase]);
-
-  // Callee polls for offer
-  useEffect(() => {
-    if (!joined || role !== "callee") return;
-
-    let cancelled = false;
-
-    async function pollForOffer() {
-      if (cancelled) return;
-
-      const { data } = await supabase
-        .from("call_signaling")
-        .select("*")
-        .eq("room_id", roomId)
-        .eq("type", "offer")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      const rows = (data || []) as CallSignalingRow[];
-
-      if (!rows.length) {
-        setTimeout(pollForOffer, 500);
-        return;
-      }
-
-      const offerRow = rows[0];
-      const payload = offerRow.payload as { sdp: string; type: "offer" };
-
-      const pc = pcRef.current;
-      if (!pc) return;
-
-      await pc.setRemoteDescription(
-        new RTCSessionDescription({
-          type: payload.type,
-          sdp: payload.sdp,
-        })
-      );
-
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      await supabase.from("call_signaling").insert({
-        room_id: roomId,
-        sender_id: userId,
-        type: "answer",
-        payload: {
-          sdp: answer.sdp,
-          type: answer.type,
-        },
-      });
-    }
-
-    pollForOffer();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [joined, role, roomId, userId, supabase]);
-
-  // Realtime listener for answers/candidates
+  // Realtime signaling: offers, answers, candidates
   useEffect(() => {
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -213,8 +153,37 @@ export default function CallRoom({
           if (!pc) return;
           if (row.sender_id === userId) return;
 
+          // Callee: process offer, create answer
+          if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
+            hasProcessedOfferRef.current = true;
+
+            const offerPayload = row.payload as { sdp: string; type: "offer" };
+
+            await pc.setRemoteDescription(
+              new RTCSessionDescription({
+                type: offerPayload.type,
+                sdp: offerPayload.sdp,
+              })
+            );
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            await supabase.from("call_signaling").insert({
+              room_id: roomId,
+              sender_id: userId,
+              type: "answer",
+              payload: {
+                sdp: answer.sdp,
+                type: answer.type,
+              },
+            });
+          }
+
+          // Caller: apply answer
           if (row.type === "answer" && role === "caller") {
             const answerPayload = row.payload as { sdp: string; type: "answer" };
+
             await pc.setRemoteDescription(
               new RTCSessionDescription({
                 type: answerPayload.type,
@@ -223,6 +192,7 @@ export default function CallRoom({
             );
           }
 
+          // Both: apply candidates
           if (row.type === "candidate") {
             const candidateInit = row.payload as RTCIceCandidateInit;
             const candidate = new RTCIceCandidate(candidateInit);
