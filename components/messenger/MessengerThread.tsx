@@ -43,20 +43,34 @@ export default function MessengerThread({
   }, [finalRoomId]);
 
   // CLEAR CHAT
-async function clearChat() {
-  const { error } = await supabase
-    .from("messages")
-    .delete()
-    .eq("room_id", finalRoomId);
+  async function clearChat() {
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("room_id", finalRoomId);
 
-  if (error) {
-    console.error("Clear Chat ERROR →", error);
-    return;
+    if (error) {
+      console.error("Clear Chat ERROR →", error);
+      return;
+    }
+
+    setMessages([]);
   }
 
-  // Clear local UI state
-  setMessages([]);
-}
+  // DELETE ONE MESSAGE (Outgoing Only)
+  async function deleteMessage(messageId: string) {
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("id", messageId);
+
+    if (error) {
+      console.error("Delete message ERROR →", error);
+      return;
+    }
+
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  }
 
   // LOAD USERNAMES
   useEffect(() => {
@@ -247,10 +261,23 @@ async function clearChat() {
             messages.filter((x) => x.sender_id === userId).slice(-1)[0]?.id === m.id;
 
           return (
-            <div key={m.id} className="bg-neutral-800 p-3 rounded-lg">
+            <div key={m.id} className="bg-neutral-800 p-3 rounded-lg relative">
+
+              {/* Trash icon only for outgoing messages */}
+              {isOutgoing && (
+                <button
+                  onClick={() => deleteMessage(m.id)}
+                  className="absolute top-2 right-2 text-red-400 hover:text-red-300"
+                  title="Delete message"
+                >
+                  🗑️
+                </button>
+              )}
+
               <div className="text-xs font-semibold text-yellow-400">
                 {usernames[m.sender_id] || m.sender_id}
               </div>
+
               <div className="text-sm mt-1">{m.content}</div>
 
               {isLastOutgoing && (
