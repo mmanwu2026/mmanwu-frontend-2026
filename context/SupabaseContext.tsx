@@ -1,9 +1,20 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { createClient, type User } from "@supabase/supabase-js";
 
-const SupabaseContext = createContext<any>(null);
+interface SupabaseContextType {
+  supabase: any;
+  user: User | null;
+}
+
+const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => {
@@ -16,21 +27,17 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Load session immediately
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
     });
 
-    // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
       }
     );
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
   return (
