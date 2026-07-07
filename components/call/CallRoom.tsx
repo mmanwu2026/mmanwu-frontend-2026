@@ -27,10 +27,8 @@ export default function CallRoom({
   const searchParams = useSearchParams();
   const params = useParams();
 
-  // ⭐ FIX: roomId now comes from URL
   const roomId = params?.id as string;
 
-  // ⭐ FIX: searchParams null-safe
   const roleParam = searchParams?.get("role") ?? "caller";
   const role: Role = initialRole ?? (roleParam === "callee" ? "callee" : "caller");
 
@@ -69,6 +67,12 @@ export default function CallRoom({
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
+
+      // ⭐ SAFETY GUARD
+      if (!userId || !roomId) {
+        console.warn("Skipping ICE candidate insert: userId or roomId undefined");
+        return;
+      }
 
       supabase.from("call_signaling").insert({
         room_id: roomId,
@@ -122,8 +126,15 @@ export default function CallRoom({
     // Caller sends offer once joined
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
+
       const offer = await pc!.createOffer();
       await pc!.setLocalDescription(offer);
+
+      // ⭐ SAFETY GUARD
+      if (!userId || !roomId) {
+        console.warn("Skipping offer insert: userId or roomId undefined");
+        return;
+      }
 
       await supabase.from("call_signaling").insert({
         room_id: roomId,
@@ -171,6 +182,12 @@ export default function CallRoom({
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+
+            // ⭐ SAFETY GUARD
+            if (!userId || !roomId) {
+              console.warn("Skipping answer insert: userId or roomId undefined");
+              return;
+            }
 
             await supabase.from("call_signaling").insert({
               room_id: roomId,
