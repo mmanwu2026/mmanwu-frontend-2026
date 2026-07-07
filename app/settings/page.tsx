@@ -2,27 +2,22 @@
 
 import { useEffect } from "react";
 import { registerPush } from "@/utils/push";
-import { useSupabase } from "@/context/SupabaseContext"; // your real context
+import { useSupabase } from "@/context/SupabaseContext";
 
 export default function SettingsPage() {
   const { supabase, user } = useSupabase();
 
   useEffect(() => {
+    if (!user) return; // wait until user is loaded
+
     const btn = document.getElementById("enableNotifications");
     if (!btn) return;
 
     const handler = () => {
-      if (!user) {
-        console.error("No user found — cannot register push.");
-        return;
-      }
-
-      // Edge‑safe: call registerPush directly inside DOM click handler
       registerPush(user.id, supabase);
     };
 
     btn.addEventListener("click", handler);
-
     return () => btn.removeEventListener("click", handler);
   }, [supabase, user]);
 
