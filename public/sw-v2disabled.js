@@ -1,4 +1,4 @@
-// version: 4
+// version: 5
 
 // Immediately activate new service worker versions
 self.addEventListener("install", (event) => {
