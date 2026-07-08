@@ -1,5 +1,6 @@
 // version: 3
 
+// Immediately activate new service worker versions
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
@@ -10,7 +11,6 @@ self.addEventListener("activate", (event) => {
 
 // REQUIRED: Fetch handler (even empty) so Edge allows push subscription
 self.addEventListener("fetch", (event) => {
-  // Minimal valid fetch handler
   event.respondWith(fetch(event.request));
 });
 
@@ -32,22 +32,27 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  // The backend should send a `url` field inside the push payload
   const targetUrl = event.notification.data?.url || "/";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // If a tab is already open with the target URL, focus it
       for (const client of clientList) {
         if (client.url === targetUrl && "focus" in client) {
           return client.focus();
         }
       }
 
-      // Otherwise open a new tab
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
     })
   );
+});
+
+// ⭐ REQUIRED FOR UPDATE BANNER
+// Allows the React app to tell the service worker to activate immediately
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
