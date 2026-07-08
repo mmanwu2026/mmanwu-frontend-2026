@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import MessengerSidebar from "@/components/messenger/MessengerSidebar";
 
 interface UserRow {
@@ -13,14 +12,30 @@ interface UserRow {
 }
 
 export default function MessengerPage() {
-  const { supabase } = useSupabase(); 
-  const { user, loading: userLoading } = useUser();
+  const { supabase } = useSupabase();
+
+  // ⭐ Replaces useUser()
+  const [uid, setUid] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ⭐ Load authenticated user
+  useEffect(() => {
+    async function loadSession() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setSessionLoading(false);
+    }
+    loadSession();
+  }, [supabase]);
+
+  // ⭐ Fetch other users
   useEffect(() => {
     async function loadUsers() {
-      if (!user) {
+      if (!uid) {
         setLoading(false);
         return;
       }
@@ -28,16 +43,17 @@ export default function MessengerPage() {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url")
-        .neq("id", user.id);
+        .neq("id", uid);
 
       if (!error && data) setUsers(data as UserRow[]);
       setLoading(false);
     }
 
     loadUsers();
-  }, [user, supabase]);
+  }, [uid, supabase]);
 
-  if (userLoading || loading) {
+  // ⭐ Loading states
+  if (sessionLoading || loading) {
     return (
       <div className="p-6 text-white">
         <h1 className="text-2xl mb-4">Messenger</h1>
@@ -46,7 +62,8 @@ export default function MessengerPage() {
     );
   }
 
-  if (!user) {
+  // ⭐ Not logged in
+  if (!uid) {
     return (
       <div className="p-6 text-white">
         <h1 className="text-2xl mb-4">Messenger</h1>
@@ -55,9 +72,10 @@ export default function MessengerPage() {
     );
   }
 
+  // ⭐ Render Messenger
   return (
     <div className="flex h-full">
-      <MessengerSidebar users={users} userId={user.id} />
+      <MessengerSidebar users={users} userId={uid} />
 
       <div className="flex-1 flex items-center justify-center text-gray-400">
         Select a conversation

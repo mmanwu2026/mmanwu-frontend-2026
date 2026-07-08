@@ -19,6 +19,16 @@ export async function POST(req: Request) {
     // ⭐ Correct: cookies() must be awaited
     const cookieStore = await cookies();
 
+    // ⭐ Extract JWT manually
+    const accessToken = cookieStore.get("sb-access-token")?.value;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { ok: false, error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
     // ⭐ Correct Supabase client for server routes
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,25 +36,31 @@ export async function POST(req: Request) {
       {
         global: {
           headers: {
-            Authorization: `Bearer ${cookieStore.get("sb-access-token")?.value ?? ""}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         },
       }
     );
 
-    // ⭐ Get current user
+    // ⭐ Authenticate using JWT
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+      error: userError,
+    } = await supabase.auth.getUser(accessToken);
 
-    const userId = user?.id ?? null;
+    if (userError || !user) {
+      return NextResponse.json(
+        { ok: false, error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
 
     // ⭐ Insert share as a reaction
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
       post_type: postType,
       maskTier,
-      user_id: userId,
+      user_id: user.id,
     });
 
     if (error) {

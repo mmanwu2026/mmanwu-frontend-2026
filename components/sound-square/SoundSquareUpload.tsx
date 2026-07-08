@@ -1,16 +1,26 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
 
 export default function SoundSquareUpload() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -65,7 +75,7 @@ export default function SoundSquareUpload() {
       file.type ||
       (file.name.toLowerCase().endsWith(".wav") ? "audio/wav" : "application/octet-stream");
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("sound_files")
       .upload(path, file, {
         contentType: mime,
@@ -101,7 +111,7 @@ export default function SoundSquareUpload() {
   }
 
   async function handleUpload() {
-    if (!user) {
+    if (!uid) {
       setError("You must be logged in.");
       return;
     }
@@ -128,19 +138,17 @@ export default function SoundSquareUpload() {
   }
 
   async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
-    if (!user) {
+    if (!uid) {
       setError("You must be logged in.");
       return;
     }
-
-    const currentUser = user;
 
     setUploading(true);
     setProgress(0);
     setError("");
 
     const fileExt = file!.name.split(".").pop()?.toLowerCase();
-    const filePath = `${currentUser.id}/${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `${uid}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
@@ -152,12 +160,11 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // ⭐ Correct identity pipeline — NO creator_name stored
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title: finalTitle,
       audio_url: publicUrl,
-      creator_id: currentUser.id,   // ✔ correct identity
-      creator_name: null,           // ✔ required by CardSoundPost type
+      creator_id: uid,
+      creator_name: null,
       spirit_score: 0,
       positivity_ratio: positivity,
       automask,

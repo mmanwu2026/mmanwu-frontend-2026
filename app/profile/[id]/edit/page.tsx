@@ -3,7 +3,6 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 
 interface Profile {
   id: string;
@@ -19,7 +18,10 @@ export default function EditProfilePage({
 }) {
   const router = useRouter();
   const { supabase } = useSupabase();
-  const { user, loading: userLoading } = useUser();
+
+  // ⭐ Replaces useUser()
+  const [uid, setUid] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   const [hydrated, setHydrated] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -32,28 +34,40 @@ export default function EditProfilePage({
 
   useEffect(() => setHydrated(true), []);
 
-  // Guard: only owner can edit
+  // ⭐ Load authenticated user
   useEffect(() => {
-    if (!hydrated || userLoading) return;
-    if (!user) return;
-
-    if (params.id !== user.id) {
-      router.replace(`/profile/${user.id}`);
+    async function loadSession() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setSessionLoading(false);
     }
-  }, [hydrated, userLoading, user, params.id, router]);
+    loadSession();
+  }, [supabase]);
 
-  // Load profile
+  // ⭐ Guard: only owner can edit
   useEffect(() => {
-    if (!hydrated || userLoading) return;
-    if (!user) return;
-    if (params.id !== user.id) return;
+    if (!hydrated || sessionLoading) return;
+    if (!uid) return;
+
+    if (params.id !== uid) {
+      router.replace(`/profile/${uid}`);
+    }
+  }, [hydrated, sessionLoading, uid, params.id, router]);
+
+  // ⭐ Load profile
+  useEffect(() => {
+    if (!hydrated || sessionLoading) return;
+    if (!uid) return;
+    if (params.id !== uid) return;
 
     (async () => {
       setLoadingProfile(true);
+
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username, bio, avatar_url")
-        .eq("id", user.id)
+        .eq("id", uid)
         .single();
 
       if (error || !data) {
@@ -69,15 +83,16 @@ export default function EditProfilePage({
       setAvatarUrl(p.avatar_url ?? null);
       setLoadingProfile(false);
     })();
-  }, [hydrated, userLoading, user, params.id, supabase]);
+  }, [hydrated, sessionLoading, uid, params.id, supabase]);
 
+  // ⭐ Avatar upload
   async function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file || !uid) return;
 
     setError(null);
 
-    const filePath = `${user.id}/${Date.now()}-${file.name}`;
+    const filePath = `${uid}/${Date.now()}-${file.name}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
@@ -102,9 +117,10 @@ export default function EditProfilePage({
     setAvatarUrl(publicData.publicUrl);
   }
 
+  // ⭐ Save profile
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!uid) return;
 
     setSaving(true);
     setError(null);
@@ -116,7 +132,7 @@ export default function EditProfilePage({
         bio: bio.trim() || null,
         avatar_url: avatarUrl,
       })
-      .eq("id", user.id);
+      .eq("id", uid);
 
     setSaving(false);
 
@@ -125,10 +141,11 @@ export default function EditProfilePage({
       return;
     }
 
-    router.push(`/profile/${user.id}`);
+    router.push(`/profile/${uid}`);
   }
 
-  if (!hydrated || userLoading) {
+  // ⭐ Loading states
+  if (!hydrated || sessionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading profile editor…</p>
@@ -136,7 +153,7 @@ export default function EditProfilePage({
     );
   }
 
-  if (!user) {
+  if (!uid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Please log in to edit your profile.</p>
@@ -152,6 +169,7 @@ export default function EditProfilePage({
     );
   }
 
+  // ⭐ Render
   return (
     <div className="min-h-screen bg-black text-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900/80 p-6 shadow-lg">
@@ -223,7 +241,7 @@ export default function EditProfilePage({
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={() => router.push(`/profile/${user.id}`)}
+              onClick={() => router.push(`/profile/${uid}`)}
               className="px-3 py-2 text-xs rounded-md border border-neutral-700 text-gray-300 hover:bg-neutral-800"
             >
               Cancel

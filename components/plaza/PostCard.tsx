@@ -1,7 +1,6 @@
 "use client";
 
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useState, useEffect } from "react";
 import ReactionBar from "./ReactionBar";
 
@@ -25,7 +24,6 @@ interface PostCardProps {
   positivityRatio: number;
   onReact: () => void;
 
-  // ⭐ DELETE SUPPORT
   showDelete?: boolean;
   onDelete?: (postId: string) => void;
 }
@@ -40,17 +38,27 @@ export default function PostCard({
 }: PostCardProps) {
 
   const { supabase } = useSupabase();
-  const { user } = useUser();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      setUid(session.data.session?.user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const isOwnPost = user?.id === post.creator_id;
+  const isOwnPost = uid === post.creator_id;
 
   // Load follow state
   useEffect(() => {
     async function loadFollowState() {
-      if (!user || isOwnPost) {
+      if (!uid || isOwnPost) {
         setIsFollowing(null);
         return;
       }
@@ -58,7 +66,7 @@ export default function PostCard({
       const { data } = await supabase
         .from("follows")
         .select("id")
-        .eq("follower_id", user.id)
+        .eq("follower_id", uid)
         .eq("following_id", post.creator_id)
         .maybeSingle();
 
@@ -66,18 +74,18 @@ export default function PostCard({
     }
 
     loadFollowState();
-  }, [user, post.creator_id, supabase, isOwnPost]);
+  }, [uid, post.creator_id, supabase, isOwnPost]);
 
   // Follow/unfollow
   async function toggleFollow() {
-    if (!user || isOwnPost || busy) return;
+    if (!uid || isOwnPost || busy) return;
 
     setBusy(true);
 
     try {
       if (!isFollowing) {
         await supabase.from("follows").insert({
-          follower_id: user.id,
+          follower_id: uid,
           following_id: post.creator_id,
         });
         setIsFollowing(true);
@@ -85,7 +93,7 @@ export default function PostCard({
         await supabase
           .from("follows")
           .delete()
-          .eq("follower_id", user.id)
+          .eq("follower_id", uid)
           .eq("following_id", post.creator_id);
 
         setIsFollowing(false);
@@ -110,13 +118,11 @@ export default function PostCard({
         relative w-full rounded-2xl transition-all duration-500
       `}
     >
-      {/* ⭐ REQUIRED WRAPPER FOR GLOW ENGINE */}
       <div className="plaza-card-base p-5 rounded-2xl relative">
 
-        {/* ⭐ HEADER */}
+        {/* HEADER */}
         <div className="flex items-center justify-between mb-3">
 
-          {/* LEFT SIDE — Avatar + Name */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">
               {post.autoMask === 2 && "😤"}
@@ -136,7 +142,7 @@ export default function PostCard({
             </div>
           </div>
 
-          {/* RIGHT SIDE — Follow button */}
+          {/* FOLLOW BUTTON */}
           {!isOwnPost && isFollowing !== null && (
             <button
               onClick={toggleFollow}
@@ -152,12 +158,12 @@ export default function PostCard({
           )}
         </div>
 
-        {/* ⭐ CONTENT */}
+        {/* CONTENT */}
         <p className="text-white/90 whitespace-pre-wrap mb-4">
           {post.content}
         </p>
 
-        {/* ⭐ REACTIONS */}
+        {/* REACTIONS */}
         <ReactionBar
           postType="plaza"
           postId={post.id}
@@ -168,7 +174,7 @@ export default function PostCard({
           onReact={onReact}
         />
 
-        {/* ⭐ DELETE BUTTON — bottom-right, stable */}
+        {/* DELETE BUTTON */}
         {showDelete && (
           <div className="mt-4 flex justify-end">
             <button

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import Link from "next/link";
 import VisionCard from "@/app/vision-square/components/VisionCard";
 
@@ -53,7 +52,6 @@ interface VisionPost {
 
 export default function VisionSquareFeed() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
 
   const [posts, setPosts] = useState<VisionPost[]>([]);
   const [loading, setLoading] = useState(true);

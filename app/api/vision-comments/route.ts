@@ -27,14 +27,24 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { post_id, content } = body;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // ⭐ Extract JWT manually
+  const accessToken = cookieStore.get("sb-access-token")?.value;
 
-  if (!user) {
+  if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // ⭐ Authenticate using JWT
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser(accessToken);
+
+  if (userError || !user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // ⭐ Insert comment
   const { error } = await supabase
     .from("vision_post_comments")
     .insert({

@@ -13,14 +13,14 @@ export default function CallListener() {
 
   const channelRef = useRef<any>(null);
 
-  // Load authenticated user ID once
+  // ⭐ Load authenticated user ID correctly
   useEffect(() => {
     let mounted = true;
 
     async function loadUser() {
-      const { data } = await supabase.auth.getUser();
+      const session = await supabase.auth.getSession();
       if (mounted) {
-        setUserId(data.user?.id || null);
+        setUserId(session.data.session?.user?.id || null);
       }
     }
 
@@ -30,7 +30,7 @@ export default function CallListener() {
     };
   }, [supabase]);
 
-  // Subscribe once
+  // ⭐ Subscribe once
   useEffect(() => {
     if (!userId) return;
     if (channelRef.current) return;
@@ -62,20 +62,18 @@ export default function CallListener() {
   async function acceptCall() {
     if (!incomingCall) return;
 
-    // Mark as answered
     await supabase
       .from("call_events")
       .update({ status: "answered" })
       .eq("id", incomingCall.id);
 
     router.push(`/call/${incomingCall.room_id}?role=callee`);
-setIncomingCall(null);
+    setIncomingCall(null);
   }
 
   async function declineCall() {
     if (!incomingCall) return;
 
-    // ⭐ Notify caller
     await supabase
       .from("call_events")
       .update({ status: "declined" })

@@ -1,9 +1,7 @@
-// force rebuild 1
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import Link from "next/link";
 import ReactionBar from "@/components/vision-square/ReactionBar";
 import SpiritToast from "@/components/SpiritToast";
@@ -28,8 +26,18 @@ export default function VisionCard({
   const commentAvatarSize = smallAvatar ? "w-[20px] h-[20px]" : "w-[24px] h-[24px]";
 
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
+
+  // ⭐ FIXED — load authenticated user ID correctly
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      setUid(session.data.session?.user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const safeReactions = post.reactions ?? {
     mask1: 0,
@@ -131,7 +139,8 @@ export default function VisionCard({
     router.refresh();
   }
 
-  const isCreator = user?.id === post.creator_id;
+  // ⭐ FIXED — creator check
+  const isCreator = uid === post.creator_id;
   const isPositive = localMask >= 3;
 
   const [commentText, setCommentText] = useState("");
@@ -173,11 +182,16 @@ export default function VisionCard({
       return false;
     }
 
+    if (!uid) {
+      setCommentError("You must be logged in.");
+      return false;
+    }
+
     const { error } = await supabase
       .from("vision_post_comments")
       .insert({
         post_id: post.id,
-        user_id: user?.id,
+        user_id: uid,
         content: finalText,
         raw_input: commentText || "",
         automask,
@@ -197,8 +211,8 @@ export default function VisionCard({
   async function submitComment() {
     setCommentError("");
 
-    if (!user) {
-      setCommentError("You must be loggedlogged in to comment.");
+    if (!uid) {
+      setCommentError("You must be logged in to comment.");
       return;
     }
 
@@ -537,5 +551,4 @@ export default function VisionCard({
         {post.created_at ? new Date(post.created_at).toLocaleString() : ""}
       </p>
     </div>
-  );
-}
+  )}  

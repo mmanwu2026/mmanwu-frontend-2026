@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 
 type AvatarUploaderProps = {
-  userId: string;
+  userId?: string;               // ⭐ now optional
   currentAvatar: string | null;
 };
 
@@ -12,12 +12,27 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
   const { supabase } = useSupabase();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Hydration-safe
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  const [uid, setUid] = useState<string | null>(userId ?? null);
 
   const [preview, setPreview] = useState<string | null>(currentAvatar);
   const [uploading, setUploading] = useState(false);
+
+  // Hydration-safe
+  useEffect(() => setHydrated(true), []);
+
+  // ⭐ Load authenticated user if userId was not passed
+  useEffect(() => {
+    async function loadUser() {
+      if (uid) return; // already provided by parent
+
+      const session = await supabase.auth.getSession();
+      const authedId = session.data.session?.user?.id ?? null;
+      setUid(authedId);
+    }
+
+    loadUser();
+  }, [uid, supabase]);
 
   // ⭐ Resize + compress to 256x256
   const resizeImage = (file: File): Promise<Blob> => {
@@ -32,7 +47,6 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
         const ctx = canvas.getContext("2d");
         if (!ctx) return reject("Canvas error");
 
-        // Draw image centered & cover
         const ratio = Math.max(size / img.width, size / img.height);
         const newWidth = img.width * ratio;
         const newHeight = img.height * ratio;
@@ -47,7 +61,7 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
             resolve(blob);
           },
           "image/jpeg",
-          0.85 // compression quality
+          0.85
         );
       };
 
@@ -58,17 +72,14 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !uid) return;
 
     setUploading(true);
 
     try {
-      // ⭐ Resize + compress
       const resizedBlob = await resizeImage(file);
+      const filePath = `${uid}-${Date.now()}.jpg`;
 
-      const filePath = `${userId}-${Date.now()}.jpg`;
-
-      // Upload resized image
       const { error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(filePath, resizedBlob, {
@@ -82,18 +93,16 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
         return;
       }
 
-      // Get public URL
       const { data: publicUrlData } = supabase.storage
         .from("avatars")
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;
 
-      // Update profile
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ avatar_url: publicUrl })
-        .eq("id", userId);
+        .eq("id", uid);
 
       if (updateError) {
         console.error("Profile update error:", updateError);
@@ -101,7 +110,6 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
         return;
       }
 
-      // Update preview
       setPreview(publicUrl);
     } finally {
       setUploading(false);
@@ -118,7 +126,11 @@ export default function AvatarUploader({ userId, currentAvatar }: AvatarUploader
       onClick={() => fileInputRef.current?.click()}
     >
       <img
-        src={preview || currentAvatar || "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"}
+        src={
+          preview ||
+          currentAvatar ||
+          "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png"
+        }
         alt="Avatar"
         className="w-full h-full object-cover"
       />

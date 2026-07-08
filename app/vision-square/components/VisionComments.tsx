@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import SpiritToast from "@/components/SpiritToast";
 import { useRouter } from "next/navigation";
 
@@ -12,8 +11,21 @@ interface VisionCommentsProps {
 
 export default function VisionComments({ postId }: VisionCommentsProps) {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setEmail(user?.email || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
@@ -68,12 +80,17 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     automask: number,
     positivity: number
   ) {
+    if (!uid) {
+      setError("You must be logged in.");
+      return false;
+    }
+
     // 1. Save comment
     const { error: dbError } = await supabase
       .from("vision_post_comments")
       .insert({
         post_id: postId,
-        user_id: user?.id,
+        user_id: uid,
         content: finalText,
         raw_input: content,
         automask,
@@ -96,11 +113,11 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     // ⭐ Insert notification into database (vision comment)
     await supabase.from("notifications").insert({
       user_id: creatorId || "",
-      actor_id: user?.id || "",
+      actor_id: uid,
       event_type: "comment",
       post_id: postId,
       post_type: "vision",
-      message: `${user?.email || "Someone"} commented on your vision`,
+      message: `${email || "Someone"} commented on your vision`,
     });
 
     // 3. Trigger push notification
@@ -114,7 +131,7 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
             subscription: sub.subscription,
             payload: {
               title: "New Comment 👁️",
-              body: `${user?.email || "Someone"} commented on your vision`,
+              body: `${email || "Someone"} commented on your vision`,
               icon: "/icons/mman-192.png",
               url: `/vision/${postId}`,
             },
@@ -130,7 +147,7 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
   async function handleSubmit() {
     setError("");
 
-    if (!user) {
+    if (!uid) {
       setError("You must be logged in to comment.");
       return;
     }

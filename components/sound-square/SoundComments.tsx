@@ -3,21 +3,33 @@
 import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function SoundComments({
   postId,
-  onSubmittedAction,   // ⭐ renamed to satisfy Next.js serialization rules
+  onSubmittedAction,
 }: {
   postId: string;
   onSubmittedAction: () => void;
 }) {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setEmail(user?.email || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [text, setText] = useState("");
   const [gateData, setGateData] = useState<any>(null);
@@ -27,6 +39,7 @@ export default function SoundComments({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
+  // ⭐ Load creator ID
   useEffect(() => {
     async function loadCreator() {
       const { data } = await supabase
@@ -74,6 +87,8 @@ export default function SoundComments({
     automask: number,
     positivityRatio: number
   ) {
+    if (!uid) return;
+
     // 1. Save comment
     await fetch("/api/sound-comments", {
       method: "POST",
@@ -93,14 +108,14 @@ export default function SoundComments({
       .eq("user_id", creatorId)
       .single();
 
-    // ⭐ Insert notification into database (sound comment)
+    // ⭐ Insert notification into database
     await supabase.from("notifications").insert({
       user_id: creatorId || "",
-      actor_id: user?.id || "",
+      actor_id: uid,
       event_type: "comment",
       post_id: postId,
       post_type: "sound",
-      message: `${user?.email || "Someone"} commented on your sound`,
+      message: `${email || "Someone"} commented on your sound`,
     });
 
     // 3. Trigger push notification
@@ -114,7 +129,7 @@ export default function SoundComments({
             subscription: sub.subscription,
             payload: {
               title: "New Comment 🔊",
-              body: `${user?.email || "Someone"} commented on your sound`,
+              body: `${email || "Someone"} commented on your sound`,
               icon: "/icons/mman-192.png",
               url: `/sound/${postId}`,
             },
@@ -130,7 +145,7 @@ export default function SoundComments({
     setBusy(false);
 
     router.refresh();
-    onSubmittedAction();   // ⭐ updated name
+    onSubmittedAction();
   }
 
   return (

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";
@@ -44,31 +43,44 @@ export default function CreatorProfilePage() {
   const params = useParams();
   const router = useRouter();
   const { supabase } = useSupabase();
-  const { user, loading } = useUser();
 
-  const [creator, setCreator] = useState<CreatorProfile | null>(null);
-  const [posts, setPosts] = useState<CreatorPost[]>([]);
-  const [fetching, setFetching] = useState(true);
+  // ⭐ NEW — Supabase session identity
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // ⭐ Hydration guard — wait for UserProvider
-  if (loading) {
-    return (
-      <p className="text-gray-300 p-10">Loading creator…</p>
-    );
+  useEffect(() => {
+    async function loadSession() {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
+
+      setAuthUserId(user?.id ?? null);
+      setAuthLoading(false);
+    }
+    loadSession();
+  }, [supabase]);
+
+  // ⭐ Hydration guard
+  if (authLoading) {
+    return <p className="text-gray-300 p-10">Loading creator…</p>;
   }
 
-  // ⭐ If not logged in after hydration → redirect
-  if (!user) {
+  // ⭐ If not logged in → redirect
+  if (!authUserId) {
     router.replace("/login");
     return null;
   }
 
   // ⭐ Resolve ID AFTER hydration
-  const actualId = params?.id === "me" ? user.id : (params?.id as string);
+  const actualId =
+    params?.id === "me" ? authUserId : (params?.id as string);
 
   if (!actualId) {
     return <p className="text-gray-300 p-10">Loading creator…</p>;
   }
+
+  const [creator, setCreator] = useState<CreatorProfile | null>(null);
+  const [posts, setPosts] = useState<CreatorPost[]>([]);
+  const [fetching, setFetching] = useState(true);
 
   // ⭐ Fetch creator + posts
   useEffect(() => {

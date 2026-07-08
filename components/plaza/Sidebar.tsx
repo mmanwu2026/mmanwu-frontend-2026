@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@/context/UserContext";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useEffect, useState } from "react";
 
@@ -16,7 +15,6 @@ import {
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 
-// ⭐ Types
 interface RoomParticipant {
   room_id: string;
   last_seen: string | null;
@@ -31,25 +29,34 @@ interface Message {
 
 export default function Sidebar() {
   const pathname = usePathname() ?? "";
-  const { user } = useUser();
   const { supabase } = useSupabase();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  // ⭐ LOAD UNREAD COUNTS (Messenger logic)
+  // ⭐ LOAD UNREAD COUNTS
   useEffect(() => {
-  async function loadUnread() {
-    if (!user) return;   // ⭐ TS understands this
+    async function loadUnread() {
+      if (!uid) return;
 
-    const userId = user.id;  // ⭐ No more error
+      // 1. Get rooms + last_seen
+      const { data: rooms } = await supabase
+        .from("room_participants")
+        .select("room_id, last_seen")
+        .eq("user_id", uid);
 
-    // 1. Get rooms + last_seen
-    const { data: rooms } = await supabase
-      .from("room_participants")
-      .select("room_id, last_seen")
-      .eq("user_id", userId);
-
-    if (!rooms) return;
+      if (!rooms) return;
 
       const typedRooms = rooms as RoomParticipant[];
       const roomIds = typedRooms.map((r) => r.room_id);
@@ -71,10 +78,7 @@ export default function Sidebar() {
 
         const lastSeen = new Date(participant.last_seen || 0);
 
-        if (
-          m.sender_id !== userId &&
-          new Date(m.created_at) > lastSeen
-        ) {
+        if (m.sender_id !== uid && new Date(m.created_at) > lastSeen) {
           counts[m.room_id] = (counts[m.room_id] || 0) + 1;
         }
       });
@@ -83,11 +87,11 @@ export default function Sidebar() {
     }
 
     loadUnread();
-  }, [user, supabase]);
+  }, [uid, supabase]);
 
-  // ⭐ REALTIME SUBSCRIPTION (Messenger logic)
+  // ⭐ REALTIME SUBSCRIPTION
   useEffect(() => {
-    if (!user) return;
+    if (!uid) return;
 
     const channel = supabase
       .channel("sidebar-unread")
@@ -97,7 +101,7 @@ export default function Sidebar() {
         (payload: { new: Message }) => {
           const msg = payload.new;
 
-          if (msg.sender_id === user.id) return;
+          if (msg.sender_id === uid) return;
           if (!["text", "image", "audio"].includes(msg.message_type)) return;
 
           setUnreadCounts((prev) => ({
@@ -111,7 +115,7 @@ export default function Sidebar() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase]);
+  }, [uid, supabase]);
 
   // ⭐ TOTAL UNREAD
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
@@ -140,7 +144,6 @@ export default function Sidebar() {
     { label: "SpiritSquare", href: "/spirit", icon: SparklesIcon },
     { label: "Shrine", href: "/shrine", icon: FireIcon },
 
-    // ⭐ Messenger with correct unread badge
     {
       label: "Messenger",
       href: "/messenger",
@@ -148,8 +151,8 @@ export default function Sidebar() {
       badge: totalUnread,
     },
 
-    user
-      ? { label: "Profile", href: `/profile/${user.id}`, icon: UserCircleIcon }
+    uid
+      ? { label: "Profile", href: `/profile/${uid}`, icon: UserCircleIcon }
       : { label: "Profile", href: "/login", icon: UserCircleIcon },
 
     { label: "Settings", href: "/settings", icon: Cog6ToothIcon },

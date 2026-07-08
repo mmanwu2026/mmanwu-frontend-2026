@@ -1,16 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useUser } from "@/context/UserContext";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useState, useEffect } from "react";
 
 export default function AuthNav() {
   const { supabase } = useSupabase();
-  const { user, loading } = useUser();
 
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const userId = session.data.session?.user?.id ?? null;
+      setUid(userId);
+    }
+
+    loadUser();
+  }, [supabase]);
 
   if (!hydrated) {
     return (
@@ -27,15 +37,14 @@ export default function AuthNav() {
 
   return (
     <nav className="w-full flex justify-end p-4 text-white">
-      {!user ? (
+      {!uid ? (
         <div className="flex gap-4">
           <Link href="/signup" prefetch={false}>Sign Up</Link>
           <Link href="/login" prefetch={false}>Log In</Link>
         </div>
       ) : (
         <div className="flex gap-4">
-          {/* ⭐ Prefetch disabled to prevent /profile/undefined */}
-          <Link href={`/profile/${user.id}`} prefetch={false}>
+          <Link href={`/profile/${uid}`} prefetch={false}>
             My Profile
           </Link>
 

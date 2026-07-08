@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useUser } from "@/context/UserContext";
+import { useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import SpiritToast from "@/components/SpiritToast";
 import { useRouter } from "next/navigation";
@@ -34,23 +33,36 @@ export default function ReactionBar({
   onReact,
 }: VisionReactionBarProps) {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setEmail(user?.email || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const isCreator = user?.id === creatorId;
+  const isCreator = uid === creatorId;
 
   async function handleReact(maskTier: number) {
-    if (!user || loading) return;
+    if (!uid || loading) return;
     setLoading(true);
 
     // 1. Save reaction
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
       post_type: "vision",
-      user_id: user.id,
+      user_id: uid,
       maskTier,
     });
 
@@ -66,25 +78,25 @@ export default function ReactionBar({
       setToastMessage("Your reaction uplifts the spirits ✨");
     }
 
-// 2. Fetch creator's push subscription
-const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", creatorId)
-  .single();
+    // 3. Fetch creator's push subscription
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", creatorId)
+      .single();
 
-// ⭐ Insert notification into database
-await supabase.from("notifications").insert({
-  user_id: creatorId,
-  actor_id: user.id,
-  event_type: "reaction",
-  post_id: postId,
-  post_type: "vision",
-  message: `${user.email || "Someone"} reacted to your vision`,
-});
+    // ⭐ Insert notification into database
+    await supabase.from("notifications").insert({
+      user_id: creatorId,
+      actor_id: uid,
+      event_type: "reaction",
+      post_id: postId,
+      post_type: "vision",
+      message: `${email || "Someone"} reacted to your vision`,
+    });
 
-// 3. Trigger push notification
-if (sub?.subscription) {
+    // 4. Trigger push notification
+    if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
         {
@@ -94,7 +106,7 @@ if (sub?.subscription) {
             subscription: sub.subscription,
             payload: {
               title: "New Reaction 👁️",
-              body: `${user.email || "Someone"} reacted to your vision`,
+              body: `${email || "Someone"} reacted to your vision`,
               icon: "/icons/mman-192.png",
               url: `/vision/${postId}`,
             },
@@ -121,7 +133,8 @@ if (sub?.subscription) {
         <>
           <button
             onClick={() => handleReact(1)}
-            className="text-3xl flex flex-col items-center"
+            disabled={loading}
+            className="text-3xl flex flex-col items-center disabled:opacity-40"
           >
             😶‍🌫️
             <span className="text-xs text-gray-400">{reactions.mask1}</span>
@@ -129,7 +142,8 @@ if (sub?.subscription) {
 
           <button
             onClick={() => handleReact(2)}
-            className="text-3xl flex flex-col items-center"
+            disabled={loading}
+            className="text-3xl flex flex-col items-center disabled:opacity-40"
           >
             😈
             <span className="text-xs text-gray-400">{reactions.mask2}</span>
@@ -139,7 +153,8 @@ if (sub?.subscription) {
 
       <button
         onClick={() => handleReact(3)}
-        className="text-3xl flex flex-col items-center"
+        disabled={loading}
+        className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         😊
         <span className="text-xs text-gray-400">{reactions.mask3}</span>
@@ -147,7 +162,8 @@ if (sub?.subscription) {
 
       <button
         onClick={() => handleReact(4)}
-        className="text-3xl flex flex-col items-center"
+        disabled={loading}
+        className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         🤩
         <span className="text-xs text-gray-400">{reactions.mask4}</span>
@@ -155,7 +171,8 @@ if (sub?.subscription) {
 
       <button
         onClick={() => handleReact(5)}
-        className="text-3xl flex flex-col items-center"
+        disabled={loading}
+        className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         😇
         <span className="text-xs text-gray-400">{reactions.mask5}</span>
@@ -163,7 +180,8 @@ if (sub?.subscription) {
 
       <button
         onClick={() => handleReact(6)}
-        className="text-3xl flex flex-col items-center"
+        disabled={loading}
+        className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         👑
         <span className="text-xs text-gray-400">{reactions.mask6}</span>

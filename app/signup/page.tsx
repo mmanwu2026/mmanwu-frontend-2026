@@ -18,9 +18,9 @@ export default function SignupPage() {
     setLoading(true);
     setErrorMsg("");
 
-    // ⭐ Check if username already exists
+    // ⭐ Check if username already exists (correct table: profiles)
     const { data: existing } = await supabase
-      .from("users")
+      .from("profiles")
       .select("id")
       .eq("username", username)
       .maybeSingle();
@@ -51,7 +51,7 @@ export default function SignupPage() {
     }
 
     // ⭐ Create profile row with correct defaults
-    const { error: profileError } = await supabase.from("users").insert({
+    const { error: profileError } = await supabase.from("profiles").insert({
       id: userId,
       username,
       bio: "",

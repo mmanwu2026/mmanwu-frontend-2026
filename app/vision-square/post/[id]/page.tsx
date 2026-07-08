@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import VisionCard from "@/app/vision-square/components/VisionCard";
@@ -56,9 +55,19 @@ interface VisionPost {
 
 export default function VisionPostPage() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const params = useParams();
   const id = params?.id as string;
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      setUid(session.data.session?.user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [post, setPost] = useState<VisionPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -230,9 +239,9 @@ export default function VisionPostPage() {
           Plaza →
         </Link>
 
-        {user && (
+        {uid && (
           <Link
-            href={`/profile/${user.id}`}
+            href={`/profile/${uid}`}
             className="text-gray-300 hover:text-purple-300 transition"
           >
             Profile →

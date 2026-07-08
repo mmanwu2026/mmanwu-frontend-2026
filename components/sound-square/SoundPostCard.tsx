@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
 import type { ReactionCounts, CardSoundPost } from "@/app/sound-square/types";
@@ -25,8 +24,21 @@ export default function SoundPostCard({
   isTrending?: boolean;
 }) {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setEmail(user?.email || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -34,7 +46,6 @@ export default function SoundPostCard({
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
 
-  // ⭐ NEW: analysers stored in state (NOT refs)
   const [intensityAnalyser, setIntensityAnalyser] = useState<AnalyserNode | null>(null);
   const [waveformAnalyser, setWaveformAnalyser] = useState<AnalyserNode | null>(null);
 
@@ -54,11 +65,10 @@ export default function SoundPostCard({
   const [duration, setDuration] = useState(0);
   const [isBeat, setIsBeat] = useState(false);
 
-  // ⭐ NEW: Render Tick — forces React to re-render every frame
   const [renderTick, setRenderTick] = useState(0);
 
   /* ---------------------------------------------------------
-     ⭐ Intensity Analyzer Loop (with beat detection + render tick)
+     ⭐ Intensity Analyzer Loop
      --------------------------------------------------------- */
   useEffect(() => {
     const analyser = intensityAnalyser;
@@ -75,13 +85,11 @@ export default function SoundPostCard({
       const normalized = Math.min(avg / 180, 1);
       setIntensity(normalized);
 
-      // Beat detection
       if (normalized > 0.65) {
         setIsBeat(true);
         setTimeout(() => setIsBeat(false), 100);
       }
 
-      // Force React to re-render
       setRenderTick((t) => t + 1);
 
       if (normalized > 0.75 && autoMask < 6) {
@@ -96,7 +104,7 @@ export default function SoundPostCard({
   }, [intensityAnalyser, autoMask]);
 
   /* ---------------------------------------------------------
-     ⭐ Waveform Visualizer Loop (beat-reactive)
+     ⭐ Waveform Visualizer Loop
      --------------------------------------------------------- */
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -176,7 +184,7 @@ export default function SoundPostCard({
   }, [duration, isPlaying]);
 
   /* ---------------------------------------------------------
-     ⭐ NEW: ArrayBuffer + AudioBufferSourceNode Playback
+     ⭐ Playback
      --------------------------------------------------------- */
   async function handlePlay() {
     try {
@@ -209,18 +217,15 @@ export default function SoundPostCard({
         gainRef.current.gain.value = volume;
       }
 
-      // Create analysers
       const intensityNode = ctx.createAnalyser();
       intensityNode.fftSize = 256;
 
       const waveformNode = ctx.createAnalyser();
       waveformNode.fftSize = 2048;
 
-      // Save analysers in state (critical fix)
       setIntensityAnalyser(intensityNode);
       setWaveformAnalyser(waveformNode);
 
-      // Connect nodes
       source.connect(intensityNode);
       source.connect(waveformNode);
       source.connect(gainRef.current);
@@ -248,13 +253,13 @@ export default function SoundPostCard({
      ⭐ Delete Post
      --------------------------------------------------------- */
   async function handleDelete() {
-    if (!user || user.id !== post.creator_id) return;
+    if (!uid || uid !== post.creator_id) return;
 
     const { error: dbError } = await supabase
       .from("sound_posts")
       .delete()
       .eq("id", post.id)
-      .eq("creator_id", user.id);
+      .eq("creator_id", uid);
 
     if (dbError) {
       console.error("Delete error:", dbError);
@@ -334,7 +339,7 @@ export default function SoundPostCard({
   async function submitComment() {
     setCommentError("");
 
-    if (!user) {
+    if (!uid) {
       setCommentError("You must be logged in.");
       return;
     }
@@ -346,7 +351,7 @@ export default function SoundPostCard({
 
     const { error } = await supabase.from("sound_post_comments").insert({
       post_id: post.id,
-      user_id: user.id,
+      user_id: uid,
       content: newComment.trim(),
       raw_input: newComment.trim(),
       automask: 2,
@@ -366,207 +371,193 @@ export default function SoundPostCard({
   const scale = 1 + intensity * 0.2;
 
   const latestComment =
-  (post.comments?.length ?? 0) > 0
-    ? post.comments![post.comments!.length - 1]
-    : null;
+    (post.comments?.length ?? 0) > 0
+      ? post.comments![post.comments!.length - 1]
+      : null;
 
   /* ---------------------------------------------------------
      ⭐ RENDER
      --------------------------------------------------------- */
   return (
-  <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
-    {/* Title → Post Detail */}
-    <Link href={`/sound-square/post/${post.id}`}>
-      <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
-        {post.title}
-      </h2>
-    </Link>
+    <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
+      {/* Title → Post Detail */}
+      <Link href={`/sound-square/post/${post.id}`}>
+        <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
+          {post.title}
+        </h2>
+      </Link>
 
-    {/* Creator → Profile */}
-    <Link
-      href={`/profile/${post.creator_id}`}
-      className="text-gray-400 hover:text-gray-200 text-sm"
-    >
-      @{post.users?.username ?? "Unknown"}
-    </Link>
-
-    {/* ⭐ Sound Post Stats */}
-    <div className="flex flex-row items-center justify-between text-xs text-white/70 mt-3 mb-2">
-      <div>
-        <p className="font-semibold text-white">SpiritScore: {post.spirit_score}</p>
-        <p>Positivity: {Math.round(post.positivity_ratio * 100)}%</p>
-        <p>Mask: {post.automask}</p>
-      </div>
-
-      <div className="text-right">
-        <p>
-          Total Reactions:{" "}
-          {post.reactions.mask1 +
-            post.reactions.mask2 +
-            post.reactions.mask3 +
-            post.reactions.mask4 +
-            post.reactions.mask5 +
-            post.reactions.mask6}
-        </p>
-      </div>
-    </div>
-
-    {/* Audio Player */}
-    <div className="mt-4">
-      {/* Debug logs */}
-      {(() => {
-        const extractedPath = post.audio_url.replace(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-          ""
-        );
-        console.log("RAW audio_url:", post.audio_url);
-        console.log("EXTRACTED path:", extractedPath);
-        return null;
-      })()}
-
-      <div className="flex items-center gap-3 mt-2">
-        {!isPlaying ? (
-          <button
-            onClick={handlePlay}
-            className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
-          >
-            Play
-          </button>
-        ) : (
-          <button
-            onClick={handlePause}
-            className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
-          >
-            Pause
-          </button>
-        )}
-
-        <span
-          className={`text-purple-300 text-lg no-levitate ${
-            isBeat ? "beat-active beat-color" : ""
-          }`}
-          style={{ transform: `scale(${scale})` }}
-        >
-          {MASK_EMOJI[autoMask]}
-        </span>
-      </div>
-
-      {/* Playback progress + duration */}
-      <div className="text-gray-400 text-sm mt-1">
-        {progress.toFixed(1)}s / {duration.toFixed(1)}s
-      </div>
-
-      {/* Volume control */}
-      <div className="mt-2">
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setVolume(v);
-            if (gainRef.current) gainRef.current.gain.value = v;
-          }}
-          className="w-full"
-        />
-      </div>
-
-      {/* Waveform */}
-      <canvas ref={canvasRef} className="w-full h-24 mt-3" />
-    </div>
-
-    {/* Reaction Bar */}
-    <SoundReactionBar
-      postId={post.id}
-      creatorId={post.creator_id}
-      reactions={reactions}
-      onReact={refreshReactions}
-    />
-
-    {/* ⭐ Inline Latest Comment */}
-    {latestComment && (
-      <div className="mt-4 bg-gray-800 p-3 rounded">
-        <p className="text-sm text-gray-300">
-          <span className="font-semibold">
-            @{latestComment.profiles?.username ?? "Unknown"}:
-          </span>{" "}
-          {latestComment.content}
-        </p>
-
-        <button
-          onClick={() => setShowCommentsModal(true)}
-          className="text-purple-400 hover:text-purple-300 text-sm mt-2"
-        >
-          View all comments ({post.comments.length})
-        </button>
-      </div>
-    )}
-
-    {!latestComment && (
-      <button
-        onClick={() => setShowCommentsModal(true)}
-        className="text-gray-300 hover:text-gray-100 mt-4"
+      {/* Creator → Profile */}
+      <Link
+        href={`/profile/${post.creator_id}`}
+        className="text-gray-400 hover:text-gray-200 text-sm"
       >
-        No comments yet — add one
-      </button>
-    )}
+        @{post.users?.username ?? "Unknown"}
+      </Link>
 
-    {/* ⭐ Full Comments Modal */}
-    {showCommentsModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
-        <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-          <h3 className="text-xl font-bold mb-4">Comments</h3>
+      {/* ⭐ Sound Post Stats */}
+      <div className="flex flex-row items-center justify-between text-xs text-white/70 mt-3 mb-2">
+        <div>
+          <p className="font-semibold text-white">SpiritScore: {post.spirit_score}</p>
+          <p>Positivity: {Math.round(post.positivity_ratio * 100)}%</p>
+          <p>Mask: {post.automask}</p>
+        </div>
 
-          {post.comments.map((c) => (
-            <div key={c.id} className="mb-3">
-              <p className="text-gray-300 text-sm">
-                <span className="font-semibold">
-                  @{c.profiles?.username ?? "Unknown"}:
-                </span>{" "}
-                {c.content}
-              </p>
-            </div>
-          ))}
-
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="w-full p-2 rounded bg-gray-700 mb-2"
-            placeholder="Write a comment..."
-          />
-
-          {commentError && (
-            <p className="text-red-400 mb-2">{commentError}</p>
-          )}
-
-          <button
-            onClick={submitComment}
-            className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
-          >
-            Submit
-          </button>
-
-          <button
-            onClick={() => setShowCommentsModal(false)}
-            className="mt-4 text-gray-400 hover:text-gray-200"
-          >
-            Close
-          </button>
+        <div className="text-right">
+          <p>
+            Total Reactions:{" "}
+            {post.reactions.mask1 +
+              post.reactions.mask2 +
+              post.reactions.mask3 +
+              post.reactions.mask4 +
+              post.reactions.mask5 +
+              post.reactions.mask6}
+          </p>
         </div>
       </div>
-    )}
 
-    {/* Delete (creator only) */}
-    {user?.id === post.creator_id && (
-      <button
-        onClick={handleDelete}
-        className="mt-4 text-red-400 hover:text-red-300"
-      >
-        Delete Post
-      </button>
-    )}
-  </div>
-);
+      {/* Audio Player */}
+      <div className="mt-4">
+        <div className="flex items-center gap-3 mt-2">
+          {!isPlaying ? (
+            <button
+              onClick={handlePlay}
+              className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
+            >
+              Play
+            </button>
+          ) : (
+            <button
+              onClick={handlePause}
+              className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
+            >
+              Pause
+            </button>
+          )}
+
+          <span
+            className={`text-purple-300 text-lg no-levitate ${
+              isBeat ? "beat-active beat-color" : ""
+            }`}
+            style={{ transform: `scale(${scale})` }}
+          >
+            {MASK_EMOJI[autoMask]}
+          </span>
+        </div>
+
+        <div className="text-gray-400 text-sm mt-1">
+          {progress.toFixed(1)}s / {duration.toFixed(1)}s
+        </div>
+
+        <div className="mt-2">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setVolume(v);
+              if (gainRef.current) gainRef.current.gain.value = v;
+            }}
+            className="w-full"
+          />
+        </div>
+
+        <canvas ref={canvasRef} className="w-full h-24 mt-3" />
+      </div>
+
+      {/* Reaction Bar */}
+      <SoundReactionBar
+        postId={post.id}
+        creatorId={post.creator_id}
+        reactions={reactions}
+        onReact={refreshReactions}
+      />
+
+      {/* ⭐ Inline Latest Comment */}
+      {latestComment && (
+        <div className="mt-4 bg-gray-800 p-3 rounded">
+          <p className="text-sm text-gray-300">
+            <span className="font-semibold">
+              @{latestComment.profiles?.username ?? "Unknown"}:
+            </span>{" "}
+            {latestComment.content}
+          </p>
+
+          <button
+            onClick={() => setShowCommentsModal(true)}
+            className="text-purple-400 hover:text-purple-300 text-sm mt-2"
+          >
+            View all comments ({post.comments.length})
+          </button>
+        </div>
+      )}
+
+      {!latestComment && (
+        <button
+          onClick={() => setShowCommentsModal(true)}
+          className="text-gray-300 hover:text-gray-100 mt-4"
+        >
+          No comments yet — add one
+        </button>
+      )}
+
+      {/* ⭐ Full Comments Modal */}
+      {showCommentsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Comments</h3>
+
+            {post.comments.map((c) => (
+              <div key={c.id} className="mb-3">
+                <p className="text-gray-300 text-sm">
+                  <span className="font-semibold">
+                    @{c.profiles?.username ?? "Unknown"}:
+                  </span>{" "}
+                  {c.content}
+                </p>
+              </div>
+            ))}
+
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="w-full p-2 rounded bg-gray-700 mb-2"
+              placeholder="Write a comment..."
+            />
+
+            {commentError && (
+              <p className="text-red-400 mb-2">{commentError}</p>
+            )}
+
+            <button
+              onClick={submitComment}
+              className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+            >
+              Submit
+            </button>
+
+            <button
+              onClick={() => setShowCommentsModal(false)}
+              className="mt-4 text-gray-400 hover:text-gray-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete (creator only) */}
+      {uid === post.creator_id && (
+        <button
+          onClick={handleDelete}
+          className="mt-4 text-red-400 hover:text-red-300"
+        >
+          Delete Post
+        </button>
+      )}
+    </div>
+  );
 }

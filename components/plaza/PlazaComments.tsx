@@ -36,6 +36,7 @@ export default function PlazaComments({
   postCreatorId: string;
 }) {
   const { supabase } = useSupabase();
+
   const [comments, setComments] = useState<PlazaComment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +49,14 @@ export default function PlazaComments({
 
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+
+  // -----------------------------
+  // LOAD USER (FIXED)
+  // -----------------------------
+  async function loadUser() {
+    const session = await supabase.auth.getSession();
+    setUserId(session.data.session?.user?.id || null);
+  }
 
   // -----------------------------
   // LOAD COMMENTS
@@ -84,14 +93,14 @@ export default function PlazaComments({
   }
 
   // -----------------------------
-  // SUBMIT TOP-LEVEL COMMENT
+  // SUBMIT TOP-LEVEL COMMENT (FIXED)
   // -----------------------------
   async function submitComment() {
     if (!text.trim()) return;
 
-    const user = await supabase.auth.getUser();
-    const uid = user.data.user?.id;
-    const email = user.data.user?.email || "Someone";
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session?.user?.id;
+    const email = session.data.session?.user?.email || "Someone";
     if (!uid) return;
 
     const response = await fetch("/api/plaza/comment", {
@@ -113,25 +122,25 @@ export default function PlazaComments({
       return;
     }
 
-// 2. Fetch creator's push subscription
-const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", postCreatorId)
-  .single();
+    // Fetch creator's push subscription
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", postCreatorId)
+      .single();
 
-// ⭐ Insert notification into database
-await supabase.from("notifications").insert({
-  user_id: postCreatorId,
-  actor_id: uid,
-  event_type: "comment",
-  post_id: postId,
-  post_type: "plaza",
-  message: `${user.data.user?.email || "Someone"} commented on your post`,
-});
+    // Insert notification
+    await supabase.from("notifications").insert({
+      user_id: postCreatorId,
+      actor_id: uid,
+      event_type: "comment",
+      post_id: postId,
+      post_type: "plaza",
+      message: `${email} commented on your post`,
+    });
 
-// 3. Trigger push notification
-if (sub?.subscription) {
+    // Trigger push
+    if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
         {
@@ -157,14 +166,14 @@ if (sub?.subscription) {
   }
 
   // -----------------------------
-  // SUBMIT REPLY
+  // SUBMIT REPLY (FIXED)
   // -----------------------------
   async function submitReply(parentId: string) {
     if (!replyText.trim()) return;
 
-    const user = await supabase.auth.getUser();
-    const uid = user.data.user?.id;
-    const email = user.data.user?.email || "Someone";
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session?.user?.id;
+    const email = session.data.session?.user?.email || "Someone";
     if (!uid) return;
 
     const response = await fetch("/api/plaza/comment", {
@@ -186,26 +195,26 @@ if (sub?.subscription) {
       return;
     }
 
-// ⭐ Push Notification Trigger for Replies
-const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", postCreatorId)
-  .single();
+    // Push subscription lookup
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", postCreatorId)
+      .single();
 
-// ⭐ Insert notification into database (reply)
-await supabase.from("notifications").insert({
-  user_id: postCreatorId,
-  actor_id: uid,
-  event_type: "reply",
-  post_id: postId,
-  post_type: "plaza",
-  comment_id: parentId,
-  message: `${user.data.user?.email || "Someone"} replied to a comment on your post`,
-});
+    // Insert notification
+    await supabase.from("notifications").insert({
+      user_id: postCreatorId,
+      actor_id: uid,
+      event_type: "reply",
+      post_id: postId,
+      post_type: "plaza",
+      comment_id: parentId,
+      message: `${email} replied to a comment on your post`,
+    });
 
-// 3. Trigger push notification
-if (sub?.subscription) {
+    // Trigger push
+    if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
         {
@@ -244,20 +253,22 @@ if (sub?.subscription) {
   }
 
   // -----------------------------
-  // INIT
+  // INIT (FIXED)
   // -----------------------------
   useEffect(() => {
-    supabase.auth.getUser().then((u: any) => {
-      setUserId(u.data.user?.id || null);
-    });
-
+    loadUser();
     loadComments();
 
     const channel = supabase
       .channel(`plaza-comments-${postId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "plaza_post_comments", filter: `post_id=eq.${postId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "plaza_post_comments",
+          filter: `post_id=eq.${postId}`,
+        },
         () => loadComments()
       )
       .subscribe();
@@ -265,7 +276,7 @@ if (sub?.subscription) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [postId]);
+  }, [postId, supabase]);
 
   const isGatekeeper = userId === postCreatorId;
 

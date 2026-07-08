@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useUser } from "@/context/UserContext";
+import { useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 
 interface ReactionCounts {
@@ -33,15 +32,28 @@ export default function ReactionBar({
   onReact,
 }: ReactionBarProps) {
   const { supabase } = useSupabase();
-  const { user } = useUser();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setEmail(user?.email || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const [loading, setLoading] = useState(false);
 
-  const loggedOut = !user;
-  const isCreator = user?.id === creatorId;
+  const loggedOut = !uid;
+  const isCreator = uid === creatorId;
 
   const handleReact = async (maskTier: number): Promise<void> => {
-    if (loading || loggedOut || !user) return;
+    if (loading || loggedOut || !uid) return;
 
     setLoading(true);
 
@@ -49,7 +61,7 @@ export default function ReactionBar({
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
       post_type: postType,
-      user_id: user.id,
+      user_id: uid,
       maskTier,
     });
 
@@ -60,25 +72,25 @@ export default function ReactionBar({
       return;
     }
 
-// 2. Fetch creator's push subscription
-const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", creatorId)
-  .single();
+    // 2. Fetch creator's push subscription
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", creatorId)
+      .single();
 
-// ⭐ Insert notification into database
-await supabase.from("notifications").insert({
-  user_id: creatorId,                     // who receives it
-  actor_id: user.id,                      // who caused it
-  event_type: "reaction",                 // or "comment" or "follow"
-  post_id: postId,                        // optional
-  post_type: postType,                    // plaza | sound | vision
-  message: `${user.email || "Someone"} reacted to your post`,
-});
+    // ⭐ Insert notification into database
+    await supabase.from("notifications").insert({
+      user_id: creatorId,
+      actor_id: uid,
+      event_type: "reaction",
+      post_id: postId,
+      post_type: postType,
+      message: `${email || "Someone"} reacted to your post`,
+    });
 
-// 3. Trigger push notification
-if (sub?.subscription) {
+    // 3. Trigger push notification
+    if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
         {
@@ -88,7 +100,7 @@ if (sub?.subscription) {
             subscription: sub.subscription,
             payload: {
               title: "New Reaction 🎭",
-              body: `${user.email || "Someone"} reacted to your post`,
+              body: `${email || "Someone"} reacted to your post`,
               icon: "/icons/mman-192.png",
               url: `/post/${postId}`,
             },

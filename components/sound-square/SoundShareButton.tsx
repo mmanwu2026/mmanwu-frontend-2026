@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/context/UserContext";
+import { useSupabase } from "@/context/SupabaseContext";
 
 export default function SoundShareButton({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const { user } = useUser();
+  const { supabase } = useSupabase();
+
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   const shareUrl =
     typeof window !== "undefined"
@@ -25,7 +37,7 @@ export default function SoundShareButton({ postId }: { postId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           post_id: postId,
-          user_id: user?.id ?? null,
+          user_id: uid,        // ⭐ FIXED
           post_type: "sound",
         }),
       });
@@ -35,7 +47,6 @@ export default function SoundShareButton({ postId }: { postId: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
 
-      // ⭐ Close modal after copy
       setOpen(false);
     } catch (err) {
       console.error("Copy failed:", err);

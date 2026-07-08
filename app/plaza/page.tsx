@@ -10,29 +10,8 @@ import React, {
 import { useSupabase } from "@/context/SupabaseContext";
 import Sidebar from "@/components/plaza/Sidebar";
 import FloatingComposer from "@/components/plaza/FloatingComposer";
-import { useUser } from "@/context/UserContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
-
-// ⭐ SAFARI-SAFE UNREAD LISTENER
 import UnreadListener from "@/components/UnreadListener";
-
-// -----------------------------------------------------
-// SAFE VAPID KEY CONVERTER
-// -----------------------------------------------------
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
 
 interface ReactionCounts {
   mask1: number;
@@ -64,7 +43,10 @@ const PAGE_SIZE = 20;
 
 export default function PlazaPage() {
   const { supabase } = useSupabase();
-  const { user, loading: userLoading } = useUser();
+
+  // ⭐ Replaces useUser()
+  const [uid, setUid] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   const [hydrated, setHydrated] = useState(false);
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
@@ -79,13 +61,23 @@ export default function PlazaPage() {
 
   useEffect(() => setHydrated(true), []);
 
-  const sessionReady = hydrated && !userLoading;
+  // ⭐ Load authenticated user
+  useEffect(() => {
+    async function loadSession() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+      setSessionLoading(false);
+    }
+    loadSession();
+  }, [supabase]);
 
-  // ⭐ SAFARI-SAFE: mount unread listener ONLY after hydration
+  const sessionReady = hydrated && !sessionLoading;
+
   const unreadListener = hydrated ? <UnreadListener /> : null;
 
   // -----------------------------------------------------
-  // FETCH POSTS (reactions batched per page)
+  // FETCH POSTS
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
@@ -374,7 +366,7 @@ export default function PlazaPage() {
   // -----------------------------------------------------
   // RENDER
   // -----------------------------------------------------
-  if (!hydrated || userLoading) {
+  if (!hydrated || sessionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Loading Plaza…</p>
@@ -382,7 +374,7 @@ export default function PlazaPage() {
     );
   }
 
-  if (!user) {
+  if (!uid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <p className="text-zinc-400 text-sm">Please log in.</p>
@@ -438,7 +430,7 @@ export default function PlazaPage() {
                   key={post.id}
                   post={post}
                   creator={creator}
-                  user={user}
+                  userId={uid}
                   onDeleteAction={handleDelete}
                   onReactAction={reloadPosts}
                 />

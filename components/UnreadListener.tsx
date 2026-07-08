@@ -1,19 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useUnread } from "@/context/UnreadContext";
 
 export default function UnreadListener() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const { setUnreadCounts } = useUnread();
 
-  useEffect(() => {
-    if (!user) return;
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
 
-    const userId = user.id;
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      setUid(session.data.session?.user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!uid) return;
 
     const channel = supabase
       .channel("global-plaza-events")
@@ -23,9 +30,13 @@ export default function UnreadListener() {
         (payload: { new: any }) => {
           const msg = payload.new;
 
-          if (msg.sender_id === userId) return;
+          // Ignore messages sent by the user
+          if (msg.sender_id === uid) return;
+
+          // Ignore messages already seen
           if (msg.seen_at !== null) return;
 
+          // Increment unread count
           setUnreadCounts((prev: Record<string, number>) => ({
             ...prev,
             [msg.room_id]: (prev[msg.room_id] || 0) + 1,
@@ -37,7 +48,7 @@ export default function UnreadListener() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, setUnreadCounts]);
+  }, [uid, supabase, setUnreadCounts]);
 
   return null;
 }

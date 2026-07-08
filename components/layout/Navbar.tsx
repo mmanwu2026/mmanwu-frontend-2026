@@ -2,52 +2,64 @@
 
 import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
 
+  // ⭐ FIXED — authenticated user
+  const [uid, setUid] = useState<string | null>(null);
+
+  // ⭐ Unread notifications count
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // ⭐ Load authenticated user
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
 
   // ⭐ Load unread notifications
   useEffect(() => {
     async function loadUnread() {
-      if (!user) return;
+      if (!uid) return;
 
       const { data } = await supabase
         .from("notifications")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("user_id", uid)
         .eq("read", false);
 
       setUnreadCount(data?.length || 0);
     }
 
     loadUnread();
-  }, [user, supabase]);
+  }, [uid, supabase]);
 
   // ⭐ Real-time updates
   useEffect(() => {
-    if (!user) return;
+    if (!uid) return;
 
     const channel = supabase
-      .channel(`notifications:user_${user.id}`)
+      .channel(`notifications:user_${uid}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "notifications",
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${uid}`,
         },
         () => setUnreadCount((prev) => prev + 1)
       )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [user, supabase]);
+  }, [uid, supabase]);
 
   return (
     <nav className="flex items-center justify-between p-4 bg-black text-white border-b border-white/10">

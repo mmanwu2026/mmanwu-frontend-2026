@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import SpiritToast from "@/components/SpiritToast";
 
 export default function FloatingComposerVision() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
@@ -120,7 +118,10 @@ export default function FloatingComposerVision() {
   }
 
   async function handleSubmit() {
-    if (!user) {
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session?.user?.id;
+
+    if (!uid) {
       setError("You must be logged in.");
       return;
     }
@@ -153,9 +154,8 @@ export default function FloatingComposerVision() {
 
     const spirit = automask;
 
-    // ⭐ FIXED — safe file extension extraction
     const fileExt = file.name?.split(".").pop() || "bin";
-    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `${uid}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
@@ -171,7 +171,7 @@ export default function FloatingComposerVision() {
     const { error: dbError } = await supabase.from("vision_posts").insert({
       title: finalTitle,
       media_url: publicUrl,
-      creator_id: user.id,
+      creator_id: uid,
       spirit_score: spirit,
       positivity_ratio: positivity,
       automask,

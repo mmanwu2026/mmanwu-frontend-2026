@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
@@ -13,15 +12,28 @@ interface CallMessage {
   metadata: any;
 }
 
-export default function useIncomingCall(userId: string | undefined) {
+export default function useIncomingCall() {
   const { supabase } = useSupabase();
   const router = useRouter();
 
+  // ⭐ NEW — Supabase session identity
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!userId) return;
+    async function loadSession() {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
+      setAuthUserId(user?.id ?? null);
+    }
+    loadSession();
+  }, [supabase]);
+
+  // ⭐ Subscribe only when identity is known
+  useEffect(() => {
+    if (!authUserId) return;
 
     const channel = supabase
-      .channel(`incoming-calls-${userId}`)
+      .channel(`incoming-calls-${authUserId}`)
       .on(
         "postgres_changes",
         {
@@ -32,15 +44,15 @@ export default function useIncomingCall(userId: string | undefined) {
         (payload: { new: CallMessage }) => {
           const msg = payload.new;
 
-          // ⭐ Manual filtering (Supabase Realtime v2 requires this)
+          // ⭐ Manual filtering (Supabase Realtime v2)
           if (
-            msg.receiver_id !== userId ||
+            msg.receiver_id !== authUserId ||
             msg.message_type !== "call_offer"
           ) {
             return;
           }
 
-          // ⭐ Now callee receives the call instantly
+          // ⭐ Callee receives the call instantly
           router.push(`/messenger/${msg.room_id}?incoming=1`);
         }
       )
@@ -49,5 +61,5 @@ export default function useIncomingCall(userId: string | undefined) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, supabase, router]);
+  }, [authUserId, supabase, router]);
 }

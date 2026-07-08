@@ -14,8 +14,11 @@ interface CallEventPayload {
   };
 }
 
-export function useIncomingCalls(userId: string | null) {
+export function useIncomingCalls() {
   const { supabase } = useSupabase();
+
+  // ⭐ NEW — Supabase session identity
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
 
   const [incomingCall, setIncomingCall] = useState<{
     id: string;
@@ -23,18 +26,29 @@ export function useIncomingCalls(userId: string | null) {
     caller_id: string;
   } | null>(null);
 
+  // ⭐ Load authenticated user
   useEffect(() => {
-    if (!userId) return;
+    async function loadSession() {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
+      setAuthUserId(user?.id ?? null);
+    }
+    loadSession();
+  }, [supabase]);
+
+  // ⭐ Subscribe only when identity is known
+  useEffect(() => {
+    if (!authUserId) return;
 
     const channel = supabase
-      .channel(`call-events:${userId}`)
+      .channel(`call-events:${authUserId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "call_events",
-          filter: `target_user_id=eq.${userId}`,
+          filter: `target_user_id=eq.${authUserId}`,
         },
         (payload: CallEventPayload) => {
           const row = payload.new;
@@ -51,7 +65,7 @@ export function useIncomingCalls(userId: string | null) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, supabase]);
+  }, [authUserId, supabase]);
 
   return { incomingCall, setIncomingCall };
 }

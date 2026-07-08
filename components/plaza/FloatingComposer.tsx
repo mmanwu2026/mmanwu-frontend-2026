@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
 
@@ -22,10 +21,10 @@ interface FloatingComposerProps {
 }
 
 export default function FloatingComposer({ onPost }: FloatingComposerProps) {
-  // ⭐ GLOBAL SUPABASE CLIENT — SAFE
   const { supabase } = useSupabase();
 
-  const { user, loading } = useUser();
+  const [uid, setUid] = useState<string | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -35,9 +34,17 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // -----------------------------
-  // Gatekeeper API
-  // -----------------------------
+  // Load Supabase session user
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const userId = session.data.session?.user?.id ?? null;
+      setUid(userId);
+      setLoadingUser(false);
+    }
+    loadUser();
+  }, [supabase]);
+
   async function runGatekeeper(rawText: string): Promise<GatekeeperResponse | null> {
     try {
       const res = await fetch("/api/gatekeeper", {
@@ -53,17 +60,14 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     }
   }
 
-  // -----------------------------
-  // Publish to Supabase
-  // -----------------------------
   async function publishToSupabase(finalText: string): Promise<void> {
-    if (!user) return;
+    if (!uid) return;
 
     const { data, error } = await supabase
       .from("posts")
       .insert({
         content: finalText,
-        creator_id: user.id,
+        creator_id: uid,
         mask: 0,
       })
       .select()
@@ -77,15 +81,11 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     if (data) onPost(data);
   }
 
-  // -----------------------------
-  // Submit Handler
-  // -----------------------------
   async function handleSubmit(): Promise<void> {
-    if (!content.trim() || loading || !user) return;
+    if (!content.trim() || loadingUser || !uid) return;
 
     const result = await runGatekeeper(content);
 
-    // Auto-approve path
     if (result?.autoApprove) {
       await publishToSupabase(content);
       setToastMessage("The spirits approve your message ✨");
@@ -94,7 +94,6 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
       return;
     }
 
-    // Rewrite path
     if (result?.rewrites) {
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [
@@ -114,9 +113,6 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     }
   }
 
-  // -----------------------------
-  // Gatekeeper Selection
-  // -----------------------------
   function handleGatekeeperSelect(finalText: string): void {
     setShowGatekeeper(false);
     publishToSupabase(finalText);
@@ -124,12 +120,8 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     setExpanded(false);
   }
 
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <>
-      {/* Gatekeeper Modal */}
       {showGatekeeper && gatekeeperOptions && (
         <GatekeeperModal
           options={gatekeeperOptions}
@@ -138,12 +130,10 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
         />
       )}
 
-      {/* Toast */}
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* COLLAPSED BUTTON */}
       {!expanded && (
         <div
           className="w-full p-3 rounded-xl bg-purple-900/40 text-gray-300 cursor-pointer hover:bg-purple-800/40 transition-all"
@@ -156,31 +146,22 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
         </div>
       )}
 
-      {/* EXPANDED PANEL */}
       {expanded && (
         <div className="absolute left-[180px] top-20 w-[360px] p-4 rounded-2xl bg-purple-900/40 backdrop-blur-xl shadow-xl z-[6000]">
           <textarea
-            className="
-              w-full rounded-xl p-3 resize-none
-              placeholder-gray-400
-              focus:outline-none
-              focus:ring-2 focus:ring-purple-500/40
-              bg-purple-950/40
-            "
+            className="w-full rounded-xl p-3 resize-none placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 bg-purple-950/40"
             rows={5}
             placeholder="Share your thoughts…"
             value={content}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setContent(e.target.value)
-            }
+            onChange={(e) => setContent(e.target.value)}
           />
 
           <button
             onClick={handleSubmit}
-            disabled={!content.trim() || loading || !user}
+            disabled={!content.trim() || loadingUser || !uid}
             className="w-full mt-3 py-2 rounded-xl font-semibold transition-all"
           >
-            {loading ? "Posting..." : "Post"}
+            {loadingUser ? "Posting..." : "Post"}
           </button>
 
           <button

@@ -26,23 +26,31 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { post_id, raw_input, automask, positivity_ratio } = body;
 
-  // Load authenticated user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // ⭐ Extract JWT manually
+  const accessToken = cookieStore.get("sb-access-token")?.value;
 
-  if (!user) {
+  if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // ⭐ FIXED — correct table name
+  // ⭐ Authenticate using JWT
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser(accessToken);
+
+  if (userError || !user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // ⭐ Insert comment
   const { error } = await supabase
     .from("sound_post_comments")
     .insert({
       post_id,
       user_id: user.id,
       raw_input,
-      content: raw_input,             // ⭐ required for SoundCommentList
+      content: raw_input,
       automask,
       positivity_ratio,
     });

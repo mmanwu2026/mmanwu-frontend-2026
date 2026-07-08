@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SpiritToast from "@/components/SpiritToast";
 
 export default function VisionSquareUpload() {
   const { supabase } = useSupabase();
-  const { user } = useUser();
   const router = useRouter();
 
+  const [uid, setUid] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [hashtags, setHashtags] = useState("");
@@ -37,6 +36,15 @@ export default function VisionSquareUpload() {
     "video/quicktime",
   ];
 
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
+
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
@@ -61,7 +69,6 @@ export default function VisionSquareUpload() {
     setFile(f);
   }
 
-  // ⭐ FIXED UPLOADER
   async function uploadWithProgress(file: File, path: string) {
     return new Promise<{ publicUrl: string }>(async (resolve, reject) => {
       const session = await supabase.auth.getSession();
@@ -115,7 +122,6 @@ export default function VisionSquareUpload() {
       .filter((tag) => tag.length > 0);
   }
 
-  // ⭐ FIXED GATEKEEPER FALLBACK
   async function runGatekeeper(text: string) {
     try {
       const res = await fetch("/api/gatekeeper", {
@@ -141,7 +147,7 @@ export default function VisionSquareUpload() {
   }
 
   async function handleUpload() {
-    if (!user) {
+    if (!uid) {
       setError("You must be logged in.");
       return;
     }
@@ -165,10 +171,14 @@ export default function VisionSquareUpload() {
     }
 
     await finalizeUpload(gate.finalText ?? title.trim(), gate.automask, gate.positivityRatio);
-       }
+  }
 
-  // ⭐ FIXED FINAL UPLOAD
   async function finalizeUpload(finalTitle: string, automask: number, positivity: number) {
+    if (!uid) {
+      setError("You must be logged in.");
+      return;
+    }
+
     if (!finalTitle.trim()) {
       setError("Title cannot be empty.");
       return;
@@ -182,9 +192,8 @@ export default function VisionSquareUpload() {
     setProgress(0);
     setError("");
 
-    // ⭐ SAFE FILE EXTENSION
     const fileExt = file!.name?.split(".").pop() || "bin";
-    const filePath = `${user!.id}/${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `${uid}/${crypto.randomUUID()}.${fileExt}`;
 
     let publicUrl: string;
 
@@ -200,7 +209,7 @@ export default function VisionSquareUpload() {
     const { error: dbError } = await supabase.from("vision_posts").insert({
       title: finalTitle,
       media_url: publicUrl,
-      creator_id: user!.id,
+      creator_id: uid,
       spirit_score: automask,
       positivity_ratio: positivity,
       automask,
@@ -228,7 +237,6 @@ export default function VisionSquareUpload() {
 
   return (
     <div className="max-w-xl mx-auto p-6 text-white">
-
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
@@ -265,16 +273,25 @@ export default function VisionSquareUpload() {
       )}
 
       <div className="mb-6 flex justify-between items-center">
-        <Link href="/vision-square/feed" className="text-gray-300 hover:text-purple-300 transition font-medium">
+        <Link
+          href="/vision-square/feed"
+          className="text-gray-300 hover:text-purple-300 transition font-medium"
+        >
           ← Back to VisionSquare
         </Link>
 
-        <Link href="/plaza" className="text-gray-300 hover:text-purple-300 transition font-medium">
+        <Link
+          href="/plaza"
+          className="text-gray-300 hover:text-purple-300 transition font-medium"
+        >
           Plaza →
         </Link>
 
-        {user && (
-          <Link href={`/profile/${user.id}`} className="text-gray-300 hover:text-purple-300 transition font-medium">
+        {uid && (
+          <Link
+            href={`/profile/${uid}`}
+            className="text-gray-300 hover:text-purple-300 transition font-medium"
+          >
             Profile →
           </Link>
         )}
@@ -308,7 +325,9 @@ export default function VisionSquareUpload() {
         {file ? (
           <p>{file.name}</p>
         ) : (
-          <p className="text-gray-400">Drag & drop image/video here or click to select</p>
+          <p className="text-gray-400">
+            Drag & drop image/video here or click to select
+          </p>
         )}
       </div>
 

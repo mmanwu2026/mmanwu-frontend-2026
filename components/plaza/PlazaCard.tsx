@@ -35,18 +35,18 @@ interface PlazaPost {
 export default function PlazaCard({
   post,
   creator,
-  user,
+  userId,
   onDeleteAction,
   onReactAction,
 }: {
   post: PlazaPost;
   creator: CreatorProfile;
-  user: any;
+  userId: string;
   onDeleteAction: (id: string) => void;
   onReactAction: () => void;
 }) {
   const { supabase } = useSupabase();
-  const isCreator = user?.id === post.creator_id;
+  const isCreator = userId === post.creator_id;
 
   const FALLBACK_AVATAR =
     "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
@@ -59,7 +59,7 @@ export default function PlazaCard({
     let active = true;
 
     async function loadFollowState() {
-      if (!user || isCreator) {
+      if (!userId || isCreator) {
         if (active) setIsFollowing(null);
         return;
       }
@@ -67,7 +67,7 @@ export default function PlazaCard({
       const { data } = await supabase
         .from("follows")
         .select("id")
-        .eq("follower_id", user.id)
+        .eq("follower_id", userId)
         .eq("following_id", post.creator_id)
         .maybeSingle();
 
@@ -78,17 +78,17 @@ export default function PlazaCard({
     return () => {
       active = false;
     };
-  }, [user, post.creator_id, isCreator, supabase]);
+  }, [userId, post.creator_id, isCreator, supabase]);
 
   async function toggleFollow() {
-    if (!user || isCreator || busy) return;
+    if (!userId || isCreator || busy) return;
 
     setBusy(true);
 
     try {
       if (!isFollowing) {
         await supabase.from("follows").insert({
-          follower_id: user.id,
+          follower_id: userId,
           following_id: post.creator_id,
         });
         setIsFollowing(true);
@@ -96,7 +96,7 @@ export default function PlazaCard({
         await supabase
           .from("follows")
           .delete()
-          .eq("follower_id", user.id)
+          .eq("follower_id", userId)
           .eq("following_id", post.creator_id);
 
         setIsFollowing(false);
@@ -241,10 +241,9 @@ export default function PlazaCard({
 
             {/* COMMENTS */}
             <PlazaComments
-  postId={post.id}
-  postCreatorId={post.creator_id}
-/>
-
+              postId={post.id}
+              postCreatorId={post.creator_id}
+            />
           </div>
 
         </div>

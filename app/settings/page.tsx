@@ -1,25 +1,40 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { registerPush } from "@/utils/push";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function SettingsPage() {
-  const { supabase, user } = useSupabase();
+  const { supabase } = useSupabase();
+  const [userId, setUserId] = useState<string | null>(null);
 
+  // ⭐ Load user ID
   useEffect(() => {
-    if (!user) return; // wait until user is loaded
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const id = session.data.session?.user?.id || null;
+      setUserId(id);
+    }
+    loadUser();
+  }, [supabase]);
 
+  // ⭐ Attach click handler
+  useEffect(() => {
     const btn = document.getElementById("enableNotifications");
     if (!btn) return;
 
     const handler = () => {
-      registerPush(user.id, supabase);
+      if (!userId) {
+        console.error("No user found — cannot register push.");
+        return;
+      }
+
+      registerPush(userId, supabase);
     };
 
     btn.addEventListener("click", handler);
     return () => btn.removeEventListener("click", handler);
-  }, [supabase, user]);
+  }, [supabase, userId]);
 
   return (
     <div className="text-white p-4">

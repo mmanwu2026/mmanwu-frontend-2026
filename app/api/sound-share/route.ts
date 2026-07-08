@@ -23,12 +23,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing post_id" }, { status: 400 });
   }
 
-  // Auth check
+  // ⭐ Extract JWT manually
+  const accessToken = cookieStore.get("sb-access-token")?.value;
+
+  if (!accessToken) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // ⭐ Authenticate using JWT
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+    error: userError,
+  } = await supabase.auth.getUser(accessToken);
 
-  if (!user) {
+  if (userError || !user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
