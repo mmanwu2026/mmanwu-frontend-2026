@@ -17,16 +17,14 @@ interface CallEventPayload {
 export function useIncomingCalls() {
   const { supabase } = useSupabase();
 
-  // ⭐ NEW — Supabase session identity
   const [authUserId, setAuthUserId] = useState<string | null>(null);
-
   const [incomingCall, setIncomingCall] = useState<{
     id: string;
     room_id: string;
     caller_id: string;
   } | null>(null);
 
-  // ⭐ Load authenticated user
+  // Load authenticated user
   useEffect(() => {
     async function loadSession() {
       const { data } = await supabase.auth.getSession();
@@ -36,7 +34,7 @@ export function useIncomingCalls() {
     loadSession();
   }, [supabase]);
 
-  // ⭐ Subscribe only when identity is known
+  // Subscribe to call events
   useEffect(() => {
     if (!authUserId) return;
 
@@ -51,6 +49,8 @@ export function useIncomingCalls() {
           filter: `target_user_id=eq.${authUserId}`,
         },
         (payload: CallEventPayload) => {
+          console.log("CALL DEBUG → incoming call event:", payload.new);
+
           const row = payload.new;
 
           setIncomingCall({
