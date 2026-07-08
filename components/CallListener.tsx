@@ -53,7 +53,27 @@ export default function CallListener() {
 
         // ⭐ STEP 4 — Auto-open call screen when app is active
         if (document.visibilityState === "visible") {
-          router.push(`/call/${data.room_id}?role=callee`);
+          // Wait until userId is fully loaded before navigating
+          const waitForUser = async () => {
+            let tries = 0;
+
+            while (tries < 20) {
+              const session = await supabase.auth.getSession();
+              const uid = session.data.session?.user?.id;
+
+              if (uid) {
+                router.push(`/call/${data.room_id}?role=callee`);
+                return;
+              }
+
+              await new Promise((r) => setTimeout(r, 100));
+              tries++;
+            }
+
+            console.warn("Auto-open skipped: userId not ready");
+          };
+
+          waitForUser();
 
           // ⭐ STEP 5 — Ringtone when app is active
           try {
