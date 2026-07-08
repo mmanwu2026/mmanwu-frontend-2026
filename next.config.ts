@@ -5,10 +5,6 @@ const isDev = process.env.NODE_ENV === "development";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // ⭐ CRITICAL FIX — forces Vercel to generate a fresh build output
-  // This breaks the CDN-level service worker deadlock.
-  distDir: "build",
-
   experimental: {
     serverActions: {
       allowedOrigins: ["*"],
@@ -43,7 +39,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // ⭐ Leave this — but it no longer matters since SW is disabled
   async headers() {
     return [
       {
