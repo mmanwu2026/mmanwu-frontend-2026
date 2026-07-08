@@ -86,14 +86,18 @@ export default function ReactionBar({
       .single();
 
     // ⭐ Insert notification into database
-    await supabase.from("notifications").insert({
-      user_id: creatorId,
-      actor_id: uid,
-      event_type: "reaction",
-      post_id: postId,
-      post_type: "vision",
-      message: `${email || "Someone"} reacted to your vision`,
-    });
+    await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: creatorId,
+    actorId: uid,
+    postId,
+    postType: "vision",
+    message: `${email || "Someone"} reacted to your vision`,
+    eventType: "reaction",
+  }),
+});
 
     // 4. Trigger push notification
     if (sub?.subscription) {

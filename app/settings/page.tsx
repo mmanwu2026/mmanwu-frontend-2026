@@ -29,7 +29,7 @@ export default function SettingsPage() {
         return;
       }
 
-      registerPush(userId, supabase);
+      registerPush(supabase);
     };
 
     btn.addEventListener("click", handler);

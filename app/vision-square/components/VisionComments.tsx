@@ -111,14 +111,18 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
       .single();
 
     // ⭐ Insert notification into database (vision comment)
-    await supabase.from("notifications").insert({
-      user_id: creatorId || "",
-      actor_id: uid,
-      event_type: "comment",
-      post_id: postId,
-      post_type: "vision",
-      message: `${email || "Someone"} commented on your vision`,
-    });
+    await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: creatorId,
+    actorId: uid,
+    postId,
+    postType: "vision",
+    message: `${email || "Someone"} commented on your vision`,
+    eventType: "comment",
+  }),
+});
 
     // 3. Trigger push notification
     if (sub?.subscription) {

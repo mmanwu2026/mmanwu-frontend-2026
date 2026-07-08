@@ -130,14 +130,18 @@ export default function PlazaComments({
       .single();
 
     // Insert notification
-    await supabase.from("notifications").insert({
-      user_id: postCreatorId,
-      actor_id: uid,
-      event_type: "comment",
-      post_id: postId,
-      post_type: "plaza",
-      message: `${email} commented on your post`,
-    });
+    await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: postCreatorId,
+    actorId: uid,
+    postId,
+    postType: "plaza",
+    message: `${email} commented on your post`,
+    eventType: "comment",
+  }),
+});
 
     // Trigger push
     if (sub?.subscription) {
@@ -203,15 +207,19 @@ export default function PlazaComments({
       .single();
 
     // Insert notification
-    await supabase.from("notifications").insert({
-      user_id: postCreatorId,
-      actor_id: uid,
-      event_type: "reply",
-      post_id: postId,
-      post_type: "plaza",
-      comment_id: parentId,
-      message: `${email} replied to a comment on your post`,
-    });
+    await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: postCreatorId,
+    actorId: uid,
+    postId,
+    postType: "plaza",
+    commentId: parentId,
+    message: `${email} replied to a comment on your post`,
+    eventType: "reply",
+  }),
+});
 
     // Trigger push
     if (sub?.subscription) {

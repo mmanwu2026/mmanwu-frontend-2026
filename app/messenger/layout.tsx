@@ -31,7 +31,7 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!userId) return;
-    registerPush(userId, supabase);
+    registerPush(supabase);
   }, [userId, supabase]);
 
   // ⭐ FIXED — no arguments

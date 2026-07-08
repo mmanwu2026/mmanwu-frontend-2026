@@ -18,10 +18,18 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 // -----------------------------------------------------
-// EDGE-SAFE PUSH SUBSCRIPTION
+// EDGE-SAFE PUSH SUBSCRIPTION (Corrected)
 // -----------------------------------------------------
-export function registerPush(userId: string, supabase: any) {
-  // MUST be called directly inside the click handler
+export async function registerPush(supabase: any) {
+  // ⭐ Always load the REAL logged-in user
+  const { data } = await supabase.auth.getSession();
+  const authUserId = data.session?.user?.id;
+
+  if (!authUserId) {
+    console.warn("registerPush: No authenticated user.");
+    return;
+  }
+
   navigator.serviceWorker.ready.then((registration) => {
     const vapidPublicKey =
       "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
@@ -32,19 +40,24 @@ export function registerPush(userId: string, supabase: any) {
     registration.pushManager.getSubscription().then((existing) => {
       if (existing) return existing;
 
-      // *** CRITICAL ***
-      // subscribe() MUST happen in this synchronous chain
+      // MUST be synchronous
       registration.pushManager
         .subscribe({
           userVisibleOnly: true,
           applicationServerKey,
         })
-        .then((subscription) => {
-          // AFTER subscription succeeds, async work is allowed
-          supabase.from("push_subscriptions").upsert({
-            user_id: userId,
-            subscription,
-          });
+        .then(async (subscription) => {
+          // ⭐ Correct: store subscription for the LOGGED-IN user only
+          const { error } = await supabase
+            .from("push_subscriptions")
+            .upsert({
+              user_id: authUserId,
+              subscription,
+            });
+
+          if (error) {
+            console.error("Supabase push_subscriptions upsert error:", error);
+          }
         })
         .catch((err) => {
           console.error("Subscribe error:", err);
