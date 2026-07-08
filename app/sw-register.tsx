@@ -4,11 +4,9 @@ import { useEffect } from "react";
 
 export default function SWRegister() {
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw-v2.js").then(() => {
-        console.log("Service worker registered");
-      });
-    }
+    // 🚫 Temporarily disable service worker registration
+    // This breaks the Vercel deadlock caused by the old SW.
+    console.log("Service worker registration temporarily disabled");
   }, []);
 
   return null;
