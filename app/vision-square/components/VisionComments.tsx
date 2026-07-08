@@ -104,11 +104,11 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     }
 
     // 2. Fetch creator's push subscription
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", creatorId)
-      .single();
+   const { data: sub } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid)   // logged-in user ONLY
+  .single();
 
     // ⭐ Insert notification into database (vision comment)
     await fetch("/functions/v1/create-notification", {

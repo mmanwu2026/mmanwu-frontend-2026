@@ -35,7 +35,7 @@ export default function ReactionBar({
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ FIXED — authenticated user
+  // ⭐ Authenticated user
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -78,28 +78,28 @@ export default function ReactionBar({
       setToastMessage("Your reaction uplifts the spirits ✨");
     }
 
-    // 3. Fetch creator's push subscription
+    // ⭐ 3. Fetch YOUR OWN push subscription (correct)
     const { data: sub } = await supabase
       .from("push_subscriptions")
       .select("subscription")
-      .eq("user_id", creatorId)
+      .eq("user_id", uid) // logged-in user ONLY
       .single();
 
-    // ⭐ Insert notification into database
+    // ⭐ 4. Insert notification into database
     await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType: "vision",
-    message: `${email || "Someone"} reacted to your vision`,
-    eventType: "reaction",
-  }),
-});
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType: "vision",
+        message: `${email || "Someone"} reacted to your vision`,
+        eventType: "reaction",
+      }),
+    });
 
-    // 4. Trigger push notification
+    // ⭐ 5. Trigger push notification
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -119,10 +119,10 @@ export default function ReactionBar({
       );
     }
 
-    // 5. Refresh feed
+    // 6. Refresh feed
     router.refresh();
 
-    // 6. Update UI
+    // 7. Update UI
     onReact();
   }
 

@@ -33,7 +33,7 @@ export default function ReactionBar({
 }: ReactionBarProps) {
   const { supabase } = useSupabase();
 
-  // ⭐ FIXED — authenticated user
+  // ⭐ Authenticated user
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -72,28 +72,28 @@ export default function ReactionBar({
       return;
     }
 
-    // 2. Fetch creator's push subscription
+    // ⭐ 2. Fetch YOUR OWN push subscription (correct)
     const { data: sub } = await supabase
       .from("push_subscriptions")
       .select("subscription")
-      .eq("user_id", creatorId)
+      .eq("user_id", uid) // logged-in user ONLY
       .single();
 
-    // ⭐ Insert notification into database
+    // ⭐ 3. Insert notification via Edge Function (correct)
     await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType,
-    message: `${email || "Someone"} reacted to your post`,
-    eventType: "reaction",
-  }),
-});
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType,
+        message: `${email || "Someone"} reacted to your post`,
+        eventType: "reaction",
+      }),
+    });
 
-    // 3. Trigger push notification
+    // ⭐ 4. Trigger push notification (correct)
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -113,7 +113,7 @@ export default function ReactionBar({
       );
     }
 
-    // 4. Update UI
+    // 5. Update UI
     onReact();
   };
 
