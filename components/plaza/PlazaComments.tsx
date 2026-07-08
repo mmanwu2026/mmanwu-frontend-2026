@@ -124,10 +124,10 @@ export default function PlazaComments({
 
     // Fetch creator's push subscription
     const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", postCreatorId)
-      .single();
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid)   // logged-in user ONLY
+  .single();
 
     // Insert notification
     await fetch("/functions/v1/create-notification", {
@@ -201,10 +201,10 @@ export default function PlazaComments({
 
     // Push subscription lookup
     const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", postCreatorId)
-      .single();
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid)   // logged-in user ONLY
+  .single();
 
     // Insert notification
     await fetch("/functions/v1/create-notification", {
