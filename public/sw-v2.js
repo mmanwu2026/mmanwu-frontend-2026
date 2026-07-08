@@ -23,6 +23,31 @@ self.addEventListener("push", (event) => {
       body: data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/badge-72.png",
+      data: data, // IMPORTANT: ensures click routing receives the URL
+    })
+  );
+});
+
+// REQUIRED: Notification click routing
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  // The backend should send a `url` field inside the push payload
+  const targetUrl = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If a tab is already open with the target URL, focus it
+      for (const client of clientList) {
+        if (client.url === targetUrl && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      // Otherwise open a new tab
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
     })
   );
 });
