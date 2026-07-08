@@ -9,7 +9,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// REQUIRED: Fetch handler (even empty) so Edge allows push subscription
+// REQUIRED: Fetch handler (even empty) so iOS + Edge allow PWA installation
 // IMPORTANT: Do NOT intercept or modify requests.
 self.addEventListener("fetch", () => {});
 
@@ -27,7 +27,7 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// ⭐ REQUIRED FOR UPDATE BANNER
+// REQUIRED FOR UPDATE BANNER
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();

@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "./lib/supabase/server";
 import Navbar from "@/components/layout/Navbar";
 import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
+import SWRegister from "./sw-register"; // ⭐ Add SWRegister at top-level
 
 export const metadata: Metadata = {
   title: "Mman Plaza",
@@ -32,6 +33,9 @@ export default function RootLayout({
       </head>
 
       <body className="bg-black">
+        {/* ⭐ SERVICE WORKER MUST REGISTER EARLY FOR iOS */}
+        <SWRegister />
+
         <ProvidersWrapper>
           <Navbar />
 
