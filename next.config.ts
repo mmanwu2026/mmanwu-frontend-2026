@@ -1,8 +1,8 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
 
 const isDev = process.env.NODE_ENV === "development";
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   reactStrictMode: true,
 
   experimental: {
@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
+      // API rewrites (production)
       {
         source: "/api/profile/:userId",
         destination:
@@ -24,6 +25,7 @@ const nextConfig: NextConfig = {
           "https://mmanwu-clean-production-6465.up.railway.app/api/:path*",
       },
 
+      // API rewrites (development)
       ...(isDev
         ? [
             {
@@ -36,24 +38,37 @@ const nextConfig: NextConfig = {
             },
           ]
         : []),
+
+      // ⭐ REQUIRED: ensure /sw.js is served raw and not intercepted by Next.js
+      {
+        source: "/sw.js",
+        destination: "/sw.js",
+      },
     ];
   },
 
   async headers() {
     return [
+      // ⭐ REQUIRED: allow service worker to control the entire site
       {
-        source: "/sw-v2.js",
+        source: "/sw.js",
         headers: [
-          { key: "Cache-Control", value: "no-store" },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-store",
+          },
           {
             key: "Content-Type",
             value: "application/javascript; charset=utf-8",
           },
-          { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
     ];
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
