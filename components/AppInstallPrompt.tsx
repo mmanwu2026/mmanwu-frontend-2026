@@ -55,7 +55,7 @@ export default function AppInstallPrompt() {
         zIndex: 9999,
       }}
     >
-      Install MMANWU Plaza
+      Install MMAN Plaza
     </button>
   );
 }
