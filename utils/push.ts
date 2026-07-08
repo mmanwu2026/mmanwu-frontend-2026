@@ -1,5 +1,5 @@
 // -----------------------------------------------------
-// Helper: Convert VAPID key to Uint8Array (required)
+// Helper: Convert VAPID key to Uint8Array
 // -----------------------------------------------------
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -18,10 +18,10 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 // -----------------------------------------------------
-// EDGE-SAFE PUSH SUBSCRIPTION (Corrected)
+// ⭐ FINAL, PRODUCTION-GRADE PUSH REGISTRATION
 // -----------------------------------------------------
 export async function registerPush(supabase: any) {
-  // ⭐ Always load the REAL logged-in user
+  // 1. Get logged-in user
   const { data } = await supabase.auth.getSession();
   const authUserId = data.session?.user?.id;
 
@@ -30,38 +30,52 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  navigator.serviceWorker.ready.then((registration) => {
-    const vapidPublicKey =
-      "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
+  // 2. Wait for service worker
+  const registration = await navigator.serviceWorker.ready;
 
-    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+  const vapidPublicKey =
+    "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
 
-    // Check existing subscription synchronously
-    registration.pushManager.getSubscription().then((existing) => {
-      if (existing) return existing;
+  const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
-      // MUST be synchronous
-      registration.pushManager
-        .subscribe({
-          userVisibleOnly: true,
-          applicationServerKey,
-        })
-        .then(async (subscription) => {
-          // ⭐ Correct: store subscription for the LOGGED-IN user only
-          const { error } = await supabase
-            .from("push_subscriptions")
-            .upsert({
-              user_id: authUserId,
-              subscription,
-            });
+  // 3. ALWAYS remove stale subscriptions
+  const existing = await registration.pushManager.getSubscription();
+  if (existing) {
+    try {
+      await existing.unsubscribe();
+      console.log("Old push subscription removed.");
+    } catch (err) {
+      console.error("Failed to remove old subscription:", err);
+    }
+  }
 
-          if (error) {
-            console.error("Supabase push_subscriptions upsert error:", error);
-          }
-        })
-        .catch((err) => {
-          console.error("Subscribe error:", err);
-        });
+  // 4. Create a fresh subscription
+  let newSubscription: PushSubscription | null = null;
+
+  try {
+    newSubscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey,
     });
+  } catch (err) {
+    console.error("Push subscribe error:", err);
+    return;
+  }
+
+  if (!newSubscription) {
+    console.error("Failed to create new push subscription.");
+    return;
+  }
+
+  // 5. Store subscription in Supabase for THIS user only
+  const { error } = await supabase.from("push_subscriptions").upsert({
+    user_id: authUserId,
+    subscription: newSubscription.toJSON(),
   });
+
+  if (error) {
+    console.error("Supabase push_subscriptions upsert error:", error);
+  } else {
+    console.log("Push subscription saved for user:", authUserId);
+  }
 }
