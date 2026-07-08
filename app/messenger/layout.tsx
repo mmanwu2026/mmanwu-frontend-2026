@@ -31,14 +31,24 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     loadUser();
   }, [supabase]);
 
-  // ⭐ FIXED — push registration is OPTIONAL and NON‑BLOCKING
+  // ⭐ SAFE iOS DETECTION — prevents PWA crash
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  // ⭐ Push registration — now SAFE and NON‑BLOCKING
   useEffect(() => {
     if (!userId) return;
+
+    if (isIOS) {
+      console.warn("Push disabled on iOS Safari — skipping registerPush()");
+      return;
+    }
 
     registerPush(supabase).catch((err) => {
       console.warn("Push registration failed (non-blocking):", err);
     });
-  }, [userId, supabase]);
+  }, [userId, supabase, isIOS]);
 
   // ⭐ Incoming call UI ALWAYS runs — even if push is blocked
   useIncomingCalls();

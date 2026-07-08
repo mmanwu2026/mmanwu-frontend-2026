@@ -18,9 +18,19 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 // -----------------------------------------------------
-// ⭐ FINAL, PRODUCTION-GRADE PUSH REGISTRATION
+// ⭐ FINAL, PRODUCTION-GRADE PUSH REGISTRATION (iOS-safe)
 // -----------------------------------------------------
 export async function registerPush(supabase: any) {
+  // ⭐ iOS detection — prevents PWA crash
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    console.warn("iOS Safari detected — skipping registerPush()");
+    return;
+  }
+
   // 1. Get logged-in user
   const { data } = await supabase.auth.getSession();
   const authUserId = data.session?.user?.id;

@@ -1,8 +1,8 @@
 "use client";
 
+import { useSupabase } from "@/context/SupabaseContext";
 import { useEffect, useState } from "react";
 import { registerPush } from "@/utils/push";
-import { useSupabase } from "@/context/SupabaseContext";
 
 export default function NotificationsPage() {
   const { supabase } = useSupabase();
@@ -18,6 +18,11 @@ export default function NotificationsPage() {
     loadUser();
   }, [supabase]);
 
+  // ⭐ iOS detection — prevents PWA crash
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
   // ⭐ Attach click handler
   useEffect(() => {
     const btn = document.getElementById("enableNotifications");
@@ -29,12 +34,19 @@ export default function NotificationsPage() {
         return;
       }
 
-      registerPush(supabase);
+      if (isIOS) {
+        console.warn("Push disabled on iOS Safari — skipping registerPush()");
+        return;
+      }
+
+      registerPush(supabase).catch((err) => {
+        console.warn("Push registration failed (non-blocking):", err);
+      });
     };
 
     btn.addEventListener("click", handler);
     return () => btn.removeEventListener("click", handler);
-  }, [supabase, userId]);
+  }, [supabase, userId, isIOS]);
 
   return (
     <div className="text-white p-4">
