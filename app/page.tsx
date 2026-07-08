@@ -7,8 +7,20 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/plaza");
+    // Delay navigation so iOS can load manifest + SW
+    const timer = setTimeout(() => {
+      router.replace("/plaza");
+    }, 50);
+
+    return () => clearTimeout(timer);
   }, [router]);
 
-  return null;
+  // Minimal app shell so Safari sees a real page
+  return (
+    <div style={{ background: "black", height: "100vh", width: "100vw" }}>
+      <p style={{ color: "white", textAlign: "center", marginTop: "40vh" }}>
+        Loading…
+      </p>
+    </div>
+  );
 }
