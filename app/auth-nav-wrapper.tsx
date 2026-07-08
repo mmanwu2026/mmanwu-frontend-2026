@@ -24,5 +24,5 @@ export default function AuthNavWrapper() {
 
   if (loading) return null;
 
-  return <AuthNav />;
+  return <AuthNav userId={authUserId} />;
 }

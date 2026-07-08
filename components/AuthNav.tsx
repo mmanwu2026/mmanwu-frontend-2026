@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useState, useEffect } from "react";
 
-export default function AuthNav() {
+export default function AuthNav({ userId }: { userId: string | null }) {
+
   const { supabase } = useSupabase();
 
   const [hydrated, setHydrated] = useState(false);
