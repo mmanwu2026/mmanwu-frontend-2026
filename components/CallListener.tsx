@@ -30,6 +30,11 @@ export default function CallListener() {
     };
   }, [supabase]);
 
+  // ⭐ SAFE DIAGNOSTIC LOG — tells us if CallListener is mounted
+  useEffect(() => {
+    console.log("CALL LISTENER MOUNTED → userId:", userId);
+  }, [userId]);
+
   // ⭐ Subscribe once
   useEffect(() => {
     if (!userId) return;
@@ -53,7 +58,6 @@ export default function CallListener() {
 
         // ⭐ STEP 4 — Auto-open call screen when app is active
         if (document.visibilityState === "visible") {
-          // Wait until userId is fully loaded before navigating
           const waitForUser = async () => {
             let tries = 0;
 
@@ -75,7 +79,6 @@ export default function CallListener() {
 
           waitForUser();
 
-          // ⭐ STEP 5 — Ringtone when app is active
           try {
             const audio = new Audio("/sounds/ringtone.mp3");
             audio.volume = 1.0;
@@ -86,7 +89,6 @@ export default function CallListener() {
             console.error("Ringtone error:", err);
           }
 
-          // Do NOT show popup when auto-opening
           return;
         }
 
@@ -109,7 +111,6 @@ export default function CallListener() {
           console.error("Push notification error:", err);
         }
 
-        // ⭐ UI popup only when app is NOT visible
         setIncomingCall(data);
       }
     );
