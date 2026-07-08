@@ -28,7 +28,14 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// REQUIRED: Notification click routing
+// ⭐ REQUIRED FOR UPDATE BANNER
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// ⭐ ⭐ ⭐ STEP 3 — Notification Click Routing (FINAL VERSION)
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
@@ -36,23 +43,19 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If app is already open → focus + navigate
       for (const client of clientList) {
-        if (client.url === targetUrl && "focus" in client) {
-          return client.focus();
+        if ("focus" in client) {
+          client.focus();
+          client.navigate(targetUrl);
+          return;
         }
       }
 
+      // Otherwise open a new window/tab
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
     })
   );
-});
-
-// ⭐ REQUIRED FOR UPDATE BANNER
-// Allows the React app to tell the service worker to activate immediately
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
 });

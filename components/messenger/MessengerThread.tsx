@@ -188,11 +188,16 @@ export default function MessengerThread({
     const newRoomId = crypto.randomUUID();
 
     await supabase.from("call_events").insert({
-      room_id: newRoomId,
-      caller_id: userId,
-      target_user_id: otherUserId,
-      status: "ringing",
-    });
+  type: "incoming_call",
+  call_id: crypto.randomUUID(),
+  room_id: newRoomId,
+  caller_id: userId,
+  caller_name: usernames[userId] || "Unknown",
+  target_user_id: otherUserId,
+  url: `/call/${newRoomId}`,
+  status: "ringing",
+  created_at: new Date().toISOString(),
+});
 
     router.push(`/call/${newRoomId}?role=caller`);
   }

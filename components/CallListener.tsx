@@ -45,8 +45,52 @@ export default function CallListener() {
         table: "call_events",
         filter: `target_user_id=eq.${userId}`,
       },
-      (payload: { new: any }) => {
-        setIncomingCall(payload.new);
+      async (payload: { new: any }) => {
+        const data = payload.new;
+
+        // Only react to actual incoming calls
+        if (data.type !== "incoming_call") return;
+
+        // ⭐ STEP 4 — Auto-open call screen when app is active
+        if (document.visibilityState === "visible") {
+          router.push(`/call/${data.room_id}?role=callee`);
+
+          // ⭐ STEP 5 — Ringtone when app is active
+          try {
+            const audio = new Audio("/sounds/ringtone.mp3");
+            audio.volume = 1.0;
+            audio.play().catch(() => {
+              console.warn("Ringtone blocked until user interacts with the page.");
+            });
+          } catch (err) {
+            console.error("Ringtone error:", err);
+          }
+
+          // Do NOT show popup when auto-opening
+          return;
+        }
+
+        // ⭐ STEP 2 — Push Notification Payload (only when app is NOT visible)
+        try {
+          const reg = await navigator.serviceWorker.ready;
+
+          reg.showNotification("Incoming Call", {
+            body: `${data.caller_name || "Someone"} is calling you`,
+            icon: "/icons/icon-192.png",
+            badge: "/icons/badge-72.png",
+            data: {
+              url: data.url,
+              call_id: data.call_id,
+              room_id: data.room_id,
+              from_name: data.caller_name,
+            },
+          });
+        } catch (err) {
+          console.error("Push notification error:", err);
+        }
+
+        // ⭐ UI popup only when app is NOT visible
+        setIncomingCall(data);
       }
     );
 
@@ -87,7 +131,7 @@ export default function CallListener() {
   return (
     <div className="fixed bottom-4 right-4 bg-neutral-800 p-4 rounded-lg shadow-lg border border-neutral-700 z-[9999]">
       <div className="text-white mb-2">
-        Incoming call from {incomingCall.caller_id}
+        Incoming call from {incomingCall.caller_name || incomingCall.caller_id}
       </div>
 
       <div className="flex gap-2">
