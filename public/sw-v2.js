@@ -10,6 +10,7 @@ self.addEventListener("activate", (event) => {
 });
 
 // REQUIRED: Fetch handler (even empty) so Edge allows push subscription
+// IMPORTANT: Do NOT intercept or modify requests.
 self.addEventListener("fetch", () => {});
 
 // REQUIRED: Push handler
@@ -33,7 +34,7 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// ⭐ ⭐ ⭐ STEP 3 — Notification Click Routing (FINAL VERSION)
+// ⭐ ⭐ ⭐ Notification Click Routing (FINAL VERSION)
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
