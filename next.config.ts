@@ -38,6 +38,23 @@ const nextConfig: NextConfig = {
         : []),
     ];
   },
+
+  // ⭐ ADD THIS — DO NOT REMOVE ANYTHING ABOVE
+  async headers() {
+    return [
+      {
+        source: "/sw-v2.js",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
