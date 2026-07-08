@@ -3,24 +3,32 @@
 import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useState, useEffect } from "react";
+import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
 
-export default function AuthNav({ userId }: { userId: string | null }) {
-
+export default function AuthNav() {
   const { supabase } = useSupabase();
 
-  const [hydrated, setHydrated] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
 
-    async function loadUser() {
-      const session = await supabase.auth.getSession();
-      const userId = session.data.session?.user?.id ?? null;
-      setUid(userId);
-    }
+    // ⭐ Explicitly type the destructured data
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
+      setUid(data.session?.user?.id ?? null);
+    });
 
-    loadUser();
+    // ⭐ Explicitly type event + session
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        setUid(session?.user?.id ?? null);
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, [supabase]);
 
   if (!hydrated) {
@@ -48,7 +56,6 @@ export default function AuthNav({ userId }: { userId: string | null }) {
           <Link href={`/profile/${uid}`} prefetch={false}>
             My Profile
           </Link>
-
           <button onClick={handleLogout}>Logout</button>
         </div>
       )}
