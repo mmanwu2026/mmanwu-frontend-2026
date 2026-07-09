@@ -7,13 +7,10 @@ import { useEffect, useState } from "react";
 export default function Navbar() {
   const { supabase } = useSupabase();
 
-  // ⭐ FIXED — authenticated user
   const [uid, setUid] = useState<string | null>(null);
-
-  // ⭐ Unread notifications count
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ⭐ Load authenticated user
+  // Load authenticated user
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -23,7 +20,7 @@ export default function Navbar() {
     loadUser();
   }, [supabase]);
 
-  // ⭐ Load unread notifications
+  // Load unread notifications
   useEffect(() => {
     async function loadUnread() {
       if (!uid) return;
@@ -40,7 +37,7 @@ export default function Navbar() {
     loadUnread();
   }, [uid, supabase]);
 
-  // ⭐ Real-time updates
+  // Real-time updates
   useEffect(() => {
     if (!uid) return;
 
@@ -63,19 +60,34 @@ export default function Navbar() {
 
   return (
     <nav className="flex items-center justify-between p-4 bg-black text-white border-b border-white/10">
-      <Link href="/" className="text-lg font-bold">
+      
+      {/* ⭐ FIXED — MMAN now goes to Plaza */}
+      <Link href="/plaza" className="text-lg font-bold">
         MMAN
       </Link>
 
-      <Link href="/notifications" className="relative text-sm">
-        Notifications
+      <div className="flex items-center gap-6 text-sm">
 
-        {unreadCount > 0 && (
-          <span className="absolute -top-2 -right-3 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
-            {unreadCount}
-          </span>
-        )}
-      </Link>
+        {/* ⭐ Sound */}
+        <Link href="/sound">Sound</Link>
+
+        {/* ⭐ Vision */}
+        <Link href="/vision">Vision</Link>
+
+        {/* ⭐ Messenger */}
+        <Link href="/messenger">Messenger</Link>
+
+        {/* ⭐ Notifications */}
+        <Link href="/notifications" className="relative">
+          Notifications
+
+          {unreadCount > 0 && (
+            <span className="absolute -top-2 -right-3 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+              {unreadCount}
+            </span>
+          )}
+        </Link>
+      </div>
     </nav>
   );
 }
