@@ -1,5 +1,3 @@
-// app/page.tsx — SERVER COMPONENT
-
 import Redirector from "./redirector";
 
 export default function Home() {
@@ -15,6 +13,8 @@ export default function Home() {
         justifyContent: "center",
         color: "white",
         fontSize: "1.5rem",
+        textAlign: "center",
+        padding: "20px",
       }}
     >
       <img
@@ -22,9 +22,16 @@ export default function Home() {
         alt="Mman Plaza"
         style={{ width: 96, height: 96, marginBottom: 20 }}
       />
-      <div>Loading Mman Plaza…</div>
 
-      {/* Client-side redirect logic */}
+      <div style={{ marginBottom: 10 }}>
+        <strong>Welcome to Mman Plaza</strong>
+      </div>
+
+      <div style={{ opacity: 0.8 }}>
+        Preparing your experience…
+      </div>
+
+      {/* Client-side redirect */}
       <Redirector />
     </div>
   );
