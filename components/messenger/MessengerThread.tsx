@@ -184,46 +184,37 @@ export default function MessengerThread({
 
   // ⭐⭐⭐ NEW CALL SYSTEM — 1-to-1 Call (caller) WITH PUSH NOTIFICATION ⭐⭐⭐
   async function startCall() {
-    if (!otherUserId) return;
+  if (!otherUserId) return;
 
-    const newRoomId = crypto.randomUUID();
-    const callId = crypto.randomUUID();
+  const newRoomId = crypto.randomUUID();
+  const callId = crypto.randomUUID();
 
-    // 1. Insert call event
-    await supabase.from("call_events").insert({
-      type: "incoming_call",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      caller_name: usernames[userId] || "Unknown",
-      target_user_id: otherUserId,
-      url: `/call/${newRoomId}`,
-      status: "ringing",
-      created_at: new Date().toISOString(),
-    });
+  // 1. Insert call event
+  await supabase.from("call_events").insert({
+    type: "incoming_call",
+    call_id: callId,
+    room_id: newRoomId,
+    caller_id: userId,
+    caller_name: usernames[userId] || "Unknown",
+    target_user_id: otherUserId,
+    url: `/call/${newRoomId}`,
+    status: "ringing",
+    created_at: new Date().toISOString(),
+  });
 
-    // ⭐ 2. Fetch callee's push subscription
-    const { data: subData } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", otherUserId)
-      .single();
+  // ⭐ 2. Send push notification to the callee
+  await sendPush(otherUserId, {
+    title: "Incoming Call",
+    body: `${usernames[userId]} is calling you`,
+    url: `/call/${newRoomId}?role=callee`,
+    room_id: newRoomId,
+    call_id: callId,
+    from_name: usernames[userId],
+  });
 
-    // ⭐ 3. Send push notification if subscription exists
-    if (subData?.subscription) {
-      await sendPush(subData.subscription, {
-        title: "Incoming Call",
-        body: `${usernames[userId] || "Someone"} is calling you`,
-        url: `/call/${newRoomId}?role=callee`,
-        room_id: newRoomId,
-        call_id: callId,
-        from_name: usernames[userId] || "Unknown",
-      });
-    }
-
-    // 4. Caller enters call room
-    router.push(`/call/${newRoomId}?role=caller`);
-  }
+  // 3. Caller enters call room
+  router.push(`/call/${newRoomId}?role=caller`);
+}
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
