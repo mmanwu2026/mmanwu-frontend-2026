@@ -8,10 +8,10 @@ export default function Redirector() {
   const router = useRouter();
 
   useEffect(() => {
-    // Delay redirect for PWA installability
+    // iOS Safari needs more time to evaluate PWA installability
     const timer = setTimeout(() => {
       router.replace("/plaza");
-    }, 1500);
+    }, 3000); // ⭐ Increase delay to 3000ms
 
     return () => clearTimeout(timer);
   }, [router]);
