@@ -43,7 +43,8 @@ export default function LoginPage() {
 
     await new Promise((resolve) => setTimeout(resolve, 250));
 
-    router.push("/plaza");
+// ⭐ Redirect to homepage first so iOS can evaluate PWA installability
+router.push("/");
   }
 
   return (
