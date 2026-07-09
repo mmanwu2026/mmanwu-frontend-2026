@@ -1,4 +1,6 @@
-"use client";
+// app/page.tsx — SERVER COMPONENT
+
+import Redirector from "./redirector";
 
 export default function Home() {
   return (
@@ -21,6 +23,9 @@ export default function Home() {
         style={{ width: 96, height: 96, marginBottom: 20 }}
       />
       <div>Loading Mman Plaza…</div>
+
+      {/* Client-side redirect logic */}
+      <Redirector />
     </div>
   );
 }
