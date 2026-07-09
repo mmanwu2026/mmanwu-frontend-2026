@@ -15,14 +15,15 @@ type Post = {
 export default async function Page({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  // ⭐ Promise-based params — this is the pattern that worked for you
-  const { id } = await params;
+  // ⭐ FIXED — params is NOT a Promise
+  const { id } = params;
 
-  // ⭐ Your original helper that was known to work
+  // ⭐ Your original helper — correct
   const supabase = await createSupabaseServerClient();
 
+  // ⭐ Fetch profile
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -77,6 +78,7 @@ export default async function Page({
       positivity_ratio,
     };
 
+    // ⭐ Fetch posts
     const { data: postsRaw } = await supabase
       .from("posts")
       .select(`
