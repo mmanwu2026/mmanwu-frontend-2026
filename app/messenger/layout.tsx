@@ -4,6 +4,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIncomingCalls } from "@/hooks/useIncomingCalls";
+import useIncomingCall from "@/hooks/useIncomingCall";
 import { registerPush } from "@/utils/push";
 
 export default function MessengerLayout({ children }: { children: React.ReactNode }) {
@@ -51,7 +52,8 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
   }, [userId, supabase, isIOS]);
 
   // ⭐ Incoming call UI ALWAYS runs — even if push is blocked
-  useIncomingCalls();
+   useIncomingCall();
+   useIncomingCalls();
 
   return <>{children}</>;
 }
