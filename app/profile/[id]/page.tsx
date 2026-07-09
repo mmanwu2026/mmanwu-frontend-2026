@@ -12,17 +12,35 @@ type Post = {
   positivity_ratio: number;
 };
 
+// ⭐ This MUST match ProfileClient’s expected type exactly
+type Profile = {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string;
+  bio: string;
+  mask_tier: number; // FIX — ProfileClient expects number, not string
+  created_at: string;
+  verified: boolean;
+  location: string;
+  website_url: string;
+  followers_count: number;
+  following_count: number;
+  spirit_score: number;
+  positivity_ratio: number;
+  posts: Post[];
+};
+
 export default async function Page({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // ⭐ KEEP — your routing system requires Promise params
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
 
-  // ⭐ Fetch profile
+  // Fetch profile (mini-posts only)
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -49,13 +67,11 @@ export default async function Page({
     .eq("id", id)
     .single();
 
-  // ⭐ FIX — clean boolean
   const profileNotFound = !!profileError || !profileRaw;
 
-  let profile = null;
+  let profile: Profile | null = null;
   let posts: Post[] = [];
 
-  // ⭐ FIX — narrow type before using profileRaw
   if (!profileNotFound && profileRaw) {
     const spirit_score =
       profileRaw.posts?.reduce(
@@ -71,14 +87,18 @@ export default async function Page({
           ) / profileRaw.posts.length
         : 0.5;
 
+    // ⭐ FIX — do NOT assign mini-posts to profile.posts
     profile = {
       ...profileRaw,
+      mask_tier: Number(profileRaw.mask_tier), // FIX — ensure number
       followers_count: profileRaw.followers_count?.[0]?.count ?? 0,
       following_count: profileRaw.following_count?.[0]?.count ?? 0,
       spirit_score,
       positivity_ratio,
+      posts: [], // FIX — full posts come from second query
     };
 
+    // Fetch full posts
     const { data: postsRaw } = await supabase
       .from("posts")
       .select(`
