@@ -10,24 +10,51 @@ interface ReactionRow {
   maskTier: number;
 }
 
+interface EnrichedPost {
+  id: string;
+  title: string;
+  media_url: string;
+  creator_id: string;
+  created_at: string;
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number | null;
+  tags: string[];
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+  comments: any[];
+  comment_count: number;
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+    mask6: number;
+  };
+  total_reactions: number;
+}
+
 export default function SearchComponent() {
   const { supabase } = useSupabase();
   const searchParams = useSearchParams();
 
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<EnrichedPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-const tagParam = searchParams?.get("tag") ?? null;
+  const tagParam = searchParams?.get("tag") ?? null;
 
-useEffect(() => {
-  if (tagParam) {
-    const tagQuery = `#${tagParam}`;
-    setQuery(tagQuery);
-    handleSearch(tagQuery);
-  }
-}, [tagParam]);
+  useEffect(() => {
+    if (tagParam) {
+      const tagQuery = `#${tagParam}`;
+      setQuery(tagQuery);
+      handleSearch(tagQuery);
+    }
+  }, [tagParam]);
 
   async function handleSearch(forcedQuery?: string) {
     const q = forcedQuery || query;
@@ -39,7 +66,8 @@ useEffect(() => {
     const cleaned = q.replace("#", "").toLowerCase();
     const isHashtag = q.startsWith("#");
 
-    let data, error;
+    let data: any[] | null = null;
+    let error: any = null;
 
     if (isHashtag) {
       ({ data, error } = await supabase
@@ -122,7 +150,7 @@ useEffect(() => {
     }
 
     // ⭐ Normalize creator + comment profiles
-    const normalized = (data || []).map((post: any) => {
+    const normalized: EnrichedPost[] = (data || []).map((post: any) => {
       const creator =
         Array.isArray(post.users) && post.users.length > 0
           ? post.users[0]
@@ -150,20 +178,29 @@ useEffect(() => {
           };
         }) ?? [];
 
-return {
-  ...post,
-  tags: Array.isArray(post.tags) ? post.tags : [],   // ⭐ FIX
-  users: {
-    username: creator?.username ?? "unknown",
-    avatar_url: creator?.avatar_url ?? null,
-  },
-  comments,
-  comment_count: comments.length,
-};
+      return {
+        ...post,
+        tags: Array.isArray(post.tags) ? post.tags : [],
+        users: {
+          username: creator?.username ?? "unknown",
+          avatar_url: creator?.avatar_url ?? null,
+        },
+        comments,
+        comment_count: comments.length,
+        reactions: {
+          mask1: 0,
+          mask2: 0,
+          mask3: 0,
+          mask4: 0,
+          mask5: 0,
+          mask6: 0,
+        },
+        total_reactions: 0,
+      };
     });
 
     // ⭐ Recalculate reactions + positivity + automask
-    const enriched = [];
+    const enriched: EnrichedPost[] = [];
 
     for (const post of normalized) {
       const { data: reactionRows } = await supabase
@@ -212,7 +249,6 @@ return {
 
   return (
     <div className="max-w-2xl mx-auto p-6 text-white">
-
       <div className="mb-6 flex justify-between items-center">
         <Link
           href="/plaza"

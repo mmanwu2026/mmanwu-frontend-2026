@@ -9,17 +9,43 @@ interface ReactionRow {
   maskTier: number;
 }
 
+interface EnrichedPost {
+  id: string;
+  title: string;
+  media_url: string;
+  creator_id: string;
+  created_at: string;
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number | null;
+  tags: string[];
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+  comments: any[];
+  comment_count: number;
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+    mask6: number;
+  };
+  total_reactions: number;
+}
+
 export default function VisionSquareTrending() {
   const { supabase } = useSupabase();
 
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<EnrichedPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchTrending() {
       setLoading(true);
 
-      // ⭐ Load posts + comments + creator profile
       const { data, error } = await supabase
         .from("vision_posts")
         .select(`
@@ -61,8 +87,7 @@ export default function VisionSquareTrending() {
         return;
       }
 
-      // ⭐ Normalize creator + comments
-      const normalized = (data || []).map((post: any) => {
+      const normalized: EnrichedPost[] = (data || []).map((post: any) => {
         const creator =
           Array.isArray(post.users) && post.users.length > 0
             ? post.users[0]
@@ -92,17 +117,26 @@ export default function VisionSquareTrending() {
 
         return {
           ...post,
+          tags: Array.isArray(post.tags) ? post.tags : [],
           users: {
             username: creator?.username ?? "unknown",
             avatar_url: creator?.avatar_url ?? null,
           },
           comments,
           comment_count: comments.length,
+          reactions: {
+            mask1: 0,
+            mask2: 0,
+            mask3: 0,
+            mask4: 0,
+            mask5: 0,
+            mask6: 0,
+          },
+          total_reactions: 0,
         };
       });
 
-      // ⭐ Recalculate reactions + positivity + automask
-      const enriched = [];
+      const enriched: EnrichedPost[] = [];
 
       for (const post of normalized) {
         const { data: reactionRows } = await supabase
@@ -153,8 +187,6 @@ export default function VisionSquareTrending() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 text-white">
-
-      {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
         <Link
           href="/plaza"
