@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
+import { sendPush } from "@/lib/sendPush"; // ⭐ Make sure this path is correct
 
 export default function MessengerThread({
   userId,
@@ -181,24 +182,46 @@ export default function MessengerThread({
     setNewMessage("");
   }
 
-  // NEW CALL SYSTEM — 1-to-1 Call (caller)
+  // ⭐⭐⭐ NEW CALL SYSTEM — 1-to-1 Call (caller) WITH PUSH NOTIFICATION ⭐⭐⭐
   async function startCall() {
     if (!otherUserId) return;
 
     const newRoomId = crypto.randomUUID();
+    const callId = crypto.randomUUID();
 
+    // 1. Insert call event
     await supabase.from("call_events").insert({
-  type: "incoming_call",
-  call_id: crypto.randomUUID(),
-  room_id: newRoomId,
-  caller_id: userId,
-  caller_name: usernames[userId] || "Unknown",
-  target_user_id: otherUserId,
-  url: `/call/${newRoomId}`,
-  status: "ringing",
-  created_at: new Date().toISOString(),
-});
+      type: "incoming_call",
+      call_id: callId,
+      room_id: newRoomId,
+      caller_id: userId,
+      caller_name: usernames[userId] || "Unknown",
+      target_user_id: otherUserId,
+      url: `/call/${newRoomId}`,
+      status: "ringing",
+      created_at: new Date().toISOString(),
+    });
 
+    // ⭐ 2. Fetch callee's push subscription
+    const { data: subData } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", otherUserId)
+      .single();
+
+    // ⭐ 3. Send push notification if subscription exists
+    if (subData?.subscription) {
+      await sendPush(subData.subscription, {
+        title: "Incoming Call",
+        body: `${usernames[userId] || "Someone"} is calling you`,
+        url: `/call/${newRoomId}?role=callee`,
+        room_id: newRoomId,
+        call_id: callId,
+        from_name: usernames[userId] || "Unknown",
+      });
+    }
+
+    // 4. Caller enters call room
     router.push(`/call/${newRoomId}?role=caller`);
   }
 
