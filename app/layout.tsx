@@ -5,7 +5,22 @@ import { createSupabaseServerClient } from "./lib/supabase/server";
 import Navbar from "@/components/layout/Navbar";
 import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
-import SWRegister from "./sw-register"; // ⭐ Add SWRegister at top-level
+
+// ⭐ EARLY SERVICE WORKER REGISTRATION (Safari requires pre-hydration)
+function SWRegisterScript() {
+  return (
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+              .catch(err => console.error('SW registration failed:', err));
+          }
+        `,
+      }}
+    />
+  );
+}
 
 export const metadata: Metadata = {
   title: "Mman Plaza",
@@ -33,8 +48,8 @@ export default function RootLayout({
       </head>
 
       <body className="bg-black">
-        {/* ⭐ SERVICE WORKER MUST REGISTER EARLY FOR iOS */}
-        <SWRegister />
+        {/* ⭐ SERVICE WORKER MUST REGISTER BEFORE HYDRATION */}
+        <SWRegisterScript />
 
         <ProvidersWrapper>
           <Navbar />
