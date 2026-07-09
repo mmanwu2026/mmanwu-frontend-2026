@@ -58,12 +58,16 @@ const nextConfig = {
             value: "/",
           },
           {
-            key: "Cache-Control",
-            value: "no-store",
-          },
-          {
             key: "Content-Type",
             value: "application/javascript; charset=utf-8",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-cache",
+          },
+          {
+            key: "X-No-Compression",
+            value: "true",
           },
         ],
       },
