@@ -1,20 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
 export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // iOS Safari needs ~1.5 seconds to evaluate PWA installability
-    const timer = setTimeout(() => {
-      router.replace("/plaza");
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [router]);
-
   return (
     <div
       style={{
