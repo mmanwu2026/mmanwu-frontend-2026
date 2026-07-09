@@ -1,4 +1,4 @@
-import Redirector from "./redirector";
+import EnableNotifications from "./enable-notifications";
 
 export default function Home() {
   return (
@@ -27,12 +27,12 @@ export default function Home() {
         <strong>Welcome to Mman Plaza</strong>
       </div>
 
-      <div style={{ opacity: 0.8 }}>
+      <div style={{ opacity: 0.8, marginBottom: 30 }}>
         Preparing your experience…
       </div>
 
-      {/* Client-side redirect */}
-      <Redirector />
+      {/* This button handles permission + subscription + redirect */}
+      <EnableNotifications />
     </div>
   );
 }
