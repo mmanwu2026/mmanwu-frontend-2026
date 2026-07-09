@@ -9,5 +9,5 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return Response.redirect(`${requestUrl.origin}/plaza`);
+  return Response.redirect(`${requestUrl.origin}/`);
 }
