@@ -69,10 +69,10 @@ export default function Navbar() {
       <div className="flex items-center gap-6 text-sm">
 
         {/* ⭐ Sound */}
-        <Link href="/sound">Sound</Link>
+        <Link href="/sound-square">Sound</Link>
 
         {/* ⭐ Vision */}
-        <Link href="/vision">Vision</Link>
+        <Link href="/vision-square">Vision</Link>
 
         {/* ⭐ Messenger */}
         <Link href="/messenger">Messenger</Link>
