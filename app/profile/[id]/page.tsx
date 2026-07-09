@@ -17,14 +17,10 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // ⭐ Your custom routing quirk — KEEP THIS
+  // ⭐ KEEP — your routing system requires Promise params
   const { id } = await params;
 
-  // ⭐ Create server client
   const supabase = await createSupabaseServerClient();
-
-  // ⭐ FIX — force session hydration
-  await supabase.auth.getUser();
 
   // ⭐ Fetch profile
   const { data: profileRaw, error: profileError } = await supabase
@@ -53,12 +49,14 @@ export default async function Page({
     .eq("id", id)
     .single();
 
-  const profileNotFound = profileError || !profileRaw;
+  // ⭐ FIX — clean boolean
+  const profileNotFound = !!profileError || !profileRaw;
 
   let profile = null;
   let posts: Post[] = [];
 
-  if (!profileNotFound) {
+  // ⭐ FIX — narrow type before using profileRaw
+  if (!profileNotFound && profileRaw) {
     const spirit_score =
       profileRaw.posts?.reduce(
         (sum: number, p: any) => sum + (p.spirit_score ?? 0),
@@ -81,7 +79,6 @@ export default async function Page({
       positivity_ratio,
     };
 
-    // ⭐ Fetch posts
     const { data: postsRaw } = await supabase
       .from("posts")
       .select(`
