@@ -15,13 +15,16 @@ type Post = {
 export default async function Page({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  // ⭐ FIXED — params is NOT a Promise
-  const { id } = params;
+  // ⭐ Your custom routing quirk — KEEP THIS
+  const { id } = await params;
 
-  // ⭐ Your original helper — correct
+  // ⭐ Create server client
   const supabase = await createSupabaseServerClient();
+
+  // ⭐ FIX — force session hydration
+  await supabase.auth.getUser();
 
   // ⭐ Fetch profile
   const { data: profileRaw, error: profileError } = await supabase
