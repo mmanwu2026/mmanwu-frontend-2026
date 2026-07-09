@@ -3,15 +3,32 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+// ✔ Correct Supabase provider path
+import { useSupabase } from "../context/SupabaseContext";
+
+// ✔ Correct push system path (your real file)
+import { registerPush } from "../utils/push";
+
 export default function EnableNotifications() {
   const router = useRouter();
+  const { supabase } = useSupabase();
   const [loading, setLoading] = useState(false);
 
   async function handleEnable() {
     try {
       setLoading(true);
 
-      // 1. Ask for permission
+      // 1. Restore session
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+
+      if (!user) {
+        alert("You must be logged in.");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Ask for permission
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         alert("Notifications were not enabled.");
@@ -19,23 +36,10 @@ export default function EnableNotifications() {
         return;
       }
 
-      // 2. Register service worker
-      const reg = await navigator.serviceWorker.ready;
+      // 3. Use your existing push system
+      await registerPush(supabase);
 
-      // 3. Create push subscription
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      });
-
-      // 4. Send subscription to your backend
-      await fetch("/api/save-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sub),
-      });
-
-      // 5. Redirect AFTER subscription succeeds
+      // 4. Redirect AFTER subscription succeeds
       router.replace("/plaza");
     } catch (err) {
       console.error("Push setup failed:", err);

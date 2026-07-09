@@ -31,7 +31,6 @@ export default function Home() {
         Preparing your experience…
       </div>
 
-      {/* This button handles permission + subscription + redirect */}
       <EnableNotifications />
     </div>
   );
