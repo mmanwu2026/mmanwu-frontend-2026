@@ -7,20 +7,26 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Delay navigation so iOS can load manifest + SW
+    // Delay navigation so Safari can hydrate and detect PWA metadata
     const timer = setTimeout(() => {
       router.replace("/plaza");
-    }, 50);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [router]);
 
-  // Minimal app shell so Safari sees a real page
   return (
-    <div style={{ background: "black", height: "100vh", width: "100vw" }}>
-      <p style={{ color: "white", textAlign: "center", marginTop: "40vh" }}>
-        Loading…
-      </p>
+    <div style={{
+      background: "black",
+      height: "100vh",
+      width: "100vw",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "white",
+      fontSize: "1.5rem"
+    }}>
+      Loading…
     </div>
   );
 }
