@@ -7,9 +7,10 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    // iOS Safari needs ~1.5 seconds to evaluate PWA installability
     const timer = setTimeout(() => {
       router.replace("/plaza");
-    }, 500); // slightly longer to satisfy iOS
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [router]);
