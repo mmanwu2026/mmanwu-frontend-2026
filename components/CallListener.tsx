@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
@@ -30,8 +30,8 @@ export default function CallListener() {
     if (globalInitialized) return;
     globalInitialized = true;
 
-    // IMPORTANT: unified channel name
-    const channel = supabase.channel(`call-events:${userId}`);
+    // IMPORTANT: restore original channel name
+    const channel = supabase.channel(`incoming-call-${userId}`);
 
     channel.on(
       "postgres_changes",
