@@ -18,7 +18,7 @@ type CallSignalingRow = {
 
 type CallEventRow = {
   id: string;
-  type: "incoming_call" | "call_declined" | string;
+  type: "incoming_call" | "call_declined" | "call_started" | "call_cancelled";
   call_id: string;
   room_id: string;
   caller_id: string;
@@ -56,7 +56,7 @@ export default function CallRoom({
   const hasSentOfferRef = useRef(false);
   const hasProcessedOfferRef = useRef(false);
 
-  // ⭐ Caller-side call status (now includes decline)
+  // ⭐ Caller-side call status
   const [callStatus, setCallStatus] = useState<
     "ringing" | "connecting" | "declined" | "active"
   >(role === "caller" ? "ringing" : "connecting");
@@ -124,10 +124,11 @@ export default function CallRoom({
       pendingRemoteStreamRef.current.addTrack(event.track);
 
       if (!el) {
-        console.log("TRACK DEBUG → remote video element not ready, keeping merged stream buffered");
+        console.log("TRACK DEBUG → remote video element not ready, buffering stream");
         return;
       }
 
+      console.log("TRACK DEBUG → attaching remote stream immediately");
       el.srcObject = pendingRemoteStreamRef.current;
 
       const tryPlay = () => {
@@ -139,7 +140,6 @@ export default function CallRoom({
 
       tryPlay();
 
-      // ⭐ Remote track means call is active
       console.log("CALL STATUS DEBUG → remote track received, setting status to active");
       setCallStatus("active");
     };
@@ -150,6 +150,29 @@ export default function CallRoom({
       pcRef.current = null;
     };
   }, [roomId, userId, supabase, role]);
+
+  // ⭐ Remote video FIX — attach buffered stream when element becomes available
+  useEffect(() => {
+    const el = remoteVideoRef.current;
+    if (!el) return;
+
+    if (pendingRemoteStreamRef.current) {
+      console.log("TRACK DEBUG → attaching buffered remote stream (delayed)");
+
+      el.srcObject = pendingRemoteStreamRef.current;
+
+      const tryPlay = () => {
+        el.play().catch((err) => {
+          console.warn("TRACK DEBUG → delayed play retry:", err);
+          setTimeout(tryPlay, 250);
+        });
+      };
+
+      tryPlay();
+
+      pendingRemoteStreamRef.current = null;
+    }
+  }, [remoteVideoRef.current]);
 
   async function joinCall() {
     console.log("JOIN DEBUG → joinCall invoked");
@@ -175,23 +198,13 @@ export default function CallRoom({
         .catch((e) => console.warn("JOIN DEBUG → local play error:", e));
     }
 
-    // Safari remote playback retry after user gesture
-    setTimeout(() => {
-      const el = remoteVideoRef.current;
-      if (el?.srcObject) {
-        el.play().catch((e) => console.warn("Safari retry play error:", e));
-      }
-    }, 500);
-
     setJoined(true);
 
-    // Forced-offer logic: do NOT rely on negotiationneeded
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
 
-      console.log("OFFER DEBUG → creating offer (forced path)");
+      console.log("OFFER DEBUG → creating offer (forced)");
 
-      // Force Safari (and others) to flush internal state
       await pc!.getStats();
 
       const offer = await pc!.createOffer({
@@ -226,7 +239,7 @@ export default function CallRoom({
     }
   }
 
-  // Realtime signaling (offer/answer/candidates)
+  // Realtime signaling
   useEffect(() => {
     console.log("RT DEBUG → subscribing to signaling channel:", roomId);
 
@@ -256,19 +269,17 @@ export default function CallRoom({
             return;
           }
 
-          // ⭐ Caller listens for callee answer → "connecting"
           if (role === "caller" && row.type === "answer") {
-            console.log("CALL STATUS DEBUG → callee answered, setting status to connecting");
+            console.log("CALL STATUS DEBUG → callee answered → connecting");
             setCallStatus("connecting");
           }
 
-          // Callee: process offer → create answer
           if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
             console.log("RT DEBUG → processing offer");
 
             hasProcessedOfferRef.current = true;
 
-            const offerPayload = row.payload as { sdp: string; type: "offer" };
+            const offerPayload = row.payload;
 
             await pc.setRemoteDescription(
               new RTCSessionDescription({
@@ -283,11 +294,6 @@ export default function CallRoom({
             await pc.setLocalDescription(answer);
 
             console.log("RT DEBUG → answer created");
-
-            if (!userId || !roomId) {
-              console.warn("ANSWER DEBUG → Skipping answer insert: userId or roomId undefined");
-              return;
-            }
 
             try {
               const res: PostgrestResponse<any> = await supabase
@@ -307,11 +313,10 @@ export default function CallRoom({
             }
           }
 
-          // Caller: apply answer and then flush buffered candidates
           if (row.type === "answer" && role === "caller") {
             console.log("RT DEBUG → applying answer");
 
-            const answerPayload = row.payload as { sdp: string; type: "answer" };
+            const answerPayload = row.payload;
 
             await pc.setRemoteDescription(
               new RTCSessionDescription({
@@ -334,23 +339,21 @@ export default function CallRoom({
             pendingCandidatesRef.current = [];
           }
 
-          // Both: buffer/apply candidates
           if (row.type === "candidate") {
             console.log("RT DEBUG → applying ICE candidate");
 
-            const candidateInit = row.payload as RTCIceCandidateInit;
+            const candidateInit = row.payload;
 
             if (!pc.remoteDescription) {
               console.warn(
-                "RT DEBUG → remoteDescription is null, buffering ICE candidate",
+                "RT DEBUG → remoteDescription null, buffering ICE candidate",
                 candidateInit
               );
               pendingCandidatesRef.current.push(candidateInit);
               return;
             }
 
-            const candidate = new RTCIceCandidate(candidateInit);
-            await pc.addIceCandidate(candidate);
+            await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
 
             console.log("RT DEBUG → ICE candidate added");
           }
@@ -364,10 +367,10 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
-  // ⭐ NEW: caller-side decline detection via call_events
+  // Caller-side decline detection
   useEffect(() => {
     if (role !== "caller") {
-      console.log("CALL EVENTS DEBUG → not caller, skipping call_events subscription");
+      console.log("CALL EVENTS DEBUG → not caller, skipping");
       return;
     }
 
@@ -396,20 +399,14 @@ export default function CallRoom({
           if (row.room_id !== roomId) {
             console.log(
               "CALL EVENTS DEBUG → ignoring event for different room_id:",
-              row.room_id,
-              "expected:",
-              roomId
+              row.room_id
             );
             return;
           }
 
           if (row.type === "call_declined") {
-            console.log(
-              "CALL EVENTS DEBUG → callee declined call, setting callStatus to declined"
-            );
+            console.log("CALL EVENTS DEBUG → callee declined → setting status to declined");
             setCallStatus("declined");
-          } else {
-            console.log("CALL EVENTS DEBUG → non-decline event type:", row.type);
           }
         }
       )
@@ -421,30 +418,10 @@ export default function CallRoom({
     };
   }, [roomId, userId, role, supabase]);
 
-  // Safari delayed remote playback block
-  useEffect(() => {
-    if (pendingRemoteStreamRef.current && remoteVideoRef.current) {
-      console.log("TRACK DEBUG → delayed Safari remote playback init");
-
-      remoteVideoRef.current.srcObject = pendingRemoteStreamRef.current;
-
-      const tryPlay = () => {
-        remoteVideoRef.current!.play().catch((err) => {
-          console.warn("TRACK DEBUG → delayed Safari play retry:", err);
-          setTimeout(tryPlay, 250);
-        });
-      };
-
-      tryPlay();
-
-      pendingRemoteStreamRef.current = null;
-    }
-  }, [remoteVideoRef]);
-
   // Auto-end if declined
   useEffect(() => {
     if (callStatus === "declined") {
-      console.log("CALL STATUS DEBUG → callStatus=declined, scheduling endCall");
+      console.log("CALL STATUS DEBUG → call declined → ending call soon");
       setTimeout(() => {
         endCall();
       }, 2000);
@@ -474,7 +451,8 @@ export default function CallRoom({
 
   return (
     <div className="flex flex-col h-full p-4 text-white">
-      {/* ⭐ Caller-side status */}
+
+      {/* Caller-side status */}
       {role === "caller" && (
         <div className="text-center text-neutral-300 mb-2">
           {callStatus === "ringing" && "Ringing…"}
