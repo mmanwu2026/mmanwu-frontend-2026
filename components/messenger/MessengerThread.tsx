@@ -244,19 +244,6 @@ export default function MessengerThread({
     created_at: new Date().toISOString(),
   });
 
-  // ⭐ 2.5 Register caller in call_subscriptions (UPSERT)
-  await supabase
-    .from("call_subscriptions")
-    .upsert(
-      {
-        user_id: userId,
-        room_id: newRoomId,
-        last_joined_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,room_id" }
-    );
-
-  console.log("CALL DEBUG → caller call_subscription upserted");
 
   // 3. Web Push notification
   sendPush(
