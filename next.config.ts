@@ -39,7 +39,7 @@ const nextConfig = {
           ]
         : []),
 
-      // ⭐ REQUIRED: ensure /sw.js is served raw and not intercepted by Next.js
+      // ⭐ Ensure service worker is served raw
       {
         source: "/sw.js",
         destination: "/sw.js",
@@ -49,27 +49,42 @@ const nextConfig = {
 
   async headers() {
     return [
-      // ⭐ REQUIRED: allow service worker to control the entire site
+      // ⭐ Service Worker must control entire site
       {
         source: "/sw.js",
         headers: [
-          {
-            key: "Service-Worker-Allowed",
-            value: "/",
-          },
+          { key: "Service-Worker-Allowed", value: "/" },
           {
             key: "Content-Type",
             value: "application/javascript; charset=utf-8",
           },
-          {
-            key: "Cache-Control",
-            value: "no-cache",
-          },
-          {
-            key: "X-No-Compression",
-            value: "true",
-          },
+          { key: "Cache-Control", value: "no-cache" },
+          { key: "X-No-Compression", value: "true" },
         ],
+      },
+
+      // ⭐ Manifest must be served with correct MIME type
+      {
+        source: "/manifest.json",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/manifest+json",
+          },
+          { key: "Cache-Control", value: "no-cache" },
+        ],
+      },
+
+      // ⭐ Icons must not be cached aggressively
+      {
+        source: "/icons/:path*",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
+      },
+
+      // ⭐ Required for Web Push + PWA trust
+      {
+        source: "/.well-known/:path*",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
       },
     ];
   },
