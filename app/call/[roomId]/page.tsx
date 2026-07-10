@@ -26,21 +26,24 @@ export default function CallRoomPage() {
   }, [supabase]);
 
   // Record call subscription
-  useEffect(() => {
-    if (!userId || !roomId) return;
+useEffect(() => {
+  if (!userId || !roomId) return;
 
-    async function markCallSubscription() {
-      await supabase
-        .from("call_subscriptions")
-        .upsert({
+  async function markCallSubscription() {
+    await supabase
+      .from("call_subscriptions")
+      .upsert(
+        {
           user_id: userId,
           room_id: roomId,
           last_joined_at: new Date().toISOString(),
-        });
-    }
+        },
+        { onConflict: "user_id,room_id" }
+      );
+  }
 
-    markCallSubscription();
-  }, [userId, roomId, supabase]);
+  markCallSubscription();
+}, [userId, roomId, supabase]);
 
   if (!userId) {
     return <div className="p-6 text-white">Loading user…</div>;

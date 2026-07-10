@@ -253,7 +253,7 @@ export default function MessengerThread({
         room_id: newRoomId,
         last_joined_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" }
+      { onConflict: "user_id,room_id" }
     );
 
   console.log("CALL DEBUG → caller call_subscription upserted");
