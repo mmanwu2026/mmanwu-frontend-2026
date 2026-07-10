@@ -13,7 +13,7 @@ export default function CallListener() {
 
   const channelRef = useRef<any>(null);
 
-  // Load authenticated user ID
+  // Load authenticated user ID ONCE
   useEffect(() => {
     let mounted = true;
 
@@ -30,13 +30,14 @@ export default function CallListener() {
     };
   }, [supabase]);
 
-  // Subscribe once
+  // Subscribe ONCE when userId is ready
   useEffect(() => {
     if (!userId) return;
-    if (channelRef.current) return;
+    if (channelRef.current) return; // prevent double subscription
 
     const channel = supabase.channel(`incoming-call-${userId}`);
 
+    // Attach listeners BEFORE subscribe()
     channel.on(
       "postgres_changes",
       {
@@ -50,49 +51,25 @@ export default function CallListener() {
 
         if (data.type !== "incoming_call") return;
 
-        // Always set incomingCall so popup can render
+        // Always set incomingCall so popup shows
         setIncomingCall(data);
 
-        // App visible → auto-open call screen + ringtone
+        // If app is visible → auto-open call screen + ringtone
         if (document.visibilityState === "visible") {
-          const waitForUser = async () => {
-            let tries = 0;
-
-            while (tries < 20) {
-              const session = await supabase.auth.getSession();
-              const uid = session.data.session?.user?.id;
-
-              if (uid) {
-                router.push(`/call/${data.room_id}?role=callee`);
-                return;
-              }
-
-              await new Promise((r) => setTimeout(r, 100));
-              tries++;
-            }
-
-            console.warn("Auto-open skipped: userId not ready");
-          };
-
-          waitForUser();
+          router.push(`/call/${data.room_id}?role=callee`);
 
           try {
             const audio = new Audio("/sounds/ringtone.mp3");
             audio.volume = 1.0;
-            audio.play().catch(() => {
-              console.warn("Ringtone blocked until user interacts with the page.");
-            });
-          } catch (err) {
-            console.error("Ringtone error:", err);
-          }
+            audio.play().catch(() => {});
+          } catch {}
 
           return;
         }
 
-        // App not visible → push notification fallback
+        // If app is NOT visible → push fallback
         try {
           const reg = await navigator.serviceWorker.ready;
-
           reg.showNotification("Incoming Call", {
             body: `${data.caller_name || "Someone"} is calling you`,
             icon: "/icons/icon-192.png",
@@ -110,7 +87,9 @@ export default function CallListener() {
       }
     );
 
+    // Subscribe AFTER listeners are attached
     channel.subscribe();
+
     channelRef.current = channel;
 
     return () => {
