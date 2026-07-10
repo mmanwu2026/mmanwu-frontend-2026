@@ -9,33 +9,29 @@ export default function CallListener() {
   const router = useRouter();
 
   const [userId, setUserId] = useState<string | null>(null);
-  const channelRef = useRef<any>(null);
 
-  // Load userId ONCE
+  // This flag prevents ANY second initialization
+  const initializedRef = useRef(false);
+
+  // Load userId once
   useEffect(() => {
-    let mounted = true;
-
     async function loadUser() {
       const session = await supabase.auth.getSession();
-      if (mounted) {
-        setUserId(session.data.session?.user?.id || null);
-      }
+      setUserId(session.data.session?.user?.id || null);
     }
-
     loadUser();
-    return () => {
-      mounted = false;
-    };
   }, [supabase]);
 
-  // Subscribe ONCE — even if userId changes later
+  // Initialize realtime subscription ONCE
   useEffect(() => {
     if (!userId) return;
-    if (channelRef.current) return; // prevent double subscription
+
+    // STOP second mount, STOP hydration double-run
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
     const channel = supabase.channel(`incoming-call-${userId}`);
 
-    // Attach listeners BEFORE subscribe()
     channel.on(
       "postgres_changes",
       {
@@ -49,19 +45,15 @@ export default function CallListener() {
 
         if (data.type !== "incoming_call") return;
 
-        // Auto-open if visible
         if (document.visibilityState === "visible") {
           router.push(`/call/${data.room_id}?role=callee`);
-
           try {
             const audio = new Audio("/sounds/ringtone.mp3");
             audio.play().catch(() => {});
           } catch {}
-
           return;
         }
 
-        // Push fallback
         try {
           const reg = await navigator.serviceWorker.ready;
           reg.showNotification("Incoming Call", {
@@ -81,16 +73,12 @@ export default function CallListener() {
       }
     );
 
-    // Subscribe AFTER listeners are attached
     channel.subscribe();
-
-    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
-      channelRef.current = null;
     };
-  }, [userId, supabase]);
+  }, [userId, supabase, router]);
 
   return null;
 }
