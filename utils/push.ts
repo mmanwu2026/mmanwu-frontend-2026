@@ -78,11 +78,16 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  // 5. Save subscription JSON into Supabase
-  const { error } = await supabase.from("push_subscriptions").upsert({
-    user_id: authUserId,
-    subscription: newSubscription.toJSON(),
-  });
+  // 5. Save subscription JSON into Supabase — ⭐ FIXED UPSERT
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .upsert(
+      {
+        user_id: authUserId,
+        subscription: newSubscription.toJSON(),
+      },
+      { onConflict: "user_id" }
+    );
 
   if (error) {
     console.error("Supabase push_subscriptions upsert error:", error);
