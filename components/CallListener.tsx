@@ -8,12 +8,10 @@ export default function CallListener() {
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-
   const channelRef = useRef<any>(null);
 
-  // Load authenticated user ID ONCE
+  // Load userId ONCE
   useEffect(() => {
     let mounted = true;
 
@@ -30,7 +28,7 @@ export default function CallListener() {
     };
   }, [supabase]);
 
-  // Subscribe ONCE when userId is ready
+  // Subscribe ONCE — even if userId changes later
   useEffect(() => {
     if (!userId) return;
     if (channelRef.current) return; // prevent double subscription
@@ -51,23 +49,19 @@ export default function CallListener() {
 
         if (data.type !== "incoming_call") return;
 
-        // Always set incomingCall so popup shows
-        setIncomingCall(data);
-
-        // If app is visible → auto-open call screen + ringtone
+        // Auto-open if visible
         if (document.visibilityState === "visible") {
           router.push(`/call/${data.room_id}?role=callee`);
 
           try {
             const audio = new Audio("/sounds/ringtone.mp3");
-            audio.volume = 1.0;
             audio.play().catch(() => {});
           } catch {}
 
           return;
         }
 
-        // If app is NOT visible → push fallback
+        // Push fallback
         try {
           const reg = await navigator.serviceWorker.ready;
           reg.showNotification("Incoming Call", {
@@ -98,52 +92,5 @@ export default function CallListener() {
     };
   }, [userId, supabase]);
 
-  async function acceptCall() {
-    if (!incomingCall) return;
-
-    await supabase
-      .from("call_events")
-      .update({ status: "answered" })
-      .eq("id", incomingCall.id);
-
-    router.push(`/call/${incomingCall.room_id}?role=callee`);
-    setIncomingCall(null);
-  }
-
-  async function declineCall() {
-    if (!incomingCall) return;
-
-    await supabase
-      .from("call_events")
-      .update({ status: "declined" })
-      .eq("id", incomingCall.id);
-
-    setIncomingCall(null);
-  }
-
-  if (!incomingCall) return null;
-
-  return (
-    <div className="fixed bottom-4 right-4 bg-neutral-800 p-4 rounded-lg shadow-lg border border-neutral-700 z-[9999]">
-      <div className="text-white mb-2">
-        Incoming call from {incomingCall.caller_name || incomingCall.caller_id}
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={acceptCall}
-          className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm"
-        >
-          Accept
-        </button>
-
-        <button
-          onClick={declineCall}
-          className="px-4 py-2 bg-red-600 rounded hover:bg-red-500 text-sm"
-        >
-          Decline
-        </button>
-      </div>
-    </div>
-  );
+  return null;
 }
