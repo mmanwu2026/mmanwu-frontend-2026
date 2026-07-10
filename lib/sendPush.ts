@@ -50,6 +50,7 @@ export async function sendPush(
         Authorization: `Bearer ${jwt}`,
       },
       body: JSON.stringify({
+        targetUserId,
         subscription: subRow.subscription,
         title: "Incoming Call",
         body: `${callerName} is calling you`,
