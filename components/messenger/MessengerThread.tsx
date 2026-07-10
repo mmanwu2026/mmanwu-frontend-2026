@@ -244,15 +244,15 @@ export default function MessengerThread({
     created_at: new Date().toISOString(),
   });
 
+  // 3. Web Push notification (pass supabase client to avoid duplicate GoTrueClient)
+sendPush(
+  supabase,
+  otherUserId,
+  newRoomId,
+  usernames[userId] || "Unknown"
+).catch((err) => console.error("sendPush error:", err));
 
-  // 3. Web Push notification
-  sendPush(
-    otherUserId,
-    newRoomId,
-    usernames[userId] || "Unknown"
-  ).catch((err) => console.error("sendPush error:", err));
-
-  console.log("CALL DEBUG → push notification sent");
+console.log("CALL DEBUG → push notification sent");
 
   // 4. Caller goes to PRE-CALL SCREEN
   router.push(`/call/${newRoomId}?role=caller`);
