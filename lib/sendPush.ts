@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create a client ONLY for getting the JWT
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function sendPush(
@@ -12,7 +11,6 @@ export async function sendPush(
   callerName: string
 ) {
   try {
-    // Get JWT for Authorization header
     const session = await supabase.auth.getSession();
     const jwt = session.data.session?.access_token;
 

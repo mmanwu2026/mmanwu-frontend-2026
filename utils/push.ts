@@ -21,7 +21,6 @@ function urlBase64ToUint8Array(base64String: string) {
 // ⭐ FINAL, PRODUCTION-GRADE PUSH REGISTRATION (iOS-safe)
 // -----------------------------------------------------
 export async function registerPush(supabase: any) {
-  // ⭐ iOS detection — prevents PWA crash
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -48,7 +47,7 @@ export async function registerPush(supabase: any) {
 
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
-  // 3. ALWAYS remove stale subscriptions
+  // 3. Remove stale subscriptions
   const existing = await registration.pushManager.getSubscription();
   if (existing) {
     try {
@@ -59,7 +58,7 @@ export async function registerPush(supabase: any) {
     }
   }
 
-  // 4. Create a fresh subscription
+  // 4. Create new subscription
   let newSubscription: PushSubscription | null = null;
 
   try {
@@ -77,15 +76,24 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  // 5. Store subscription in Supabase for THIS user only
-  const { error } = await supabase.from("push_subscriptions").upsert({
+  // ⭐ Extract FCM token (endpoint)
+  const fcmToken = newSubscription.endpoint;
+
+  // 5. Save subscription (optional)
+  await supabase.from("push_subscriptions").upsert({
     user_id: authUserId,
     subscription: newSubscription.toJSON(),
   });
 
-  if (error) {
-    console.error("Supabase push_subscriptions upsert error:", error);
+  // ⭐⭐⭐ 6. SAVE FCM TOKEN INTO profiles TABLE ⭐⭐⭐
+  const { error: profileErr } = await supabase
+    .from("profiles")
+    .update({ fcm_token: fcmToken })
+    .eq("id", authUserId);
+
+  if (profileErr) {
+    console.error("Failed to save fcm_token into profiles:", profileErr);
   } else {
-    console.log("Push subscription saved for user:", authUserId);
+    console.log("FCM token saved into profiles for user:", authUserId);
   }
 }
