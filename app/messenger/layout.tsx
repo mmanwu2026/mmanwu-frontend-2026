@@ -5,11 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerPush } from "@/utils/push";
 
-// KEEP this — MessengerChat still uses it
 import useIncomingCall from "@/hooks/useIncomingCall";
-
-// REMOVE this — it conflicts with CallListener for 1-to-1 calls
-// import { useIncomingCalls } from "@/hooks/useIncomingCalls";
+import { useIncomingCalls } from "@/hooks/useIncomingCalls";
 
 import CallListener from "@/components/CallListener";
 
@@ -18,7 +15,6 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
   const { supabase } = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
-  // Ensure session is valid
   useEffect(() => {
     async function checkSession() {
       await supabase.auth.refreshSession();
@@ -28,7 +24,6 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     checkSession();
   }, [supabase, router]);
 
-  // Load user ID
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -38,12 +33,10 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     loadUser();
   }, [supabase]);
 
-  // SAFE iOS detection
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  // Push registration — non-blocking
   useEffect(() => {
     if (!userId) return;
 
@@ -57,17 +50,13 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     });
   }, [userId, supabase, isIOS]);
 
-  // KEEP this — MessengerChat still uses it
+  // KEEP BOTH — MessengerChat + MessengerThread rely on them
   useIncomingCall();
-
-  // REMOVE this — CallListener replaces it for 1-to-1 calls
-  // useIncomingCalls();
+  useIncomingCalls();
 
   return (
     <>
-      {/* Global incoming call listener */}
       <CallListener />
-
       {children}
     </>
   );

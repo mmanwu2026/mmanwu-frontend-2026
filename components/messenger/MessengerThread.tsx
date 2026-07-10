@@ -213,7 +213,7 @@ export default function MessengerThread({
   }).catch((err) => console.error("sendPush error:", err));
 
   // 3. Caller goes to a PRE-CALL SCREEN (not the call room yet)
-  router.push(`/messenger/pre-call/${newRoomId}`);
+  router.push(`/call/${newRoomId}?role=caller`);
 }
 
   return (

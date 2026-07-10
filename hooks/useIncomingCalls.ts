@@ -14,6 +14,9 @@ interface CallEventPayload {
   };
 }
 
+// GLOBAL guard — prevents Strict Mode double-mount
+let incomingCallsInitialized = false;
+
 export function useIncomingCalls() {
   const { supabase } = useSupabase();
 
@@ -34,33 +37,38 @@ export function useIncomingCalls() {
     loadSession();
   }, [supabase]);
 
-  // Subscribe to call events
+  // Subscribe to call events ONCE globally
   useEffect(() => {
     if (!authUserId) return;
 
-    const channel = supabase
-      .channel(`call-events:${authUserId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "call_events",
-          filter: `target_user_id=eq.${authUserId}`,
-        },
-        (payload: CallEventPayload) => {
-          console.log("CALL DEBUG → incoming call event:", payload.new);
+    // Prevent second subscription (Strict Mode fix)
+    if (incomingCallsInitialized) return;
+    incomingCallsInitialized = true;
 
-          const row = payload.new;
+    const channel = supabase.channel(`call-events:${authUserId}`);
 
-          setIncomingCall({
-            id: row.id,
-            room_id: row.room_id,
-            caller_id: row.caller_id,
-          });
-        }
-      )
-      .subscribe();
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "call_events",
+        filter: `target_user_id=eq.${authUserId}`,
+      },
+      (payload: CallEventPayload) => {
+        console.log("CALL DEBUG → incoming call event:", payload.new);
+
+        const row = payload.new;
+
+        setIncomingCall({
+          id: row.id,
+          room_id: row.room_id,
+          caller_id: row.caller_id,
+        });
+      }
+    );
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
