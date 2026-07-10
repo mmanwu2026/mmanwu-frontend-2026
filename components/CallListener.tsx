@@ -30,7 +30,8 @@ export default function CallListener() {
     if (globalInitialized) return;
     globalInitialized = true;
 
-    const channel = supabase.channel(`incoming-call-${userId}`);
+    // IMPORTANT: unified channel name
+    const channel = supabase.channel(`call-events:${userId}`);
 
     channel.on(
       "postgres_changes",
@@ -43,17 +44,23 @@ export default function CallListener() {
       async (payload: { new: any }) => {
         const data = payload.new;
 
+        console.log("CALL LISTENER → incoming call event:", data);
+
         if (data.type !== "incoming_call") return;
 
+        // If app is visible → show modal + auto-navigate
         if (document.visibilityState === "visible") {
           router.push(`/call/${data.room_id}?role=callee`);
+
           try {
             const audio = new Audio("/sounds/ringtone.mp3");
             audio.play().catch(() => {});
           } catch {}
+
           return;
         }
 
+        // If app is NOT visible → push fallback
         try {
           const reg = await navigator.serviceWorker.ready;
           reg.showNotification("Incoming Call", {
