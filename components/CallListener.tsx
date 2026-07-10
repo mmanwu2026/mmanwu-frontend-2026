@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
 
+// GLOBAL guard — survives Strict Mode double-mount
+let globalInitialized = false;
+
 export default function CallListener() {
   const { supabase } = useSupabase();
   const router = useRouter();
 
   const [userId, setUserId] = useState<string | null>(null);
-
-  // This flag prevents ANY second initialization
-  const initializedRef = useRef(false);
 
   // Load userId once
   useEffect(() => {
@@ -22,13 +22,13 @@ export default function CallListener() {
     loadUser();
   }, [supabase]);
 
-  // Initialize realtime subscription ONCE
+  // Subscribe ONCE globally
   useEffect(() => {
     if (!userId) return;
 
-    // STOP second mount, STOP hydration double-run
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    // Strict Mode fix — block second mount
+    if (globalInitialized) return;
+    globalInitialized = true;
 
     const channel = supabase.channel(`incoming-call-${userId}`);
 
