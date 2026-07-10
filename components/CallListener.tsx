@@ -13,7 +13,7 @@ export default function CallListener() {
 
   const channelRef = useRef<any>(null);
 
-  // ⭐ Load authenticated user ID correctly
+  // Load authenticated user ID
   useEffect(() => {
     let mounted = true;
 
@@ -30,12 +30,7 @@ export default function CallListener() {
     };
   }, [supabase]);
 
-  // ⭐ SAFE DIAGNOSTIC LOG — tells us if CallListener is mounted
-  useEffect(() => {
-    console.log("CALL LISTENER MOUNTED → userId:", userId);
-  }, [userId]);
-
-  // ⭐ Subscribe once
+  // Subscribe once
   useEffect(() => {
     if (!userId) return;
     if (channelRef.current) return;
@@ -53,10 +48,12 @@ export default function CallListener() {
       async (payload: { new: any }) => {
         const data = payload.new;
 
-        // Only react to actual incoming calls
         if (data.type !== "incoming_call") return;
 
-        // ⭐ STEP 4 — Auto-open call screen when app is active
+        // Always set incomingCall so popup can render
+        setIncomingCall(data);
+
+        // App visible → auto-open call screen + ringtone
         if (document.visibilityState === "visible") {
           const waitForUser = async () => {
             let tries = 0;
@@ -92,7 +89,7 @@ export default function CallListener() {
           return;
         }
 
-        // ⭐ STEP 2 — Push Notification Payload (only when app is NOT visible)
+        // App not visible → push notification fallback
         try {
           const reg = await navigator.serviceWorker.ready;
 
@@ -110,8 +107,6 @@ export default function CallListener() {
         } catch (err) {
           console.error("Push notification error:", err);
         }
-
-        setIncomingCall(data);
       }
     );
 

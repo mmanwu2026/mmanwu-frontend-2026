@@ -3,9 +3,15 @@
 import { useSupabase } from "@/context/SupabaseContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useIncomingCalls } from "@/hooks/useIncomingCalls";
-import useIncomingCall from "@/hooks/useIncomingCall";
 import { registerPush } from "@/utils/push";
+
+// KEEP this — MessengerChat still uses it
+import useIncomingCall from "@/hooks/useIncomingCall";
+
+// REMOVE this — it conflicts with CallListener for 1-to-1 calls
+// import { useIncomingCalls } from "@/hooks/useIncomingCalls";
+
+import CallListener from "@/components/CallListener";
 
 export default function MessengerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -32,12 +38,12 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     loadUser();
   }, [supabase]);
 
-  // ⭐ SAFE iOS DETECTION — prevents PWA crash
+  // SAFE iOS detection
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  // ⭐ Push registration — now SAFE and NON‑BLOCKING
+  // Push registration — non-blocking
   useEffect(() => {
     if (!userId) return;
 
@@ -51,9 +57,18 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     });
   }, [userId, supabase, isIOS]);
 
-  // ⭐ Incoming call UI ALWAYS runs — even if push is blocked
-   useIncomingCall();
-   useIncomingCalls();
+  // KEEP this — MessengerChat still uses it
+  useIncomingCall();
 
-  return <>{children}</>;
+  // REMOVE this — CallListener replaces it for 1-to-1 calls
+  // useIncomingCalls();
+
+  return (
+    <>
+      {/* Global incoming call listener */}
+      <CallListener />
+
+      {children}
+    </>
+  );
 }

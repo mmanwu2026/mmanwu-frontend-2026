@@ -189,7 +189,7 @@ export default function MessengerThread({
   const newRoomId = crypto.randomUUID();
   const callId = crypto.randomUUID();
 
-  // 1. Insert call event
+  // 1. Insert call event (callee listens to this)
   await supabase.from("call_events").insert({
     type: "incoming_call",
     call_id: callId,
@@ -202,18 +202,18 @@ export default function MessengerThread({
     created_at: new Date().toISOString(),
   });
 
-  // ⭐ 2. Send push notification to the callee
-  await sendPush(otherUserId, {
+  // 2. Fire-and-forget push notification (never block caller)
+  sendPush(otherUserId, {
     title: "Incoming Call",
     body: `${usernames[userId]} is calling you`,
     url: `/call/${newRoomId}?role=callee`,
     room_id: newRoomId,
     call_id: callId,
     from_name: usernames[userId],
-  });
+  }).catch((err) => console.error("sendPush error:", err));
 
-  // 3. Caller enters call room
-  router.push(`/call/${newRoomId}?role=caller`);
+  // 3. Caller goes to a PRE-CALL SCREEN (not the call room yet)
+  router.push(`/messenger/pre-call/${newRoomId}`);
 }
 
   return (

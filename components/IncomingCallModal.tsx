@@ -20,7 +20,6 @@ export function IncomingCallModal({
   const router = useRouter();
   const { supabase } = useSupabase();
 
-  // ⭐ Step 7.1 — Auto-timeout if callee does not answer
   useEffect(() => {
     const timer = setTimeout(async () => {
       await supabase
@@ -29,7 +28,7 @@ export function IncomingCallModal({
         .eq("id", call.id);
 
       onClose();
-    }, 30000); // 30 seconds
+    }, 30000);
 
     return () => clearTimeout(timer);
   }, [call.id, supabase, onClose]);
@@ -41,7 +40,7 @@ export function IncomingCallModal({
       .eq("id", call.id);
 
     onClose();
-    router.push(`/call/${call.room_id}`);
+    router.push(`/call/${call.room_id}?role=callee`);
   }
 
   async function decline() {
