@@ -86,7 +86,7 @@ export async function registerPush(supabase: any) {
         user_id: authUserId,
         subscription: newSubscription.toJSON(),
       },
-      { onConflict: "user_id,room_id" }
+      { onConflict: "user_id" }
     );
 
   if (error) {
