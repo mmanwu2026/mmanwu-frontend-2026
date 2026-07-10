@@ -2,7 +2,7 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useSupabase } from "@/context/SupabaseContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import CallRoom from "@/components/call/CallRoom";
 
 export default function CallRoomPage() {
@@ -11,12 +11,16 @@ export default function CallRoomPage() {
 
   if (!params) return null;
 
-  const roomId = params.roomId; // URL room ID
+  const roomId = params.roomId;
   const roleParam = searchParams?.get("role") ?? "caller";
 
   const { supabase } = useSupabase();
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
+  // Prevent duplicate UPSERTs
+  const wroteRef = useRef(false);
+
+  // Load user once
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -25,25 +29,28 @@ export default function CallRoomPage() {
     loadUser();
   }, [supabase]);
 
-  // Record call subscription
-useEffect(() => {
-  if (!userId || !roomId) return;
+  // Write call_subscriptions ONCE
+  useEffect(() => {
+    if (!userId || !roomId) return;
+    if (wroteRef.current) return; // prevents second write
 
-  async function markCallSubscription() {
-    await supabase
-      .from("call_subscriptions")
-      .upsert(
-        {
-          user_id: userId,
-          room_id: roomId,
-          last_joined_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,room_id" }
-      );
-  }
+    wroteRef.current = true;
 
-  markCallSubscription();
-}, [userId, roomId, supabase]);
+    async function markCallSubscription() {
+      await supabase
+        .from("call_subscriptions")
+        .upsert(
+          {
+            user_id: userId,
+            room_id: roomId,
+            last_joined_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,room_id" }
+        );
+    }
+
+    markCallSubscription();
+  }, [userId, roomId, supabase]);
 
   if (!userId) {
     return <div className="p-6 text-white">Loading user…</div>;
