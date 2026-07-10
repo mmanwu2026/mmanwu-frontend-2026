@@ -182,14 +182,26 @@ export default function MessengerThread({
     setNewMessage("");
   }
 
-  // ⭐⭐⭐ NEW CALL SYSTEM — 1-to-1 Call (caller) WITH PUSH NOTIFICATION ⭐⭐⭐
-  async function startCall() {
+// ⭐⭐⭐ NEW CALL SYSTEM — 1-to-1 Call (caller) WITH PUSH NOTIFICATION ⭐⭐⭐
+async function startCall() {
   if (!otherUserId) return;
 
   const newRoomId = crypto.randomUUID();
   const callId = crypto.randomUUID();
 
-  // 1. Insert call event (callee listens to this)
+  // 1. Fetch callee's FCM token
+  const { data: calleeProfile } = await supabase
+    .from("profiles")
+    .select("fcm_token")
+    .eq("id", otherUserId)
+    .single();
+
+  const calleeFcmToken = calleeProfile?.fcm_token;
+  if (!calleeFcmToken) {
+    console.error("No FCM token for callee");
+  }
+
+  // 2. Insert call event (callee listens to this)
   await supabase.from("call_events").insert({
     type: "incoming_call",
     call_id: callId,
@@ -202,17 +214,14 @@ export default function MessengerThread({
     created_at: new Date().toISOString(),
   });
 
-  // 2. Fire-and-forget push notification (never block caller)
-  sendPush(otherUserId, {
-    title: "Incoming Call",
-    body: `${usernames[userId]} is calling you`,
-    url: `/call/${newRoomId}?role=callee`,
-    room_id: newRoomId,
-    call_id: callId,
-    from_name: usernames[userId],
-  }).catch((err) => console.error("sendPush error:", err));
+  // 3. Push notification
+  sendPush(
+    calleeFcmToken,
+    newRoomId,
+    usernames[userId]
+  ).catch((err) => console.error("sendPush error:", err));
 
-  // 3. Caller goes to a PRE-CALL SCREEN (not the call room yet)
+  // 4. Caller goes to PRE-CALL SCREEN
   router.push(`/call/${newRoomId}?role=caller`);
 }
 

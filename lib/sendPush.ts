@@ -6,9 +6,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Create a client ONLY for getting the JWT
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export async function sendPush(targetUserId: string, payload: any) {
+export async function sendPush(
+  fcmToken: string,
+  roomId: string,
+  callerName: string
+) {
   try {
-    // Get the logged-in user's JWT
+    // Get JWT for Authorization header
     const session = await supabase.auth.getSession();
     const jwt = session.data.session?.access_token;
 
@@ -17,20 +21,23 @@ export async function sendPush(targetUserId: string, payload: any) {
       return;
     }
 
-    await fetch(
-      `${supabaseUrl}/functions/v1/send-push`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,   // ⭐ REQUIRED FIX
+    await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        token: fcmToken,
+        title: "Incoming Call",
+        body: `${callerName} is calling you`,
+        data: {
+          room_id: roomId,
+          caller_name: callerName,
+          url: `/call/${roomId}?role=callee`,
         },
-        body: JSON.stringify({
-          targetUserId,
-          payload,
-        }),
-      }
-    );
+      }),
+    });
   } catch (err) {
     console.error("sendPush error:", err);
   }
