@@ -29,12 +29,18 @@ export default function MessengerThread({
 
   // LOAD MESSAGES
   async function loadMessages() {
-    const { data } = await supabase
+    console.log("MSG DEBUG → Loading messages for room:", finalRoomId);
+
+    const { data, error } = await supabase
       .from("messages")
       .select("*")
       .eq("room_id", finalRoomId)
       .eq("message_type", "text")
       .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("MSG DEBUG → loadMessages error:", error);
+    }
 
     setMessages(data || []);
   }
@@ -45,6 +51,8 @@ export default function MessengerThread({
 
   // CLEAR CHAT
   async function clearChat() {
+    console.log("MSG DEBUG → Clearing chat for room:", finalRoomId);
+
     const { error } = await supabase
       .from("messages")
       .delete()
@@ -60,6 +68,8 @@ export default function MessengerThread({
 
   // DELETE ONE MESSAGE (Outgoing Only)
   async function deleteMessage(messageId: string) {
+    console.log("MSG DEBUG → Deleting message:", messageId);
+
     const { error } = await supabase
       .from("messages")
       .delete()
@@ -76,6 +86,8 @@ export default function MessengerThread({
   // LOAD USERNAMES
   useEffect(() => {
     async function loadUsernames() {
+      console.log("USER DEBUG → Loading usernames");
+
       const ids = Array.from(
         new Set(
           [
@@ -89,10 +101,14 @@ export default function MessengerThread({
 
       if (ids.length === 0) return;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, username, display_name")
         .in("id", ids);
+
+      if (error) {
+        console.error("USER DEBUG → loadUsernames error:", error);
+      }
 
       const map: Record<string, string> = {};
       data?.forEach(
@@ -112,6 +128,8 @@ export default function MessengerThread({
     if (subscribedRef.current) return;
     subscribedRef.current = true;
 
+    console.log("RT DEBUG → Subscribing to messages channel:", finalRoomId);
+
     const channel = supabase
       .channel(`room-${finalRoomId}`)
       .on(
@@ -124,12 +142,16 @@ export default function MessengerThread({
         async (payload: { new: any }) => {
           const msg = payload.new;
 
+          console.log("RT DEBUG → New message payload:", msg);
+
           if (msg.room_id !== finalRoomId) return;
 
           if (msg.message_type === "text") {
             if (!msg.content || msg.content.trim() === "") return;
 
             if (msg.sender_id !== userId) {
+              console.log("RT DEBUG → Marking message delivered:", msg.id);
+
               await supabase
                 .from("messages")
                 .update({ delivered_at: new Date().toISOString() })
@@ -147,6 +169,7 @@ export default function MessengerThread({
       .subscribe();
 
     return () => {
+      console.log("RT DEBUG → Unsubscribing messages channel");
       supabase.removeChannel(channel);
       subscribedRef.current = false;
     };
@@ -157,6 +180,8 @@ export default function MessengerThread({
     if (!userId) return;
 
     async function markSeen() {
+      console.log("SEEN DEBUG → Marking room seen:", finalRoomId);
+
       await supabase
         .from("room_participants")
         .update({ last_seen: new Date().toISOString() })
@@ -172,6 +197,8 @@ export default function MessengerThread({
     const trimmed = newMessage.trim();
     if (!trimmed || trimmed.length === 0) return;
 
+    console.log("MSG DEBUG → Sending message:", trimmed);
+
     await supabase.from("messages").insert({
       room_id: finalRoomId,
       sender_id: userId,
@@ -182,52 +209,57 @@ export default function MessengerThread({
     setNewMessage("");
   }
 
-// ⭐⭐⭐ NEW CALL SYSTEM — 1-to-1 Call (caller) WITH PUSH NOTIFICATION ⭐⭐⭐
-async function startCall() {
-  if (!otherUserId) return;
+  // ⭐⭐⭐ NEW CALL SYSTEM — Caller + call_started event ⭐⭐⭐
+  async function startCall() {
+    if (!otherUserId) return;
 
-  const newRoomId = crypto.randomUUID();
-  const callId = crypto.randomUUID();
+    const newRoomId = crypto.randomUUID();
+    const callId = crypto.randomUUID();
 
-  // 1. Fetch callee's FCM token
-  const { data: calleeProfile, error: fcmErr } = await supabase
-    .from("profiles")
-    .select("fcm_token")
-    .eq("id", otherUserId)
-    .single();
+    console.log("CALL DEBUG → startCall invoked");
+    console.log("CALL DEBUG → newRoomId:", newRoomId);
+    console.log("CALL DEBUG → callId:", callId);
 
-  if (fcmErr) {
-    console.error("FCM token fetch error:", fcmErr);
+    // 1. Insert incoming_call event
+    await supabase.from("call_events").insert({
+      type: "incoming_call",
+      call_id: callId,
+      room_id: newRoomId,
+      caller_id: userId,
+      caller_name: usernames[userId] || "Unknown",
+      target_user_id: otherUserId,
+      url: `/call/${newRoomId}`,
+      status: "ringing",
+      created_at: new Date().toISOString(),
+    });
+
+    console.log("CALL DEBUG → incoming_call event inserted");
+
+    // ⭐ 2. Insert call_started event
+    await supabase.from("call_events").insert({
+      type: "call_started",
+      call_id: callId,
+      room_id: newRoomId,
+      caller_id: userId,
+      target_user_id: otherUserId,
+      status: "started",
+      created_at: new Date().toISOString(),
+    });
+
+    console.log("CALL DEBUG → call_started event inserted");
+
+    // 3. Web Push notification
+    sendPush(
+      otherUserId,
+      newRoomId,
+      usernames[userId] || "Unknown"
+    ).catch((err) => console.error("sendPush error:", err));
+
+    console.log("CALL DEBUG → push notification sent");
+
+    // 4. Caller goes to PRE-CALL SCREEN
+    router.push(`/call/${newRoomId}?role=caller`);
   }
-
-  const calleeFcmToken = calleeProfile?.fcm_token;
-  if (!calleeFcmToken) {
-    console.error("No FCM token for callee");
-  }
-
-  // 2. Insert call event
-  await supabase.from("call_events").insert({
-    type: "incoming_call",
-    call_id: callId,
-    room_id: newRoomId,
-    caller_id: userId,
-    caller_name: usernames[userId] || "Unknown",
-    target_user_id: otherUserId,
-    url: `/call/${newRoomId}`,
-    status: "ringing",
-    created_at: new Date().toISOString(),
-  });
-
-  // 3. Push notification
-  sendPush(
-    calleeFcmToken,
-    newRoomId,
-    usernames[userId]
-  ).catch((err) => console.error("sendPush error:", err));
-
-  // 4. Caller goes to pre-call screen
-  router.push(`/call/${newRoomId}?role=caller`);
-}
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">

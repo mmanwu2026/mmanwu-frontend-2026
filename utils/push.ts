@@ -18,9 +18,10 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 // -----------------------------------------------------
-// ⭐ FINAL, PRODUCTION-GRADE PUSH REGISTRATION (iOS-safe)
+// ⭐ FINAL, PRODUCTION-GRADE WEB PUSH REGISTRATION (iOS-safe)
 // -----------------------------------------------------
 export async function registerPush(supabase: any) {
+  // iOS Safari cannot reliably support Web Push yet
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -42,6 +43,7 @@ export async function registerPush(supabase: any) {
   // 2. Wait for service worker
   const registration = await navigator.serviceWorker.ready;
 
+  // Your VAPID public key
   const vapidPublicKey =
     "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
 
@@ -76,24 +78,15 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  // ⭐ Extract FCM token (endpoint)
-  const fcmToken = newSubscription.endpoint;
-
-  // 5. Save subscription (optional)
-  await supabase.from("push_subscriptions").upsert({
+  // 5. Save subscription JSON into Supabase
+  const { error } = await supabase.from("push_subscriptions").upsert({
     user_id: authUserId,
     subscription: newSubscription.toJSON(),
   });
 
-  // ⭐⭐⭐ 6. SAVE FCM TOKEN INTO profiles TABLE ⭐⭐⭐
-  const { error: profileErr } = await supabase
-    .from("profiles")
-    .update({ fcm_token: fcmToken })
-    .eq("id", authUserId);
-
-  if (profileErr) {
-    console.error("Failed to save fcm_token into profiles:", profileErr);
+  if (error) {
+    console.error("Supabase push_subscriptions upsert error:", error);
   } else {
-    console.log("FCM token saved into profiles for user:", authUserId);
+    console.log("Web Push subscription saved for user:", authUserId);
   }
 }

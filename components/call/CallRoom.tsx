@@ -16,6 +16,17 @@ type CallSignalingRow = {
   created_at: string;
 };
 
+type CallEventRow = {
+  id: string;
+  type: "incoming_call" | "call_declined" | string;
+  call_id: string;
+  room_id: string;
+  caller_id: string;
+  target_user_id: string;
+  status: string | null;
+  created_at: string;
+};
+
 export default function CallRoom({
   userId,
   roomId,
@@ -44,6 +55,11 @@ export default function CallRoom({
   const [joined, setJoined] = useState(false);
   const hasSentOfferRef = useRef(false);
   const hasProcessedOfferRef = useRef(false);
+
+  // ⭐ Caller-side call status (now includes decline)
+  const [callStatus, setCallStatus] = useState<
+    "ringing" | "connecting" | "declined" | "active"
+  >(role === "caller" ? "ringing" : "connecting");
 
   // Create PeerConnection
   useEffect(() => {
@@ -96,7 +112,6 @@ export default function CallRoom({
       }
     };
 
-    // Dual-track merge for Safari mobile and general remote handling
     pc.ontrack = (event) => {
       console.log("TRACK DEBUG → ontrack fired:", event.streams, "track:", event.track);
 
@@ -123,6 +138,10 @@ export default function CallRoom({
       };
 
       tryPlay();
+
+      // ⭐ Remote track means call is active
+      console.log("CALL STATUS DEBUG → remote track received, setting status to active");
+      setCallStatus("active");
     };
 
     return () => {
@@ -207,9 +226,9 @@ export default function CallRoom({
     }
   }
 
-  // Realtime signaling
+  // Realtime signaling (offer/answer/candidates)
   useEffect(() => {
-    console.log("RT DEBUG → subscribing to realtime channel:", roomId);
+    console.log("RT DEBUG → subscribing to signaling channel:", roomId);
 
     const channel = supabase
       .channel(`call-${roomId}`)
@@ -222,7 +241,7 @@ export default function CallRoom({
           filter: `room_id=eq.${roomId}`,
         },
         async (payload: { new: CallSignalingRow }) => {
-          console.log("RT DEBUG → received payload:", payload);
+          console.log("RT DEBUG → received signaling payload:", payload);
 
           const row = payload.new;
           const pc = pcRef.current;
@@ -233,8 +252,14 @@ export default function CallRoom({
           }
 
           if (row.sender_id === userId) {
-            console.log("RT DEBUG → ignoring own row");
+            console.log("RT DEBUG → ignoring own signaling row");
             return;
+          }
+
+          // ⭐ Caller listens for callee answer → "connecting"
+          if (role === "caller" && row.type === "answer") {
+            console.log("CALL STATUS DEBUG → callee answered, setting status to connecting");
+            setCallStatus("connecting");
           }
 
           // Callee: process offer → create answer
@@ -334,14 +359,73 @@ export default function CallRoom({
       .subscribe();
 
     return () => {
-      console.log("RT DEBUG → unsubscribing channel");
+      console.log("RT DEBUG → unsubscribing signaling channel");
       supabase.removeChannel(channel);
+    };
+  }, [roomId, userId, role, supabase]);
+
+  // ⭐ NEW: caller-side decline detection via call_events
+  useEffect(() => {
+    if (role !== "caller") {
+      console.log("CALL EVENTS DEBUG → not caller, skipping call_events subscription");
+      return;
+    }
+
+    console.log(
+      "CALL EVENTS DEBUG → subscribing to call_events for callerId:",
+      userId,
+      "roomId:",
+      roomId
+    );
+
+    const eventsChannel = supabase
+      .channel(`call-events-${roomId}-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "call_events",
+          filter: `caller_id=eq.${userId}`,
+        },
+        async (payload: { new: CallEventRow }) => {
+          console.log("CALL EVENTS DEBUG → received payload:", payload);
+
+          const row = payload.new;
+
+          if (row.room_id !== roomId) {
+            console.log(
+              "CALL EVENTS DEBUG → ignoring event for different room_id:",
+              row.room_id,
+              "expected:",
+              roomId
+            );
+            return;
+          }
+
+          if (row.type === "call_declined") {
+            console.log(
+              "CALL EVENTS DEBUG → callee declined call, setting callStatus to declined"
+            );
+            setCallStatus("declined");
+          } else {
+            console.log("CALL EVENTS DEBUG → non-decline event type:", row.type);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("CALL EVENTS DEBUG → unsubscribing call_events channel");
+      supabase.removeChannel(eventsChannel);
     };
   }, [roomId, userId, role, supabase]);
 
   // Safari delayed remote playback block
   useEffect(() => {
     if (pendingRemoteStreamRef.current && remoteVideoRef.current) {
+      console.log("TRACK DEBUG → delayed Safari remote playback init");
+
       remoteVideoRef.current.srcObject = pendingRemoteStreamRef.current;
 
       const tryPlay = () => {
@@ -357,6 +441,16 @@ export default function CallRoom({
     }
   }, [remoteVideoRef]);
 
+  // Auto-end if declined
+  useEffect(() => {
+    if (callStatus === "declined") {
+      console.log("CALL STATUS DEBUG → callStatus=declined, scheduling endCall");
+      setTimeout(() => {
+        endCall();
+      }, 2000);
+    }
+  }, [callStatus]);
+
   function endCall() {
     console.log("END DEBUG → ending call");
 
@@ -364,16 +458,34 @@ export default function CallRoom({
     pc?.close();
 
     const localStream = localVideoRef.current?.srcObject as MediaStream | null;
-    localStream?.getTracks().forEach((t) => t.stop());
+    localStream?.getTracks().forEach((t) => {
+      console.log("END DEBUG → stopping local track:", t);
+      t.stop();
+    });
 
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
-    remoteStream?.getTracks().forEach((t) => t.stop());
+    remoteStream?.getTracks().forEach((t) => {
+      console.log("END DEBUG → stopping remote track:", t);
+      t.stop();
+    });
 
     router.push("/messenger");
   }
 
   return (
     <div className="flex flex-col h-full p-4 text-white">
+      {/* ⭐ Caller-side status */}
+      {role === "caller" && (
+        <div className="text-center text-neutral-300 mb-2">
+          {callStatus === "ringing" && "Ringing…"}
+          {callStatus === "connecting" && "Connecting…"}
+          {callStatus === "declined" && (
+            <span className="text-red-400">Call Declined</span>
+          )}
+          {callStatus === "active" && "Call in progress"}
+        </div>
+      )}
+
       <div className="flex gap-4">
         <video
           ref={localVideoRef}

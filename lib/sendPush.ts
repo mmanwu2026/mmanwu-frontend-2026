@@ -1,3 +1,5 @@
+// lib/sendPush.ts
+
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -6,7 +8,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function sendPush(
-  fcmToken: string,
+  targetUserId: string,
   roomId: string,
   callerName: string
 ) {
@@ -26,7 +28,7 @@ export async function sendPush(
         Authorization: `Bearer ${jwt}`,
       },
       body: JSON.stringify({
-        token: fcmToken,
+        targetUserId,
         title: "Incoming Call",
         body: `${callerName} is calling you`,
         data: {

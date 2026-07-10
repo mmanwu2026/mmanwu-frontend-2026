@@ -1,4 +1,4 @@
-// version: 5
+// version: 6
 
 // Immediately activate new service worker versions
 self.addEventListener("install", (event) => {
@@ -10,21 +10,38 @@ self.addEventListener("activate", (event) => {
 });
 
 // REQUIRED: Fetch handler (even empty) so iOS + Edge allow PWA installation
-// IMPORTANT: Do NOT intercept or modify requests.
 self.addEventListener("fetch", () => {});
 
-// REQUIRED: Push handler
+// ⭐ PUSH HANDLER — Web Push Incoming Call Support
 self.addEventListener("push", (event) => {
-  const data = event.data ? event.data.json() : {};
+  let payload = {};
 
-  event.waitUntil(
-    self.registration.showNotification(data.title || "New Message", {
-      body: data.body || "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/badge-72.png",
-      data: data, // IMPORTANT: ensures click routing receives the URL
-    })
-  );
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (err) {
+    console.error("Push JSON parse error:", err);
+    return;
+  }
+
+  const title = payload.title || "New Message";
+  const body = payload.body || "";
+  const data = payload.data || {};
+
+  const options = {
+    body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/badge-72.png",
+    data, // ensures click routing receives the URL
+    vibrate: [200, 100, 200],
+    actions: [
+      {
+        action: "open",
+        title: "Open",
+      },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // REQUIRED FOR UPDATE BANNER
@@ -34,7 +51,7 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// ⭐ ⭐ ⭐ Notification Click Routing (FINAL VERSION)
+// ⭐ NOTIFICATION CLICK ROUTING — Incoming Call Deep Link
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
