@@ -211,55 +211,65 @@ export default function MessengerThread({
 
   // ⭐⭐⭐ NEW CALL SYSTEM — Caller + call_started event ⭐⭐⭐
   async function startCall() {
-    if (!otherUserId) return;
+  if (!otherUserId) return;
 
-    const newRoomId = crypto.randomUUID();
-    const callId = crypto.randomUUID();
+  const newRoomId = crypto.randomUUID();
+  const callId = crypto.randomUUID();
 
-    console.log("CALL DEBUG → startCall invoked");
-    console.log("CALL DEBUG → newRoomId:", newRoomId);
-    console.log("CALL DEBUG → callId:", callId);
+  console.log("CALL DEBUG → startCall invoked");
+  console.log("CALL DEBUG → newRoomId:", newRoomId);
+  console.log("CALL DEBUG → callId:", callId);
 
-    // 1. Insert incoming_call event
-    await supabase.from("call_events").insert({
-      type: "incoming_call",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      caller_name: usernames[userId] || "Unknown",
-      target_user_id: otherUserId,
-      url: `/call/${newRoomId}`,
-      status: "ringing",
-      created_at: new Date().toISOString(),
-    });
+  // 1. Insert incoming_call event
+  await supabase.from("call_events").insert({
+    type: "incoming_call",
+    call_id: callId,
+    room_id: newRoomId,
+    caller_id: userId,
+    caller_name: usernames[userId] || "Unknown",
+    target_user_id: otherUserId,
+    url: `/call/${newRoomId}`,
+    status: "ringing",
+    created_at: new Date().toISOString(),
+  });
 
-    console.log("CALL DEBUG → incoming_call event inserted");
+  // 2. Insert call_started event
+  await supabase.from("call_events").insert({
+    type: "call_started",
+    call_id: callId,
+    room_id: newRoomId,
+    caller_id: userId,
+    target_user_id: otherUserId,
+    status: "started",
+    created_at: new Date().toISOString(),
+  });
 
-    // ⭐ 2. Insert call_started event
-    await supabase.from("call_events").insert({
-      type: "call_started",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      target_user_id: otherUserId,
-      status: "started",
-      created_at: new Date().toISOString(),
-    });
+  // ⭐ 2.5 Register caller in call_subscriptions (UPSERT)
+  await supabase
+    .from("call_subscriptions")
+    .upsert(
+      {
+        user_id: userId,
+        room_id: newRoomId,
+        last_joined_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
 
-    console.log("CALL DEBUG → call_started event inserted");
+  console.log("CALL DEBUG → caller call_subscription upserted");
 
-    // 3. Web Push notification
-    sendPush(
-      otherUserId,
-      newRoomId,
-      usernames[userId] || "Unknown"
-    ).catch((err) => console.error("sendPush error:", err));
+  // 3. Web Push notification
+  sendPush(
+    otherUserId,
+    newRoomId,
+    usernames[userId] || "Unknown"
+  ).catch((err) => console.error("sendPush error:", err));
 
-    console.log("CALL DEBUG → push notification sent");
+  console.log("CALL DEBUG → push notification sent");
 
-    // 4. Caller goes to PRE-CALL SCREEN
-    router.push(`/call/${newRoomId}?role=caller`);
-  }
+  // 4. Caller goes to PRE-CALL SCREEN
+  router.push(`/call/${newRoomId}?role=caller`);
+}
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
