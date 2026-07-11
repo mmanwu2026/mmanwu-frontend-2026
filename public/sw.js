@@ -1,4 +1,4 @@
-// version: 6
+// version: 7
 
 // Immediately activate new service worker versions
 self.addEventListener("install", (event) => {
@@ -12,7 +12,7 @@ self.addEventListener("activate", (event) => {
 // REQUIRED: Fetch handler (even empty) so iOS + Edge allow PWA installation
 self.addEventListener("fetch", () => {});
 
-// ⭐ PUSH HANDLER — Web Push Incoming Call Support
+// ⭐ PUSH HANDLER — Incoming Call Support
 self.addEventListener("push", (event) => {
   let payload = {};
 
@@ -23,21 +23,19 @@ self.addEventListener("push", (event) => {
     return;
   }
 
-  const title = payload.title || "New Message";
-  const body = payload.body || "";
+  const title = payload.title || "Incoming Call";
+  const body = payload.body || "Tap to join the call";
   const data = payload.data || {};
 
   const options = {
     body,
     icon: "/icons/icon-192.png",
     badge: "/icons/badge-72.png",
-    data, // ensures click routing receives the URL
+    data, // contains url + roomId + callerId
     vibrate: [200, 100, 200],
     actions: [
-      {
-        action: "open",
-        title: "Open",
-      },
+      { action: "join", title: "Join Call" },
+      { action: "decline", title: "Decline" }
     ],
   };
 
@@ -51,27 +49,21 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// ⭐ NOTIFICATION CLICK ROUTING — Incoming Call Deep Link
+// ⭐ NOTIFICATION CLICK ROUTING — Deep Link to Call Screen
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification.data?.url || "/";
+  const url = event.notification.data?.url || "/";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // If app is already open → focus + navigate
       for (const client of clientList) {
-        if ("focus" in client) {
-          client.focus();
-          client.navigate(targetUrl);
-          return;
-        }
+        client.focus();
+        client.navigate(url);
+        return;
       }
 
-      // Otherwise open a new window/tab
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
+      return self.clients.openWindow(url);
     })
   );
 });
