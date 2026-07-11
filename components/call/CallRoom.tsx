@@ -239,127 +239,130 @@ export default function CallRoom({
     }
   }
 
-  // Realtime signaling
-  useEffect(() => {
-    console.log("RT DEBUG → subscribing to signaling channel:", roomId);
+// Realtime signaling
+useEffect(() => {
+  console.log("RT DEBUG → subscribing to signaling channel:", roomId);
 
-    const channel = supabase
-      .channel(`call-${roomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "call_signaling",
-          filter: `room_id=eq.${roomId}`,
-        },
-        async (payload: { new: CallSignalingRow }) => {
-          console.log("RT DEBUG → received signaling payload:", payload);
+  const channel = supabase
+    .channel(`call-${roomId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "call_signaling",
+        // ⭐ FIX: REMOVE FILTER — it was blocking all rows for callee
+        // filter: `room_id=eq.${roomId}`,
+      },
+      async (payload: { new: CallSignalingRow }) => {
+        console.log("RT DEBUG → received signaling payload:", payload);
 
-          const row = payload.new;
-          const pc = pcRef.current;
+        const row = payload.new;
+        const pc = pcRef.current;
 
-          if (!pc) {
-            console.warn("RT DEBUG → pcRef.current is null");
-            return;
-          }
-
-          if (row.sender_id === userId) {
-            console.log("RT DEBUG → ignoring own signaling row");
-            return;
-          }
-
-          if (role === "caller" && row.type === "answer") {
-            console.log("CALL STATUS DEBUG → callee answered → connecting");
-            setCallStatus("connecting");
-          }
-
-          if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
-            console.log("RT DEBUG → processing offer");
-
-            hasProcessedOfferRef.current = true;
-
-            const offerPayload = row.payload;
-
-            await pc.setRemoteDescription(
-              new RTCSessionDescription({
-                type: offerPayload.type,
-                sdp: offerPayload.sdp,
-              })
-            );
-
-            console.log("RT DEBUG → remoteDescription set (callee)");
-
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            console.log("RT DEBUG → answer created");
-
-            try {
-              const res: PostgrestResponse<any> = await supabase
-                .from("call_signaling")
-                .insert({
-                  room_id: roomId,
-                  sender_id: userId,
-                  type: "answer",
-                  payload: {
-                    sdp: answer.sdp,
-                    type: answer.type,
-                  },
-                });
-              console.log("ANSWER DEBUG → insert result:", res);
-            } catch (err) {
-              console.error("ANSWER DEBUG → insert error:", err);
-            }
-          }
-
-          if (row.type === "answer" && role === "caller") {
-            console.log("RT DEBUG → applying answer");
-
-            const answerPayload = row.payload;
-
-            await pc.setRemoteDescription(
-              new RTCSessionDescription({
-                type: answerPayload.type,
-                sdp: answerPayload.sdp,
-              })
-            );
-
-            console.log("RT DEBUG → remoteDescription set from answer (caller)");
-
-            console.log("RT DEBUG → flushing buffered ICE candidates");
-            for (const c of pendingCandidatesRef.current) {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(c));
-                console.log("RT DEBUG → flushed ICE candidate", c);
-              } catch (err) {
-                console.error("RT DEBUG → error flushing candidate", err);
-              }
-            }
-            pendingCandidatesRef.current = [];
-          }
-
-          if (row.type === "candidate") {
-            console.log("RT DEBUG → applying ICE candidate");
-
-            const candidateInit = row.payload;
-
-            if (!pc.remoteDescription) {
-              console.warn(
-                "RT DEBUG → remoteDescription null, buffering ICE candidate",
-                candidateInit
-              );
-              pendingCandidatesRef.current.push(candidateInit);
-              return;
-            }
-
-            await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
-
-            console.log("RT DEBUG → ICE candidate added");
-          }
+        if (!pc) {
+          console.warn("RT DEBUG → pcRef.current is null");
+          return;
         }
-      )
-      .subscribe();
+
+        // Ignore own rows
+        if (row.sender_id === userId) {
+          console.log("RT DEBUG → ignoring own signaling row");
+          return;
+        }
+
+        // ⭐ ANSWER → caller applies
+        if (row.type === "answer" && role === "caller") {
+          console.log("RT DEBUG → applying answer");
+
+          const answerPayload = row.payload;
+
+          await pc.setRemoteDescription(
+            new RTCSessionDescription({
+              type: answerPayload.type,
+              sdp: answerPayload.sdp,
+            })
+          );
+
+          console.log("RT DEBUG → remoteDescription set from answer (caller)");
+
+          console.log("RT DEBUG → flushing buffered ICE candidates");
+          for (const c of pendingCandidatesRef.current) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(c));
+              console.log("RT DEBUG → flushed ICE candidate", c);
+            } catch (err) {
+              console.error("RT DEBUG → error flushing candidate", err);
+            }
+          }
+          pendingCandidatesRef.current = [];
+          return;
+        }
+
+        // ⭐ OFFER → callee processes
+        if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
+          console.log("RT DEBUG → processing offer");
+
+          hasProcessedOfferRef.current = true;
+
+          const offerPayload = row.payload;
+
+          await pc.setRemoteDescription(
+            new RTCSessionDescription({
+              type: offerPayload.type,
+              sdp: offerPayload.sdp,
+            })
+          );
+
+          console.log("RT DEBUG → remoteDescription set (callee)");
+
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          console.log("RT DEBUG → answer created");
+
+          try {
+            const res = await supabase
+              .from("call_signaling")
+              .insert({
+                room_id: roomId,
+                sender_id: userId,
+                type: "answer",
+                payload: {
+                  sdp: answer.sdp,
+                  type: answer.type,
+                },
+              });
+            console.log("ANSWER DEBUG → insert result:", res);
+          } catch (err) {
+            console.error("ANSWER DEBUG → insert error:", err);
+          }
+
+          return;
+        }
+
+        // ⭐ ICE → both sides process
+        if (row.type === "candidate") {
+          console.log("RT DEBUG → applying ICE candidate");
+
+          const candidateInit = row.payload;
+
+          if (!pc.remoteDescription) {
+            console.warn(
+              "RT DEBUG → remoteDescription null, buffering ICE candidate",
+              candidateInit
+            );
+            pendingCandidatesRef.current.push(candidateInit);
+            return;
+          }
+
+          await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+
+          console.log("RT DEBUG → ICE candidate added");
+        }
+      }
+    )
+    .subscribe();
 
     return () => {
       console.log("RT DEBUG → unsubscribing signaling channel");
