@@ -5,7 +5,7 @@ import { registerPush } from "@/utils/push";
 import { useSupabase } from "@/context/SupabaseContext";
 
 export default function PushInitializer() {
-  const supabase = useSupabase(); // ⭐ your actual browser client
+  const { supabase } = useSupabase(); // ⭐ FIX: your project uses destructuring
 
   useEffect(() => {
     const enabled = localStorage.getItem("notifications_enabled");
@@ -13,7 +13,7 @@ export default function PushInitializer() {
     if (enabled === "true") {
       supabase.auth.getSession().then(({ data }) => {
         if (data.session?.user) {
-          registerPush(supabase);   // ⭐ GLOBAL push subscription
+          registerPush(supabase);
         }
       });
     }

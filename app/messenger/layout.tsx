@@ -11,7 +11,7 @@ import CallListener from "@/components/CallListener";
 
 export default function MessengerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const supabase = useSupabase();   // ⭐ FIX: useSupabase() returns the REAL client
+  const { supabase } = useSupabase();   // ⭐ CORRECT for your project
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
   // ⭐ SESSION CHECK
@@ -34,7 +34,7 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     loadUser();
   }, [supabase]);
 
-  // ⭐ REMOVE PUSH SUBSCRIPTION — now global in PushInitializer
+  // ⭐ Push subscription REMOVED — now global in PushInitializer
 
   // ⭐ KEEP BOTH — MessengerChat + MessengerThread rely on them
   useIncomingCall();
