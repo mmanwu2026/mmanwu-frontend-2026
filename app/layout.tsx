@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "./lib/supabase/server";
 import Navbar from "@/components/layout/Navbar";
 import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
+import PushInitializer from "@/app/PushInitializer"; // ⭐ NEW
 
 // ⭐ EARLY SERVICE WORKER REGISTRATION (Safari requires pre-hydration)
 function SWRegisterScript() {
@@ -53,6 +54,9 @@ export default function RootLayout({
 
         <ProvidersWrapper>
           <Navbar />
+
+          {/* ⭐ GLOBAL PUSH SUBSCRIPTION (works even when app is closed) */}
+          <PushInitializer />
 
           {/* ⭐ GLOBAL INCOMING CALL LISTENER */}
           <CallListener />

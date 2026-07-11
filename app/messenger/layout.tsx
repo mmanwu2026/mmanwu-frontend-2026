@@ -3,7 +3,6 @@
 import { useSupabase } from "@/context/SupabaseContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerPush } from "@/utils/push";
 
 import useIncomingCall from "@/hooks/useIncomingCall";
 import { useIncomingCalls } from "@/hooks/useIncomingCalls";
@@ -12,9 +11,10 @@ import CallListener from "@/components/CallListener";
 
 export default function MessengerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { supabase } = useSupabase();
+  const supabase = useSupabase();       // ⭐ FIX: useSupabase() now returns the REAL client
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
+  // ⭐ SESSION CHECK (keep this)
   useEffect(() => {
     async function checkSession() {
       await supabase.auth.refreshSession();
@@ -24,6 +24,7 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     checkSession();
   }, [supabase, router]);
 
+  // ⭐ LOAD USER ID (keep this)
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -33,24 +34,11 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     loadUser();
   }, [supabase]);
 
-  const isIOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  // ⭐ REMOVE PUSH SUBSCRIPTION FROM HERE
+  // Push is now handled globally in PushInitializer (app/layout.tsx)
+  // MessengerLayout should NOT call registerPush() anymore.
 
-  useEffect(() => {
-    if (!userId) return;
-
-    if (isIOS) {
-      console.warn("Push disabled on iOS Safari — skipping registerPush()");
-      return;
-    }
-
-    registerPush(supabase).catch((err) => {
-      console.warn("Push registration failed (non-blocking):", err);
-    });
-  }, [userId, supabase, isIOS]);
-
-  // KEEP BOTH — MessengerChat + MessengerThread rely on them
+  // ⭐ KEEP BOTH — MessengerChat + MessengerThread rely on them
   useIncomingCall();
   useIncomingCalls();
 
