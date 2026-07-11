@@ -50,13 +50,11 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 export function useSupabase() {
   const ctx = useContext(SupabaseContext);
   if (!ctx) throw new Error("useSupabase must be used within SupabaseProvider");
-
-  return ctx.supabase; // ⭐ FIX: return ONLY the real Supabase client
+  return ctx; // ⭐ RESTORED: return { supabase, user }
 }
 
 export function useSupabaseUser() {
   const ctx = useContext(SupabaseContext);
   if (!ctx) throw new Error("useSupabaseUser must be used within SupabaseProvider");
-
-  return ctx.user; // ⭐ Optional helper
+  return ctx.user;
 }
