@@ -11,10 +11,10 @@ import CallListener from "@/components/CallListener";
 
 export default function MessengerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const supabase = useSupabase();       // ⭐ FIX: useSupabase() now returns the REAL client
+  const supabase = useSupabase();   // ⭐ FIX: useSupabase() returns the REAL client
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
-  // ⭐ SESSION CHECK (keep this)
+  // ⭐ SESSION CHECK
   useEffect(() => {
     async function checkSession() {
       await supabase.auth.refreshSession();
@@ -24,7 +24,7 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     checkSession();
   }, [supabase, router]);
 
-  // ⭐ LOAD USER ID (keep this)
+  // ⭐ LOAD USER ID
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -34,9 +34,7 @@ export default function MessengerLayout({ children }: { children: React.ReactNod
     loadUser();
   }, [supabase]);
 
-  // ⭐ REMOVE PUSH SUBSCRIPTION FROM HERE
-  // Push is now handled globally in PushInitializer (app/layout.tsx)
-  // MessengerLayout should NOT call registerPush() anymore.
+  // ⭐ REMOVE PUSH SUBSCRIPTION — now global in PushInitializer
 
   // ⭐ KEEP BOTH — MessengerChat + MessengerThread rely on them
   useIncomingCall();
