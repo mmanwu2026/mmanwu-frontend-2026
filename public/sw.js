@@ -1,4 +1,4 @@
-// version: 8
+// version: 9
 
 // Immediately activate new service worker versions
 self.addEventListener("install", (event) => {
@@ -25,33 +25,37 @@ self.addEventListener("push", (event) => {
 
   const callerName = payload.callerName || "Incoming Caller";
   const roomId = payload.data?.roomId;
-  const url = payload.data?.url || `/call/${roomId}`;
+
+  // 🔑 Force callee role in the deep link
+  const url =
+    payload.data?.url ||
+    (roomId ? `/call/${roomId}?role=callee` : "/messenger");
 
   const title = `📞 Incoming Call from ${callerName}`;
 
   const options = {
     body: "Tap to answer the call",
-    icon: "/icons/call-large.png",          // ⭐ Use a large, opaque icon
+    icon: "/icons/call-large.png",
     badge: "/icons/badge-72.png",
-    vibrate: [300, 150, 300, 150, 300],     // ⭐ Strong vibration pattern
-    requireInteraction: true,               // ⭐ Keeps notification visible
+    vibrate: [300, 150, 300, 150, 300],
+    requireInteraction: true,
     data: {
       url,
       roomId,
-      callerName
+      callerName,
     },
     actions: [
       {
         action: "answer",
         title: "Answer",
-        icon: "/icons/answer.png"
+        icon: "/icons/answer.png",
       },
       {
         action: "decline",
         title: "Decline",
-        icon: "/icons/decline.png"
-      }
-    ]
+        icon: "/icons/decline.png",
+      },
+    ],
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -68,17 +72,19 @@ self.addEventListener("message", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/";
+  const url = event.notification.data?.url || "/messenger";
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        client.focus();
-        client.navigate(url);
-        return;
-      }
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          client.focus();
+          client.navigate(url);
+          return;
+        }
 
-      return self.clients.openWindow(url);
-    })
+        return self.clients.openWindow(url);
+      })
   );
 });
