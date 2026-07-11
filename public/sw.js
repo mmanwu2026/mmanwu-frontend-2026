@@ -1,4 +1,4 @@
-// version: 7
+// version: 8
 
 // Immediately activate new service worker versions
 self.addEventListener("install", (event) => {
@@ -12,7 +12,7 @@ self.addEventListener("activate", (event) => {
 // REQUIRED: Fetch handler (even empty) so iOS + Edge allow PWA installation
 self.addEventListener("fetch", () => {});
 
-// ⭐ PUSH HANDLER — Incoming Call Support
+// ⭐ PUSH HANDLER — Improved Incoming Call Notification
 self.addEventListener("push", (event) => {
   let payload = {};
 
@@ -23,20 +23,35 @@ self.addEventListener("push", (event) => {
     return;
   }
 
-  const title = payload.title || "Incoming Call";
-  const body = payload.body || "Tap to join the call";
-  const data = payload.data || {};
+  const callerName = payload.callerName || "Incoming Caller";
+  const roomId = payload.data?.roomId;
+  const url = payload.data?.url || `/call/${roomId}`;
+
+  const title = `📞 Incoming Call from ${callerName}`;
 
   const options = {
-    body,
-    icon: "/icons/icon-192.png",
+    body: "Tap to answer the call",
+    icon: "/icons/call-large.png",          // ⭐ Use a large, opaque icon
     badge: "/icons/badge-72.png",
-    data, // contains url + roomId + callerId
-    vibrate: [200, 100, 200],
+    vibrate: [300, 150, 300, 150, 300],     // ⭐ Strong vibration pattern
+    requireInteraction: true,               // ⭐ Keeps notification visible
+    data: {
+      url,
+      roomId,
+      callerName
+    },
     actions: [
-      { action: "join", title: "Join Call" },
-      { action: "decline", title: "Decline" }
-    ],
+      {
+        action: "answer",
+        title: "Answer",
+        icon: "/icons/answer.png"
+      },
+      {
+        action: "decline",
+        title: "Decline",
+        icon: "/icons/decline.png"
+      }
+    ]
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
