@@ -7,7 +7,6 @@ export async function sendPush(
   callerName: string
 ) {
   try {
-    // 1. Get JWT for Edge Function auth
     const session = await supabase.auth.getSession();
     const jwt = session.data.session?.access_token;
 
@@ -16,7 +15,6 @@ export async function sendPush(
       return;
     }
 
-    // 2. Load push subscription for target user
     const { data: subRow, error: subError } = await supabase
       .from("push_subscriptions")
       .select("subscription")
@@ -36,26 +34,6 @@ export async function sendPush(
       return;
     }
 
-    // -----------------------------------------------------
-    // ⭐ CRITICAL FIX:
-    // DO NOT SEND `url` IN THE PAYLOAD.
-    // The service worker will ALWAYS build:
-    //     /call/<roomId>?role=callee
-    // -----------------------------------------------------
-    const payload = {
-      targetUserId,
-      subscription: subRow.subscription,
-      title: "Incoming Call",
-      body: `${callerName} is calling you`,
-      data: {
-        room_id: roomId,
-        caller_name: callerName,
-        // ❌ url removed — this was overriding the correct room
-        // url: `/call/${roomId}?role=callee`,
-      },
-    };
-
-    // 3. Call Edge Function
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-push`,
       {
@@ -64,7 +42,17 @@ export async function sendPush(
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwt}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          targetUserId,
+          subscription: subRow.subscription,
+          title: "Incoming Call",
+          body: `${callerName} is calling you`,
+          data: {
+            room_id: roomId,
+            caller_name: callerName,
+            url: `/call/${roomId}?role=callee`,
+          },
+        }),
       }
     );
 

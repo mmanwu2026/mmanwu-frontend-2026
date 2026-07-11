@@ -26,8 +26,11 @@ self.addEventListener("push", (event) => {
   const callerName = payload.callerName || "Incoming Caller";
   const roomId = payload.data?.roomId;
 
-  // Always build the callee URL here
-  const url = roomId ? `/call/${roomId}?role=callee` : "/messenger";
+  // 🔑 Force callee role in the deep link
+  const url =
+    payload.data?.url ||
+    (roomId ? `/call/${roomId}?role=callee` : "/messenger");
+
   const title = `📞 Incoming Call from ${callerName}`;
 
   const options = {
