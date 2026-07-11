@@ -18,10 +18,9 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 // -----------------------------------------------------
-// ⭐ FINAL, PRODUCTION-GRADE WEB PUSH REGISTRATION (iOS-safe)
+// ⭐ FINAL, PRODUCTION-GRADE WEB PUSH REGISTRATION
 // -----------------------------------------------------
 export async function registerPush(supabase: any) {
-  // iOS Safari cannot reliably support Web Push yet
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -31,7 +30,6 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  // 1. Get logged-in user
   const { data } = await supabase.auth.getSession();
   const authUserId = data.session?.user?.id;
 
@@ -40,27 +38,49 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  // 2. Wait for service worker
   const registration = await navigator.serviceWorker.ready;
 
-  // Your VAPID public key
   const vapidPublicKey =
     "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
 
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
-  // 3. Remove stale subscriptions
   const existing = await registration.pushManager.getSubscription();
+
   if (existing) {
     try {
-      await existing.unsubscribe();
-      console.log("Old push subscription removed.");
+      const existingKeyBuffer = existing.options?.applicationServerKey;
+
+      if (existingKeyBuffer) {
+        const existingKey = new Uint8Array(existingKeyBuffer);
+
+        const keyMatches =
+          existingKey.length === applicationServerKey.length &&
+          existingKey.every((v, i) => v === applicationServerKey[i]);
+
+        if (keyMatches) {
+          await supabase
+            .from("push_subscriptions")
+            .upsert(
+              {
+                user_id: authUserId,
+                subscription: existing.toJSON(),
+              },
+              { onConflict: "user_id" }
+            );
+
+          console.log("Existing push subscription validated & saved.");
+          return;
+        }
+
+        await existing.unsubscribe();
+        console.log("Old push subscription removed.");
+      }
     } catch (err) {
-      console.error("Failed to remove old subscription:", err);
+      console.error("Failed to validate/remove existing subscription:", err);
     }
   }
 
-  // 4. Create new subscription
   let newSubscription: PushSubscription | null = null;
 
   try {
@@ -78,7 +98,6 @@ export async function registerPush(supabase: any) {
     return;
   }
 
-  // 5. Save subscription JSON into Supabase — ⭐ FIXED UPSERT
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
