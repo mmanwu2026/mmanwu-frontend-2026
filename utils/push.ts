@@ -1,5 +1,5 @@
 // -----------------------------------------------------
-// Helper: Convert VAPID key to Uint8Array
+// Helper: Convert VAPID key to Uint8Array (browser requirement)
 // -----------------------------------------------------
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -21,6 +21,7 @@ function urlBase64ToUint8Array(base64String: string) {
 // ⭐ FINAL, PRODUCTION-GRADE WEB PUSH REGISTRATION
 // -----------------------------------------------------
 export async function registerPush(supabase: any) {
+  // iOS Safari cannot reliably support Web Push yet
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -30,6 +31,7 @@ export async function registerPush(supabase: any) {
     return;
   }
 
+  // 1. Get logged-in user
   const { data } = await supabase.auth.getSession();
   const authUserId = data.session?.user?.id;
 
@@ -38,13 +40,17 @@ export async function registerPush(supabase: any) {
     return;
   }
 
+  // 2. Wait for service worker
   const registration = await navigator.serviceWorker.ready;
 
+  // ⭐ Your VAPID public key from VapidKeys.com (base64url)
   const vapidPublicKey =
-    "BOizG292AOygSGUnDoUYznOVdJ3P-twSH-qEFyXnR8LQWzrYWpghKWzbcEMy83eHQ14yOdxFSUW6ai-jOg6qalk";
+    "BDNPqc4kWGDonyPdj8HUAH5wpev5Z4jfKlisFx6rcxvptutlxyx3eS_Pt6cguKcfA5_9x_7vTJFsMx8bO2bQdFk";
 
+  // Convert to Uint8Array (browser requirement)
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
+  // 3. Check existing subscription
   const existing = await registration.pushManager.getSubscription();
 
   if (existing) {
@@ -52,13 +58,16 @@ export async function registerPush(supabase: any) {
       const existingKeyBuffer = existing.options?.applicationServerKey;
 
       if (existingKeyBuffer) {
+        // Convert ArrayBuffer → Uint8Array
         const existingKey = new Uint8Array(existingKeyBuffer);
 
+        // Compare keys
         const keyMatches =
           existingKey.length === applicationServerKey.length &&
           existingKey.every((v, i) => v === applicationServerKey[i]);
 
         if (keyMatches) {
+          // Save existing subscription to Supabase
           await supabase
             .from("push_subscriptions")
             .upsert(
@@ -73,6 +82,7 @@ export async function registerPush(supabase: any) {
           return;
         }
 
+        // Otherwise unsubscribe and recreate
         await existing.unsubscribe();
         console.log("Old push subscription removed.");
       }
@@ -81,6 +91,7 @@ export async function registerPush(supabase: any) {
     }
   }
 
+  // 4. Create new subscription
   let newSubscription: PushSubscription | null = null;
 
   try {
@@ -98,6 +109,7 @@ export async function registerPush(supabase: any) {
     return;
   }
 
+  // 5. Save subscription JSON into Supabase
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
