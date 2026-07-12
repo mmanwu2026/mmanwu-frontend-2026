@@ -2,12 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-// ✔ Correct Supabase provider path
 import { useSupabase } from "../context/SupabaseContext";
-
-// ✔ Correct push system path (your real file)
-import { registerPush } from "../utils/push";
 
 export default function EnableNotifications() {
   const router = useRouter();
@@ -18,7 +13,6 @@ export default function EnableNotifications() {
     try {
       setLoading(true);
 
-      // 1. Restore session
       const session = await supabase.auth.getSession();
       const user = session.data.session?.user;
 
@@ -28,7 +22,6 @@ export default function EnableNotifications() {
         return;
       }
 
-      // 2. Ask for permission
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         alert("Notifications were not enabled.");
@@ -36,10 +29,10 @@ export default function EnableNotifications() {
         return;
       }
 
-      // 3. Use your existing push system
-      await registerPush(supabase);
+      // ⭐ Only mark notifications as enabled
+      localStorage.setItem("notifications_enabled", "true");
 
-      // 4. Redirect AFTER subscription succeeds
+      // ⭐ Redirect — PushInitializer will handle subscription
       router.replace("/plaza");
     } catch (err) {
       console.error("Push setup failed:", err);
