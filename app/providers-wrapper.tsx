@@ -9,17 +9,16 @@ import UpdateBanner from "@/components/UpdateBanner";
 export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
   return (
     <ClientProviders>
-      {/* ⭐ FIX: Give ProvidersWrapper a full-height flex column */}
-      <div className="h-full flex flex-col">
+      {/* ⭐ FIXED: remove h-full, use real device height */}
+      <div className="flex flex-col min-h-[100dvh]">
         <UpdateBanner />
         <AuthNav />
 
-        {/* ⭐ FIX: UnreadProvider must NOT collapse height */}
         <UnreadProvider>
           <SWRegister />
 
-          {/* ⭐ children (PlazaPage) now inherits full height correctly */}
-          <div className="flex-1 flex flex-col h-full">
+          {/* children now inherit correct full height */}
+          <div className="flex-1 flex flex-col">
             {children}
           </div>
         </UnreadProvider>
