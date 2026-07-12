@@ -386,7 +386,7 @@ if (!uid) {
 // MOBILE-FIRST LAYOUT
 // -----------------------------------------------------
 return (
- <div className="h-full w-full bg-gray-50 text-gray-900 flex flex-col overflow-hidden">
+ <div className="h-full w-full bg-gray-50 text-gray-900 flex flex-col">
     {unreadListener}
 
     {/* ⭐ FIX #1 — LOWER PLAZA FEED STACKING CONTEXT */}
