@@ -74,7 +74,6 @@ export default function ComposerPage() {
       return;
     }
 
-    // ⭐ After posting, return to Plaza
     router.replace("/plaza");
   }
 
@@ -117,26 +116,30 @@ export default function ComposerPage() {
 
   return (
     <>
+      {/* ⭐ Gatekeeper Modal with Backdrop */}
       {showGatekeeper && gatekeeperOptions && (
-        <GatekeeperModal
-          options={gatekeeperOptions}
-          onSelect={handleGatekeeperSelect}
-          onClose={() => setShowGatekeeper(false)}
-        />
+        <div className="fixed inset-0 z-[9000] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <GatekeeperModal
+            options={gatekeeperOptions}
+            onSelect={handleGatekeeperSelect}
+            onClose={() => setShowGatekeeper(false)}
+          />
+        </div>
       )}
 
+      {/* ⭐ Spirit Toast */}
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
+      {/* ⭐ Full Page Composer */}
       <div
-  className="
-    min-h-screen w-full bg-white flex flex-col
-    pt-[env(safe-area-inset-top)]
-    pb-[env(safe-area-inset-bottom)]
-  "
->
-
+        className="
+          min-h-screen w-full bg-white flex flex-col
+          pt-[env(safe-area-inset-top)]
+          pb-[env(safe-area-inset-bottom)]
+        "
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h1 className="text-lg font-semibold text-gray-900">Create Post</h1>
           <button
