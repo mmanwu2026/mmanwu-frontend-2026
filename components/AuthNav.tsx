@@ -98,7 +98,7 @@ export default function MobileAuthNav() {
 
         {/* CENTER TITLE */}
         <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-          <Link href="/plaza">Mman Plaza</Link>
+          <Link href="/plaza">MMAN PLAZA — TEST</Link>
         </div>
 
         {/* RIGHT SIDE AUTH */}
