@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export interface GatekeeperOption {
   label: string;
@@ -22,11 +23,20 @@ export default function GatekeeperModal({
   onRegenerate,
 }: GatekeeperModalProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+    const root = document.getElementById("modal-root");
+    setModalRoot(root);
+  }, []);
+
+  if (!mounted || !modalRoot) return null;
+
+  const content = (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl border border-gray-200 space-y-5">
-        
         <h2 className="text-xl font-semibold text-gray-900 text-center">
           Mmanwu Gatekeeper
         </h2>
@@ -103,4 +113,6 @@ export default function GatekeeperModal({
       </div>
     </div>
   );
+
+  return createPortal(content, modalRoot);
 }

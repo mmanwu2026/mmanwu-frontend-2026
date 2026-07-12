@@ -55,8 +55,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
 
-      {/* ⭐ LIGHT MODE + MOBILE-FIRST */}
-      <body className="bg-gray-50 text-gray-900 min-h-[100dvh] overflow-x-hidden">
+      {/* ⭐ FIXED: BODY MUST BE THE SCROLL ROOT */}
+      <body className="bg-gray-50 text-gray-900 min-h-[100dvh] overflow-x-hidden overflow-y-auto">
         <SWRegisterScript />
         <MobilePWAReliabilityScript />
 
@@ -73,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* ⭐ PAGE CONTENT */}
           {children}
 
-          {/* ⭐ PORTAL ROOT */}
+          {/* ⭐ PORTAL ROOT FOR ALL MODALS */}
           <div id="modal-root"></div>
         </ProvidersWrapper>
       </body>
