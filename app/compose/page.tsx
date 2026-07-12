@@ -119,7 +119,7 @@ export default function ComposerPage() {
       {/* ⭐ Gatekeeper Modal with Backdrop */}
 {showGatekeeper && gatekeeperOptions && (
   <div className="
-    fixed inset-0 z-[9000]
+    fixed inset-0 z-[9999]
     bg-black/40 backdrop-blur-sm
     flex items-center justify-center
     px-4
