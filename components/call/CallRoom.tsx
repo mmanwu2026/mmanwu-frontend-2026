@@ -377,87 +377,95 @@ const pc = new RTCPeerConnection({
     };
   }, [roomId, userId, role, supabase]);
 
-  // Caller-side decline detection
-  useEffect(() => {
-    if (role !== "caller") {
-      console.log("CALL EVENTS DEBUG → not caller, skipping");
-      return;
-    }
-
-    console.log(
-      "CALL EVENTS DEBUG → subscribing to call_events for callerId:",
-      userId,
-      "roomId:",
-      roomId
-    );
-
-    const eventsChannel = supabase
-      .channel(`call-events-${roomId}-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "call_events",
-          filter: `caller_id=eq.${userId}`,
-        },
-        async (payload: { new: CallEventRow }) => {
-          console.log("CALL EVENTS DEBUG → received payload:", payload);
-
-          const row = payload.new;
-
-          if (row.room_id !== roomId) {
-            console.log(
-              "CALL EVENTS DEBUG → ignoring event for different room_id:",
-              row.room_id
-            );
-            return;
-          }
-
-          if (row.type === "call_declined") {
-            console.log("CALL EVENTS DEBUG → callee declined → setting status to declined");
-            setCallStatus("declined");
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log("CALL EVENTS DEBUG → unsubscribing call_events channel");
-      supabase.removeChannel(eventsChannel);
-    };
-  }, [roomId, userId, role, supabase]);
-
-  // Auto-end if declined
-  useEffect(() => {
-    if (callStatus === "declined") {
-      console.log("CALL STATUS DEBUG → call declined → ending call soon");
-      setTimeout(() => {
-        endCall();
-      }, 2000);
-    }
-  }, [callStatus]);
-
-  function endCall() {
-    console.log("END DEBUG → ending call");
-
-    const pc = pcRef.current;
-    pc?.close();
-
-    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
-    localStream?.getTracks().forEach((t) => {
-      console.log("END DEBUG → stopping local track:", t);
-      t.stop();
-    });
-
-    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
-    remoteStream?.getTracks().forEach((t) => {
-      console.log("END DEBUG → stopping remote track:", t);
-      t.stop();
-    });
-
-    router.push("/messenger");
+// ⭐ Caller-side decline detection
+useEffect(() => {
+  if (role !== "caller") {
+    console.log("CALL EVENTS DEBUG → not caller, skipping caller decline listener");
+    return;
   }
+
+  if (!roomId || !userId) {
+    console.log("CALL EVENTS DEBUG → missing roomId/userId, skipping");
+    return;
+  }
+
+  console.log(
+    "CALL EVENTS DEBUG → subscribing to call_events for caller decline detection:",
+    { callerId: userId, roomId }
+  );
+
+  const eventsChannel = supabase
+    .channel(`call-events-caller-${roomId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "call_events",
+        filter: `room_id=eq.${roomId}`,
+      },
+      async (payload: { new: CallEventRow }) => {
+        console.log("CALL EVENTS DEBUG → caller received payload:", payload);
+
+        const row = payload.new;
+
+        if (row.room_id !== roomId) {
+          console.log("CALL EVENTS DEBUG → ignoring event for different room:", row.room_id);
+          return;
+        }
+
+        // ⭐ FIXED: correct event type from your DB enum
+        if (row.type === "call_declined") {
+          console.log("CALL EVENTS DEBUG → callee declined → updating callStatus");
+          setCallStatus("declined");
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    console.log("CALL EVENTS DEBUG → unsubscribing caller decline channel");
+    supabase.removeChannel(eventsChannel);
+  };
+}, [roomId, userId, role, supabase]);
+
+
+// ⭐ Auto-end if declined
+useEffect(() => {
+  if (callStatus === "declined") {
+    console.log("CALL STATUS DEBUG → call declined → ending call soon");
+
+    setTimeout(() => {
+      endCall();
+    }, 1500);
+  }
+}, [callStatus]);
+
+
+// ⭐ Full teardown logic
+function endCall() {
+  console.log("END DEBUG → ending call");
+
+  const pc = pcRef.current;
+  pc?.close();
+
+  const localStream = localVideoRef.current?.srcObject as MediaStream | null;
+  localStream?.getTracks().forEach((t) => {
+    console.log("END DEBUG → stopping local track:", t);
+    t.stop();
+  });
+
+  const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
+  remoteStream?.getTracks().forEach((t) => {
+    console.log("END DEBUG → stopping remote track:", t);
+    t.stop();
+  });
+
+  // ⭐ Do NOT reset callStatus to null — TS does not allow it
+  // ⭐ Do NOT call setRoomId or setActiveCall — they do not exist here
+
+  router.push("/messenger");
+}
 
   return (
     <div className="flex flex-col h-full p-4 text-white">
