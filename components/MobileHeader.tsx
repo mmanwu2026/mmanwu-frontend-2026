@@ -37,7 +37,11 @@ export default function MobileHeader() {
   }, [uid, supabase]);
 
   return (
-    <header className="w-full px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
+    <header className="
+  w-full px-4 py-3 bg-white border-b border-gray-200
+  flex items-center justify-between
+  z-[9000] relative
+">
       <Link href="/plaza" className="text-xl font-bold text-gray-900">
         Mman Plaza
       </Link>
