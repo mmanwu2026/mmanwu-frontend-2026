@@ -385,13 +385,12 @@ if (!uid) {
 // MOBILE-FIRST LAYOUT
 // -----------------------------------------------------
 return (
- <div className="h-full w-full bg-gray-50 text-gray-900 flex flex-col">
+  <div className="min-h-[100dvh] w-full bg-gray-50 text-gray-900 flex flex-col">
     {unreadListener}
 
-    {/* ⭐ FIX #1 — LOWER PLAZA FEED STACKING CONTEXT */}
-    <div className="w-full flex justify-center flex-1 overflow-y-auto relative z-[1]">
-      {/* ⭐ FIX #2 — LOWER INNER WRAPPER STACKING CONTEXT */}
-      <div className="w-full max-w-xl space-y-6 px-4 relative z-[1]">
+    {/* ⭐ FEED — viewport scrolls, NOT this div */}
+    <div className="w-full flex justify-center flex-1">
+      <div className="w-full max-w-xl space-y-6 px-4">
         {loading && (
           <p className="text-sm text-gray-500 text-center">Loading posts…</p>
         )}
