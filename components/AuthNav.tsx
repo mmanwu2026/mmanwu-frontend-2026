@@ -5,7 +5,7 @@ import { useSupabase } from "@/context/SupabaseContext";
 import { useState, useEffect } from "react";
 import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
 
-export default function AuthNav() {
+export default function MobileAuthNav() {
   const { supabase } = useSupabase();
 
   const [uid, setUid] = useState<string | null>(null);
@@ -14,12 +14,10 @@ export default function AuthNav() {
   useEffect(() => {
     setHydrated(true);
 
-    // ⭐ Explicitly type the destructured data
     supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       setUid(data.session?.user?.id ?? null);
     });
 
-    // ⭐ Explicitly type event + session
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
         setUid(session?.user?.id ?? null);
@@ -33,9 +31,9 @@ export default function AuthNav() {
 
   if (!hydrated) {
     return (
-      <nav className="w-full flex justify-end p-4 text-white">
-        <div className="text-zinc-400 text-sm">Loading…</div>
-      </nav>
+      <div className="w-full bg-white border-b border-gray-200 px-4 py-2 text-gray-500 text-sm">
+        Loading…
+      </div>
     );
   }
 
@@ -45,20 +43,26 @@ export default function AuthNav() {
   }
 
   return (
-    <nav className="w-full flex justify-end p-4 text-white">
+    <div className="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+      {/* Left side: App name */}
+      <Link href="/plaza" className="text-lg font-semibold text-gray-900">
+        Mman Plaza
+      </Link>
+
+      {/* Right side: Auth actions */}
       {!uid ? (
-        <div className="flex gap-4">
+        <div className="flex gap-4 text-purple-600 text-sm font-medium">
           <Link href="/signup" prefetch={false}>Sign Up</Link>
           <Link href="/login" prefetch={false}>Log In</Link>
         </div>
       ) : (
-        <div className="flex gap-4">
+        <div className="flex gap-4 text-purple-600 text-sm font-medium">
           <Link href={`/profile/${uid}`} prefetch={false}>
             My Profile
           </Link>
           <button onClick={handleLogout}>Logout</button>
         </div>
       )}
-    </nav>
+    </div>
   );
 }
