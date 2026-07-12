@@ -11,7 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function BottomNav() {
-  const pathname = usePathname() ?? ""; // ⭐ FIXED — never null
+  const pathname = usePathname() ?? "";
 
   const navItems = [
     { href: "/plaza", icon: HomeIcon, label: "Plaza" },
@@ -22,12 +22,15 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="
-      fixed bottom-0 left-0 right-0
-      bg-white border-t border-gray-200
-      flex justify-around items-center
-      py-2 z-[9000]
-    ">
+    <nav
+      className="
+        fixed left-0 right-0 bottom-0
+        bg-white border-t border-gray-200
+        flex justify-around items-center
+        py-2 z-[9000]
+        pb-[env(safe-area-inset-bottom)]
+      "
+    >
       {navItems.map(({ href, icon: Icon, label }) => {
         const active = pathname.startsWith(href);
 
@@ -43,10 +46,12 @@ export default function BottomNav() {
                 ${active ? "text-purple-600" : "text-gray-600"}
               `}
             />
-            <span className={`
-              text-xs
-              ${active ? "text-purple-600 font-medium" : "text-gray-600"}
-            `}>
+            <span
+              className={`
+                text-xs
+                ${active ? "text-purple-600 font-medium" : "text-gray-600"}
+              `}
+            >
               {label}
             </span>
           </Link>

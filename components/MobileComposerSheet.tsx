@@ -138,8 +138,13 @@ export default function MobileComposerSheet({
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      <div className="fixed inset-0 bg-white z-[8000] flex flex-col">
-        {/* Top Bar */}
+      <div
+        className="
+          fixed inset-0 bg-white z-[8000] flex flex-col
+          pt-[env(safe-area-inset-top)]
+          pb-[env(safe-area-inset-bottom)]
+        "
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h1 className="text-lg font-semibold text-gray-900">Create Post</h1>
           <button
@@ -150,7 +155,6 @@ export default function MobileComposerSheet({
           </button>
         </div>
 
-        {/* Textarea */}
         <div className="flex-1 p-4">
           <textarea
             className="
@@ -166,7 +170,6 @@ export default function MobileComposerSheet({
           />
         </div>
 
-        {/* Submit */}
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={handleSubmit}

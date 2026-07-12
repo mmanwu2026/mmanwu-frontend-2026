@@ -15,6 +15,7 @@ export default function MobileComposerButton({ onOpen }: { onOpen: () => void })
         text-3xl font-bold
         z-[9000]
         active:scale-95 transition
+        mb-[env(safe-area-inset-bottom)]
       "
     >
       +
