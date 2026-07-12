@@ -336,12 +336,6 @@ svg, svg * {
   stroke: currentColor !important;
 }
 
-html, body {
-  height: auto !important;
-  min-height: 100dvh !important;
-  overflow: visible !important;
-}
-
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
