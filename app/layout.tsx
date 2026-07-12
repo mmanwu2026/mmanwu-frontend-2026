@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       {/* ⭐ LIGHT MODE + MOBILE-FIRST */}
-      <body className="bg-gray-50 text-gray-900 h-screen overflow-hidden">
+      <body className="bg-gray-50 text-gray-900 h-screen overflow-y-auto">
         <SWRegisterScript />
         <MobilePWAReliabilityScript />
 
