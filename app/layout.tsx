@@ -71,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AppInstallPrompt />
 
           {/* ⭐ PAGE CONTENT */}
-          <div className="contents">{children}</div>
+          {children}
 
           {/* ⭐ PORTAL ROOT */}
           <div id="modal-root"></div>
