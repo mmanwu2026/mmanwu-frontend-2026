@@ -9,20 +9,16 @@ import UpdateBanner from "@/components/UpdateBanner";
 export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
   return (
     <ClientProviders>
-      {/* ⭐ FIXED: remove h-full, use real device height */}
-      <div className="flex flex-col min-h-[100dvh]">
-        <UpdateBanner />
-        <AuthNav />
+      {/* ⭐ REMOVE flex layout — allow viewport to be the scroll container */}
+      <UpdateBanner />
+      <AuthNav />
 
-        <UnreadProvider>
-          <SWRegister />
+      <UnreadProvider>
+        <SWRegister />
 
-          {/* children now inherit correct full height */}
-          <div className="flex-1 flex flex-col">
-            {children}
-          </div>
-        </UnreadProvider>
-      </div>
+        {/* ⭐ Children render directly — no flex, no height constraints */}
+        {children}
+      </UnreadProvider>
     </ClientProviders>
   );
 }
