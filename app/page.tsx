@@ -1,25 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import EnableNotifications from "./enable-notifications";
 
 export default function Home() {
   const router = useRouter();
+  const [hydrated, setHydrated] = useState(false);
+  const [enabled, setEnabled] = useState<string | null>(null);
 
+  // ⭐ Ensure hydration before reading localStorage
   useEffect(() => {
-    const enabled = localStorage.getItem("notifications_enabled");
+    setHydrated(true);
+    const flag = localStorage.getItem("notifications_enabled");
+    setEnabled(flag);
 
-    // ⭐ If notifications already enabled → go to redirector (NOT plaza)
-    if (enabled === "true") {
+    if (flag === "true") {
       router.replace("/redirector");
     }
   }, [router]);
 
-  const enabled =
-    typeof window !== "undefined"
-      ? localStorage.getItem("notifications_enabled")
-      : null;
+  // ⭐ Prevent SSR mismatch — wait until hydration
+  if (!hydrated) {
+    return null;
+  }
 
   // ⭐ If not enabled → show enable screen
   if (enabled !== "true") {
@@ -58,6 +62,6 @@ export default function Home() {
     );
   }
 
-  // ⭐ If enabled, redirector will handle the delayed navigation
+  // ⭐ If enabled, redirector will handle delayed navigation
   return null;
 }
