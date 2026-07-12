@@ -10,9 +10,6 @@
 /* 2. CORE LAYOUT                                               */
 /* ------------------------------------------------------------ */
 
-/* ❌ REMOVED isolation: isolate — breaks fixed positioning */
-/* ❌ REMOVED position: relative — unnecessary */
-/* ❌ REMOVED overflow: visible — not needed */
 .isolate-layout {
   /* intentionally left empty */
 }
@@ -149,18 +146,6 @@
 }
 
 /* ------------------------------------------------------------ */
-/* 7. FLOATING COMPOSER — REMOVED                               */
-/* ------------------------------------------------------------ */
-
-/* (All FloatingComposer styles removed) */
-
-/* ------------------------------------------------------------ */
-/* 8. SIDEBAR + GRID — REMOVED                                  */
-/* ------------------------------------------------------------ */
-
-/* (All Sidebar + dim-overlay styles removed) */
-
-/* ------------------------------------------------------------ */
 /* 9. EMBERS — ACTIVE CLEAN VARIANT                             */
 /* ------------------------------------------------------------ */
 
@@ -190,21 +175,8 @@
 /* ------------------------------------------------------------ */
 
 html, body {
-  background-color: #f9fafb !important;
-  color: #111 !important;
+  color: #111;
   pointer-events: auto;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-.plaza-avatar {
-  width: 3rem !important;
-  height: 3rem !important;
-  object-fit: cover !important;
-  border-radius: 9999px !important;
 }
 
 /* ------------------------------------------------------------ */
@@ -212,14 +184,14 @@ img {
 /* ------------------------------------------------------------ */
 
 #modal-root {
-  position: relative !important;
-  inset: auto !important;
-  z-index: 2147483647 !important;
-  pointer-events: none !important;
+  position: relative;
+  inset: auto;
+  z-index: 2147483647;
+  pointer-events: none;
 }
 
 #modal-root > * {
-  pointer-events: auto !important;
+  pointer-events: auto;
 }
 
 /* ------------------------------------------------------------ */
@@ -237,7 +209,7 @@ img {
 }
 
 .no-levitate {
-  animation: none !important;
+  animation: none;
 }
 
 @keyframes beatGlow {
@@ -263,7 +235,7 @@ img {
 
 .mask-glow {
   position: relative;
-  overflow: visible !important;
+  overflow: visible;
 }
 
 .mask-glow::after {
@@ -291,7 +263,7 @@ img {
 
 .mask-wrapper {
   position: relative;
-  overflow: visible !important;
+  overflow: visible;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -312,34 +284,25 @@ img {
 /* ------------------------------------------------------------ */
 
 img.avatar {
-  width: 40px !important;
-  height: 40px !important;
-  object-fit: cover !important;
-  border-radius: 9999px !important;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 9999px;
 }
 
 /* ------------------------------------------------------------ */
-/*ICONS                                                         */
+/* ICONS                                                        */
 /* ------------------------------------------------------------ */
+
 svg, svg * {
-  stroke: currentColor !important;
-  stroke-width: 2 !important;
+  stroke: currentColor;
+  stroke-width: 2;
 }
 
 svg {
-  width: 1.5rem !important;
-  height: 1.5rem !important;
-  display: inline-block !important;
-}
-
-svg, svg * {
-  stroke: currentColor !important;
-}
-
-html, body {
-  height: auto !important;
-  min-height: 0 !important;
-  overflow: visible !important;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-block;
 }
 
 /* ------------------------------------------------------------ */
