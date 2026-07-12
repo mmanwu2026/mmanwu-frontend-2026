@@ -3,22 +3,37 @@
 import { useEffect } from "react";
 import { useSupabase } from "@/context/SupabaseContext";
 
-// ⭐ One-time subscription helper
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 async function ensurePushSubscription(supabase: any, userId: string) {
   try {
     const registration = await navigator.serviceWorker.ready;
 
-    // Check existing subscription
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
-      // Create new subscription
+      const vapidKey = urlBase64ToUint8Array(
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+      );
+
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        applicationServerKey: vapidKey,
       });
 
-      // Store subscription ONCE
       await supabase.from("push_subscriptions").upsert({
         user_id: userId,
         subscription,
@@ -44,7 +59,6 @@ export default function PushInitializer() {
         const user = data.session?.user;
 
         if (user) {
-          console.log("PUSH INIT DEBUG → initializing push for user:", user.id);
           ensurePushSubscription(supabase, user.id);
         }
       });
