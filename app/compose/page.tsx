@@ -117,15 +117,20 @@ export default function ComposerPage() {
   return (
     <>
       {/* ⭐ Gatekeeper Modal with Backdrop */}
-      {showGatekeeper && gatekeeperOptions && (
-        <div className="fixed inset-0 z-[9000] bg-black/40 backdrop-blur-sm flex items-center justify-center">
-          <GatekeeperModal
-            options={gatekeeperOptions}
-            onSelect={handleGatekeeperSelect}
-            onClose={() => setShowGatekeeper(false)}
-          />
-        </div>
-      )}
+{showGatekeeper && gatekeeperOptions && (
+  <div className="
+    fixed inset-0 z-[9000]
+    bg-black/40 backdrop-blur-sm
+    flex items-center justify-center
+    px-4
+  ">
+    <GatekeeperModal
+      options={gatekeeperOptions}
+      onSelect={handleGatekeeperSelect}
+      onClose={() => setShowGatekeeper(false)}
+    />
+  </div>
+)}
 
       {/* ⭐ Spirit Toast */}
       {toastMessage && (
