@@ -33,7 +33,6 @@ export default function ReactionBar({
 }: ReactionBarProps) {
   const { supabase } = useSupabase();
 
-  // ⭐ Authenticated user
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -57,7 +56,6 @@ export default function ReactionBar({
 
     setLoading(true);
 
-    // 1. Save reaction
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
       post_type: postType,
@@ -72,14 +70,12 @@ export default function ReactionBar({
       return;
     }
 
-    // ⭐ 2. Fetch YOUR OWN push subscription (correct)
     const { data: sub } = await supabase
       .from("push_subscriptions")
       .select("subscription")
-      .eq("user_id", uid) // logged-in user ONLY
+      .eq("user_id", uid)
       .single();
 
-    // ⭐ 3. Insert notification via Edge Function (correct)
     await fetch("/functions/v1/create-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -93,7 +89,6 @@ export default function ReactionBar({
       }),
     });
 
-    // ⭐ 4. Trigger push notification (correct)
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -113,20 +108,24 @@ export default function ReactionBar({
       );
     }
 
-    // 5. Update UI
     onReact();
   };
 
+  const baseBtn =
+    "reaction-mask text-2xl flex flex-col items-center disabled:opacity-40";
+
+  const countClass = "text-[11px] text-gray-600 mt-0.5";
+
   return (
-    <div className="flex items-center justify-center gap-6 mt-4">
+    <div className="flex items-center justify-center gap-4 mt-2">
       {isCreator && (
         <button
           onClick={() => handleReact(1)}
           disabled={loggedOut || loading}
-          className="reaction-mask text-3xl disabled:opacity-40"
+          className={baseBtn}
         >
           😶‍🌫️
-          <span className="text-xs block text-gray-400">{reactions.mask1}</span>
+          <span className={countClass}>{reactions.mask1}</span>
         </button>
       )}
 
@@ -134,43 +133,43 @@ export default function ReactionBar({
         <button
           onClick={() => handleReact(2)}
           disabled={loggedOut || loading}
-          className="reaction-mask text-3xl disabled:opacity-40"
+          className={baseBtn}
         >
           😤
-          <span className="text-xs block text-gray-400">{reactions.mask2}</span>
+          <span className={countClass}>{reactions.mask2}</span>
         </button>
       )}
 
       <button
         onClick={() => handleReact(3)}
         disabled={loggedOut || loading}
-        className="reaction-mask text-3xl disabled:opacity-40"
+        className={baseBtn}
       >
         😊
-        <span className="text-xs block text-gray-400">{reactions.mask3}</span>
+        <span className={countClass}>{reactions.mask3}</span>
       </button>
 
       <button
         onClick={() => handleReact(4)}
         disabled={loggedOut || loading}
-        className="reaction-mask text-3xl disabled:opacity-40"
+        className={baseBtn}
       >
         🤩
-        <span className="text-xs block text-gray-400">{reactions.mask4}</span>
+        <span className={countClass}>{reactions.mask4}</span>
       </button>
 
       <button
         onClick={() => handleReact(5)}
         disabled={loggedOut || loading}
-        className="reaction-mask text-3xl disabled:opacity-40"
+        className={baseBtn}
       >
         😇
-        <span className="text-xs block text-gray-400">{reactions.mask5}</span>
+        <span className={countClass}>{reactions.mask5}</span>
       </button>
 
-      <div className="reaction-mask text-3xl opacity-70 cursor-default">
+      <div className="reaction-mask text-2xl flex flex-col items-center opacity-70 cursor-default">
         🔱
-        <span className="text-xs block text-gray-400">{reactions.mask6}</span>
+        <span className={countClass}>{reactions.mask6}</span>
       </div>
     </div>
   );

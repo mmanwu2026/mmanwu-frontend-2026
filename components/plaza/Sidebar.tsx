@@ -31,7 +31,6 @@ export default function Sidebar() {
   const pathname = usePathname() ?? "";
   const { supabase } = useSupabase();
 
-  // ⭐ FIXED — authenticated user
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,12 +44,10 @@ export default function Sidebar() {
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  // ⭐ LOAD UNREAD COUNTS
   useEffect(() => {
     async function loadUnread() {
       if (!uid) return;
 
-      // 1. Get rooms + last_seen
       const { data: rooms } = await supabase
         .from("room_participants")
         .select("room_id, last_seen")
@@ -61,7 +58,6 @@ export default function Sidebar() {
       const typedRooms = rooms as RoomParticipant[];
       const roomIds = typedRooms.map((r) => r.room_id);
 
-      // 2. Get ONLY real chat messages
       const { data: messages } = await supabase
         .from("messages")
         .select("room_id, created_at, message_type, sender_id")
@@ -89,7 +85,6 @@ export default function Sidebar() {
     loadUnread();
   }, [uid, supabase]);
 
-  // ⭐ REALTIME SUBSCRIPTION
   useEffect(() => {
     if (!uid) return;
 
@@ -117,7 +112,6 @@ export default function Sidebar() {
     };
   }, [uid, supabase]);
 
-  // ⭐ TOTAL UNREAD
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
   const navItems = [
@@ -143,18 +137,15 @@ export default function Sidebar() {
     },
     { label: "SpiritSquare", href: "/spirit", icon: SparklesIcon },
     { label: "Shrine", href: "/shrine", icon: FireIcon },
-
     {
       label: "Messenger",
       href: "/messenger",
       icon: ChatBubbleLeftRightIcon,
       badge: totalUnread,
     },
-
     uid
       ? { label: "Profile", href: `/profile/${uid}`, icon: UserCircleIcon }
       : { label: "Profile", href: "/login", icon: UserCircleIcon },
-
     { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
   ];
 
@@ -163,11 +154,12 @@ export default function Sidebar() {
       suppressHydrationWarning
       className="
         fixed left-0 top-0 h-full w-[88px]
-        bg-black text-gray-300 flex flex-col
-        px-2 pt-[200px] z-[3000]
+        bg-white border-r border-gray-200
+        text-gray-700 flex flex-col
+        px-2 pt-24 z-[3000]
       "
     >
-      <h2 className="text-[11px] font-semibold text-purple-200 mb-3">
+      <h2 className="text-[11px] font-semibold text-gray-600 mb-3">
         Navigation
       </h2>
 
@@ -185,17 +177,15 @@ export default function Sidebar() {
                   text-[11px]
                   ${
                     active
-                      ? "bg-purple-600/25 text-purple-200 font-semibold"
-                      : "hover:bg-purple-500/15"
+                      ? "bg-blue-50 text-blue-700 font-semibold border border-blue-100"
+                      : "hover:bg-gray-100"
                   }
                 `}
               >
                 <Icon
                   className="
                     h-4 w-4 
-                    scale-[0.55] 
-                    transform origin-center 
-                    text-purple-300 
+                    text-blue-500 
                     shrink-0
                   "
                 />
@@ -222,8 +212,8 @@ export default function Sidebar() {
                           text-[10px] px-2 py-0.5 rounded transition-all
                           ${
                             childActive
-                              ? "text-purple-300 font-semibold"
-                              : "text-gray-400 hover:text-purple-200"
+                              ? "text-blue-700 font-semibold"
+                              : "text-gray-500 hover:text-blue-600"
                           }
                         `}
                       >

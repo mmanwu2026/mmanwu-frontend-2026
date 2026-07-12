@@ -54,7 +54,6 @@ export default function PlazaCard({
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // FOLLOW STATE
   useEffect(() => {
     let active = true;
 
@@ -106,7 +105,6 @@ export default function PlazaCard({
     }
   }
 
-  // AURA INTENSITY
   function auraIntensity(score: number, positivity: number) {
     let level =
       score < 6 ? 0 :
@@ -146,25 +144,29 @@ export default function PlazaCard({
   const floatY = Math.max(-20 - post.spirit_score * 0.25, -90);
 
   return (
-    <div className="relative isolate z-0 transition-all duration-500 overflow-visible w-[420px] h-[520px] flex flex-col">
+    <div className="relative isolate z-0 transition-all duration-500 w-full">
       <div
-        className={`aura-mask-${post.autoMask} aura-intensity-${intensity} rounded-2xl p-8 w-full h-full`}
+        className={`aura-mask-${post.autoMask} aura-intensity-${intensity} rounded-2xl`}
       >
-        <div className="plaza-card-base rounded-2xl w-full h-full flex flex-col">
-
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm w-full flex flex-col p-6">
           {/* IDENTITY HEADER */}
-          <div className="flex items-center justify-between mb-2 px-1">
+          <div className="flex items-center justify-between mb-3">
             <Link
               href={`/profile/${creator.id}`}
               className="flex items-center gap-2 hover:opacity-80 transition"
             >
               <img
                 src={creator?.avatar_url || FALLBACK_AVATAR}
-                className="plaza-avatar border border-gray-700"
+                className="plaza-avatar border border-gray-300"
               />
-              <span className="text-white/90 text-sm font-semibold">
-                {creator?.username || "unknown"}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-900">
+                  {creator?.username || "unknown"}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {new Date(post.created_at).toLocaleString()}
+                </span>
+              </div>
             </Link>
 
             {!isCreator && isFollowing !== null && (
@@ -173,8 +175,8 @@ export default function PlazaCard({
                 disabled={busy}
                 className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                   isFollowing
-                    ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
-                    : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                    ? "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200"
+                    : "bg-blue-600 text-white border-blue-600 hover:bg-blue-500"
                 } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
               >
                 {isFollowing ? "Following" : "Follow"}
@@ -183,51 +185,50 @@ export default function PlazaCard({
           </div>
 
           {/* GLYPH */}
-          <div className="ritual-glyph-container mt-4 flex justify-center">
-            <div className="ritual-glyph-levitate">
-              <div className="ritual-flame-ring clean"></div>
-              <div className="ritual-shadow-floor clean"></div>
-              <div
-                className="emoji-glyph clean"
-                style={{ "--float-y": `${floatY}px` } as CSSProperties}
-              >
-                {glyphEmoji}
+          <div className="mt-4 flex justify-center">
+            <div className="ritual-glyph-container">
+              <div className="ritual-glyph-levitate">
+                <div className="ritual-flame-ring clean"></div>
+                <div className="ritual-shadow-floor clean"></div>
+                <div
+                  className="emoji-glyph clean"
+                  style={{ "--float-y": `${floatY}px` } as CSSProperties}
+                >
+                  {glyphEmoji}
+                </div>
               </div>
             </div>
           </div>
 
           {isTrending && (
-            <p className="mt-2 text-xs text-yellow-400 text-center">
+            <p className="mt-2 text-xs text-amber-600 text-center">
               Trending • Score {trendingScore}
             </p>
           )}
 
           {/* CONTENT */}
-          <p className="whitespace-pre-line text-lg leading-relaxed text-gray-100 text-center mt-4 px-4 overflow-y-auto max-h-[200px]">
+          <p className="whitespace-pre-line text-base leading-relaxed text-gray-900 text-center mt-4 px-4 max-h-[200px] overflow-y-auto">
             {post.content}
           </p>
 
           {/* FOOTER */}
-          <div className="mt-auto w-full">
-            <p className="text-sm text-gray-400 text-center">
-              SpiritScore: {post.spirit_score} • Reactions: {totalReactions}
+          <div className="mt-4 w-full border-t border-gray-200 pt-3">
+            <p className="text-xs text-gray-600 text-center">
+              SpiritScore: {post.spirit_score} • Reactions: {totalReactions} • Mask: {post.autoMask}
             </p>
 
-            <div className="mt-2 flex justify-between w-full text-sm text-gray-400">
-              <span>Mask: {post.autoMask}</span>
-              <span>{new Date(post.created_at).toLocaleString()}</span>
-            </div>
-
             {isCreator && (
-              <button
-                onClick={() => onDeleteAction(post.id)}
-                className="mt-3 ml-3 px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 z-[20]"
-              >
-                Delete
-              </button>
+              <div className="mt-3 flex justify-end">
+                <button
+                  onClick={() => onDeleteAction(post.id)}
+                  className="px-3 py-1 text-xs rounded-md bg-red-600 text-white hover:bg-red-500"
+                >
+                  Delete
+                </button>
+              </div>
             )}
 
-            <div className="mt-6 w-full flex justify-center">
+            <div className="mt-4 w-full flex justify-center">
               <ReactionBar
                 postType="plaza"
                 postId={post.id}
@@ -239,13 +240,11 @@ export default function PlazaCard({
               />
             </div>
 
-            {/* COMMENTS */}
             <PlazaComments
               postId={post.id}
               postCreatorId={post.creator_id}
             />
           </div>
-
         </div>
       </div>
     </div>

@@ -30,7 +30,7 @@ interface PlazaCommentNode extends PlazaComment {
 
 export default function PlazaComments({
   postId,
-  postCreatorId
+  postCreatorId,
 }: {
   postId: string;
   postCreatorId: string;
@@ -50,17 +50,11 @@ export default function PlazaComments({
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  // -----------------------------
-  // LOAD USER (FIXED)
-  // -----------------------------
   async function loadUser() {
     const session = await supabase.auth.getSession();
     setUserId(session.data.session?.user?.id || null);
   }
 
-  // -----------------------------
-  // LOAD COMMENTS
-  // -----------------------------
   async function loadComments() {
     setLoading(true);
 
@@ -84,7 +78,7 @@ export default function PlazaComments({
     if (!error && data) {
       const mapped = data.map((c: any) => ({
         ...c,
-        profile: c.profiles
+        profile: c.profiles,
       }));
       setComments(mapped);
     }
@@ -92,9 +86,6 @@ export default function PlazaComments({
     setLoading(false);
   }
 
-  // -----------------------------
-  // SUBMIT TOP-LEVEL COMMENT (FIXED)
-  // -----------------------------
   async function submitComment() {
     if (!text.trim()) return;
 
@@ -110,7 +101,7 @@ export default function PlazaComments({
         postId,
         content: text.trim(),
         userId: uid,
-        parentCommentId: null
+        parentCommentId: null,
       }),
     });
 
@@ -122,28 +113,25 @@ export default function PlazaComments({
       return;
     }
 
-    // Fetch creator's push subscription
     const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid)   // logged-in user ONLY
-  .single();
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .single();
 
-    // Insert notification
     await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: postCreatorId,
-    actorId: uid,
-    postId,
-    postType: "plaza",
-    message: `${email} commented on your post`,
-    eventType: "comment",
-  }),
-});
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: postCreatorId,
+        actorId: uid,
+        postId,
+        postType: "plaza",
+        message: `${email} commented on your post`,
+        eventType: "comment",
+      }),
+    });
 
-    // Trigger push
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -169,9 +157,6 @@ export default function PlazaComments({
     loadComments();
   }
 
-  // -----------------------------
-  // SUBMIT REPLY (FIXED)
-  // -----------------------------
   async function submitReply(parentId: string) {
     if (!replyText.trim()) return;
 
@@ -187,7 +172,7 @@ export default function PlazaComments({
         postId,
         content: replyText.trim(),
         userId: uid,
-        parentCommentId: parentId
+        parentCommentId: parentId,
       }),
     });
 
@@ -199,29 +184,26 @@ export default function PlazaComments({
       return;
     }
 
-    // Push subscription lookup
     const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid)   // logged-in user ONLY
-  .single();
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .single();
 
-    // Insert notification
     await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: postCreatorId,
-    actorId: uid,
-    postId,
-    postType: "plaza",
-    commentId: parentId,
-    message: `${email} replied to a comment on your post`,
-    eventType: "reply",
-  }),
-});
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: postCreatorId,
+        actorId: uid,
+        postId,
+        postType: "plaza",
+        commentId: parentId,
+        message: `${email} replied to a comment on your post`,
+        eventType: "reply",
+      }),
+    });
 
-    // Trigger push
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -248,21 +230,11 @@ export default function PlazaComments({
     loadComments();
   }
 
-  // -----------------------------
-  // DELETE COMMENT
-  // -----------------------------
   async function deleteComment(id: string) {
-    await supabase
-      .from("plaza_post_comments")
-      .delete()
-      .eq("id", id);
-
+    await supabase.from("plaza_post_comments").delete().eq("id", id);
     loadComments();
   }
 
-  // -----------------------------
-  // INIT (FIXED)
-  // -----------------------------
   useEffect(() => {
     loadUser();
     loadComments();
@@ -288,9 +260,6 @@ export default function PlazaComments({
 
   const isGatekeeper = userId === postCreatorId;
 
-  // -----------------------------
-  // BUILD COMMENT TREE
-  // -----------------------------
   function buildCommentTree(flat: PlazaComment[]): PlazaCommentNode[] {
     const lookup: Record<string, PlazaCommentNode> = {};
     const roots: PlazaCommentNode[] = [];
@@ -316,12 +285,9 @@ export default function PlazaComments({
     return roots;
   }
 
-  // -----------------------------
-  // COMMENT NODE
-  // -----------------------------
   function CommentNode({
     node,
-    depth
+    depth,
   }: {
     node: PlazaCommentNode;
     depth: number;
@@ -333,21 +299,21 @@ export default function PlazaComments({
         <div className="flex items-start gap-2">
           <img
             src={getAvatar(node.profile?.avatar_url)}
-            className="rounded-full border border-gray-700"
+            className="rounded-full border border-gray-300"
             style={{
               width: "28px",
               height: "28px",
               minWidth: "28px",
               minHeight: "28px",
-              objectFit: "cover"
+              objectFit: "cover",
             }}
           />
 
           <div className="flex-1">
-            <p className="text-xs text-purple-200 font-semibold">
+            <p className="text-xs text-gray-700 font-semibold">
               {node.profile?.username || "unknown"}
             </p>
-            <p className="text-sm text-gray-200 whitespace-pre-line">
+            <p className="text-sm text-gray-900 whitespace-pre-line">
               {node.content}
             </p>
             <p className="text-[10px] text-gray-500">
@@ -358,7 +324,7 @@ export default function PlazaComments({
               {(isAuthor || isGatekeeper) && (
                 <button
                   onClick={() => deleteComment(node.id)}
-                  className="text-[10px] text-red-400 hover:text-red-300"
+                  className="text-[10px] text-red-600 hover:text-red-500"
                 >
                   Delete
                 </button>
@@ -368,7 +334,7 @@ export default function PlazaComments({
                 onClick={() =>
                   setReplyTargetId(replyTargetId === node.id ? null : node.id)
                 }
-                className="text-[10px] text-purple-300 hover:text-purple-200"
+                className="text-[10px] text-blue-600 hover:text-blue-500"
               >
                 Reply
               </button>
@@ -380,11 +346,11 @@ export default function PlazaComments({
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Write a reply…"
-                  className="flex-1 bg-neutral-800 text-gray-200 text-sm px-3 py-2 rounded"
+                  className="flex-1 bg-white border border-gray-300 text-gray-900 text-sm px-3 py-2 rounded"
                 />
                 <button
                   onClick={() => submitReply(node.id)}
-                  className="px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-500"
+                  className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-500"
                 >
                   Reply
                 </button>
@@ -400,13 +366,9 @@ export default function PlazaComments({
     );
   }
 
-  // -----------------------------
-  // RENDER
-  // -----------------------------
   return (
     <div className="mt-6 w-full px-2">
-
-      <h3 className="text-sm text-gray-300 mb-2">Comments</h3>
+      <h3 className="text-sm text-gray-700 mb-2">Comments</h3>
 
       {loading && <p className="text-gray-500 text-xs">Loading…</p>}
 
@@ -417,17 +379,17 @@ export default function PlazaComments({
       </div>
 
       {rewriteMode && (
-        <div className="mt-4 p-3 bg-neutral-800 rounded border border-red-500">
-          <p className="text-red-300 text-sm mb-2">{rewriteMessage}</p>
+        <div className="mt-4 p-3 bg-red-50 rounded border border-red-300">
+          <p className="text-red-700 text-sm mb-2">{rewriteMessage}</p>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Rewrite your comment…"
-            className="flex-1 bg-neutral-900 text-gray-200 text-sm px-3 py-2 rounded w-full"
+            className="flex-1 bg-white border border-gray-300 text-gray-900 text-sm px-3 py-2 rounded w-full"
           />
           <button
             onClick={submitComment}
-            className="mt-2 px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-500"
+            className="mt-2 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-500"
           >
             Submit Rewrite
           </button>
@@ -440,11 +402,11 @@ export default function PlazaComments({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Write a comment…"
-            className="flex-1 bg-neutral-800 text-gray-200 text-sm px-3 py-2 rounded"
+            className="flex-1 bg-white border border-gray-300 text-gray-900 text-sm px-3 py-2 rounded"
           />
           <button
             onClick={submitComment}
-            className="px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-500"
+            className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-500"
           >
             Post
           </button>
@@ -452,7 +414,7 @@ export default function PlazaComments({
       )}
 
       {toast && (
-        <p className="mt-2 text-xs text-green-400">{toast}</p>
+        <p className="mt-2 text-xs text-green-600">{toast}</p>
       )}
     </div>
   );

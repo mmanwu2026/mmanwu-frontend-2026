@@ -8,10 +8,13 @@ import React, {
 } from "react";
 
 import { useSupabase } from "@/context/SupabaseContext";
-import Sidebar from "@/components/plaza/Sidebar";
-import FloatingComposer from "@/components/plaza/FloatingComposer";
 import PlazaCard from "@/components/plaza/PlazaCard";
 import UnreadListener from "@/components/UnreadListener";
+
+import MobileHeader from "@/components/MobileHeader";
+import BottomNav from "@/components/BottomNav";
+import MobileComposerButton from "@/components/MobileComposerButton";
+import MobileComposerSheet from "@/components/MobileComposerSheet";
 
 interface ReactionCounts {
   mask1: number;
@@ -44,7 +47,6 @@ const PAGE_SIZE = 20;
 export default function PlazaPage() {
   const { supabase } = useSupabase();
 
-  // ⭐ Replaces useUser()
   const [uid, setUid] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
 
@@ -59,9 +61,10 @@ export default function PlazaPage() {
 
   const reloadGuardRef = useRef(false);
 
+  const [composerOpen, setComposerOpen] = useState(false);
+
   useEffect(() => setHydrated(true), []);
 
-  // ⭐ Load authenticated user
   useEffect(() => {
     async function loadSession() {
       const session = await supabase.auth.getSession();
@@ -73,7 +76,6 @@ export default function PlazaPage() {
   }, [supabase]);
 
   const sessionReady = hydrated && !sessionLoading;
-
   const unreadListener = hydrated ? <UnreadListener /> : null;
 
   // -----------------------------------------------------
@@ -242,9 +244,7 @@ export default function PlazaPage() {
 
   useEffect(() => {
     if (!sessionReady) return;
-
     if (posts.length > 0) return;
-
     fetchPosts(0, false);
   }, [sessionReady, fetchPosts, posts.length]);
 
@@ -368,93 +368,101 @@ export default function PlazaPage() {
   // -----------------------------------------------------
   if (!hydrated || sessionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading Plaza…</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
+        <p className="text-sm text-gray-500">Loading Plaza…</p>
       </div>
     );
   }
 
   if (!uid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Please log in.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
+        <p className="text-sm text-gray-500">Please log in.</p>
       </div>
     );
   }
 
+  // -----------------------------------------------------
+  // MOBILE-FIRST LAYOUT
+  // -----------------------------------------------------
   return (
-    <div className="min-h-screen w-full bg-black text-gray-100">
+    <div className="min-h-screen w-full bg-gray-50 text-gray-900 pb-20">
       {unreadListener}
 
-      <Sidebar />
+      <MobileHeader />
 
-      <div className="fixed left-0 top-20 w-[120px] px-4 z-[5000] pointer-events-none">
-        <div className="pointer-events-auto">
-          <FloatingComposer onPost={reloadPosts} />
-        </div>
+      <div className="p-4 pt-6">
+        <h1 className="text-2xl font-semibold tracking-wide text-gray-900 text-center">
+          Mman Plaza
+        </h1>
+        <p className="mt-1 text-xs text-gray-500 text-center">
+          Community reactions, aura, and spirit in a clean feed.
+        </p>
       </div>
 
-      <div className="flex">
-        <div className="w-[120px] shrink-0 bg-black pointer-events-none" />
-
-        <div className="flex-1 flex flex-col items-center pt-36 pb-40 px-4">
-          <div className="w-full flex flex-col items-center mb-10">
-            <h1 className="text-3xl font-bold text-purple-200 tracking-wide clean-plaza-header">
-              Mman Plaza
-            </h1>
-          </div>
-
-          {loading && <p className="text-gray-300">Loading posts…</p>}
-
-          {!loading && posts.length === 0 && (
-            <p className="text-gray-300">No posts yet…</p>
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-xl space-y-6 px-4">
+          {loading && (
+            <p className="text-sm text-gray-500 text-center">Loading posts…</p>
           )}
 
-          <div className="space-y-12 w-full flex flex-col items-center">
-            {posts.map((post) => {
-              const creator = creators[post.creator_id];
+          {!loading && posts.length === 0 && (
+            <p className="text-sm text-gray-500 text-center">No posts yet…</p>
+          )}
 
-              if (!creator) {
-                return (
-                  <div
-                    key={post.id}
-                    className="text-gray-500 text-xs italic"
-                  >
-                    Loading identity…
-                  </div>
-                );
-              }
+          {posts.map((post) => {
+            const creator = creators[post.creator_id];
 
+            if (!creator) {
               return (
-                <PlazaCard
+                <div
                   key={post.id}
-                  post={post}
-                  creator={creator}
-                  userId={uid}
-                  onDeleteAction={handleDelete}
-                  onReactAction={reloadPosts}
-                />
+                  className="text-xs italic text-gray-400 text-center"
+                >
+                  Loading identity…
+                </div>
               );
-            })}
-          </div>
+            }
+
+            return (
+              <PlazaCard
+                key={post.id}
+                post={post}
+                creator={creator}
+                userId={uid}
+                onDeleteAction={handleDelete}
+                onReactAction={reloadPosts}
+              />
+            );
+          })}
 
           {!loading && hasMore && (
             <button
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="mt-8 bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 disabled:opacity-50 text-sm"
+              className="mt-6 bg-blue-600 px-4 py-2 rounded-md text-sm text-white hover:bg-blue-500 disabled:opacity-50 w-full"
             >
               {loadingMore ? "Loading more…" : "Load more"}
             </button>
           )}
 
           {!hasMore && posts.length > 0 && (
-            <p className="mt-4 text-gray-500 text-xs">
+            <p className="mt-4 text-xs text-gray-500 text-center">
               You’ve reached the end of the Plaza.
             </p>
           )}
         </div>
       </div>
+
+      <MobileComposerButton onOpen={() => setComposerOpen(true)} />
+
+      <MobileComposerSheet
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        onPost={reloadPosts}
+      />
+
+      <BottomNav />
     </div>
   );
 }
