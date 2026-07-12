@@ -61,12 +61,12 @@ export default function MobileAuthNav() {
       <div className="ml-auto flex items-center gap-4 text-gray-700">
 
         {/* 🎵 Sound Square */}
-        <Link href="/sound">
+        <Link href="/sound-square">
           <MusicalNoteIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
         {/* 🎥 Vision Square */}
-        <Link href="/vision">
+        <Link href="/vision-square">
           <VideoCameraIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
@@ -76,13 +76,13 @@ export default function MobileAuthNav() {
         </Link>
 
         {/* 💬 Messenger */}
-        <Link href="/messages">
+        <Link href="/messenger">
           <ChatBubbleLeftRightIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
         {/* ✏️ Composer */}
         <button
-          onClick={() => router.push("/composer")}
+          onClick={() => router.push("/compose")}
           className="hover:text-purple-600"
         >
           <PencilSquareIcon className="w-6 h-6" />
