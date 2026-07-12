@@ -2,12 +2,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 import ProvidersWrapper from "./providers-wrapper";
 import { createSupabaseServerClient } from "./lib/supabase/server";
-import Navbar from "@/components/layout/Navbar";
 import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
-import PushInitializer from "@/app/PushInitializer"; // ⭐ GLOBAL PUSH SUBSCRIPTION
+import PushInitializer from "@/app/PushInitializer";
 
-// ⭐ EARLY SERVICE WORKER REGISTRATION (Safari requires pre-hydration)
+// ⭐ EARLY SERVICE WORKER REGISTRATION
 function SWRegisterScript() {
   return (
     <script
@@ -23,14 +22,12 @@ function SWRegisterScript() {
   );
 }
 
-// ⭐ MOBILE PWA KEEP-ALIVE + NOTIFICATION PERMISSION
+// ⭐ MOBILE PWA RELIABILITY
 function MobilePWAReliabilityScript() {
   return (
     <script
       dangerouslySetInnerHTML={{
         __html: `
-
-          // Request Notification permission early (foreground call alerts)
           if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
             Notification.requestPermission().catch(() => {});
           }
@@ -45,32 +42,25 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Initialize Supabase server client
   createSupabaseServerClient();
 
   return (
     <html lang="en">
       <head>
-        {/* ⭐ REQUIRED FOR PWA */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#ffffff" />
 
-        {/* ⭐ REQUIRED FOR iOS PWA INSTALL */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
 
-      <body className="bg-black">
-        {/* ⭐ SERVICE WORKER MUST REGISTER BEFORE HYDRATION */}
+      {/* ⭐ LIGHT MODE + MOBILE-FIRST */}
+      <body className="bg-gray-50 text-gray-900 min-h-screen">
         <SWRegisterScript />
-
-        {/* ⭐ MOBILE PWA RELIABILITY (KEEP-ALIVE + Notification permission) */}
         <MobilePWAReliabilityScript />
 
         <ProvidersWrapper>
-          <Navbar />
-
           {/* ⭐ GLOBAL PUSH SUBSCRIPTION */}
           <PushInitializer />
 
@@ -80,8 +70,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* ⭐ GLOBAL INSTALL PROMPT */}
           <AppInstallPrompt />
 
+          {/* ⭐ PAGE CONTENT */}
           <div className="contents">{children}</div>
 
+          {/* ⭐ PORTAL ROOT */}
           <div id="modal-root"></div>
         </ProvidersWrapper>
       </body>
