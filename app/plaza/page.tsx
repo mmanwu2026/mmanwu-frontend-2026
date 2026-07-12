@@ -363,106 +363,108 @@ export default function PlazaPage() {
     setPage(nextPage);
   }
 
-  // -----------------------------------------------------
-  // RENDER
-  // -----------------------------------------------------
-  if (!hydrated || sessionLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
-        <p className="text-sm text-gray-500">Loading Plaza…</p>
-      </div>
-    );
-  }
-
-  if (!uid) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
-        <p className="text-sm text-gray-500">Please log in.</p>
-      </div>
-    );
-  }
-
-  // -----------------------------------------------------
-  // MOBILE-FIRST LAYOUT
-  // -----------------------------------------------------
+// -----------------------------------------------------
+// RENDER
+// -----------------------------------------------------
+if (!hydrated || sessionLoading) {
   return (
-    <div className="w-full bg-gray-50 text-gray-900 pb-20">
-      {unreadListener}
-
-      <MobileHeader />
-
-      <div className="p-4 pt-6">
-        <h1 className="text-2xl font-semibold tracking-wide text-gray-900 text-center">
-          Mman Plaza
-        </h1>
-        <p className="mt-1 text-xs text-gray-500 text-center">
-          Community reactions, aura, and spirit in a clean feed.
-        </p>
-      </div>
-
-      <div className="w-full flex justify-center">
-        <div className="w-full max-w-xl space-y-6 px-4">
-          {loading && (
-            <p className="text-sm text-gray-500 text-center">Loading posts…</p>
-          )}
-
-          {!loading && posts.length === 0 && (
-            <p className="text-sm text-gray-500 text-center">No posts yet…</p>
-          )}
-
-          {posts.map((post) => {
-            const creator = creators[post.creator_id];
-
-            if (!creator) {
-              return (
-                <div
-                  key={post.id}
-                  className="text-xs italic text-gray-400 text-center"
-                >
-                  Loading identity…
-                </div>
-              );
-            }
-
-            return (
-              <PlazaCard
-                key={post.id}
-                post={post}
-                creator={creator}
-                userId={uid}
-                onDeleteAction={handleDelete}
-                onReactAction={reloadPosts}
-              />
-            );
-          })}
-
-          {!loading && hasMore && (
-            <button
-              onClick={handleLoadMore}
-              disabled={loadingMore}
-              className="mt-6 bg-blue-600 px-4 py-2 rounded-md text-sm text-white hover:bg-blue-500 disabled:opacity-50 w-full"
-            >
-              {loadingMore ? "Loading more…" : "Load more"}
-            </button>
-          )}
-
-          {!hasMore && posts.length > 0 && (
-            <p className="mt-4 text-xs text-gray-500 text-center">
-              You’ve reached the end of the Plaza.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <MobileComposerButton onOpen={() => setComposerOpen(true)} />
-
-      <MobileComposerSheet
-        open={composerOpen}
-        onClose={() => setComposerOpen(false)}
-        onPost={reloadPosts}
-      />
-
-      <BottomNav />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
+      <p className="text-sm text-gray-500">Loading Plaza…</p>
     </div>
   );
+}
+
+if (!uid) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
+      <p className="text-sm text-gray-500">Please log in.</p>
+    </div>
+  );
+}
+
+// -----------------------------------------------------
+// MOBILE-FIRST LAYOUT
+// -----------------------------------------------------
+return (
+  <div className="w-full bg-gray-50 text-gray-900 pb-20">
+    {unreadListener}
+
+    <MobileHeader />
+
+    <div className="p-4 pt-6">
+      <h1 className="text-2xl font-semibold tracking-wide text-gray-900 text-center">
+        Mman Plaza
+      </h1>
+      <p className="mt-1 text-xs text-gray-500 text-center">
+        Community reactions, aura, and spirit in a clean feed.
+      </p>
+    </div>
+
+    {/* ⭐ FIX #1 — LOWER PLAZA FEED STACKING CONTEXT */}
+    <div className="w-full flex justify-center relative z-[1]">
+      {/* ⭐ FIX #2 — LOWER INNER WRAPPER STACKING CONTEXT */}
+      <div className="w-full max-w-xl space-y-6 px-4 relative z-[1]">
+        {loading && (
+          <p className="text-sm text-gray-500 text-center">Loading posts…</p>
+        )}
+
+        {!loading && posts.length === 0 && (
+          <p className="text-sm text-gray-500 text-center">No posts yet…</p>
+        )}
+
+        {posts.map((post) => {
+          const creator = creators[post.creator_id];
+
+          if (!creator) {
+            return (
+              <div
+                key={post.id}
+                className="text-xs italic text-gray-400 text-center"
+              >
+                Loading identity…
+              </div>
+            );
+          }
+
+          return (
+            <PlazaCard
+              key={post.id}
+              post={post}
+              creator={creator}
+              userId={uid}
+              onDeleteAction={handleDelete}
+              onReactAction={reloadPosts}
+            />
+          );
+        })}
+
+        {!loading && hasMore && (
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="mt-6 bg-blue-600 px-4 py-2 rounded-md text-sm text-white hover:bg-blue-500 disabled:opacity-50 w-full"
+          >
+            {loadingMore ? "Loading more…" : "Load more"}
+          </button>
+        )}
+
+        {!hasMore && posts.length > 0 && (
+          <p className="mt-4 text-xs text-gray-500 text-center">
+            You’ve reached the end of the Plaza.
+          </p>
+        )}
+      </div>
+    </div>
+
+    <MobileComposerButton onOpen={() => setComposerOpen(true)} />
+
+    <MobileComposerSheet
+      open={composerOpen}
+      onClose={() => setComposerOpen(false)}
+      onPost={reloadPosts}
+    />
+
+    <BottomNav />
+  </div>
+);
 }
