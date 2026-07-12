@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
 import { useSupabase } from "@/context/SupabaseContext";
+import { useRouter } from "next/navigation";
 
 interface GatekeeperResponse {
   autoApprove?: boolean;
@@ -16,15 +17,8 @@ interface RewriteOption {
   explanation: string;
 }
 
-export default function MobileComposerSheet({
-  open,
-  onClose,
-  onPost,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onPost: (post: any) => void;
-}) {
+export default function ComposerPage() {
+  const router = useRouter();
   const { supabase } = useSupabase();
 
   const [uid, setUid] = useState<string | null>(null);
@@ -80,7 +74,8 @@ export default function MobileComposerSheet({
       return;
     }
 
-    if (data) onPost(data);
+    // ⭐ After posting, return to Plaza
+    router.replace("/plaza");
   }
 
   async function handleSubmit(): Promise<void> {
@@ -92,7 +87,6 @@ export default function MobileComposerSheet({
       await publishToSupabase(content);
       setToastMessage("The spirits approve your message ✨");
       setContent("");
-      onClose();
       return;
     }
 
@@ -119,10 +113,7 @@ export default function MobileComposerSheet({
     setShowGatekeeper(false);
     publishToSupabase(finalText);
     setContent("");
-    onClose();
   }
-
-  if (!open) return null;
 
   return (
     <>
@@ -148,7 +139,7 @@ export default function MobileComposerSheet({
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h1 className="text-lg font-semibold text-gray-900">Create Post</h1>
           <button
-            onClick={onClose}
+            onClick={() => router.back()}
             className="text-gray-500 text-xl px-2 py-1 hover:text-gray-700"
           >
             ✕

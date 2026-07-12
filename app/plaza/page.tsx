@@ -11,10 +11,6 @@ import { useSupabase } from "@/context/SupabaseContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
 import UnreadListener from "@/components/UnreadListener";
 
-import BottomNav from "@/components/BottomNav";
-import MobileComposerButton from "@/components/MobileComposerButton";
-import MobileComposerSheet from "@/components/MobileComposerSheet";
-
 interface ReactionCounts {
   mask1: number;
   mask2: number;
@@ -59,8 +55,6 @@ export default function PlazaPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const reloadGuardRef = useRef(false);
-
-  const [composerOpen, setComposerOpen] = useState(false);
 
   useEffect(() => setHydrated(true), []);
 
@@ -253,205 +247,120 @@ export default function PlazaPage() {
   }, [sessionReady, fetchPosts]);
 
   // -----------------------------------------------------
-  // REALTIME SUBSCRIPTIONS
-  // -----------------------------------------------------
-  useEffect(() => {
-    if (!sessionReady) return;
-
-    const channel = supabase
-      .channel("plaza-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reactions" },
-        () => {
-          if (!reloadGuardRef.current) {
-            reloadGuardRef.current = true;
-            fetchPosts(0, false).finally(() => {
-              setTimeout(() => {
-                reloadGuardRef.current = false;
-              }, 500);
-            });
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        () => {
-          if (!reloadGuardRef.current) {
-            reloadGuardRef.current = true;
-            fetchPosts(0, false).finally(() => {
-              setTimeout(() => {
-                reloadGuardRef.current = false;
-              }, 500);
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [sessionReady, supabase, fetchPosts]);
-
-  // -----------------------------------------------------
-  // FETCH CREATOR PROFILES
-  // -----------------------------------------------------
-  async function fetchCreator(id: string) {
-    if (!sessionReady) return null;
-
-    if (creators[id]) return creators[id];
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, username, avatar_url")
-      .eq("id", id)
-      .single();
-
-    if (!error && data) {
-      const profile = data as CreatorProfile;
-      setCreators((prev) => ({ ...prev, [id]: profile }));
-      return profile;
-    }
-
-    return null;
-  }
-
-  useEffect(() => {
-    if (!sessionReady) return;
-
-    const missingCreatorIds = posts
-      .map((p) => p.creator_id)
-      .filter((id) => !creators[id]);
-
-    if (missingCreatorIds.length === 0) return;
-
-    (async () => {
-      for (const id of missingCreatorIds) {
-        await fetchCreator(id);
-      }
-    })();
-  }, [sessionReady, posts, creators]);
-
-  // -----------------------------------------------------
-  // DELETE POST
-  // -----------------------------------------------------
-  async function handleDelete(postId: string) {
-    if (!sessionReady) return;
-
-    setDeletingId(postId);
-
-    await supabase.from("posts").delete().eq("id", postId);
-
-    setDeletingId(null);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-  }
-
-  // -----------------------------------------------------
-  // LOAD MORE
-  // -----------------------------------------------------
-  async function handleLoadMore() {
-    if (!sessionReady) return;
-    if (!hasMore || loadingMore) return;
-
-    setLoadingMore(true);
-
-    const nextPage = page + 1;
-    await fetchPosts(nextPage, true);
-    setPage(nextPage);
-  }
-
+// DELETE POST
 // -----------------------------------------------------
-// RENDER
-// -----------------------------------------------------
-if (!hydrated || sessionLoading) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
-      <p className="text-sm text-gray-500">Loading Plaza…</p>
-    </div>
-  );
-}
+async function handleDelete(postId: string) {
+  if (!sessionReady) return;
 
-if (!uid) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
-      <p className="text-sm text-gray-500">Please log in.</p>
-    </div>
-  );
+  setDeletingId(postId);
+
+  await supabase.from("posts").delete().eq("id", postId);
+
+  setDeletingId(null);
+  setPosts((prev) => prev.filter((p) => p.id !== postId));
 }
 
 // -----------------------------------------------------
-// MOBILE-FIRST LAYOUT
+// LOAD MORE
 // -----------------------------------------------------
-return (
-  <div className="min-h-[100dvh] w-full bg-gray-50 text-gray-900 flex flex-col">
-    {unreadListener}
+async function handleLoadMore() {
+  if (!sessionReady) return;
+  if (!hasMore || loadingMore) return;
 
-    {/* ⭐ FEED — viewport scrolls, NOT this div */}
-    <div className="w-full flex justify-center flex-1">
-      <div className="w-full max-w-xl space-y-6 px-4">
-        {loading && (
-          <p className="text-sm text-gray-500 text-center">Loading posts…</p>
-        )}
+  setLoadingMore(true);
 
-        {!loading && posts.length === 0 && (
-          <p className="text-sm text-gray-500 text-center">No posts yet…</p>
-        )}
+  const nextPage = page + 1;
+  await fetchPosts(nextPage, true);
+  setPage(nextPage);
+}
 
-        {posts.map((post) => {
-          const creator = creators[post.creator_id];
-
-          if (!creator) {
-            return (
-              <div
-                key={post.id}
-                className="text-xs italic text-gray-400 text-center"
-              >
-                Loading identity…
-              </div>
-            );
-          }
-
-          return (
-            <PlazaCard
-              key={post.id}
-              post={post}
-              creator={creator}
-              userId={uid}
-              onDeleteAction={handleDelete}
-              onReactAction={reloadPosts}
-            />
-          );
-        })}
-
-        {!loading && hasMore && (
-          <button
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="mt-6 bg-blue-600 px-4 py-2 rounded-md text-sm text-white hover:bg-blue-500 disabled:opacity-50 w-full"
-          >
-            {loadingMore ? "Loading more…" : "Load more"}
-          </button>
-        )}
-
-        {!hasMore && posts.length > 0 && (
-          <p className="mt-4 text-xs text-gray-500 text-center">
-            You’ve reached the end of the Plaza.
-          </p>
-        )}
+  // -----------------------------------------------------
+  // RENDER
+  // -----------------------------------------------------
+  if (!hydrated || sessionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
+        <p className="text-sm text-gray-500">Loading Plaza…</p>
       </div>
+    );
+  }
+
+  if (!uid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-700">
+        <p className="text-sm text-gray-500">Please log in.</p>
+      </div>
+    );
+  }
+
+  // -----------------------------------------------------
+  // MOBILE-FIRST LAYOUT (Corrected)
+  // -----------------------------------------------------
+  return (
+    <div className="min-h-[100dvh] w-full bg-gray-50 text-gray-900 flex flex-col">
+      {unreadListener}
+
+      {/* ⭐ FEED — viewport scrolls, NOT this div */}
+      <div className="w-full flex justify-center flex-1">
+        <div className="w-full max-w-xl space-y-6 px-4">
+          {loading && (
+            <p className="text-sm text-gray-500 text-center">Loading posts…</p>
+          )}
+
+          {!loading && posts.length === 0 && (
+            <p className="text-sm text-gray-500 text-center">No posts yet…</p>
+          )}
+
+          {posts.map((post) => {
+            const creator = creators[post.creator_id];
+
+            if (!creator) {
+              return (
+                <div
+                  key={post.id}
+                  className="text-xs italic text-gray-400 text-center"
+                >
+                  Loading identity…
+                </div>
+              );
+            }
+
+            return (
+              <PlazaCard
+                key={post.id}
+                post={post}
+                creator={creator}
+                userId={uid}
+                onDeleteAction={handleDelete}
+                onReactAction={reloadPosts}
+              />
+            );
+          })}
+
+          {!loading && hasMore && (
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="mt-6 bg-blue-600 px-4 py-2 rounded-md text-sm text-white hover:bg-blue-500 disabled:opacity-50 w-full"
+            >
+              {loadingMore ? "Loading more…" : "Load more"}
+            </button>
+          )}
+
+          {!hasMore && posts.length > 0 && (
+            <p className="mt-4 text-xs text-gray-500 text-center">
+              You’ve reached the end of the Plaza.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* ⭐ Composer is now a full page → remove modal + button */}
+      {/* Removed:
+          <MobileComposerButton onOpen={() => setComposerOpen(true)} />
+          <MobileComposerSheet ... />
+          <BottomNav />
+      */}
     </div>
-
-    <MobileComposerButton onOpen={() => setComposerOpen(true)} />
-
-    <MobileComposerSheet
-      open={composerOpen}
-      onClose={() => setComposerOpen(false)}
-      onPost={reloadPosts}
-    />
-
-    <BottomNav />
-  </div>
-);
+  );
 }

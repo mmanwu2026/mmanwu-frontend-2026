@@ -9,14 +9,16 @@ import UpdateBanner from "@/components/UpdateBanner";
 export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
   return (
     <ClientProviders>
-      {/* ⭐ REMOVE flex layout — allow viewport to be the scroll container */}
+      {/* Global banner */}
       <UpdateBanner />
+
+      {/* AuthNav now handles navigation to /composer */}
       <AuthNav />
 
       <UnreadProvider>
         <SWRegister />
 
-        {/* ⭐ Children render directly — no flex, no height constraints */}
+        {/* Page content */}
         {children}
       </UnreadProvider>
     </ClientProviders>
