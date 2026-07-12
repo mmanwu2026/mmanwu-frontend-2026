@@ -69,10 +69,6 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
-
-  if (event.data?.type === "KEEP_ALIVE") {
-    // No-op: keeps SW alive on mobile
-  }
 });
 
 // ⭐ NOTIFICATION CLICK ROUTING — Deep Link to Call Screen

@@ -29,13 +29,6 @@ function MobilePWAReliabilityScript() {
     <script
       dangerouslySetInnerHTML={{
         __html: `
-          document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-              navigator.serviceWorker.ready.then(reg => {
-                reg.active?.postMessage({ type: 'KEEP_ALIVE' });
-              });
-            }
-          });
 
           // Request Notification permission early (foreground call alerts)
           if (typeof Notification !== 'undefined' && Notification.permission === 'default') {

@@ -29,20 +29,6 @@ export default function CallListener() {
     loadUser();
   }, [supabase]);
 
-  // ⭐ Mobile PWA KEEP-ALIVE (prevents SW suspension)
-  useEffect(() => {
-    const handler = () => {
-      if (document.visibilityState === "visible") {
-        navigator.serviceWorker.ready.then((reg) => {
-          reg.active?.postMessage({ type: "KEEP_ALIVE" });
-        });
-      }
-    };
-
-    document.addEventListener("visibilitychange", handler);
-    return () => document.removeEventListener("visibilitychange", handler);
-  }, []);
-
   // Accept call
   function acceptCall() {
     if (!incomingCall) return;
