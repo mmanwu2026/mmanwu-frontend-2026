@@ -66,7 +66,7 @@ export default function MobileAuthNav() {
           <BellIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
-        <Link href="/messages">
+        <Link href="/messenger">
           <ChatBubbleLeftRightIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
