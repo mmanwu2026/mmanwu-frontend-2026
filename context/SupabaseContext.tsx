@@ -24,7 +24,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       {
         auth: {
           persistSession: true,
-          storage: localStorage,
+          storage: typeof window !== "undefined" ? localStorage : undefined,
           autoRefreshToken: true,
         },
       }
@@ -33,19 +33,21 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
 
-  // ⭐ Restore session manually on startup
   useEffect(() => {
-    const saved = localStorage.getItem("supabase_session");
-    if (saved) {
-      const session = JSON.parse(saved);
-      supabase.auth.setSession(session);
-      setUser(session.user ?? null);
+    // ⭐ Restore session only on client
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("supabase_session");
+      if (saved) {
+        const session = JSON.parse(saved);
+        supabase.auth.setSession(session);
+        setUser(session.user ?? null);
+      }
     }
 
-    // ⭐ Listen for session changes and save them
+    // ⭐ Listen for session changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (session) {
+        if (typeof window !== "undefined" && session) {
           localStorage.setItem("supabase_session", JSON.stringify(session));
         }
         setUser(session?.user ?? null);
