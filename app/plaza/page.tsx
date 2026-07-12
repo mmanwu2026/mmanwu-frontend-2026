@@ -11,7 +11,6 @@ import { useSupabase } from "@/context/SupabaseContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
 import UnreadListener from "@/components/UnreadListener";
 
-import MobileHeader from "@/components/MobileHeader";
 import BottomNav from "@/components/BottomNav";
 import MobileComposerButton from "@/components/MobileComposerButton";
 import MobileComposerSheet from "@/components/MobileComposerSheet";
