@@ -144,9 +144,12 @@ export default function CallListener() {
         }
 
         // Handle call_started (future-proof)
-        if (data.type === "call_started") {
-          console.log("CALL LISTENER DEBUG → call_started received");
-        }
+ if (data.type === "call_started") {
+  console.log(
+    "CALL LISTENER DEBUG → call_started received (ignored for routing / UI)"
+  );
+  return; // ⭐ never use this for modal or navigation
+}
 
         // Handle call_cancelled (future-proof)
         if (data.type === "call_cancelled") {

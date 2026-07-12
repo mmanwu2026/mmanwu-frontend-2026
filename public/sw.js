@@ -23,12 +23,20 @@ self.addEventListener("push", (event) => {
     return;
   }
 
-  const callerName = payload.callerName || "Incoming Caller";
-  const roomId = payload.data?.roomId;
+  const data = payload.data || {};
+
+  // ⭐ Ignore non-incoming_call events (prevents call_started hijacking)
+  if (data.event_type && data.event_type !== "incoming_call") {
+    console.log("SW DEBUG → ignoring non-incoming_call push event");
+    return;
+  }
+
+  const callerName = data.caller_name || payload.callerName || "Incoming Caller";
+  const roomId = data.room_id || data.roomId;
 
   // 🔑 Force callee role in the deep link
   const url =
-    payload.data?.url ||
+    data.url ||
     (roomId ? `/call/${roomId}?role=callee` : "/messenger");
 
   const title = `📞 Incoming Call from ${callerName}`;
@@ -40,6 +48,7 @@ self.addEventListener("push", (event) => {
     vibrate: [300, 150, 300, 150, 300],
     requireInteraction: true,
     data: {
+      event_type: "incoming_call", // ⭐ reinforce type
       url,
       roomId,
       callerName,
@@ -72,7 +81,18 @@ self.addEventListener("message", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/messenger";
+  const data = event.notification.data || {};
+
+  // ⭐ Ignore non-incoming_call clicks
+  if (data.event_type && data.event_type !== "incoming_call") {
+    console.log("SW DEBUG → ignoring non-incoming_call click");
+    return;
+  }
+
+  const roomId = data.roomId || data.room_id;
+  const url =
+    data.url ||
+    (roomId ? `/call/${roomId}?role=callee` : "/messenger");
 
   event.waitUntil(
     self.clients

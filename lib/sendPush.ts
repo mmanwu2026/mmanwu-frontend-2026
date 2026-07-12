@@ -48,6 +48,7 @@ export async function sendPush(
           title: "Incoming Call",
           body: `${callerName} is calling you`,
           data: {
+            event_type: "incoming_call",      // ⭐ tag this as incoming_call
             room_id: roomId,
             caller_name: callerName,
             url: `/call/${roomId}?role=callee`,
