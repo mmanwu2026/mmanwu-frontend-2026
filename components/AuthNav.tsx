@@ -48,12 +48,12 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
-  return (
+return (
+  <div className="w-full">   {/* ⭐ NEW: escape flex parent */}
     <div className="sticky top-0 z-[5000] w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center">
 
-      {/* ⭐ LEFT SIDE ICONS */}
+      {/* LEFT SIDE ICONS */}
       <div className="flex items-center gap-4 text-gray-700">
-
         <Link href="/sound-square">
           <MusicalNoteIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
@@ -78,12 +78,12 @@ export default function MobileAuthNav() {
         </button>
       </div>
 
-      {/* ⭐ CENTER TITLE */}
+      {/* CENTER TITLE */}
       <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold text-gray-900">
         <Link href="/plaza">Mman Plaza</Link>
       </div>
 
-      {/* ⭐ RIGHT SIDE AUTH */}
+      {/* RIGHT SIDE AUTH */}
       <div className="ml-auto flex items-center gap-4 text-purple-600 text-sm font-medium">
         {!uid ? (
           <>
@@ -97,6 +97,8 @@ export default function MobileAuthNav() {
           </>
         )}
       </div>
+
     </div>
-  );
+  </div>
+);
 }
