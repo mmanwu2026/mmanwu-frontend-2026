@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSupabase } from "@/context/SupabaseContext";
 import { useState, useEffect } from "react";
 import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
+import { BellIcon } from "@heroicons/react/24/outline";
 
 export default function MobileAuthNav() {
   const { supabase } = useSupabase();
@@ -43,26 +44,36 @@ export default function MobileAuthNav() {
   }
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
-      {/* Left side: App name */}
-      <Link href="/plaza" className="text-lg font-semibold text-gray-900">
-        Mman Plaza
-      </Link>
+    <div className="relative w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center">
+      
+      {/* ⭐ Centered Logo / Title */}
+      <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold text-gray-900">
+        <Link href="/plaza">Mman Plaza</Link>
+      </div>
 
-      {/* Right side: Auth actions */}
-      {!uid ? (
-        <div className="flex gap-4 text-purple-600 text-sm font-medium">
-          <Link href="/signup" prefetch={false}>Sign Up</Link>
-          <Link href="/login" prefetch={false}>Log In</Link>
-        </div>
-      ) : (
-        <div className="flex gap-4 text-purple-600 text-sm font-medium">
-          <Link href={`/profile/${uid}`} prefetch={false}>
-            My Profile
-          </Link>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      )}
+      {/* ⭐ Right-side actions */}
+      <div className="ml-auto flex items-center gap-4 text-purple-600 text-sm font-medium">
+
+        {/* Notification Bell */}
+        <Link href="/notifications" className="text-gray-700">
+          <BellIcon className="w-6 h-6" />
+        </Link>
+
+        {/* Auth Actions */}
+        {!uid ? (
+          <>
+            <Link href="/signup" prefetch={false}>Sign Up</Link>
+            <Link href="/login" prefetch={false}>Log In</Link>
+          </>
+        ) : (
+          <>
+            <Link href={`/profile/${uid}`} prefetch={false}>
+              My Profile
+            </Link>
+            <button onClick={handleLogout}>Logout</button>
+          </>
+        )}
+      </div>
     </div>
   );
 }

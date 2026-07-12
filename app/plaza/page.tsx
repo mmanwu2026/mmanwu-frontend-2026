@@ -389,17 +389,6 @@ return (
  <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col overflow-hidden">
     {unreadListener}
 
-    <MobileHeader />
-
-    <div className="p-4 pt-6">
-      <h1 className="text-2xl font-semibold tracking-wide text-gray-900 text-center">
-        Mman Plaza
-      </h1>
-      <p className="mt-1 text-xs text-gray-500 text-center">
-        Community reactions, aura, and spirit in a clean feed.
-      </p>
-    </div>
-
     {/* ⭐ FIX #1 — LOWER PLAZA FEED STACKING CONTEXT */}
     <div className="w-full flex justify-center flex-1 overflow-y-auto relative z-[1]">
       {/* ⭐ FIX #2 — LOWER INNER WRAPPER STACKING CONTEXT */}
