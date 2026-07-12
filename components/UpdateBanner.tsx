@@ -21,7 +21,7 @@ export default function UpdateBanner() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-blue-600 text-white p-4 flex justify-between items-center shadow-lg z-50">
+    <div className="w-full bg-blue-600 text-white p-4 flex justify-between items-center shadow-lg">
       <span>New version available</span>
       <button
         onClick={refreshApp}
