@@ -386,7 +386,7 @@ if (!uid) {
 // MOBILE-FIRST LAYOUT
 // -----------------------------------------------------
 return (
-  <div className="w-full bg-gray-50 text-gray-900 pb-20">
+ <div className="min-h-screen w-full bg-gray-50 text-gray-900 pb-20 flex flex-col">
     {unreadListener}
 
     <MobileHeader />
