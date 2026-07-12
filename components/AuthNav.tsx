@@ -54,11 +54,11 @@ export default function MobileAuthNav() {
       {/* ⭐ LEFT SIDE ICONS */}
       <div className="flex items-center gap-4 text-gray-700">
 
-        <Link href="/sound">
+        <Link href="/sound-square">
           <MusicalNoteIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
-        <Link href="/vision">
+        <Link href="/vision-square">
           <VideoCameraIcon className="w-6 h-6 hover:text-purple-600" />
         </Link>
 
@@ -71,7 +71,7 @@ export default function MobileAuthNav() {
         </Link>
 
         <button
-          onClick={() => router.push("/composer")}
+          onClick={() => router.push("/compose")}
           className="hover:text-purple-600"
         >
           <PencilSquareIcon className="w-6 h-6" />
