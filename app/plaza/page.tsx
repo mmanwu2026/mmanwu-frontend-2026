@@ -247,32 +247,71 @@ export default function PlazaPage() {
   }, [sessionReady, fetchPosts]);
 
   // -----------------------------------------------------
-// DELETE POST
-// -----------------------------------------------------
-async function handleDelete(postId: string) {
-  if (!sessionReady) return;
+  // FETCH CREATOR PROFILES (RESTORED)
+  // -----------------------------------------------------
+  async function fetchCreator(id: string) {
+    if (!sessionReady) return null;
 
-  setDeletingId(postId);
+    if (creators[id]) return creators[id];
 
-  await supabase.from("posts").delete().eq("id", postId);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, avatar_url")
+      .eq("id", id)
+      .single();
 
-  setDeletingId(null);
-  setPosts((prev) => prev.filter((p) => p.id !== postId));
-}
+    if (!error && data) {
+      const profile = data as CreatorProfile;
+      setCreators((prev) => ({ ...prev, [id]: profile }));
+      return profile;
+    }
 
-// -----------------------------------------------------
-// LOAD MORE
-// -----------------------------------------------------
-async function handleLoadMore() {
-  if (!sessionReady) return;
-  if (!hasMore || loadingMore) return;
+    return null;
+  }
 
-  setLoadingMore(true);
+  useEffect(() => {
+    if (!sessionReady) return;
 
-  const nextPage = page + 1;
-  await fetchPosts(nextPage, true);
-  setPage(nextPage);
-}
+    const missingCreatorIds = posts
+      .map((p) => p.creator_id)
+      .filter((id) => !creators[id]);
+
+    if (missingCreatorIds.length === 0) return;
+
+    (async () => {
+      for (const id of missingCreatorIds) {
+        await fetchCreator(id);
+      }
+    })();
+  }, [sessionReady, posts, creators]);
+
+  // -----------------------------------------------------
+  // DELETE POST
+  // -----------------------------------------------------
+  async function handleDelete(postId: string) {
+    if (!sessionReady) return;
+
+    setDeletingId(postId);
+
+    await supabase.from("posts").delete().eq("id", postId);
+
+    setDeletingId(null);
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  }
+
+  // -----------------------------------------------------
+  // LOAD MORE
+  // -----------------------------------------------------
+  async function handleLoadMore() {
+    if (!sessionReady) return;
+    if (!hasMore || loadingMore) return;
+
+    setLoadingMore(true);
+
+    const nextPage = page + 1;
+    await fetchPosts(nextPage, true);
+    setPage(nextPage);
+  }
 
   // -----------------------------------------------------
   // RENDER
@@ -354,13 +393,6 @@ async function handleLoadMore() {
           )}
         </div>
       </div>
-
-      {/* ⭐ Composer is now a full page → remove modal + button */}
-      {/* Removed:
-          <MobileComposerButton onOpen={() => setComposerOpen(true)} />
-          <MobileComposerSheet ... />
-          <BottomNav />
-      */}
     </div>
   );
 }
