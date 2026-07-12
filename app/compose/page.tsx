@@ -130,12 +130,13 @@ export default function ComposerPage() {
       )}
 
       <div
-        className="
-          fixed inset-0 bg-white z-[8000] flex flex-col
-          pt-[env(safe-area-inset-top)]
-          pb-[env(safe-area-inset-bottom)]
-        "
-      >
+  className="
+    min-h-screen w-full bg-white flex flex-col
+    pt-[env(safe-area-inset-top)]
+    pb-[env(safe-area-inset-bottom)]
+  "
+>
+
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h1 className="text-lg font-semibold text-gray-900">Create Post</h1>
           <button
