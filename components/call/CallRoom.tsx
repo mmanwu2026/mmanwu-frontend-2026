@@ -65,25 +65,35 @@ export default function CallRoom({
   useEffect(() => {
     console.log("PC DEBUG → creating RTCPeerConnection");
 
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        {
-          username:
-            "dbmO5NTrYER8pb4YZUw0FpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
-          credential: "38c296aa-767d-11f1-b766-0242ac140004",
-          urls: [
-            "turn:us-turn8.xirsys.com:80?transport=udp",
-            "turn:us-turn8.xirsys.com:3478?transport=udp",
-            "turn:us-turn8.xirsys.com:80?transport=tcp",
-            "turn:us-turn8.xirsys.com:3478?transport=tcp",
-            "turns:us-turn8.xirsys.com:443?transport=tcp",
-            "turns:us-turn8.xirsys.com:5349?transport=tcp",
-          ],
-        },
+const pc = new RTCPeerConnection({
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+
+    // ⭐ Xirsys region server (your original)
+    {
+      urls: [
+        "turn:us-turn8.xirsys.com:80?transport=udp",
+        "turn:us-turn8.xirsys.com:3478?transport=udp",
+        "turn:us-turn8.xirsys.com:80?transport=tcp",
+        "turn:us-turn8.xirsys.com:3478?transport=tcp"
       ],
-      iceTransportPolicy: "all",
-    });
+      username: "dbmO5NTrYER8pb4YZUw0fpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
+      credential: "38c296aa-767d-11f1-b766-0242ac140004"
+    },
+
+    // ⭐ Xirsys global fallback (recommended for mobile)
+    {
+      urls: [
+        "turn:global.xirsys.net:3478?transport=udp",
+        "turn:global.xirsys.net:3478?transport=tcp",
+        "turn:global.xirsys.net:80?transport=udp",
+        "turn:global.xirsys.net:80?transport=tcp"
+      ],
+      username: "dbmO5NTrYER8pb4YZUw0fpIk5NWha3GLI9gbLfQBxOl7oOY2tVBtDiw--g4GrAptAAAAAGpHDhptbWFucGxhemE=",
+      credential: "38c296aa-767d-11f1-b766-0242ac140004"
+    }
+  ]
+});
 
     pcRef.current = pc;
 
