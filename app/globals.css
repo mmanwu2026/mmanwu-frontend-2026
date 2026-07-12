@@ -325,6 +325,17 @@ svg, svg * {
   stroke: currentColor !important;
   stroke-width: 2 !important;
 }
+
+svg {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  display: inline-block !important;
+}
+
+svg, svg * {
+  stroke: currentColor !important;
+}
+
 /* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
