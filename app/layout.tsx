@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       {/* ⭐ BODY MUST BE THE SCROLL ROOT */}
-      <body className="bg-gray-50 text-gray-900 min-h-[100dvh] overflow-x-hidden overflow-y-auto">
+      <body className="bg-gray-50 text-gray-900 overflow-x-hidden">
         <SWRegisterScript />
         <MobilePWAReliabilityScript />
 
