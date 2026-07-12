@@ -34,7 +34,7 @@ export default function EnableNotifications() {
       localStorage.setItem("notifications_enabled", "true");
 
       // ⭐ Redirect — PushInitializer will handle subscription
-      router.replace("/plaza");
+      router.replace("/redirector");
     } catch (err) {
       console.error("Push setup failed:", err);
       alert("Could not enable notifications.");
