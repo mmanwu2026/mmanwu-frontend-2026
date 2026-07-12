@@ -386,7 +386,7 @@ export default function PlazaPage() {
   // MOBILE-FIRST LAYOUT
   // -----------------------------------------------------
   return (
-    <div className="min-h-screen w-full bg-gray-50 text-gray-900 pb-20">
+    <div className="w-full bg-gray-50 text-gray-900 pb-20">
       {unreadListener}
 
       <MobileHeader />
