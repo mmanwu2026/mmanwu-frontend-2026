@@ -48,9 +48,9 @@ export async function sendPush(
           title: "Incoming Call",
           body: `${callerName} is calling you`,
           data: {
-            room_id: roomId,
-            caller_name: callerName,
-            url: `/call/${roomId}?role=callee`,
+            callerName: callerName,              // ✅ camelCase
+            roomId: roomId,                      // ✅ camelCase
+            url: `/call/${roomId}?role=callee`,  // deep link
           },
         }),
       }

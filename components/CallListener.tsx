@@ -29,6 +29,20 @@ export default function CallListener() {
     loadUser();
   }, [supabase]);
 
+  // ⭐ Mobile PWA KEEP-ALIVE (prevents SW suspension)
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === "visible") {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.active?.postMessage({ type: "KEEP_ALIVE" });
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, []);
+
   // Accept call
   function acceptCall() {
     if (!incomingCall) return;
@@ -56,7 +70,6 @@ export default function CallListener() {
     ringtoneRef.current?.pause();
     ringtoneRef.current = null;
 
-    // Insert decline event
     await supabase.from("call_events").insert({
       type: "call_declined",
       call_id: incomingCall.call_id,
@@ -69,7 +82,6 @@ export default function CallListener() {
 
     console.log("CALL LISTENER DEBUG → call_declined event inserted");
 
-    // Clear modal
     setIncomingCall(null);
   }
 
@@ -100,13 +112,29 @@ export default function CallListener() {
 
         console.log("CALL LISTENER DEBUG → event received:", data);
 
-        // Handle incoming call
+        // ⭐ Handle incoming call
         if (data.type === "incoming_call") {
           console.log("CALL LISTENER DEBUG → incoming_call detected");
 
+          const callerName = data.caller_name || "Someone";
+
+          // ⭐ Foreground → Notification API + modal
           if (document.visibilityState === "visible") {
             console.log("CALL LISTENER DEBUG → app visible → showing modal");
 
+            // Notification API fallback (foreground)
+            if (Notification.permission === "granted") {
+              try {
+                new Notification("Incoming Call", {
+                  body: `${callerName} is calling you`,
+                  icon: "/icons/call-large.png",
+                });
+              } catch (err) {
+                console.warn("CALL LISTENER DEBUG → Notification API error:", err);
+              }
+            }
+
+            // Show modal + ringtone
             setIncomingCall(data);
 
             try {
@@ -122,20 +150,21 @@ export default function CallListener() {
             return;
           }
 
-          // App not visible → push notification fallback
+          // ⭐ Background → Push notification fallback
           try {
             console.log("CALL LISTENER DEBUG → app hidden → sending push notification");
 
             const reg = await navigator.serviceWorker.ready;
+
             reg.showNotification("Incoming Call", {
-              body: `${data.caller_name || "Someone"} is calling you`,
+              body: `${callerName} is calling you`,
               icon: "/icons/icon-192.png",
               badge: "/icons/badge-72.png",
               data: {
-                url: data.url,
+                url: `/call/${data.room_id}?role=callee`,
                 call_id: data.call_id,
                 room_id: data.room_id,
-                from_name: data.caller_name,
+                from_name: callerName,
               },
             });
           } catch (err) {
@@ -143,32 +172,22 @@ export default function CallListener() {
           }
         }
 
-        // Handle call_started (future-proof)
+        // Future-proof events
         if (data.type === "call_started") {
           console.log("CALL LISTENER DEBUG → call_started received");
         }
 
-        // Handle call_cancelled (future-proof)
         if (data.type === "call_cancelled") {
           console.log("CALL LISTENER DEBUG → call_cancelled received");
-
-          // Stop ringtone if ringing
           ringtoneRef.current?.pause();
           ringtoneRef.current = null;
-
-          // Clear modal
           setIncomingCall(null);
         }
 
-        // Handle call_declined (callee-side cleanup)
         if (data.type === "call_declined") {
           console.log("CALL LISTENER DEBUG → call_declined received");
-
-          // Stop ringtone
           ringtoneRef.current?.pause();
           ringtoneRef.current = null;
-
-          // Clear modal
           setIncomingCall(null);
         }
       }

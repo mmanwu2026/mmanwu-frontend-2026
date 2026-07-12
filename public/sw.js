@@ -12,7 +12,7 @@ self.addEventListener("activate", (event) => {
 // REQUIRED: Fetch handler (even empty) so iOS + Edge allow PWA installation
 self.addEventListener("fetch", () => {});
 
-// ⭐ PUSH HANDLER — Improved Incoming Call Notification
+// ⭐ PUSH HANDLER — Incoming Call Notification
 self.addEventListener("push", (event) => {
   let payload = {};
 
@@ -23,12 +23,15 @@ self.addEventListener("push", (event) => {
     return;
   }
 
-  const callerName = payload.callerName || "Incoming Caller";
-  const roomId = payload.data?.roomId;
+  const data = payload.data || {};
 
-  // 🔑 Force callee role in the deep link
+  // Correct camelCase fields (matches sendPush.ts)
+  const callerName = data.callerName || "Incoming Caller";
+  const roomId = data.roomId;
+
+  // Deep link fallback
   const url =
-    payload.data?.url ||
+    data.url ||
     (roomId ? `/call/${roomId}?role=callee` : "/messenger");
 
   const title = `📞 Incoming Call from ${callerName}`;
@@ -61,10 +64,14 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// REQUIRED FOR UPDATE BANNER
+// ⭐ REQUIRED FOR UPDATE BANNER + KEEP_ALIVE
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+  if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+
+  if (event.data?.type === "KEEP_ALIVE") {
+    // No-op: keeps SW alive on mobile
   }
 });
 
