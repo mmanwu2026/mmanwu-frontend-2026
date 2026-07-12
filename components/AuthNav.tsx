@@ -66,9 +66,23 @@ export default function MobileAuthNav() {
       : "bg-purple-600 text-white border-purple-700"; // default plaza
 
   return (
-    <div className="w-full">
+    <div
+      className="w-full not-prose"
+      style={{
+        isolation: "auto",
+        position: "relative",
+        zIndex: 9999,
+      }}
+    >
       <div
-        className={`sticky top-0 z-[5000] w-full px-4 py-2 flex items-center border-b ${theme}`}
+        className={`sticky top-0 w-full px-4 py-2 flex items-center border-b ${theme}`}
+        style={{
+          isolation: "auto",
+          position: "sticky",
+          zIndex: 9999,
+          WebkitTransform: "translateZ(0)",
+          transform: "translateZ(0)",
+        }}
       >
         {/* LEFT SIDE ICONS */}
         <div className="flex items-center gap-4">
@@ -98,7 +112,7 @@ export default function MobileAuthNav() {
 
         {/* CENTER TITLE */}
         <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-          <Link href="/plaza">MMAN PLAZA — TEST</Link>
+          <Link href="/plaza">MMAN PLAZA</Link>
         </div>
 
         {/* RIGHT SIDE AUTH */}
