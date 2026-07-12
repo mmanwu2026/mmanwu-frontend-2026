@@ -10,10 +10,11 @@
 /* 2. CORE LAYOUT                                               */
 /* ------------------------------------------------------------ */
 
+/* ❌ REMOVED isolation: isolate — breaks fixed positioning */
+/* ❌ REMOVED position: relative — unnecessary */
+/* ❌ REMOVED overflow: visible — not needed */
 .isolate-layout {
-  isolation: isolate;
-  position: relative;
-  overflow: visible;
+  /* intentionally left empty */
 }
 
 /* ------------------------------------------------------------ */
@@ -101,7 +102,7 @@
 /* ------------------------------------------------------------ */
 
 .plaza-background {
-  background: #f9fafb; /* Tailwind gray-50 */
+  background: #f9fafb;
   padding: 2rem 1rem;
 }
 
@@ -199,7 +200,6 @@ img {
   height: auto;
 }
 
-/* Plaza avatar override */
 .plaza-avatar {
   width: 3rem !important;
   height: 3rem !important;
@@ -208,12 +208,12 @@ img {
 }
 
 /* ------------------------------------------------------------ */
-/* 11. MODAL ROOT                                                */
+/* 11. MODAL ROOT — FIXED POSITION REMOVED                      */
 /* ------------------------------------------------------------ */
 
 #modal-root {
-  position: fixed !important;
-  inset: 0 !important;
+  position: relative !important;
+  inset: auto !important;
   z-index: 2147483647 !important;
   pointer-events: none !important;
 }
