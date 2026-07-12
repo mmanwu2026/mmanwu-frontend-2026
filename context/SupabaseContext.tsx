@@ -20,19 +20,34 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: true,
+          storage: localStorage,
+          autoRefreshToken: true,
+        },
+      }
     );
   }, []);
 
   const [user, setUser] = useState<User | null>(null);
 
+  // ⭐ Restore session manually on startup
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
+    const saved = localStorage.getItem("supabase_session");
+    if (saved) {
+      const session = JSON.parse(saved);
+      supabase.auth.setSession(session);
+      setUser(session.user ?? null);
+    }
 
+    // ⭐ Listen for session changes and save them
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (session) {
+          localStorage.setItem("supabase_session", JSON.stringify(session));
+        }
         setUser(session?.user ?? null);
       }
     );
@@ -50,7 +65,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 export function useSupabase() {
   const ctx = useContext(SupabaseContext);
   if (!ctx) throw new Error("useSupabase must be used within SupabaseProvider");
-  return ctx; // ⭐ RESTORED: return { supabase, user }
+  return ctx;
 }
 
 export function useSupabaseUser() {
