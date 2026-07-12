@@ -9,16 +9,19 @@ import UpdateBanner from "@/components/UpdateBanner";
 export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
   return (
     <ClientProviders>
-      <UpdateBanner />
-
-      {/* ⭐ AuthNav stays inside providers (Supabase + Unread), 
-          but ABOVE scrollable page content */}
       <UnreadProvider>
+        {/* ⭐ AuthNav must be ABOVE the scrollable content */}
         <AuthNav />
+
+        {/* Global banner */}
+        <UpdateBanner />
+
         <SWRegister />
 
         {/* ⭐ Page content (scrolls BELOW AuthNav) */}
-        {children}
+        <div className="w-full">
+          {children}
+        </div>
       </UnreadProvider>
     </ClientProviders>
   );

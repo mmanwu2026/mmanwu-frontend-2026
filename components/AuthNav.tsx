@@ -10,11 +10,14 @@ import {
   MusicalNoteIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/outline";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function MobileAuthNav() {
   const { supabase } = useSupabase();
   const router = useRouter();
+
+  // ⭐ FIX: pathname normalized to empty string (no TS errors)
+  const pathname = usePathname() ?? "";
 
   const [uid, setUid] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -48,57 +51,71 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
-return (
-  <div className="w-full">   {/* ⭐ NEW: escape flex parent */}
-    <div className="sticky top-0 z-[5000] w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center">
+  // ⭐ PAGE‑SPECIFIC COLOR THEMES (TS‑SAFE)
+  const theme =
+    pathname.startsWith("/sound-square")
+      ? "bg-teal-600 text-white border-teal-700"
+      : pathname.startsWith("/vision-square")
+      ? "bg-blue-600 text-white border-blue-700"
+      : pathname.startsWith("/messenger")
+      ? "bg-green-600 text-white border-green-700"
+      : pathname.startsWith("/notifications")
+      ? "bg-amber-600 text-white border-amber-700"
+      : pathname.startsWith("/compose")
+      ? "bg-pink-600 text-white border-pink-700"
+      : "bg-purple-600 text-white border-purple-700"; // default plaza
 
-      {/* LEFT SIDE ICONS */}
-      <div className="flex items-center gap-4 text-gray-700">
-        <Link href="/sound-square">
-          <MusicalNoteIcon className="w-6 h-6 hover:text-purple-600" />
-        </Link>
+  return (
+    <div className="w-full">
+      <div
+        className={`sticky top-0 z-[5000] w-full px-4 py-2 flex items-center border-b ${theme}`}
+      >
+        {/* LEFT SIDE ICONS */}
+        <div className="flex items-center gap-4">
+          <Link href="/sound-square">
+            <MusicalNoteIcon className="w-6 h-6 hover:opacity-80" />
+          </Link>
 
-        <Link href="/vision-square">
-          <VideoCameraIcon className="w-6 h-6 hover:text-purple-600" />
-        </Link>
+          <Link href="/vision-square">
+            <VideoCameraIcon className="w-6 h-6 hover:opacity-80" />
+          </Link>
 
-        <Link href="/notifications">
-          <BellIcon className="w-6 h-6 hover:text-purple-600" />
-        </Link>
+          <Link href="/notifications">
+            <BellIcon className="w-6 h-6 hover:opacity-80" />
+          </Link>
 
-        <Link href="/messenger">
-          <ChatBubbleLeftRightIcon className="w-6 h-6 hover:text-purple-600" />
-        </Link>
+          <Link href="/messenger">
+            <ChatBubbleLeftRightIcon className="w-6 h-6 hover:opacity-80" />
+          </Link>
 
-        <button
-          onClick={() => router.push("/compose")}
-          className="hover:text-purple-600"
-        >
-          <PencilSquareIcon className="w-6 h-6" />
-        </button>
+          <button
+            onClick={() => router.push("/compose")}
+            className="hover:opacity-80"
+          >
+            <PencilSquareIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* CENTER TITLE */}
+        <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
+          <Link href="/plaza">Mman Plaza</Link>
+        </div>
+
+        {/* RIGHT SIDE AUTH */}
+        <div className="ml-auto flex items-center gap-4 font-medium">
+          {!uid ? (
+            <>
+              <Link href="/signup">Sign Up</Link>
+              <Link href="/login">Log In</Link>
+            </>
+          ) : (
+            <>
+              <Link href={`/profile/${uid}`}>My Profile</Link>
+              <button onClick={handleLogout}>Logout</button>
+            </>
+          )}
+        </div>
       </div>
-
-      {/* CENTER TITLE */}
-      <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold text-gray-900">
-        <Link href="/plaza">Mman Plaza</Link>
-      </div>
-
-      {/* RIGHT SIDE AUTH */}
-      <div className="ml-auto flex items-center gap-4 text-purple-600 text-sm font-medium">
-        {!uid ? (
-          <>
-            <Link href="/signup">Sign Up</Link>
-            <Link href="/login">Log In</Link>
-          </>
-        ) : (
-          <>
-            <Link href={`/profile/${uid}`}>My Profile</Link>
-            <button onClick={handleLogout}>Logout</button>
-          </>
-        )}
-      </div>
-
     </div>
-  </div>
-);
+  );
 }
