@@ -59,22 +59,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       {/* ⭐ BODY MUST NOT OVERRIDE AuthNav THEMES */}
       <body className="overflow-x-hidden">
-        <SWRegisterScript />
-        <MobilePWAReliabilityScript />
+  <SWRegisterScript />
+  <MobilePWAReliabilityScript />
 
-        {/* ⭐ PORTAL ROOT MUST BE OUTSIDE ProvidersWrapper */}
-        <div id="modal-root"></div>
+  <div id="modal-root"></div>
 
-        {/* ⭐ GLOBAL LISTENERS MUST BE OUTSIDE ProvidersWrapper */}
-        <PushInitializer />
-        <CallListener />
-        <AppInstallPrompt />
+  {/* ⭐ Safe to keep these global */}
+  <PushInitializer />
+  <AppInstallPrompt />
 
-        {/* ⭐ ProvidersWrapper should ONLY wrap navigation + page content */}
-        <ProvidersWrapper>
-          {children}
-        </ProvidersWrapper>
-      </body>
+  {/* ⭐ CallListener MUST be inside ProvidersWrapper */}
+  <ProvidersWrapper>
+    <CallListener />
+    {children}
+  </ProvidersWrapper>
+</body>
     </html>
   );
 }
