@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import SpiritToast from "@/components/SpiritToast";
+import SpiritToast from "@/app/components/SpiritToast";
 
 export default function VisionSquareUpload() {
   const { supabase } = useSupabase();

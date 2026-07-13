@@ -5,7 +5,7 @@ import { useSupabase } from "@/app/context/SupabaseContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/plaza/PostCard";
-import AvatarUploader from "@/components/AvatarUploader";
+import AvatarUploader from "@/app/components/AvatarUploader";
 import Modal from "@/components/ui/Modal";
 import EditProfileForm from "@/components/profile/EditProfileForm";
 import type { CardSoundPost, ReactionCounts } from "@/app/sound-square/types";

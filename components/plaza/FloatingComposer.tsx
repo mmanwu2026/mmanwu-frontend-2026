@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import GatekeeperModal from "@/components/GatekeeperModal";
-import SpiritToast from "@/components/SpiritToast";
+import GatekeeperModal from "@/app/components/GatekeeperModal";
+import SpiritToast from "@/app/components/SpiritToast";
 
 interface GatekeeperResponse {
   autoApprove?: boolean;

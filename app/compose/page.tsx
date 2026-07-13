@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import GatekeeperModal from "@/components/GatekeeperModal";
-import SpiritToast from "@/components/SpiritToast";
+import GatekeeperModal from "@/app/components/GatekeeperModal";
+import SpiritToast from "@/app/components/SpiritToast";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 

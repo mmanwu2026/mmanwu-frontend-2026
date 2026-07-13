@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
-import SpiritToast from "@/components/SpiritToast";
+import SpiritToast from "@/app/components/SpiritToast";
 
 export default function FloatingComposerVision() {
   const { supabase } = useSupabase();

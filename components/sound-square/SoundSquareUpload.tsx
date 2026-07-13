@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
-import SpiritToast from "@/components/SpiritToast";
+import SpiritToast from "@/app/components/SpiritToast";
 import Link from "next/link";
 
 export default function SoundSquareUpload() {

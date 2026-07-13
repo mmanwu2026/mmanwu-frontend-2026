@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import { useUnread } from "@/context/UnreadContext";
+import { useUnread } from "@/app/context/UnreadContext";
 
 export default function UnreadListener() {
   const { supabase } = useSupabase();

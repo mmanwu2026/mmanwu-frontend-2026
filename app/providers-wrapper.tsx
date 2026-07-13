@@ -2,28 +2,25 @@
 
 import { ClientProviders } from "./client-providers";
 import AuthNav from "@/app/components/AuthNav";
-import { UnreadProvider } from "@/context/UnreadContext";
+import { UnreadProvider } from "@/app/context/UnreadContext";
 import SWRegister from "./sw-register";
-import UpdateBanner from "@/components/UpdateBanner";
-import HydrationBoundary from "@/components/HydrationBoundary";
+import UpdateBanner from "@/app/components/UpdateBanner";
 
 export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
   return (
     <ClientProviders>
       <UnreadProvider>
 
-        {/* ⭐ AuthNav hydrates AFTER Tailwind CSS loads */}
-        <HydrationBoundary>
+        {/* ⭐ Navigation must be ABOVE all scrollable content */}
+        <div className="fixed top-0 left-0 w-full z-[9999]">
           <AuthNav />
-        </HydrationBoundary>
+        </div>
 
-        {/* Global banner */}
         <UpdateBanner />
-
         <SWRegister />
 
-        {/* ⭐ Page content (scrolls BELOW AuthNav) */}
-        <div className="w-full">
+        {/* ⭐ Scrollable content BELOW navigation */}
+        <div className="pt-[60px] w-full">
           {children}
         </div>
 

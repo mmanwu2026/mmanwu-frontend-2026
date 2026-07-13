@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import Link from "next/link";
 import ReactionBar from "@/components/vision-square/ReactionBar";
-import SpiritToast from "@/components/SpiritToast";
+import SpiritToast from "@/app/components/SpiritToast";
 import { useRouter } from "next/navigation";
 import VisionShareButton from "@/components/vision-square/VisionShareButton";
 

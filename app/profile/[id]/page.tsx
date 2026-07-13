@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
-import ProfileClient from "@/components/ProfileClient";
+import ProfileClient from "@/app/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
 
 type Post = {

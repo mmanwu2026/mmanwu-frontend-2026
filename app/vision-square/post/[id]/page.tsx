@@ -5,7 +5,7 @@ import { useSupabase } from "@/app/context/SupabaseContext";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import VisionCard from "@/app/vision-square/components/VisionCard";
-import SpiritToast from "@/components/SpiritToast";
+import SpiritToast from "@/app/components/SpiritToast";
 import VisionShareButton from "@/components/vision-square/VisionShareButton";
 
 interface ReactionRow {

@@ -9,7 +9,7 @@ import React, {
 
 import { useSupabase } from "@/app/context/SupabaseContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
-import UnreadListener from "@/components/UnreadListener";
+import UnreadListener from "@/app/components/UnreadListener";
 
 interface ReactionCounts {
   mask1: number;

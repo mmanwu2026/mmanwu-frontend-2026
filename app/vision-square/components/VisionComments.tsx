@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import SpiritToast from "@/components/SpiritToast";
+import SpiritToast from "@/app/components/SpiritToast";
 import { useRouter } from "next/navigation";
 
 interface VisionCommentsProps {
