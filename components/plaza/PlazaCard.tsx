@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import ReactionBar from "@/components/plaza/ReactionBar";
 import PlazaComments from "@/components/plaza/PlazaComments";
 

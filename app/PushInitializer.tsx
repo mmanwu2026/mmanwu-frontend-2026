@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

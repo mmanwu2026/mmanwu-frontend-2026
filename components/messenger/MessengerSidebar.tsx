@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import NewChatModal from "./NewChatModal";
 
 interface RoomParticipant {

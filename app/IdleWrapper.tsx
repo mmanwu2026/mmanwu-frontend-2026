@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import SessionWarningModal from "./components/SessionWarningModal";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 
 export default function IdleWrapper({ children }: { children: React.ReactNode }) {
   const { supabase } = useSupabase(); // ⭐ FIXED

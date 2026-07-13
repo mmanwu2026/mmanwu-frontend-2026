@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import Link from "next/link";
 import ReactionBar from "@/components/vision-square/ReactionBar";
 import SpiritToast from "@/components/SpiritToast";

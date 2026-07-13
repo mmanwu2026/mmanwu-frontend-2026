@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 

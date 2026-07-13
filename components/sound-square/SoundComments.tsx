@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

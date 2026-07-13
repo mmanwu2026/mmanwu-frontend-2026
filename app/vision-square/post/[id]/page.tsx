@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import VisionCard from "@/app/vision-square/components/VisionCard";

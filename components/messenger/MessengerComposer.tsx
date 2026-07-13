@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 
 export default function MessengerComposer({
   userId,

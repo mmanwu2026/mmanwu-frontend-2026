@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { sendPush } from "@/lib/sendPush"; // ⭐ Make sure this path is correct
 
 export default function MessengerThread({

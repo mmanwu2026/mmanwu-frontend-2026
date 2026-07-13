@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactionBar from "@/components/plaza/ReactionBar";

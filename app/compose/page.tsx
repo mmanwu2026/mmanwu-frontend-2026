@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import GatekeeperModal from "@/components/GatekeeperModal";
 import SpiritToast from "@/components/SpiritToast";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 
 interface GatekeeperResponse {

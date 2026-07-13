@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
 import type { ReactionCounts, CardSoundPost } from "@/app/sound-square/types";

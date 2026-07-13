@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
 import {
   BellIcon,

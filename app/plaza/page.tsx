@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
 import UnreadListener from "@/components/UnreadListener";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import SpiritToast from "@/components/SpiritToast";
 import Link from "next/link";

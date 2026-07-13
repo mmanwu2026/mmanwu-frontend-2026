@@ -1,6 +1,6 @@
 "use client";
 
-import { useSupabase } from "@/context/SupabaseContext";
+import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
 import ReactionBar from "./ReactionBar";
 

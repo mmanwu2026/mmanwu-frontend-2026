@@ -3,7 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useSupabase } from "../context/SupabaseContext";
+import { useSupabase } from "./context/SupabaseContext";
 
 export default function EnableNotifications() {
   const router = useRouter();
