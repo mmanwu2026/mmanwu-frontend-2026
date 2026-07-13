@@ -79,11 +79,11 @@ export default function MobileAuthNav() {
         </div>
 
         {/* CENTER — Logo */}
-        <div className="flex justify-center w-[32px]">
+        <div className="flex justify-center w-[32px] overflow-hidden">
           <img
             src="/icons/icon-192x192.png"
             alt="MMAN Plaza Logo"
-            className="w-6 h-6 object-contain"
+            className="w-6 h-6 object-contain flex-shrink-0 self-center leading-none"
           />
         </div>
 
