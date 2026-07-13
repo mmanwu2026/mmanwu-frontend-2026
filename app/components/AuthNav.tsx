@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
-import { BellIcon } from "@heroicons/react/24/outline";
+import {
+  BellIcon,
+} from "@heroicons/react/24/outline";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function MobileAuthNav() {
   const { supabase } = useSupabase();
   const router = useRouter();
+
+  // ⭐ FIX: pathname normalized to empty string (no TS errors)
   const pathname = usePathname() ?? "";
 
   const [uid, setUid] = useState<string | null>(null);
@@ -44,10 +48,23 @@ export default function MobileAuthNav() {
   }
 
   return (
-    <div className="w-full not-prose z-[9999]">
+    <div
+      className="w-full not-prose"
+      style={{
+        isolation: "auto",
+        position: "relative",
+        zIndex: 9999,
+      }}
+    >
       <div
         className="sticky top-0 w-full px-4 py-3 flex items-center justify-between bg-purple-600 text-white border-b border-purple-700"
-        style={{ WebkitTransform: "translateZ(0)", transform: "translateZ(0)" }}
+        style={{
+          isolation: "auto",
+          position: "sticky",
+          zIndex: 9999,
+          WebkitTransform: "translateZ(0)",
+          transform: "translateZ(0)",
+        }}
       >
         {/* LEFT: Logo / Title */}
         <div className="text-lg font-semibold">
