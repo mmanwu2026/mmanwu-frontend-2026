@@ -21,7 +21,7 @@ export default function ProvidersWrapper({ children }: { children: React.ReactNo
         <SWRegister />
 
         {/* Page content */}
-        <div className="pt-[60px] pb-[80px] w-full">
+        <div className="min-h-screen flex flex-col pt-[60px] pb-[80px] w-full">
           {children}
         </div>
 
