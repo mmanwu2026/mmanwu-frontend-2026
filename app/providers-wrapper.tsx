@@ -1,7 +1,7 @@
 "use client";
 
 import { ClientProviders } from "./client-providers";
-import AuthNav from "@/components/AuthNav";
+import AuthNav from "@/app/components/AuthNav";
 import { UnreadProvider } from "@/context/UnreadContext";
 import SWRegister from "./sw-register";
 import UpdateBanner from "@/components/UpdateBanner";
