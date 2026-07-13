@@ -12,7 +12,10 @@ export default function ProvidersWrapper({ children }) {
     <ClientProviders>
       <UnreadProvider>
 
-        <div className="flex-1 flex flex-col">
+        {/* Entire app must fill viewport */}
+        <div className="flex-1 flex flex-col min-h-0">
+
+          {/* Top nav */}
           <div className="fixed top-0 left-0 w-full z-[1000]">
             <AuthNav />
           </div>
@@ -20,15 +23,19 @@ export default function ProvidersWrapper({ children }) {
           <UpdateBanner />
           <SWRegister />
 
-          <div className="pt-[60px] pb-[80px] flex-1">
+          {/* Scrollable content area */}
+          <div className="flex-1 pt-[60px] pb-[80px] overflow-y-auto">
             {children}
           </div>
 
+          {/* Bottom nav (fixed to viewport) */}
           <BottomNav />
+
         </div>
 
       </UnreadProvider>
     </ClientProviders>
   );
 }
+
 
