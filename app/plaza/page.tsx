@@ -340,8 +340,8 @@ return (
 
     {unreadListener}
 
-   <div className="flex-1 overflow-y-auto w-full flex justify-center pb-[80px] isolate">
-  <div className="w-full max-w-xl space-y-6 px-4">
+<div className="flex-1 overflow-y-auto w-full flex justify-center pb-[80px]">
+  <div className="w-full max-w-xl space-y-6 px-4 isolate">
 
         {loading && (
           <p className="text-sm text-gray-500 text-center">Loading posts…</p>
