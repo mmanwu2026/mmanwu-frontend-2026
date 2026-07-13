@@ -55,8 +55,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
 
-      {/* ⭐ BODY MUST BE THE SCROLL ROOT */}
-      <body className="bg-gray-50 text-gray-900 overflow-x-hidden">
+      {/* ⭐ BODY MUST NOT OVERRIDE AuthNav THEMES */}
+      <body className="overflow-x-hidden">
         <SWRegisterScript />
         <MobilePWAReliabilityScript />
 
