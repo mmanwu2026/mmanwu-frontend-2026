@@ -1,4 +1,3 @@
-/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
@@ -9,9 +8,22 @@ module.exports = {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
 
+  safelist: [
+    "bg-teal-600",
+    "bg-blue-600",
+    "bg-green-600",
+    "bg-pink-600",
+    "bg-purple-600",
+    "border-teal-700",
+    "border-blue-700",
+    "border-green-700",
+    "border-pink-700",
+    "border-purple-700",
+    "text-white",
+  ],
+
   theme: {
     extend: {
-      // === PLAZA CACHEBUST KEYS ===
       spacing: {
         "__plaza_cachebust_spacing_004": "11px",
       },
@@ -24,13 +36,10 @@ module.exports = {
       fontSize: {
         "__plaza_cachebust_font_004": "13px",
       },
-
-      // ⭐ Animation support for fadeInUp
       animation: {
         fadeInUp: "fadeInUp 0.4s ease forwards",
         fadeIn: "fadeIn 0.3s ease-out forwards",
       },
-
       keyframes: {
         fadeInUp: {
           "0%": { opacity: 0, transform: "translateY(6px)" },
@@ -52,7 +61,5 @@ module.exports = {
     },
   },
 
-  plugins: [
-    require("@tailwindcss/forms"),
-  ],
+  plugins: [require("@tailwindcss/forms")],
 };
