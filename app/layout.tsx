@@ -1,7 +1,9 @@
 import "./globals.css";
 import type { Metadata } from "next";
+
 import ProvidersWrapper from "./providers-wrapper";
 import { createSupabaseServerClient } from "./lib/supabase/server";
+
 import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
 import PushInitializer from "@/app/PushInitializer";
@@ -63,17 +65,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* ⭐ PORTAL ROOT MUST BE OUTSIDE ProvidersWrapper */}
         <div id="modal-root"></div>
 
+        {/* ⭐ GLOBAL LISTENERS MUST BE OUTSIDE ProvidersWrapper */}
+        <PushInitializer />
+        <CallListener />
+        <AppInstallPrompt />
+
+        {/* ⭐ ProvidersWrapper should ONLY wrap navigation + page content */}
         <ProvidersWrapper>
-          {/* ⭐ GLOBAL PUSH SUBSCRIPTION */}
-          <PushInitializer />
-
-          {/* ⭐ GLOBAL INCOMING CALL LISTENER */}
-          <CallListener />
-
-          {/* ⭐ GLOBAL INSTALL PROMPT */}
-          <AppInstallPrompt />
-
-          {/* ⭐ PAGE CONTENT */}
           {children}
         </ProvidersWrapper>
       </body>
