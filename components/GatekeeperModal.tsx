@@ -43,7 +43,7 @@ export default function GatekeeperModal({
     <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl border border-gray-200 space-y-5">
 
       <h2 className="text-xl font-semibold text-gray-900 text-center">
-        Mmanwu Gatekeeper
+        Mman Plaza Gatekeeper
       </h2>
 
       <p className="text-gray-600 text-sm text-center">
