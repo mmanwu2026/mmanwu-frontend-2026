@@ -4,14 +4,14 @@ import { ClientProviders } from "./client-providers";
 import AuthNav from "@/app/components/AuthNav";
 import { UnreadProvider } from "@/app/context/UnreadContext";
 import SWRegister from "./sw-register";
-import UpdateBanner from "@/app/components/UpdateBanner";
+import UpdateBanner from "@/components/UpdateBanner";
 
-export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
+export default function ProvidersWrapper({ children }) {
   return (
     <ClientProviders>
       <UnreadProvider>
 
-        {/* ⭐ Navigation must be ABOVE all scrollable content */}
+        {/* Navigation must be ABOVE all scrollable content */}
         <div className="fixed top-0 left-0 w-full z-[9999]">
           <AuthNav />
         </div>
@@ -19,7 +19,7 @@ export default function ProvidersWrapper({ children }: { children: React.ReactNo
         <UpdateBanner />
         <SWRegister />
 
-        {/* ⭐ Scrollable content BELOW navigation */}
+        {/* Scrollable content BELOW navigation */}
         <div className="pt-[60px] w-full">
           {children}
         </div>
@@ -28,3 +28,4 @@ export default function ProvidersWrapper({ children }: { children: React.ReactNo
     </ClientProviders>
   );
 }
+

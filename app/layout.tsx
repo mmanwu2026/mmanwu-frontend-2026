@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import ProvidersWrapper from "./providers-wrapper";
 import { createSupabaseServerClient } from "./lib/supabase/server";
-import CallListener from "@/app/components/CallListener";
-import AppInstallPrompt from "@/app/components/AppInstallPrompt";
+import CallListener from "@/components/CallListener";
+import AppInstallPrompt from "@/components/AppInstallPrompt";
 import PushInitializer from "@/app/PushInitializer";
 
 // ⭐ EARLY SERVICE WORKER REGISTRATION

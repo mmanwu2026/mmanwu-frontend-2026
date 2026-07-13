@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import useIncomingCall from "@/hooks/useIncomingCall";
 import { useIncomingCalls } from "@/hooks/useIncomingCalls";
 
-import CallListener from "@/app/components/CallListener";
+import CallListener from "@/components/CallListener";
 
 export default function MessengerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
