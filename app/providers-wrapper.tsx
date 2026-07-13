@@ -6,6 +6,7 @@ import { UnreadProvider } from "@/app/context/UnreadContext";
 import SWRegister from "./sw-register";
 import UpdateBanner from "@/components/UpdateBanner";
 import BottomNav from "@/app/components/BottomNav";
+import Link from "next/link";
 
 export default function ProvidersWrapper({ children }) {
   return (
@@ -23,8 +24,18 @@ export default function ProvidersWrapper({ children }) {
           <UpdateBanner />
           <SWRegister />
 
-          {/* ⭐ THIS IS THE CRITICAL FIX */}
-          <div className="flex-1 min-h-0 pt-[60px] pb-[80px] overflow-y-auto">
+          {/* ⭐ Composer Subheader (safe, no layout impact) */}
+          <div className="w-full bg-neutral-800 text-white px-4 py-3 flex items-center justify-center border-b border-neutral-700 mt-[60px]">
+            <Link
+              href="/compose"
+              className="bg-purple-600 px-4 py-2 rounded-full font-medium hover:bg-purple-500 transition"
+            >
+              + Compose
+            </Link>
+          </div>
+
+          {/* ⭐ Critical scrollable content area */}
+          <div className="flex-1 min-h-0 pb-[80px] overflow-y-auto">
             {children}
           </div>
 

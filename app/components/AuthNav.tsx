@@ -3,20 +3,11 @@
 import Link from "next/link";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
-import {
-  BellIcon,
-  ChatBubbleLeftRightIcon,
-  PencilSquareIcon,
-  MusicalNoteIcon,
-  VideoCameraIcon,
-} from "@heroicons/react/24/outline";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function MobileAuthNav() {
   const { supabase } = useSupabase();
   const router = useRouter();
-
-  // ⭐ FIX: pathname normalized to empty string (no TS errors)
   const pathname = usePathname() ?? "";
 
   const [uid, setUid] = useState<string | null>(null);
@@ -51,7 +42,7 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
-  // ⭐ PAGE‑SPECIFIC COLOR THEMES (TS‑SAFE)
+  // ⭐ PAGE THEMES (still supported)
   const theme =
     pathname.startsWith("/sound-square")
       ? "bg-teal-600 text-white border-teal-700"
@@ -59,8 +50,6 @@ export default function MobileAuthNav() {
       ? "bg-blue-600 text-white border-blue-700"
       : pathname.startsWith("/messenger")
       ? "bg-green-600 text-white border-green-700"
-      : pathname.startsWith("/notifications")
-      ? "bg-amber-600 text-white border-amber-700"
       : pathname.startsWith("/compose")
       ? "bg-pink-600 text-white border-pink-700"
       : "bg-purple-600 text-white border-purple-700"; // default plaza
@@ -75,7 +64,7 @@ export default function MobileAuthNav() {
       }}
     >
       <div
-        className={`sticky top-0 w-full px-4 py-2 flex items-center border-b ${theme}`}
+        className={`sticky top-0 w-full px-4 py-2 flex items-center justify-between border-b ${theme}`}
         style={{
           isolation: "auto",
           position: "sticky",
@@ -85,31 +74,30 @@ export default function MobileAuthNav() {
         }}
       >
 
-        {/* LEFT: Logo / Title */}
-        <div className="text-lg font-semibold">
+        {/* LEFT SIDE — empty spacer to allow perfect centering */}
+        <div className="w-12"></div>
+
+        {/* CENTER — MMAN PLAZA logo/title */}
+        <div className="text-lg font-semibold text-center flex-1">
           <Link href="/plaza">MMAN PLAZA</Link>
         </div>
 
-        {/* RIGHT: Notifications + Profile + Auth */}
-        <div className="flex items-center gap-4 font-medium">
-          <Link href="/notifications">
-            <BellIcon className="w-6 h-6 hover:opacity-80" />
-          </Link>
-
+        {/* RIGHT SIDE — Auth only */}
+        <div className="flex items-center gap-4 font-medium w-12 justify-end">
           {!uid ? (
             <>
-              <Link href="/signup">Sign Up</Link>
               <Link href="/login">Log In</Link>
             </>
           ) : (
             <>
-              <Link href={`/profile/${uid}`}>My Profile</Link>
+              <Link href={`/profile/${uid}`}>Profile</Link>
               <button onClick={handleLogout} className="hover:opacity-80">
                 Logout
               </button>
             </>
           )}
         </div>
+
       </div>
     </div>
   );
