@@ -5,6 +5,10 @@ import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
 import {
   BellIcon,
+  ChatBubbleLeftRightIcon,
+  PencilSquareIcon,
+  MusicalNoteIcon,
+  VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -47,6 +51,20 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
+  // ⭐ PAGE‑SPECIFIC COLOR THEMES (TS‑SAFE)
+  const theme =
+    pathname.startsWith("/sound-square")
+      ? "bg-teal-600 text-white border-teal-700"
+      : pathname.startsWith("/vision-square")
+      ? "bg-blue-600 text-white border-blue-700"
+      : pathname.startsWith("/messenger")
+      ? "bg-green-600 text-white border-green-700"
+      : pathname.startsWith("/notifications")
+      ? "bg-amber-600 text-white border-amber-700"
+      : pathname.startsWith("/compose")
+      ? "bg-pink-600 text-white border-pink-700"
+      : "bg-purple-600 text-white border-purple-700"; // default plaza
+
   return (
     <div
       className="w-full not-prose"
@@ -57,7 +75,7 @@ export default function MobileAuthNav() {
       }}
     >
       <div
-        className="sticky top-0 w-full px-4 py-3 flex items-center justify-between bg-purple-600 text-white border-b border-purple-700"
+        className={`sticky top-0 w-full px-4 py-2 flex items-center border-b ${theme}`}
         style={{
           isolation: "auto",
           position: "sticky",
@@ -66,6 +84,7 @@ export default function MobileAuthNav() {
           transform: "translateZ(0)",
         }}
       >
+
         {/* LEFT: Logo / Title */}
         <div className="text-lg font-semibold">
           <Link href="/plaza">MMAN PLAZA</Link>
