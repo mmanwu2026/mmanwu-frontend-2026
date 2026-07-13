@@ -83,7 +83,7 @@ export default function MobileAuthNav() {
   <img
     src="/icons/icon-192x192.png"
     alt="MMAN Plaza Logo"
-    style={{ width: "24px", height: "24px" }}
+    style={{ width: "28px", height: "28px" }}
     className="inline-block align-middle"
   />
 </div>
