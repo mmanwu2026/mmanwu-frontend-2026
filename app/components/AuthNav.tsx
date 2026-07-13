@@ -42,7 +42,7 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
-  // ⭐ PAGE THEMES (still supported)
+  // Page theme colors still supported
   const theme =
     pathname.startsWith("/sound-square")
       ? "bg-teal-600 text-white border-teal-700"
@@ -52,7 +52,7 @@ export default function MobileAuthNav() {
       ? "bg-green-600 text-white border-green-700"
       : pathname.startsWith("/compose")
       ? "bg-pink-600 text-white border-pink-700"
-      : "bg-purple-600 text-white border-purple-700"; // default plaza
+      : "bg-purple-600 text-white border-purple-700";
 
   return (
     <div
@@ -74,16 +74,22 @@ export default function MobileAuthNav() {
         }}
       >
 
-        {/* LEFT SIDE — empty spacer to allow perfect centering */}
-        <div className="w-12"></div>
-
-        {/* CENTER — MMAN PLAZA logo/title */}
-        <div className="text-lg font-semibold text-center flex-1">
+        {/* LEFT — Clickable MMAN PLAZA */}
+        <div className="text-lg font-semibold">
           <Link href="/plaza">MMAN PLAZA</Link>
         </div>
 
-        {/* RIGHT SIDE — Auth only */}
-        <div className="flex items-center gap-4 font-medium w-12 justify-end">
+        {/* CENTER — Logo */}
+        <div className="flex-1 flex justify-center">
+          <img
+            src="/icons/icon-192.png"
+            alt="MMAN Plaza Logo"
+            className="w-8 h-8"
+          />
+        </div>
+
+        {/* RIGHT — Auth */}
+        <div className="flex items-center gap-4 font-medium">
           {!uid ? (
             <>
               <Link href="/login">Log In</Link>
