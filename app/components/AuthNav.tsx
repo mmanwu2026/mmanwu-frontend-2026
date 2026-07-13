@@ -3,20 +3,12 @@
 import Link from "next/link";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
-import {
-  BellIcon,
-  ChatBubbleLeftRightIcon,
-  PencilSquareIcon,
-  MusicalNoteIcon,
-  VideoCameraIcon,
-} from "@heroicons/react/24/outline";
+import { BellIcon } from "@heroicons/react/24/outline";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function MobileAuthNav() {
   const { supabase } = useSupabase();
   const router = useRouter();
-
-  // ⭐ FIX: pathname normalized to empty string (no TS errors)
   const pathname = usePathname() ?? "";
 
   const [uid, setUid] = useState<string | null>(null);
@@ -51,72 +43,23 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
-  // ⭐ PAGE‑SPECIFIC COLOR THEMES (TS‑SAFE)
-  const theme =
-    pathname.startsWith("/sound-square")
-      ? "bg-teal-600 text-white border-teal-700"
-      : pathname.startsWith("/vision-square")
-      ? "bg-blue-600 text-white border-blue-700"
-      : pathname.startsWith("/messenger")
-      ? "bg-green-600 text-white border-green-700"
-      : pathname.startsWith("/notifications")
-      ? "bg-amber-600 text-white border-amber-700"
-      : pathname.startsWith("/compose")
-      ? "bg-pink-600 text-white border-pink-700"
-      : "bg-purple-600 text-white border-purple-700"; // default plaza
-
   return (
-    <div
-      className="w-full not-prose"
-      style={{
-        isolation: "auto",
-        position: "relative",
-        zIndex: 9999,
-      }}
-    >
+    <div className="w-full not-prose z-[9999]">
       <div
-        className={`sticky top-0 w-full px-4 py-2 flex items-center border-b ${theme}`}
-        style={{
-          isolation: "auto",
-          position: "sticky",
-          zIndex: 9999,
-          WebkitTransform: "translateZ(0)",
-          transform: "translateZ(0)",
-        }}
+        className="sticky top-0 w-full px-4 py-3 flex items-center justify-between bg-purple-600 text-white border-b border-purple-700"
+        style={{ WebkitTransform: "translateZ(0)", transform: "translateZ(0)" }}
       >
-        {/* LEFT SIDE ICONS */}
-        <div className="flex items-center gap-4">
-          <Link href="/sound-square">
-            <MusicalNoteIcon className="w-6 h-6 hover:opacity-80" />
-          </Link>
+        {/* LEFT: Logo / Title */}
+        <div className="text-lg font-semibold">
+          <Link href="/plaza">MMAN PLAZA</Link>
+        </div>
 
-          <Link href="/vision-square">
-            <VideoCameraIcon className="w-6 h-6 hover:opacity-80" />
-          </Link>
-
+        {/* RIGHT: Notifications + Profile + Auth */}
+        <div className="flex items-center gap-4 font-medium">
           <Link href="/notifications">
             <BellIcon className="w-6 h-6 hover:opacity-80" />
           </Link>
 
-          <Link href="/messenger">
-            <ChatBubbleLeftRightIcon className="w-6 h-6 hover:opacity-80" />
-          </Link>
-
-          <button
-            onClick={() => router.push("/compose")}
-            className="hover:opacity-80"
-          >
-            <PencilSquareIcon className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* CENTER TITLE */}
-        <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-          <Link href="/plaza">MMAN PLAZA</Link>
-        </div>
-
-        {/* RIGHT SIDE AUTH */}
-        <div className="ml-auto flex items-center gap-4 font-medium">
           {!uid ? (
             <>
               <Link href="/signup">Sign Up</Link>
@@ -125,7 +68,9 @@ export default function MobileAuthNav() {
           ) : (
             <>
               <Link href={`/profile/${uid}`}>My Profile</Link>
-              <button onClick={handleLogout}>Logout</button>
+              <button onClick={handleLogout} className="hover:opacity-80">
+                Logout
+              </button>
             </>
           )}
         </div>
