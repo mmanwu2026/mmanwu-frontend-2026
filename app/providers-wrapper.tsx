@@ -12,23 +12,25 @@ export default function ProvidersWrapper({ children }) {
     <ClientProviders>
       <UnreadProvider>
 
-        {/* Navigation must be ABOVE all scrollable content */}
-        <div className="fixed top-0 left-0 w-full z-[9999]">
+        {/* ⭐ Top navigation — highest stacking layer */}
+        <div className="fixed top-0 left-0 w-full z-[2147483647] pointer-events-auto">
           <AuthNav />
         </div>
 
         <UpdateBanner />
         <SWRegister />
 
-        {/* Scrollable content BELOW navigation */}
-        <div className="pt-[60px] w-full relative z-0">
+        {/* ⭐ Page content — MUST stay below navbars */}
+        <div className="pt-[60px] pb-[70px] w-full relative z-0">
           {children}
         </div>
 
-         <BottomNav />
+        {/* ⭐ Bottom navigation — same highest stacking layer */}
+        <div className="fixed bottom-0 left-0 w-full z-[2147483647] pointer-events-auto">
+          <BottomNav />
+        </div>
 
       </UnreadProvider>
     </ClientProviders>
   );
 }
-
