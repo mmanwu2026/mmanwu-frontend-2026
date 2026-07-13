@@ -16,7 +16,7 @@ export default function BottomNav() {
   const isActive = (path: string) => pathname.startsWith(path);
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full h-[60px] bg-neutral-900 border-t border-neutral-700 text-white flex items-center justify-around z-[9999]">
+    <nav className="fixed bottom-0 left-0 w-full h-[60px] bg-neutral-900 border-t border-neutral-700 text-white flex items-center justify-around z-[2147483647]">
       
       <Link href="/sound-square" className="flex flex-col items-center gap-1">
         <MusicalNoteIcon

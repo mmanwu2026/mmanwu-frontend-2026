@@ -21,7 +21,7 @@ export default function ProvidersWrapper({ children }) {
         <SWRegister />
 
         {/* Scrollable content BELOW navigation */}
-        <div className="pt-[60px] w-full">
+        <div className="pt-[60px] w-full relative z-0">
           {children}
         </div>
 
