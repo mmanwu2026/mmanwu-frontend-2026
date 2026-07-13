@@ -70,6 +70,7 @@ export default function MobileAuthNav() {
           zIndex: 9999,
           WebkitTransform: "translateZ(0)",
           transform: "translateZ(0)",
+          backgroundColor: "transparent",
         }}
       >
 
@@ -83,7 +84,7 @@ export default function MobileAuthNav() {
   <img
     src="/icons/icon-192x192.png"
     alt="MMAN Plaza Logo"
-    style={{ width: "28px", height: "28px" }}
+    style={{ width: "32px", height: "32px" }}
     className="inline-block align-middle"
   />
 </div>
