@@ -13,7 +13,7 @@ export default function ProvidersWrapper({ children }) {
       <UnreadProvider>
 
         {/* Entire app must fill viewport */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col h-full min-h-0">
 
           {/* Top nav */}
           <div className="fixed top-0 left-0 w-full z-[1000]">
@@ -23,12 +23,12 @@ export default function ProvidersWrapper({ children }) {
           <UpdateBanner />
           <SWRegister />
 
-          {/* Scrollable content area */}
-          <div className="flex-1 pt-[60px] pb-[80px] overflow-y-auto">
+          {/* ⭐ THIS IS THE CRITICAL FIX */}
+          <div className="flex-1 min-h-0 pt-[60px] pb-[80px] overflow-y-auto">
             {children}
           </div>
 
-          {/* Bottom nav (fixed to viewport) */}
+          {/* Bottom nav */}
           <BottomNav />
 
         </div>
@@ -37,5 +37,3 @@ export default function ProvidersWrapper({ children }) {
     </ClientProviders>
   );
 }
-
-
