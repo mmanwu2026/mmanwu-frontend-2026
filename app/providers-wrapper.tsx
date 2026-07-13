@@ -12,7 +12,7 @@ export default function ProvidersWrapper({ children }) {
     <ClientProviders>
       <UnreadProvider>
 
-        {/* ⭐ Top navigation — highest stacking layer */}
+        {/* Top navigation */}
         <div className="fixed top-0 left-0 w-full z-[2147483647] pointer-events-auto">
           <AuthNav />
         </div>
@@ -20,12 +20,12 @@ export default function ProvidersWrapper({ children }) {
         <UpdateBanner />
         <SWRegister />
 
-        {/* ⭐ Page content — MUST stay below navbars */}
+        {/* ⭐ Add bottom padding so feed does NOT cover BottomNav */}
         <div className="pt-[60px] pb-[70px] w-full relative z-0">
           {children}
         </div>
 
-        {/* ⭐ Bottom navigation — same highest stacking layer */}
+        {/* Bottom navigation */}
         <div className="fixed bottom-0 left-0 w-full z-[2147483647] pointer-events-auto">
           <BottomNav />
         </div>
