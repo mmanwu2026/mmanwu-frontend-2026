@@ -7,28 +7,28 @@ import SWRegister from "./sw-register";
 import UpdateBanner from "@/components/UpdateBanner";
 import BottomNav from "@/app/components/BottomNav";
 
-export default function ProvidersWrapper({ children }: { children: React.ReactNode }) {
+export default function ProvidersWrapper({ children }) {
   return (
     <ClientProviders>
       <UnreadProvider>
 
-        {/* Top nav */}
-        <div className="fixed top-0 left-0 w-full z-[1000]">
-          <AuthNav />
+        <div className="flex-1 flex flex-col">
+          <div className="fixed top-0 left-0 w-full z-[1000]">
+            <AuthNav />
+          </div>
+
+          <UpdateBanner />
+          <SWRegister />
+
+          <div className="pt-[60px] pb-[80px] flex-1">
+            {children}
+          </div>
+
+          <BottomNav />
         </div>
-
-        <UpdateBanner />
-        <SWRegister />
-
-        {/* Page content */}
-        <div className="min-h-screen flex flex-col pt-[60px] pb-[80px] w-full">
-          {children}
-        </div>
-
-        {/* Bottom nav */}
-        <BottomNav />
 
       </UnreadProvider>
     </ClientProviders>
   );
 }
+

@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       {/* ⭐ BODY MUST NOT OVERRIDE AuthNav THEMES */}
-<body className="min-h-screen overflow-x-hidden">
+<body className="h-screen flex overflow-x-hidden">
   <SWRegisterScript />
   <MobilePWAReliabilityScript />
 
