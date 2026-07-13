@@ -64,12 +64,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   <div id="modal-root"></div>
 
-  {/* ⭐ Safe to keep these global */}
-  <PushInitializer />
-  <AppInstallPrompt />
-
   {/* ⭐ CallListener MUST be inside ProvidersWrapper */}
   <ProvidersWrapper>
+    <PushInitializer />
+  <AppInstallPrompt />
     <CallListener />
     {children}
   </ProvidersWrapper>
