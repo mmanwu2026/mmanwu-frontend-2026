@@ -5,6 +5,7 @@ import AuthNav from "@/app/components/AuthNav";
 import { UnreadProvider } from "@/app/context/UnreadContext";
 import SWRegister from "./sw-register";
 import UpdateBanner from "@/components/UpdateBanner";
+import BottomNav from "@/app/components/BottomNav";
 
 export default function ProvidersWrapper({ children }) {
   return (
@@ -23,6 +24,8 @@ export default function ProvidersWrapper({ children }) {
         <div className="pt-[60px] w-full">
           {children}
         </div>
+
+         <BottomNav />
 
       </UnreadProvider>
     </ClientProviders>
