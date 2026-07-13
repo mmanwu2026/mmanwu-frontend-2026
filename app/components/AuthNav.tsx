@@ -42,7 +42,6 @@ export default function MobileAuthNav() {
     window.location.href = "/login";
   }
 
-  // Page theme colors still supported
   const theme =
     pathname.startsWith("/sound-square")
       ? "bg-teal-600 text-white border-teal-700"
@@ -84,7 +83,7 @@ export default function MobileAuthNav() {
           <img
             src="/icons/icon-192.png"
             alt="MMAN Plaza Logo"
-            className="w-8 h-8"
+            className="w-6 h-6"
           />
         </div>
 
