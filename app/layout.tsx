@@ -69,7 +69,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <PushInitializer />
   <AppInstallPrompt />
     <CallListener />
-    {children}
+
+    {/* ⭐ Global top padding so all pages clear the AuthNav */}
+    <div className="pt-20">
+      {children}
+    </div>
+    
   </ProvidersWrapper>
 </body>
     </html>
