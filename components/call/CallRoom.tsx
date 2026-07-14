@@ -40,17 +40,26 @@ export default function CallRoom({
 
   const role: Role = initialRole ?? "caller";
 
+  /* ---------------- REFS ---------------- */
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const pendingRemoteStreamRef = useRef<MediaStream | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
 
-  const [joined, setJoined] = useState(false);
   const hasSentOfferRef = useRef(false);
   const hasProcessedOfferRef = useRef(false);
 
+  const signalingChannelRef = useRef<any>(null);
+  const eventsChannelRef = useRef<any>(null);
+  const calleeEventsChannelRef = useRef<any>(null);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  /* ---------------- STATE ---------------- */
+  const [joined, setJoined] = useState(false);
   const [callStatus, setCallStatus] = useState<
     "ringing" | "connecting" | "declined" | "active"
   >(role === "caller" ? "ringing" : "connecting");
@@ -60,16 +69,12 @@ export default function CallRoom({
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const [callTimer, setCallTimer] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [remoteJoined, setRemoteJoined] = useState(false);
   const [remoteLeft, setRemoteLeft] = useState(false);
 
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showCancelledModal, setShowCancelledModal] = useState(false);
-
-  // store latest offer for callee auto-answer
-  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
 
   /* ---------------- PEER CONNECTION SETUP ---------------- */
   useEffect(() => {
@@ -202,12 +207,10 @@ export default function CallRoom({
 
     hasProcessedOfferRef.current = true;
 
-    // 1. Set remote description from stored offer
     await pc.setRemoteDescription(
       new RTCSessionDescription(pendingOfferRef.current)
     );
 
-    // 2. Get local media (this triggers browser permission popup)
     const localStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode },
       audio: true,
@@ -226,7 +229,6 @@ export default function CallRoom({
     setJoined(true);
     setCallStatus("connecting");
 
-    // 3. Create and send answer AFTER media is attached
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
@@ -249,7 +251,7 @@ export default function CallRoom({
 
   /* ---------------- SIGNALING SUBSCRIPTION ---------------- */
   useEffect(() => {
-    const signalingChannel = supabase
+    const channel = supabase
       .channel(`call-${roomId}`)
       .on(
         "postgres_changes",
@@ -265,7 +267,6 @@ export default function CallRoom({
 
           if (!pc || row.sender_id === userId) return;
 
-          // Caller receives answer
           if (role === "caller" && row.type === "answer") {
             setCallStatus("connecting");
 
@@ -279,15 +280,12 @@ export default function CallRoom({
             pendingCandidatesRef.current = [];
           }
 
-          // Callee receives offer → store and auto-answer
           if (row.type === "offer" && role === "callee") {
             pendingOfferRef.current = row.payload;
             setCallStatus("connecting");
-            // auto-answer with permission popup
             autoAnswerCallee().catch(() => {});
           }
 
-          // ICE candidates
           if (row.type === "candidate") {
             if (!pc.remoteDescription) {
               pendingCandidatesRef.current.push(row.payload);
@@ -299,14 +297,19 @@ export default function CallRoom({
       )
       .subscribe();
 
-    return () => supabase.removeChannel(signalingChannel);
+    signalingChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      signalingChannelRef.current = null;
+    };
   }, [roomId, userId, role, supabase, facingMode]);
 
-  /* ---------------- CALL EVENTS ---------------- */
+  /* ---------------- CALL EVENTS (CALLER) ---------------- */
   useEffect(() => {
     if (role !== "caller") return;
 
-    const eventsChannel = supabase
+    const channel = supabase
       .channel(`call-events-caller-${roomId}`)
       .on(
         "postgres_changes",
@@ -334,13 +337,19 @@ export default function CallRoom({
       )
       .subscribe();
 
-    return () => supabase.removeChannel(eventsChannel);
+    eventsChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      eventsChannelRef.current = null;
+    };
   }, [roomId, userId, role, supabase]);
 
+  /* ---------------- CALL EVENTS (CALLEE) ---------------- */
   useEffect(() => {
     if (role !== "callee") return;
 
-    const eventsChannel = supabase
+    const channel = supabase
       .channel(`call-events-callee-${roomId}`)
       .on(
         "postgres_changes",
@@ -364,7 +373,12 @@ export default function CallRoom({
       )
       .subscribe();
 
-    return () => supabase.removeChannel(eventsChannel);
+    calleeEventsChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      calleeEventsChannelRef.current = null;
+    };
   }, [roomId, userId, role, supabase]);
 
   /* ---------------- AUTO-END IF DECLINED ---------------- */
@@ -426,244 +440,241 @@ export default function CallRoom({
     }
   }
 
- /* ---------------- FULL TEARDOWN (CORRECTED) ---------------- */
-function fullTeardown() {
-  // 1. Close PeerConnection
-  const pc = pcRef.current;
-  if (pc) {
-    pc.onicecandidate = null;
-    pc.ontrack = null;
-    pc.close();
+  /* ---------------- FULL TEARDOWN ---------------- */
+  function fullTeardown() {
+    const pc = pcRef.current;
+    if (pc) {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.close();
+    }
+    pcRef.current = null;
+
+    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
+    if (localStream) localStream.getTracks().forEach((t) => t.stop());
+
+    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
+    if (remoteStream) remoteStream.getTracks().forEach((t) => t.stop());
+
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+
+    pendingRemoteStreamRef.current = null;
+    pendingCandidatesRef.current = [];
+    pendingOfferRef.current = null;
+
+    hasSentOfferRef.current = false;
+    hasProcessedOfferRef.current = false;
+
+    setJoined(false);
+    setRemoteJoined(false);
+    setRemoteLeft(false);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    setCallTimer(0);
+
+    if (signalingChannelRef.current) {
+      supabase.removeChannel(signalingChannelRef.current);
+      signalingChannelRef.current = null;
+    }
+    if (eventsChannelRef.current) {
+      supabase.removeChannel(eventsChannelRef.current);
+      eventsChannelRef.current = null;
+    }
+    if (calleeEventsChannelRef.current) {
+      supabase.removeChannel(calleeEventsChannelRef.current);
+      calleeEventsChannelRef.current = null;
+    }
   }
-  pcRef.current = null;
 
-  // 2. Stop local media
-  const localStream = localVideoRef.current?.srcObject as MediaStream | null;
-  if (localStream) {
-    localStream.getTracks().forEach((t) => t.stop());
+  /* ---------------- CANCEL CALL ---------------- */
+  async function cancelCall() {
+    if (role !== "caller") return;
+    if (callStatus !== "ringing" && callStatus !== "connecting") return;
+
+    await supabase.from("call_events").insert({
+      type: "call_cancelled",
+      room_id: roomId,
+      caller_id: userId,
+      target_user_id: userId,
+      call_id: roomId,
+      status: "cancelled",
+    });
+
+    fullTeardown();
+    router.push("/messenger");
   }
 
-  // 3. Stop remote media
-  const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
-  if (remoteStream) {
-    remoteStream.getTracks().forEach((t) => t.stop());
+  /* ---------------- END CALL ---------------- */
+  function endCall() {
+    fullTeardown();
+    router.push("/messenger");
   }
 
-  // 4. Clear video elements
-  if (localVideoRef.current) localVideoRef.current.srcObject = null;
-  if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  /* ---------------- TIMER FORMAT ---------------- */
+  const formattedTimer = `${Math.floor(callTimer / 60)
+    .toString()
+    .padStart(2, "0")}:${(callTimer % 60).toString().padStart(2, "0")}`;
 
-  // 5. Reset WebRTC buffers
-  pendingRemoteStreamRef.current = null;
-  pendingCandidatesRef.current = [];
-  pendingOfferRef.current = null;
-
-  // 6. Reset negotiation flags
-  hasSentOfferRef.current = false;
-  hasProcessedOfferRef.current = false;
-
-  // 7. Reset UI state
-  setJoined(false);
-  setRemoteJoined(false);
-  setRemoteLeft(false);
-
-  // ❌ DO NOT reset callStatus here — navigation handles cleanup
-
-  // 8. Clear timer
-  if (timerRef.current) clearInterval(timerRef.current);
-  setCallTimer(0);
-
-  // 9. Remove ALL Supabase listeners (CRITICAL)
-  supabase.removeAllChannels();
-}
-
-/* ---------------- CANCEL CALL ---------------- */
-async function cancelCall() {
-  if (role !== "caller") return;
-  if (callStatus !== "ringing" && callStatus !== "connecting") return;
-
-  await supabase.from("call_events").insert({
-    type: "call_cancelled",
-    room_id: roomId,
-    caller_id: userId,
-    target_user_id: userId,
-    call_id: roomId,
-    status: "cancelled",
-  });
-
-  fullTeardown();
-  router.push("/messenger");
-}
-
-/* ---------------- END CALL ---------------- */
-function endCall() {
-  fullTeardown();
-  router.push("/messenger");
-}
-
-/* ---------------- TIMER FORMAT ---------------- */
-const formattedTimer = `${Math.floor(callTimer / 60)
-  .toString()
-  .padStart(2, "0")}:${(callTimer % 60).toString().padStart(2, "0")}`;
-
+  /* ---------------- UI ---------------- */
   return (
-  <div className="flex flex-col h-full p-4 text-white">
-    {showCancelledModal && (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-        <div className="bg-neutral-900 p-6 rounded-xl text-center border border-neutral-700">
-          <p className="text-white mb-4">Caller cancelled the call.</p>
-          <p className="text-neutral-400 mb-4">Returning to Messenger…</p>
-        </div>
-      </div>
-    )}
-
-    {role === "caller" && (
-      <div className="text-center text-neutral-300 mb-4 text-lg">
-        {callStatus === "ringing" && "📞 Ringing…"}
-        {callStatus === "connecting" && (
-          <span className="animate-pulse">🔗 Connecting…</span>
-        )}
-        {callStatus === "declined" && (
-          <span className="text-red-400">❌ Call Declined</span>
-        )}
-        {callStatus === "active" && (
-          <span>
-            🟢 Call in progress ·{" "}
-            <span className="text-sm">{formattedTimer}</span>
-          </span>
-        )}
-      </div>
-    )}
-
-    {role === "callee" && (
-      <div className="text-center text-neutral-300 mb-4 text-lg">
-        {callStatus === "connecting" && (
-          <span className="animate-pulse">🔗 Connecting…</span>
-        )}
-        {callStatus === "active" && (
-          <span>
-            🟢 Call in progress ·{" "}
-            <span className="text-sm">{formattedTimer}</span>
-          </span>
-        )}
-      </div>
-    )}
-
-    {remoteJoined && !remoteLeft && (
-      <div className="text-center text-green-400 mb-2">
-        Remote user joined
-      </div>
-    )}
-
-    {remoteLeft && (
-      <div className="text-center text-red-400 mb-2">
-        Remote user left
-      </div>
-    )}
-
-    <div className="flex flex-col md:flex-row gap-4 flex-1 items-center justify-center">
-      <div className="relative w-full md:w-1/2 bg-black rounded-lg overflow-hidden">
-        <div className="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
-          You
-        </div>
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      <div className="relative w-full md:w-1/2 bg-black rounded-lg overflow-hidden">
-        <div className="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
-          Remote
-        </div>
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      </div>
-    </div>
-
-    <div className="flex justify-center mt-6 gap-4">
-      <button
-        onClick={toggleMute}
-        className="px-4 py-3 bg-neutral-800 rounded-full"
-      >
-        {muted ? "🔇" : "🎤"}
-      </button>
-
-      <button
-        onClick={toggleCamera}
-        className="px-4 py-3 bg-neutral-800 rounded-full"
-      >
-        {cameraOn ? "📷" : "🚫📷"}
-      </button>
-
-      <button
-        onClick={flipCamera}
-        className="px-4 py-3 bg-neutral-800 rounded-full md:hidden"
-      >
-        🔄
-      </button>
-
-      {callStatus === "ringing" && role === "caller" && (
-        <button
-          onClick={cancelCall}
-          className="px-4 py-3 bg-red-600 rounded-full"
-        >
-          Cancel
-        </button>
-      )}
-
-      {(
-        (role === "caller" && callStatus === "active") ||
-        (role === "callee" && joined && callStatus !== "declined")
-      ) && (
-        <button
-          onClick={() => setShowEndConfirm(true)}
-          className="px-4 py-3 bg-red-600 rounded-full"
-        >
-          ⛔
-        </button>
-      )}
-    </div>
-
-    {showEndConfirm && (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-        <div className="bg-neutral-900 p-6 rounded-xl text-center border border-neutral-700">
-          <p className="text-white mb-4">End the call?</p>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => setShowEndConfirm(false)}
-              className="px-4 py-2 bg-neutral-700 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={endCall}
-              className="px-4 py-2 bg-red-600 rounded"
-            >
-              End Call
-            </button>
+    <div className="flex flex-col h-full p-4 text-white">
+      {showCancelledModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 p-6 rounded-xl text-center border border-neutral-700">
+            <p className="text-white mb-4">Caller cancelled the call.</p>
+            <p className="text-neutral-400 mb-4">Returning to Messenger…</p>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-    {role === "caller" && !joined && (
-      <div className="flex justify-center mt-4">
-        <button
-          onClick={joinCallCaller}
-          className="px-6 py-3 bg-green-600 rounded-lg text-lg hover:bg-green-500"
-        >
-          Join Call
-        </button>
+      {role === "caller" && (
+        <div className="text-center text-neutral-300 mb-4 text-lg">
+          {callStatus === "ringing" && "📞 Ringing…"}
+          {callStatus === "connecting" && (
+            <span className="animate-pulse">🔗 Connecting…</span>
+          )}
+          {callStatus === "declined" && (
+            <span className="text-red-400">❌ Call Declined</span>
+          )}
+          {callStatus === "active" && (
+            <span>
+              🟢 Call in progress ·{" "}
+              <span className="text-sm">{formattedTimer}</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {role === "callee" && (
+        <div className="text-center text-neutral-300 mb-4 text-lg">
+          {callStatus === "connecting" && (
+            <span className="animate-pulse">🔗 Connecting…</span>
+          )}
+          {callStatus === "active" && (
+            <span>
+              🟢 Call in progress ·{" "}
+              <span className="text-sm">{formattedTimer}</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {remoteJoined && !remoteLeft && (
+        <div className="text-center text-green-400 mb-2">
+          Remote user joined
+        </div>
+      )}
+
+      {remoteLeft && (
+        <div className="text-center text-red-400 mb-2">
+          Remote user left
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row gap-4 flex-1 items-center justify-center">
+        <div className="relative w-full md:w-1/2 bg-black rounded-lg overflow-hidden">
+          <div className="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
+            You
+          </div>
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        <div className="relative w-full md:w-1/2 bg-black rounded-lg overflow-hidden">
+          <div className="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
+            Remote
+          </div>
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
-    )}
-  </div>
-);
+
+      <div className="flex justify-center mt-6 gap-4">
+        <button
+          onClick={toggleMute}
+          className="px-4 py-3 bg-neutral-800 rounded-full"
+        >
+          {muted ? "🔇" : "🎤"}
+        </button>
+
+        <button
+          onClick={toggleCamera}
+          className="px-4 py-3 bg-neutral-800 rounded-full"
+        >
+          {cameraOn ? "📷" : "🚫📷"}
+        </button>
+
+        <button
+          onClick={flipCamera}
+          className="px-4 py-3 bg-neutral-800 rounded-full md:hidden"
+        >
+          🔄
+        </button>
+
+        {callStatus === "ringing" && role === "caller" && (
+          <button
+            onClick={cancelCall}
+            className="px-4 py-3 bg-red-600 rounded-full"
+          >
+            Cancel
+          </button>
+        )}
+
+        {(
+          (role === "caller" && callStatus === "active") ||
+          (role === "callee" && joined && callStatus !== "declined")
+        ) && (
+          <button
+            onClick={() => setShowEndConfirm(true)}
+            className="px-4 py-3 bg-red-600 rounded-full"
+          >
+            ⛔
+          </button>
+        )}
+      </div>
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 p-6 rounded-xl text-center border border-neutral-700">
+            <p className="text-white mb-4">End the call?</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="px-4 py-2 bg-neutral-700 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={endCall}
+                className="px-4 py-2 bg-red-600 rounded"
+              >
+                End Call
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {role === "caller" && !joined && (
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={joinCallCaller}
+            className="px-6 py-3 bg-green-600 rounded-lg text-lg hover:bg-green-500"
+          >
+            Join Call
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
