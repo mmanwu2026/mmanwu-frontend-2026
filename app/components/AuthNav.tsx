@@ -17,43 +17,43 @@ export default function MobileAuthNav() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    setHydrated(true);
+useEffect(() => {
+  setHydrated(true);
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const user = data.session?.user;
+  supabase.auth.getSession().then(async ({ data }) => {
+    const user = data.session?.user;
+    setUid(user?.id ?? null);
+
+    if (user?.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      setAvatarUrl(profile?.avatar_url ?? FALLBACK_AVATAR);
+    }
+  });
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      const user = session?.user;
       setUid(user?.id ?? null);
 
       if (user?.id) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("avatar_pixel")
+          .select("avatar_url")
           .eq("id", user.id)
           .single();
 
-        setAvatarUrl(profile?.avatar_pixel ?? FALLBACK_AVATAR);
+        setAvatarUrl(profile?.avatar_url ?? FALLBACK_AVATAR);
       }
-    });
+    }
+  );
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const user = session?.user;
-        setUid(user?.id ?? null);
-
-        if (user?.id) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("avatar_pixel")
-            .eq("id", user.id)
-            .single();
-
-          setAvatarUrl(profile?.avatar_pixel ?? FALLBACK_AVATAR);
-        }
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, [supabase]);
+  return () => listener.subscription.unsubscribe();
+}, [supabase]);
 
   if (!hydrated) {
     return (

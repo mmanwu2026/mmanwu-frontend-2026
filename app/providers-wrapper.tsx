@@ -22,12 +22,12 @@ export default function ProvidersWrapper({ children }) {
           <UpdateBanner />
           <SWRegister />
 
-          {/* Composer — Floating White Sub‑Header */}
+{/* Composer — Floating White Sub‑Header */}
 <div className="w-full px-4">
   <div className="bg-white rounded-xl shadow-md px-4 py-3 flex items-center justify-center mt-[68px]">
     <a
       href="/compose"
-      className="text-purple-700 font-semibold text-[15px] hover:opacity-80"
+      className="bg-purple-600 text-white px-4 py-2 rounded-full font-semibold text-[15px] hover:bg-purple-500 transition"
     >
       + Compose
     </a>
