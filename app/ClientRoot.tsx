@@ -1,48 +1,45 @@
 "use client";
 
+import { useEffect } from "react";
 import ProvidersWrapper from "./providers-wrapper";
 import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
 import PushInitializer from "@/app/PushInitializer";
 
-// ⭐ REGISTER FIREBASE SERVICE WORKER (REQUIRED FOR FCM PUSH)
-function SWRegisterScript() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/firebase-messaging-sw.js')
-              .then(() => console.log('Firebase SW registered'))
-              .catch(err => console.error('SW registration failed:', err));
-          }
-        `,
-      }}
-    />
-  );
-}
-
-// ⭐ MOBILE PWA RELIABILITY (OPTIONAL BUT GOOD)
-function MobilePWAReliabilityScript() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-            Notification.requestPermission().catch(() => {});
-          }
-        `,
-      }}
-    />
-  );
-}
-
 export default function ClientRoot({ children }: { children: React.ReactNode }) {
+
+  // ⭐ AUTOMATIC SERVICE WORKER MIGRATION (phones included)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(reg => {
+        const url = reg.active?.scriptURL || "";
+
+        // Remove old Web Push worker
+        if (url.includes("sw.js")) {
+          console.log("Removing old Web Push service worker:", url);
+          reg.unregister();
+        }
+      });
+
+      // Register Firebase Messaging worker
+      navigator.serviceWorker
+        .register("/firebase-messaging-sw.js")
+        .then(() => console.log("Firebase messaging SW registered"))
+        .catch(err => console.error("FCM SW registration failed:", err));
+    });
+  }, []);
+
+  // ⭐ OPTIONAL: Ask permission early on mobile
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
   return (
     <>
-      <SWRegisterScript />
-      <MobilePWAReliabilityScript />
-
       <div id="modal-root"></div>
 
       <ProvidersWrapper>
