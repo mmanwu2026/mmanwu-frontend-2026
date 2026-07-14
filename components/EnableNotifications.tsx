@@ -1,12 +1,9 @@
-
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useSupabase } from "./context/SupabaseContext";
+import { useSupabase } from "../app/context/SupabaseContext";
 
 export default function EnableNotifications() {
-  const router = useRouter();
   const { supabase } = useSupabase();
   const [loading, setLoading] = useState(false);
 
@@ -30,11 +27,12 @@ export default function EnableNotifications() {
         return;
       }
 
-      // ⭐ Only mark notifications as enabled
+      // ⭐ Mark notifications as enabled
       localStorage.setItem("notifications_enabled", "true");
 
-      // ⭐ Redirect — PushInitializer will handle subscription
-      router.replace("/redirector");
+      // ⭐ No redirect needed — unified feed will re-render automatically
+      window.location.reload();
+
     } catch (err) {
       console.error("Push setup failed:", err);
       alert("Could not enable notifications.");
