@@ -5,7 +5,47 @@ import Link from "next/link";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import TopBar from "@/components/navigation/TopBar";
-import type { ReactionCounts, CardSoundPost } from "@/app/sound-square/types";
+
+interface CardSoundPost {
+  id: string;
+  title: string;
+  media_url: string | null;
+  audio_url: string | null;
+
+  creator_id: string;
+  creator_name: string;
+  creator_avatar: string | null;
+
+  created_at: string;
+
+  // ⭐ REQUIRED BY SoundPostCard
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+
+  share_count: number;
+  share_score: number;
+
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
+
+  reactions: {
+    mask1: number;
+    mask2: number;
+    mask3: number;
+    mask4: number;
+    mask5: number;
+    mask6: number;
+  };
+
+  total_reactions: number;
+
+  comments: any[];
+  comment_count: number;
+}
+
 
 export default function SoundSquareIndex() {
   const { supabase } = useSupabase();
@@ -22,8 +62,6 @@ export default function SoundSquareIndex() {
           audio_url,
           creator_id,
           created_at,
-          share_count,
-          share_score,
 
           users:creator_id (
             username,
@@ -77,28 +115,14 @@ export default function SoundSquareIndex() {
           media_url: post.media_url,
           audio_url: post.audio_url,
           creator_id: post.creator_id,
-          created_at: post.created_at,
-
-          // ⭐ REQUIRED BY SoundPostCard
-          share_count: post.share_count ?? 0,
-          share_score: post.share_score ?? 0,
-
-          users: {
-            username: creator?.username ?? "unknown",
-            avatar_url: creator?.avatar_url ?? null,
-          },
-
           creator_name: creator?.username ?? "unknown",
           creator_avatar: creator?.avatar_url ?? null,
-
+          created_at: post.created_at,
           comments,
           comment_count: comments.length,
-
-          // ⭐ Default values until reactions are loaded
           spirit_score: 0,
           positivity_ratio: 0.5,
           automask: 2,
-
           reactions: {
             mask1: 0,
             mask2: 0,
@@ -107,24 +131,22 @@ export default function SoundSquareIndex() {
             mask5: 0,
             mask6: 0,
           },
-
           total_reactions: 0,
-        } as CardSoundPost;
+        };
       });
 
-      // ⭐ Enrich with reactions
       const enriched: CardSoundPost[] = [];
 
       for (const post of normalized) {
         const { data: reactionRows } = await supabase
           .from("reactions")
-          .select('maskTier')
+          .select('post_id, "maskTier"')
           .eq("post_id", post.id)
           .eq("post_type", "sound");
 
         const rows = reactionRows ?? [];
 
-        const counts: ReactionCounts = {
+        const counts = {
           mask1: rows.filter((r) => r.maskTier === 1).length,
           mask2: rows.filter((r) => r.maskTier === 2).length,
           mask3: rows.filter((r) => r.maskTier === 3).length,
@@ -164,8 +186,12 @@ export default function SoundSquareIndex() {
     <div className="min-h-screen bg-white text-gray-900 p-6">
       <TopBar />
 
+      {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
-        <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
+        <Link
+          href="/plaza"
+          className="text-gray-600 hover:text-purple-600 transition"
+        >
           ← Plaza
         </Link>
 
@@ -182,17 +208,27 @@ export default function SoundSquareIndex() {
         Explore beats, reactions, and trending audio moments shared by the community.
       </p>
 
+      {/* ⭐ Toggle */}
       <div className="flex gap-4 mb-6">
-        <Link href="/sound-square/feed" className="font-semibold text-purple-700">
+        <Link
+          href="/sound-square/feed"
+          className="font-semibold text-purple-700"
+        >
           Recent
         </Link>
 
-        <Link href="/sound-square/trending" className="text-gray-600 hover:text-purple-700">
+        <Link
+          href="/sound-square/trending"
+          className="text-gray-600 hover:text-purple-700"
+        >
           Trending
         </Link>
       </div>
 
-      <h2 className="text-xl font-semibold mb-4 text-purple-700">Recent Posts</h2>
+      {/* ⭐ Recent Posts Preview */}
+      <h2 className="text-xl font-semibold mb-4 text-purple-700">
+        Recent Posts
+      </h2>
 
       <div className="space-y-6">
         {recentPosts.map((post) => (
@@ -200,12 +236,15 @@ export default function SoundSquareIndex() {
         ))}
       </div>
 
+      {/* Main Links */}
       <div className="space-y-4 mt-10">
         <Link
           href="/sound-square/feed"
           className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
         >
-          <h2 className="text-xl font-semibold text-purple-700 mb-1">Sound Feed</h2>
+          <h2 className="text-xl font-semibold text-purple-700 mb-1">
+            Sound Feed
+          </h2>
           <p className="text-gray-600 text-sm">
             See the latest uploads from creators across Sound Square.
           </p>
@@ -215,7 +254,9 @@ export default function SoundSquareIndex() {
           href="/sound-square/trending"
           className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
         >
-          <h2 className="text-xl font-semibold text-purple-700 mb-1">Trending</h2>
+          <h2 className="text-xl font-semibold text-purple-700 mb-1">
+            Trending
+          </h2>
           <p className="text-gray-600 text-sm">
             Discover the highest‑spirit and most reacted sound posts.
           </p>

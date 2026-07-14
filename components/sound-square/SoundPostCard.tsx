@@ -183,102 +183,111 @@ export default function SoundPostCard({
     return () => cancelAnimationFrame(frame);
   }, [duration, isPlaying]);
 
-  /* ---------------------------------------------------------
-     ⭐ Playback
-     --------------------------------------------------------- */
-  async function handlePlay() {
-    try {
-      const path = post.audio_url.replace(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-        ""
-      );
-
-      const url = `${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(
-        path
-      )}`;
-
-      const res = await fetch(url);
-      const arrayBuffer = await res.arrayBuffer();
-
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext();
-      }
-      const ctx = audioCtxRef.current;
-
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      setDuration(audioBuffer.duration);
-      setProgress(0);
-
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-
-      if (!gainRef.current) {
-        gainRef.current = ctx.createGain();
-        gainRef.current.gain.value = volume;
-      }
-
-      const intensityNode = ctx.createAnalyser();
-      intensityNode.fftSize = 256;
-
-      const waveformNode = ctx.createAnalyser();
-      waveformNode.fftSize = 2048;
-
-      setIntensityAnalyser(intensityNode);
-      setWaveformAnalyser(waveformNode);
-
-      source.connect(intensityNode);
-      source.connect(waveformNode);
-      source.connect(gainRef.current);
-      gainRef.current.connect(ctx.destination);
-
-      source.start(0);
-      sourceRef.current = source;
-
-      setIsPlaying(true);
-    } catch (err) {
-      console.error("Audio play error:", err);
-    }
-  }
-
-  function handlePause() {
-    try {
-      sourceRef.current?.stop();
-      setIsPlaying(false);
-    } catch (err) {
-      console.error("Pause error:", err);
-    }
-  }
-
-  /* ---------------------------------------------------------
-     ⭐ Delete Post
-     --------------------------------------------------------- */
-  async function handleDelete() {
-    if (!uid || uid !== post.creator_id) return;
-
-    const { error: dbError } = await supabase
-      .from("sound_posts")
-      .delete()
-      .eq("id", post.id)
-      .eq("creator_id", uid);
-
-    if (dbError) {
-      console.error("Delete error:", dbError);
+/* ---------------------------------------------------------
+   ⭐ Playback
+   --------------------------------------------------------- */
+async function handlePlay() {
+  try {
+    // Prevent null audio_url from crashing playback
+    if (!post.audio_url) {
+      console.error("No audio file available for this post.");
       return;
     }
 
+    const path = post.audio_url.replace(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+      ""
+    );
+
+    const url = `${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(
+      path
+    )}`;
+
+    const res = await fetch(url);
+    const arrayBuffer = await res.arrayBuffer();
+
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    const ctx = audioCtxRef.current;
+
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    setDuration(audioBuffer.duration);
+    setProgress(0);
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+
+    if (!gainRef.current) {
+      gainRef.current = ctx.createGain();
+      gainRef.current.gain.value = volume;
+    }
+
+    const intensityNode = ctx.createAnalyser();
+    intensityNode.fftSize = 256;
+
+    const waveformNode = ctx.createAnalyser();
+    waveformNode.fftSize = 2048;
+
+    setIntensityAnalyser(intensityNode);
+    setWaveformAnalyser(waveformNode);
+
+    source.connect(intensityNode);
+    source.connect(waveformNode);
+    source.connect(gainRef.current);
+    gainRef.current.connect(ctx.destination);
+
+    source.start(0);
+    sourceRef.current = source;
+
+    setIsPlaying(true);
+  } catch (err) {
+    console.error("Audio play error:", err);
+  }
+}
+
+function handlePause() {
+  try {
+    sourceRef.current?.stop();
+    setIsPlaying(false);
+  } catch (err) {
+    console.error("Pause error:", err);
+  }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Delete Post
+   --------------------------------------------------------- */
+async function handleDelete() {
+  if (!uid || uid !== post.creator_id) return;
+
+  const { error: dbError } = await supabase
+    .from("sound_posts")
+    .delete()
+    .eq("id", post.id)
+    .eq("creator_id", uid);
+
+  if (dbError) {
+    console.error("Delete error:", dbError);
+    return;
+  }
+
+  // Prevent null audio_url from crashing deletion
+  if (post.audio_url) {
     const audioPath = post.audio_url.replace(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
       ""
     );
 
     await supabase.storage.from("sound_files").remove([audioPath]);
-
-    if (typeof post.onDeleted === "function") {
-      post.onDeleted(post.id);
-    }
-
-    router.refresh();
   }
+
+  if (typeof post.onDeleted === "function") {
+    post.onDeleted(post.id);
+  }
+
+  router.refresh();
+}
 
   /* ---------------------------------------------------------
      ⭐ Refresh Reactions

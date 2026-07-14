@@ -26,20 +26,28 @@ export type SoundComment = {
 export type CardSoundPost = {
   id: string;
   title: string;
-  audio_url: string;
+
+  // ⭐ FIXED
+  audio_url: string | null;
+
   creator_id: string;
   creator_name: string | null;
   created_at: string;
+
   spirit_score: number;
   positivity_ratio: number;
   automask: number;
+
   reactions: ReactionCounts;
+
   share_count: number;
   share_score: number;
+
   users: {
     username: string | null;
     avatar_url: string | null;
   };
+
   comments: SoundComment[];
   comment_count: number;
 };
