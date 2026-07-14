@@ -3,6 +3,21 @@
 import { useState } from "react";
 import { useSupabase } from "../app/context/SupabaseContext";
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export default function EnableNotifications() {
   const { supabase } = useSupabase();
   const [loading, setLoading] = useState(false);
@@ -20,6 +35,7 @@ export default function EnableNotifications() {
         return;
       }
 
+      // Ask permission
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         alert("Notifications were not enabled.");
@@ -27,11 +43,28 @@ export default function EnableNotifications() {
         return;
       }
 
-      // ⭐ Mark notifications as enabled
+      // Register service worker
+      const reg = await navigator.serviceWorker.register("/sw.js");
+
+      // Create push subscription
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+        ),
+      });
+
+      // Save subscription
+      await supabase.from("push_subscriptions").upsert({
+        user_id: user.id,
+        subscription,
+      });
+
+      // Mark enabled
       localStorage.setItem("notifications_enabled", "true");
 
-      // ⭐ No redirect needed — unified feed will re-render automatically
-      window.location.reload();
+      alert("Notifications enabled!");
+      setLoading(false);
 
     } catch (err) {
       console.error("Push setup failed:", err);
@@ -44,16 +77,7 @@ export default function EnableNotifications() {
     <button
       onClick={handleEnable}
       disabled={loading}
-      style={{
-        marginTop: 20,
-        padding: "12px 24px",
-        background: "#ffffff22",
-        border: "1px solid #ffffff55",
-        borderRadius: 8,
-        color: "white",
-        fontSize: "1rem",
-        cursor: "pointer",
-      }}
+      className="px-4 py-2 bg-purple-600 text-white rounded-lg"
     >
       {loading ? "Enabling…" : "Enable Notifications"}
     </button>
