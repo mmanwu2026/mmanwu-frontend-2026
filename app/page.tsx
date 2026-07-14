@@ -65,7 +65,7 @@ export default function UnifiedFeedPage() {
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
-    // SOUND — fetch posts first
+    // SOUND — fetch posts
     const sound = await supabase
       .from("sound_posts")
       .select("*")
@@ -74,16 +74,17 @@ export default function UnifiedFeedPage() {
 
     const soundIds = (sound.data ?? []).map((p: any) => p.id);
 
-    // SOUND — fetch reactions separately and aggregate
+    // SOUND — fetch reactions separately
     let reactionMap: Record<string, ReactionCounts> = {};
+
     if (soundIds.length > 0) {
       const { data: reactionRows } = await supabase
         .from("reactions")
-        .select("post_id, maskTier, post_type")
+        .select("post_id, maskTier")
         .in("post_id", soundIds)
         .eq("post_type", "sound");
 
-      reactionMap = {};
+      // initialize all posts
       soundIds.forEach((id) => {
         reactionMap[id] = {
           mask1: 0,
@@ -95,18 +96,9 @@ export default function UnifiedFeedPage() {
         };
       });
 
+      // fill counts
       reactionRows?.forEach((r: { post_id: string; maskTier: number }) => {
         const key = `mask${r.maskTier}` as keyof ReactionCounts;
-        if (!reactionMap[r.post_id]) {
-          reactionMap[r.post_id] = {
-            mask1: 0,
-            mask2: 0,
-            mask3: 0,
-            mask4: 0,
-            mask5: 0,
-            mask6: 0,
-          };
-        }
         reactionMap[r.post_id][key] += 1;
       });
     }
@@ -133,6 +125,7 @@ export default function UnifiedFeedPage() {
           (p.positivity_ratio ?? 0) * 0.1,
       })) ?? [];
 
+    // ⭐ SOUND — merge reactions + compute spirit + positivity
     const soundMapped: UnifiedFeedItem[] =
       sound.data?.map((p: any) => {
         const counts = reactionMap[p.id] ?? {
@@ -202,20 +195,10 @@ export default function UnifiedFeedPage() {
     setItems((prev) => prev.filter((item) => item.post.id !== id));
   }
 
-  function handleReact() {
-    // unified feed can later refetch or adjust local state if needed
-  }
+  function handleReact() {}
 
   if (!hydrated) {
-    return (
-      <div
-        style={{
-          background: "black",
-          height: "100vh",
-          width: "100vw",
-        }}
-      />
-    );
+    return <div style={{ background: "black", height: "100vh", width: "100vw" }} />;
   }
 
   if (notificationsEnabled !== "true") {
@@ -278,6 +261,9 @@ export default function UnifiedFeedPage() {
           }
 
           if (item.square_type === "sound-square") {
+            // ⭐ GUARANTEE reactions exist
+            if (!item.post.reactions) return null;
+
             return (
               <SoundPostCard
                 key={item.post.id}
