@@ -167,12 +167,11 @@ export default function CallRoom({
 
     setJoined(true);
 
-    // callee joining → mark call_started
     if (role === "callee") {
       await supabase.from("call_events").insert({
         type: "call_started",
         room_id: roomId,
-        caller_id: userId, // you can adjust if needed
+        caller_id: userId,
         target_user_id: userId,
         call_id: roomId,
         status: "started",
@@ -264,7 +263,7 @@ export default function CallRoom({
 
   /* ---------------- CALL EVENTS (DECLINE + CANCEL + START) ---------------- */
 
-  // Caller-side decline + cancel detection
+  // Caller-side decline + start + cancel detection
   useEffect(() => {
     if (role !== "caller") return;
 
@@ -291,7 +290,6 @@ export default function CallRoom({
           }
 
           if (row.type === "call_cancelled") {
-            // remote cancelled (unlikely for caller channel, but kept for symmetry)
             setRemoteLeft(true);
           }
         }
@@ -321,7 +319,8 @@ export default function CallRoom({
           if (row.type === "call_cancelled") {
             setShowCancelledModal(true);
             setTimeout(() => {
-              endCall(true); // silent teardown + redirect
+              fullTeardown();
+              router.push("/messenger");
             }, 1500);
           }
         }
@@ -334,7 +333,10 @@ export default function CallRoom({
   /* ---------------- AUTO-END IF DECLINED ---------------- */
   useEffect(() => {
     if (callStatus === "declined") {
-      setTimeout(() => endCall(true), 1500);
+      setTimeout(() => {
+        fullTeardown();
+        router.push("/messenger");
+      }, 1500);
     }
   }, [callStatus]);
 
@@ -389,6 +391,48 @@ export default function CallRoom({
     }
   }
 
+  /* ---------------- FULL TEARDOWN ---------------- */
+  function fullTeardown() {
+    const pc = pcRef.current;
+    if (pc) {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.close();
+    }
+    pcRef.current = null;
+
+    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop());
+    }
+
+    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
+    if (remoteStream) {
+      remoteStream.getTracks().forEach((t) => t.stop());
+    }
+
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+
+    pendingRemoteStreamRef.current = null;
+    pendingCandidatesRef.current = [];
+
+    hasSentOfferRef.current = false;
+    hasProcessedOfferRef.current = false;
+
+    setJoined(false);
+    setRemoteJoined(false);
+    setRemoteLeft(false);
+    setCallStatus(role === "caller" ? "ringing" : "connecting");
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    setCallTimer(0);
+
+    supabase.getChannels().forEach((ch) => {
+      supabase.removeChannel(ch);
+    });
+  }
+
   /* ---------------- CANCEL CALL (CALLER, RINGING ONLY) ---------------- */
   async function cancelCall() {
     if (role !== "caller") return;
@@ -403,25 +447,14 @@ export default function CallRoom({
       status: "cancelled",
     });
 
-    endCall(true);
+    fullTeardown();
+    router.push("/messenger");
   }
 
   /* ---------------- END CALL ---------------- */
-  function endCall(silent?: boolean) {
-    const pc = pcRef.current;
-    pc?.close();
-
-    const localStream = localVideoRef.current?.srcObject as MediaStream | null;
-    localStream?.getTracks().forEach((t) => t.stop());
-
-    const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
-    remoteStream?.getTracks().forEach((t) => t.stop());
-
-    if (!silent) {
-      router.push("/messenger");
-    } else {
-      router.push("/messenger");
-    }
+  function endCall() {
+    fullTeardown();
+    router.push("/messenger");
   }
 
   /* ---------------- UI ---------------- */
@@ -444,7 +477,7 @@ export default function CallRoom({
         </div>
       )}
 
-      {/* Caller-side status + timer */}
+      {/* Status + timer */}
       {role === "caller" && (
         <div className="text-center text-neutral-300 mb-4 text-lg">
           {callStatus === "ringing" && "📞 Ringing…"}
@@ -456,7 +489,8 @@ export default function CallRoom({
           )}
           {callStatus === "active" && (
             <span>
-              🟢 Call in progress · <span className="text-sm">{formattedTimer}</span>
+              🟢 Call in progress ·{" "}
+              <span className="text-sm">{formattedTimer}</span>
             </span>
           )}
         </div>
@@ -469,7 +503,8 @@ export default function CallRoom({
           )}
           {callStatus === "active" && (
             <span>
-              🟢 Call in progress · <span className="text-sm">{formattedTimer}</span>
+              🟢 Call in progress ·{" "}
+              <span className="text-sm">{formattedTimer}</span>
             </span>
           )}
         </div>
@@ -483,7 +518,7 @@ export default function CallRoom({
 
       {remoteLeft && (
         <div className="text-center text-red-400 mb-2">
-        Remote user left
+          Remote user left
         </div>
       )}
 
@@ -580,7 +615,7 @@ export default function CallRoom({
                 Cancel
               </button>
               <button
-                onClick={() => endCall(false)}
+                onClick={endCall}
                 className="px-4 py-2 bg-red-600 rounded"
               >
                 End Call
@@ -590,7 +625,7 @@ export default function CallRoom({
         </div>
       )}
 
-      {/* Join button (for both roles) */}
+      {/* Join button */}
       {!joined && (
         <div className="flex justify-center mt-4">
           <button
