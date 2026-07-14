@@ -19,7 +19,7 @@ interface UnifiedFeedItem {
 export default function UnifiedFeedPage() {
   const { supabase, user } = useSupabase();
 
-  // All hooks MUST be declared before any conditional return
+  // All hooks must be declared before any conditional return
   const [hydrated, setHydrated] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState<string | null>(null);
 
@@ -46,21 +46,24 @@ export default function UnifiedFeedPage() {
     if (loading) return;
     setLoading(true);
 
+    // Plaza posts
     const plaza = await supabase
       .from("posts")
       .select("*, profiles(*)")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
+    // Vision posts
     const vision = await supabase
       .from("vision_posts")
       .select("*, profiles(*)")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
+    // ⭐ SOUND POSTS — FIXED (no profiles join)
     const sound = await supabase
       .from("sound_posts")
-      .select("*, profiles(*)")
+      .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
@@ -86,19 +89,24 @@ export default function UnifiedFeedPage() {
           (p.positivity_ratio ?? 0) * 0.1,
       })) ?? [];
 
+    // ⭐ SOUND POSTS — FIXED MAPPING
     const soundMapped =
       sound.data?.map((p: any) => ({
         square_type: "sound-square",
-        post: p,
-        creator: p.profiles,
+        post: {
+          ...p,
+          autoMask: p.automask, // normalize field name
+        },
+        creator: null, // SoundSquare has no FK to profiles
         trending_score:
-          (p.reactions ?? 0) * 0.6 +
-          (p.spirit_score ?? 0) * 0.3 +
-          (p.positivity_ratio ?? 0) * 0.1,
+          (p.share_count ?? 0) * 0.4 +
+          (p.spirit_score ?? 0) * 0.4 +
+          (p.positivity_ratio ?? 0) * 0.2,
       })) ?? [];
 
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
+    // TikTok-style hybrid ranking
     combined.sort((a, b) => {
       const timeA = new Date(a.post.created_at).getTime();
       const timeB = new Date(b.post.created_at).getTime();
@@ -118,7 +126,7 @@ export default function UnifiedFeedPage() {
 
   function handleReact() {}
 
-  // ⭐ Now we do conditional UI rendering — NOT conditional hook rendering
+  // ⭐ Hydration-safe placeholder
   if (!hydrated) {
     return (
       <div
@@ -131,6 +139,7 @@ export default function UnifiedFeedPage() {
     );
   }
 
+  // ⭐ Notification gating
   if (notificationsEnabled !== "true") {
     return (
       <div
