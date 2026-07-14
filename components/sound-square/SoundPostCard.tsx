@@ -339,6 +339,7 @@ async function handleDelete() {
     setPositivityRatio(newPositivity);
     setAutoMask(newAutoMask);
 
+    router.refresh();
   };
 
   /* ---------------------------------------------------------
