@@ -719,410 +719,407 @@ export default function ProfileClient({
   }, [posts, reactionCounts, soundPosts, visionPosts, profile]);
 
   if (!hydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
-  }
-
-  if (authLoading && !authUserId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Loading profile…</p>
-      </div>
-    );
-  }
-
-  if (!authUserId && !authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p className="text-zinc-400 text-sm">Redirecting…</p>
-      </div>
-    );
-  }
-
   return (
-    <>
-      {/* HEADER */}
-      <div className="w-full bg-black text-white">
-        <div className="h-32 w-full" style={{ backgroundColor: bannerColor }} />
+    <div className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+      <p className="text-gray-500 text-sm">Loading profile…</p>
+    </div>
+  );
+}
 
-        <div className="px-6 -mt-12 flex flex-row gap-8 items-start">
-          {/* LEFT COLUMN — AVATAR */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-neutral-900">
-              {isOwnProfile ? (
-                <AvatarUploader
-                  userId={profile.id}
-                  currentAvatar={profile.avatar_url}
-                />
-              ) : (
-                <img
-                  src={profile.avatar_url || FALLBACK_AVATAR}
-                  onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                  className="w-full h-full object-cover"
-                />
-              )}
+if (authLoading && !authUserId) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+      <p className="text-gray-500 text-sm">Loading profile…</p>
+    </div>
+  );
+}
+
+if (!authUserId && !authLoading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+      <p className="text-gray-500 text-sm">Redirecting…</p>
+    </div>
+  );
+}
+
+return (
+  <>
+    {/* HEADER */}
+    <div className="w-full bg-white text-gray-900 border-b border-gray-200">
+      {/* Banner */}
+      <div
+        className="h-32 w-full"
+        style={{ backgroundColor: bannerColor }}
+      />
+
+      {/* Avatar + Info */}
+      <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
+
+        {/* LEFT — Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
+            {isOwnProfile ? (
+              <AvatarUploader
+                userId={profile.id}
+                currentAvatar={profile.avatar_url}
+              />
+            ) : (
+              <img
+                src={profile.avatar_url || FALLBACK_AVATAR}
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+
+          {isOwnProfile && (
+            <button
+              onClick={() =>
+                document.getElementById("avatar-upload-input")?.click()
+              }
+              className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
+            >
+              Upload Avatar
+            </button>
+          )}
+        </div>
+
+        {/* RIGHT — Info */}
+        <div className="flex flex-col flex-1">
+
+          {/* Name + Badges */}
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {profile.display_name}
+            </h1>
+
+            {profile.verified && (
+              <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
+                ✔
+              </span>
+            )}
+
+            <span
+              className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
+              style={{
+                backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
+                color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
+              }}
+            >
+              Tier {profile.mask_tier}
+            </span>
+          </div>
+
+          <p className="text-gray-500">@{profile.username}</p>
+
+          {profile.bio && (
+            <p className="mt-2 text-gray-700 max-w-xl leading-relaxed">
+              {profile.bio}
+            </p>
+          )}
+
+          {/* Stats */}
+          <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
+            <div>
+              <p className="text-lg font-semibold text-gray-900">{followersCount}</p>
+              <p className="text-xs text-gray-500">Followers</p>
             </div>
+
+            <div>
+              <p className="text-lg font-semibold text-gray-900">{followingCount}</p>
+              <p className="text-xs text-gray-500">Following</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold text-gray-900">{profile.spirit_score}</p>
+              <p className="text-xs text-gray-500">Spirit</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold text-gray-900">
+                {Math.round(profile.positivity_ratio * 100)}%
+              </p>
+              <p className="text-xs text-gray-500">Positivity</p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold text-gray-900">
+                {new Date(profile.created_at).toLocaleDateString()}
+              </p>
+              <p className="text-xs text-gray-500">Joined</p>
+            </div>
+          </div>
+
+          {/* Follow / Edit */}
+          <div className="mt-4 flex gap-3">
+            {!isOwnProfile && authUserId && (
+              <button
+                onClick={handleFollowToggle}
+                disabled={busy || authLoading}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                  isFollowing
+                    ? "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                    : "bg-purple-600 text-white hover:bg-purple-500"
+                }`}
+              >
+                {isFollowing ? "Following" : "Follow"}
+              </button>
+            )}
 
             {isOwnProfile && (
               <button
-                onClick={() =>
-                  document.getElementById("avatar-upload-input")?.click()
-                }
-                className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition text-white"
+                onClick={() => setShowEditModal(true)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
               >
-                Upload Avatar
+                Edit Profile
               </button>
             )}
           </div>
-
-          {/* RIGHT COLUMN — INFO */}
-          <div className="flex flex-col flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold">
-                {profile.display_name}
-              </h1>
-
-              {profile.verified && (
-                <span className="inline-flex items-center justify-center rounded-full bg-yellow-500 text-black text-xs px-2 py-0.5 font-semibold">
-                  ✔
-                </span>
-              )}
-
-              <span
-                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-white/40"
-                style={{
-                  backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
-                  color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
-                }}
-              >
-                Tier {profile.mask_tier}
-              </span>
-            </div>
-
-            <p className="text-white/60">@{profile.username}</p>
-
-            {profile.bio && (
-              <p className="mt-2 text-white/80 max-w-xl leading-relaxed">
-                {profile.bio}
-              </p>
-            )}
-
-            {/* Stats */}
-            <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-white/80 max-w-xl">
-              <div>
-                <p className="text-lg font-semibold">{followersCount}</p>
-                <p className="text-xs text-white/60">Followers</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">{followingCount}</p>
-                <p className="text-xs text-white/60">Following</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">{profile.spirit_score}</p>
-                <p className="text-xs text-white/60">Spirit</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">
-                  {Math.round(profile.positivity_ratio * 100)}%
-                </p>
-                <p className="text-xs text-white/60">Positivity</p>
-              </div>
-
-              <div>
-                <p className="text-lg font-semibold">
-                  {new Date(profile.created_at).toLocaleDateString()}
-                </p>
-                <p className="text-xs text-white/60">Joined</p>
-              </div>
-            </div>
-
-            {/* Follow / Edit buttons */}
-            <div className="mt-4 flex gap-3">
-              {!isOwnProfile && authUserId && (
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={busy || authLoading}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                    isFollowing
-                      ? "bg-white/10 text-white hover:bg-white/20"
-                      : "bg-purple-600 text-white hover:bg-purple-500"
-                  }`}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </button>
-              )}
-
-              {isOwnProfile && (
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white hover:bg-white/20 transition"
-                >
-                  Edit Profile
-                </button>
-              )}
-
-              <Link
-                href="/sound-square"
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition"
-              >
-                Sound Square
-              </Link>
-
-              <Link
-                href="/vision-square"
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-500 transition"
-              >
-                Vision Square
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
+    </div>
 
-      {/* CONTENT BELOW */}
-      <div className="min-h-screen bg-black text-white p-6 space-y-8">
-        {/* Tabs */}
-        <div className="flex justify-center gap-6 border-b border-white/10 pb-2 text-sm">
-          <button
-            onClick={() => setActiveTab("posts")}
-            className={
-              activeTab === "posts" ? "text-white font-semibold" : "text-white/50"
-            }
-          >
-            Posts
-          </button>
+    {/* CONTENT BELOW */}
+    <div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
 
-          <button
-            onClick={() => setActiveTab("visionposts")}
-            className={
-              activeTab === "visionposts"
-                ? "text-white font-semibold"
-                : "text-white/50"
-            }
-          >
-            Vision Posts
-          </button>
+      {/* Tabs */}
+      <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
+        <button
+          onClick={() => setActiveTab("posts")}
+          className={
+            activeTab === "posts"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Posts
+        </button>
 
-          <button
-            onClick={() => setActiveTab("soundposts")}
-            className={
-              activeTab === "soundposts"
-                ? "text-white font-semibold"
-                : "text-white/50"
-            }
-          >
-            Soundposts
-          </button>
+        <button
+          onClick={() => setActiveTab("visionposts")}
+          className={
+            activeTab === "visionposts"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Vision Posts
+        </button>
 
-          <button
-            onClick={() => setActiveTab("reactions")}
-            className={
-              activeTab === "reactions"
-                ? "text-white font-semibold"
-                : "text-white/50"
-            }
-          >
-            Reactions
-          </button>
-        </div>
+        <button
+          onClick={() => setActiveTab("soundposts")}
+          className={
+            activeTab === "soundposts"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Soundposts
+        </button>
 
-        {/* Grid toggle */}
-        {activeTab === "posts" && (
-          <div className="flex justify-end mt-2">
-            <button
-              onClick={() => setGridMode((prev) => !prev)}
-              className="text-xs text-white/60 hover:text-white transition"
-            >
-              {gridMode ? "List View" : "Grid View"}
-            </button>
-          </div>
-        )}
-
-        {/* PLAZA POSTS */}
-        {activeTab === "posts" && (
-          <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-            {posts && posts.length > 0 ? (
-              posts.map((post) => {
-                const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
-
-                const total =
-                  counts.mask1 +
-                  counts.mask2 +
-                  counts.mask3 +
-                  counts.mask4 +
-                  counts.mask5 +
-                  counts.mask6;
-
-                const spirit_score =
-                  1 * counts.mask1 +
-                  2 * counts.mask2 +
-                  3 * counts.mask3 +
-                  4 * counts.mask4 +
-                  5 * counts.mask5 +
-                  6 * counts.mask6;
-
-                const positive =
-                  counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
-
-                const positivity_ratio = total > 0 ? positive / total : 0.5;
-
-                let autoMask = 2;
-                if (spirit_score > 20) autoMask = 3;
-                if (spirit_score > 100) autoMask = 4;
-                if (spirit_score > 300) autoMask = 5;
-                if (spirit_score > 500) autoMask = 6;
-
-                return (
-                  <div
-                    key={post.id}
-                    className={
-                      gridMode
-                        ? "animate-fadeInUp"
-                        : "pb-4 border-b border-white/10 last:border-b-0 animate-fadeInUp"
-                    }
-                  >
-                    <PostCard
-                      post={{
-                        id: post.id,
-                        creator_id: post.creator_id,
-                        content: post.content,
-                        created_at: post.created_at,
-                        spirit_score,
-                        autoMask,
-                      }}
-                      reactions={counts}
-                      positivityRatio={positivity_ratio}
-                      onReact={() => {}}
-                      showDelete={authUserId === profile.id}
-                      onDelete={async (postId) => {
-                        await supabase.from("posts").delete().eq("id", postId);
-                        router.refresh();
-                      }}
-                    />
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-white/40 text-center">No posts yet…</p>
-            )}
-          </div>
-        )}
-
-        {/* VISION POSTS */}
-        {activeTab === "visionposts" && (
-          <div className="space-y-6">
-            {visionLoading && visionPosts.length === 0 && (
-              <p className="text-white/40 text-center mt-6">
-                Loading visions…
-              </p>
-            )}
-
-            {!visionLoading && visionPosts.length === 0 && (
-              <p className="text-white/40 text-center mt-6">
-                No visions yet…
-              </p>
-            )}
-
-            {visionPosts.map((post) => (
-              <VisionCard key={post.id} post={post} smallAvatar />
-            ))}
-
-            {visionFetchingMore && (
-              <p className="text-white/40 text-center mt-4">
-                Loading more visions…
-              </p>
-            )}
-
-            {visionEndReached && visionPosts.length > 0 && (
-              <p className="text-white/40 text-center mt-4">
-                You’ve reached the end of this creator’s visions.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* SOUND POSTS */}
-        {activeTab === "soundposts" && (
-          <div className="space-y-6">
-            {soundPosts && soundPosts.length > 0 ? (
-              soundPosts.map((post) => (
-                <SoundPostCard key={post.id} post={post} isTrending={false} />
-              ))
-            ) : (
-              <p className="text-white/40 text-center mt-6">
-                No soundposts yet…
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* REACTIONS */}
-        {activeTab === "reactions" && (
-          <div className="space-y-4">
-            {Object.keys(reactionPostMap).length === 0 && (
-              <p className="text-white/40 text-center mt-6">
-                Loading reactions…
-              </p>
-            )}
-
-            {Object.keys(reactionPostMap).length > 0 && (
-              <>
-                {givenReactions.length === 0 ? (
-                  <p className="text-white/40 text-center mt-6">
-                    No reactions yet…
-                  </p>
-                ) : (
-                  givenReactions.map((r) => {
-                    const info = reactionPostMap[r.post_id];
-                    const username = info?.username ?? "unknown";
-                    const content = info?.content ?? "";
-
-                    return (
-                      <div
-                        key={r.id}
-                        className="border border-white/10 rounded-lg p-4 bg-neutral-900/40"
-                      >
-                        <p className="text-sm text-white/70 mb-2">
-                          You reacted{" "}
-                          <span className="font-semibold text-white">
-                            Mask {r.maskTier}
-                          </span>{" "}
-                          to{" "}
-                          <span className="font-semibold">@{username}</span>
-                        </p>
-
-                        <p className="text-white/90 mb-2 italic">
-                          “{content.slice(0, 120)}…”
-                        </p>
-
-                        <p className="text-xs text-white/40">
-                          {new Date(r.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    );
-                  })
-                )}
-              </>
-            )}
-          </div>
-        )}
+        <button
+          onClick={() => setActiveTab("reactions")}
+          className={
+            activeTab === "reactions"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Reactions
+        </button>
       </div>
 
-      {/* Edit Profile Modal */}
-      {showEditModal && (
-        <Modal onClose={() => setShowEditModal(false)}>
-          <EditProfileForm
-            profile={profile}
-            onClose={() => setShowEditModal(false)}
-          />
-        </Modal>
+      {/* Grid toggle */}
+      {activeTab === "posts" && (
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={() => setGridMode((prev) => !prev)}
+            className="text-xs text-gray-500 hover:text-gray-700 transition"
+          >
+            {gridMode ? "List View" : "Grid View"}
+          </button>
+        </div>
       )}
-    </>
-  );
+
+      {/* PLAZA POSTS */}
+      {activeTab === "posts" && (
+        <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+          {posts && posts.length > 0 ? (
+            posts.map((post) => {
+              const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+
+              const total =
+                counts.mask1 +
+                counts.mask2 +
+                counts.mask3 +
+                counts.mask4 +
+                counts.mask5 +
+                counts.mask6;
+
+              const spirit_score =
+                1 * counts.mask1 +
+                2 * counts.mask2 +
+                3 * counts.mask3 +
+                4 * counts.mask4 +
+                5 * counts.mask5 +
+                6 * counts.mask6;
+
+              const positive =
+                counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
+
+              const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+              let autoMask = 2;
+              if (spirit_score > 20) autoMask = 3;
+              if (spirit_score > 100) autoMask = 4;
+              if (spirit_score > 300) autoMask = 5;
+              if (spirit_score > 500) autoMask = 6;
+
+              return (
+                <div
+                  key={post.id}
+                  className={
+                    gridMode
+                      ? "animate-fadeInUp"
+                      : "pb-4 border-b border-gray-200 last:border-b-0 animate-fadeInUp"
+                  }
+                >
+                  <PostCard
+                    post={{
+                      id: post.id,
+                      creator_id: post.creator_id,
+                      content: post.content,
+                      created_at: post.created_at,
+                      spirit_score,
+                      autoMask,
+                    }}
+                    reactions={counts}
+                    positivityRatio={positivity_ratio}
+                    onReact={() => {}}
+                    showDelete={authUserId === profile.id}
+                    onDelete={async (postId) => {
+                      await supabase.from("posts").delete().eq("id", postId);
+                      router.refresh();
+                    }}
+                  />
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-gray-500 text-center">No posts yet…</p>
+          )}
+        </div>
+      )}
+
+      {/* VISION POSTS */}
+      {activeTab === "visionposts" && (
+        <div className="space-y-6">
+          {visionLoading && visionPosts.length === 0 && (
+            <p className="text-gray-500 text-center mt-6">
+              Loading visions…
+            </p>
+          )}
+
+          {!visionLoading && visionPosts.length === 0 && (
+            <p className="text-gray-500 text-center mt-6">
+              No visions yet…
+            </p>
+          )}
+
+          {visionPosts.map((post) => (
+            <VisionCard key={post.id} post={post} smallAvatar />
+          ))}
+
+          {visionFetchingMore && (
+            <p className="text-gray-500 text-center mt-4">
+              Loading more visions…
+            </p>
+          )}
+
+          {visionEndReached && visionPosts.length > 0 && (
+            <p className="text-gray-500 text-center mt-4">
+              You’ve reached the end of this creator’s visions.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* SOUND POSTS */}
+      {activeTab === "soundposts" && (
+        <div className="space-y-6">
+          {soundPosts && soundPosts.length > 0 ? (
+            soundPosts.map((post) => (
+              <SoundPostCard key={post.id} post={post} isTrending={false} />
+            ))
+          ) : (
+            <p className="text-gray-500 text-center mt-6">
+              No soundposts yet…
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* REACTIONS */}
+      {activeTab === "reactions" && (
+        <div className="space-y-4">
+          {Object.keys(reactionPostMap).length === 0 && (
+            <p className="text-gray-500 text-center mt-6">
+              Loading reactions…
+            </p>
+          )}
+
+          {Object.keys(reactionPostMap).length > 0 && (
+            <>
+              {givenReactions.length === 0 ? (
+                <p className="text-gray-500 text-center mt-6">
+                  No reactions yet…
+                </p>
+              ) : (
+                givenReactions.map((r) => {
+                  const info = reactionPostMap[r.post_id];
+                  const username = info?.username ?? "unknown";
+                  const content = info?.content ?? "";
+
+                  return (
+                    <div
+                      key={r.id}
+                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                    >
+                      <p className="text-sm text-gray-700 mb-2">
+                        You reacted{" "}
+                        <span className="font-semibold text-purple-700">
+                          Mask {r.maskTier}
+                        </span>{" "}
+                        to{" "}
+                        <span className="font-semibold">@{username}</span>
+                      </p>
+
+                      <p className="text-gray-800 mb-2 italic">
+                        “{content.slice(0, 120)}…”
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        {new Date(r.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* Edit Profile Modal */}
+    {showEditModal && (
+      <Modal onClose={() => setShowEditModal(false)}>
+        <EditProfileForm
+          profile={profile}
+          onClose={() => setShowEditModal(false)}
+        />
+      </Modal>
+    )}
+  </>
+);
 }

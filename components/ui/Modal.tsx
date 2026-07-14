@@ -44,8 +44,8 @@ export default function Modal({ children, onClose }: ModalProps) {
     <div
       className="
         fixed inset-0 
-        bg-black/80 
-        backdrop-blur-[2px] 
+        bg-black/40 
+        backdrop-blur-sm 
         flex items-center justify-center 
         z-[2147483647]
       "
@@ -54,17 +54,15 @@ export default function Modal({ children, onClose }: ModalProps) {
       <div
         className="
           w-full 
-          max-w-2xl 
-          min-w-[90vw] md:min-w-[480px]
-          bg-[#0d0d0f] 
-          border border-white/10 
+          max-w-lg 
+          bg-white 
+          border border-gray-200 
           shadow-2xl 
-          rounded-xl 
+          rounded-2xl 
           p-6 
-          mx-4 md:mx-0
+          mx-4 
           max-h-[85vh] 
           overflow-y-auto
-          overflow-x-hidden
         "
         onClick={(e) => e.stopPropagation()}
       >
