@@ -35,6 +35,7 @@ export default function UnifiedFeedPage() {
   const [offset, setOffset] = useState(0);
   const LIMIT = 20;
 
+  /* ---------------- HYDRATION ---------------- */
   useEffect(() => {
     setHydrated(true);
     const flag = localStorage.getItem("notifications_enabled");
@@ -85,63 +86,13 @@ export default function UnifiedFeedPage() {
                 reactions[key] = Math.max(0, (reactions[key] ?? 0) - 1);
               }
 
-              const total =
-                reactions.mask1 +
-                reactions.mask2 +
-                reactions.mask3 +
-                reactions.mask4 +
-                reactions.mask5 +
-                reactions.mask6;
-
-              const spiritFromMasks =
-                reactions.mask1 * 1 +
-                reactions.mask2 * 2 +
-                reactions.mask3 * 3 +
-                reactions.mask4 * 4 +
-                reactions.mask5 * 5 +
-                reactions.mask6 * 6;
-
-              const positiveCount =
-                reactions.mask3 +
-                reactions.mask4 +
-                reactions.mask5 +
-                reactions.mask6;
-
-              const positivity =
-                total > 0 ? positiveCount / total : item.post.positivity_ratio ?? 0.5;
-
-              let trending_score = item.trending_score;
-
-              if (item.square_type === "plaza") {
-                trending_score =
-                  (item.post.spirit_score ?? spiritFromMasks) * 0.6 +
-                  total * 0.4;
-              }
-
-              if (item.square_type === "sound-square") {
-                trending_score =
-                  (item.post.share_count ?? 0) * 0.4 +
-                  (item.post.spirit_score ?? spiritFromMasks) * 0.4 +
-                  (positivity ?? 0.5) * 0.2;
-              }
-
-              if (item.square_type === "vision-square") {
-                trending_score =
-                  (item.post.spirit_score ?? spiritFromMasks) * 0.6 +
-                  total * 0.4;
-              }
-
               return {
                 ...item,
                 post: {
                   ...item.post,
-                  reactions,
-                  spirit_score: item.post.spirit_score ?? spiritFromMasks,
-                  positivity_ratio: positivity,
-                  total_reactions: total,
-                  automask: item.post.automask ?? 2,
+                  reactions, // ⭐ unified feed only updates reactions
                 },
-                trending_score,
+                trending_score: item.trending_score, // ⭐ trending stays as-is
               };
             })
           );
@@ -149,18 +100,15 @@ export default function UnifiedFeedPage() {
       );
 
     channel.subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
+    return () => channel.unsubscribe();
   }, [supabase]);
 
+  /* ---------------- LOAD MORE ---------------- */
   async function loadMore() {
     if (loading) return;
     setLoading(true);
 
     /* ---------------- PLAZA ---------------- */
-
     const plaza = await supabase
       .from("posts")
       .select("*, profiles(*)")
@@ -189,7 +137,7 @@ export default function UnifiedFeedPage() {
         };
       });
 
-      plazaReactionRows?.forEach((r: { post_id: string; maskTier: number }) => {
+      plazaReactionRows?.forEach((r) => {
         const key = `mask${r.maskTier}` as keyof ReactionCounts;
         plazaReactionMap[r.post_id][key] += 1;
       });
@@ -206,44 +154,18 @@ export default function UnifiedFeedPage() {
           mask6: 0,
         };
 
-        const total =
-          counts.mask1 +
-          counts.mask2 +
-          counts.mask3 +
-          counts.mask4 +
-          counts.mask5 +
-          counts.mask6;
-
-        const spiritFromMasks =
-          counts.mask1 * 1 +
-          counts.mask2 * 2 +
-          counts.mask3 * 3 +
-          counts.mask4 * 4 +
-          counts.mask5 * 5 +
-          counts.mask6 * 6;
-
-        const positivity =
-          total > 0
-            ? (counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6) / total
-            : p.positivity_ratio ?? 0.5;
-
         return {
           square_type: "plaza",
           post: {
             ...p,
-            reactions: counts,
-            spirit_score: p.spirit_score ?? spiritFromMasks,
-            positivity_ratio: positivity,
-            autoMask: p.autoMask ?? 2,
+            reactions: counts, // ⭐ only reactions
           },
           creator: p.profiles,
-          trending_score:
-            (p.spirit_score ?? spiritFromMasks) * 0.6 + total * 0.4,
+          trending_score: p.trending_score ?? 0,
         };
       }) ?? [];
 
     /* ---------------- VISION ---------------- */
-
     const vision = await supabase
       .from("vision_posts")
       .select("*, profiles(*)")
@@ -253,16 +175,12 @@ export default function UnifiedFeedPage() {
     const visionMapped: UnifiedFeedItem[] =
       vision.data?.map((p: any) => ({
         square_type: "vision-square",
-        post: p,
+        post: p, // ⭐ VisionCard computes its own values
         creator: p.profiles,
-        trending_score:
-          (p.reactions ?? 0) * 0.6 +
-          (p.spirit_score ?? 0) * 0.3 +
-          (p.positivity_ratio ?? 0) * 0.1,
+        trending_score: p.trending_score ?? 0,
       })) ?? [];
 
     /* ---------------- SOUND ---------------- */
-
     const sound = await supabase
       .from("sound_posts")
       .select("*")
@@ -291,7 +209,7 @@ export default function UnifiedFeedPage() {
         };
       });
 
-      soundReactionRows?.forEach((r: { post_id: string; maskTier: number }) => {
+      soundReactionRows?.forEach((r) => {
         const key = `mask${r.maskTier}` as keyof ReactionCounts;
         soundReactionMap[r.post_id][key] += 1;
       });
@@ -308,47 +226,18 @@ export default function UnifiedFeedPage() {
           mask6: 0,
         };
 
-        const spiritFromMasks =
-          counts.mask1 * 1 +
-          counts.mask2 * 2 +
-          counts.mask3 * 3 +
-          counts.mask4 * 4 +
-          counts.mask5 * 5 +
-          counts.mask6 * 6;
-
-        const total =
-          counts.mask1 +
-          counts.mask2 +
-          counts.mask3 +
-          counts.mask4 +
-          counts.mask5 +
-          counts.mask6;
-
-        const positiveCount =
-          counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
-
-        const positivity =
-          total > 0 ? positiveCount / total : p.positivity_ratio ?? 0.5;
-
         return {
           square_type: "sound-square",
           post: {
             ...p,
-            reactions: counts,
-            spirit_score: p.spirit_score ?? spiritFromMasks,
-            positivity_ratio: positivity,
-            automask: p.automask ?? 2,
+            reactions: counts, // ⭐ only reactions
           },
           creator: null,
-          trending_score:
-            (p.share_count ?? 0) * 0.4 +
-            (p.spirit_score ?? spiritFromMasks) * 0.4 +
-            (positivity ?? 0.5) * 0.2,
+          trending_score: p.trending_score ?? 0,
         };
       }) ?? [];
 
     /* ---------------- COMBINE ---------------- */
-
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
     combined.sort((a, b) => {
@@ -374,44 +263,17 @@ export default function UnifiedFeedPage() {
     return <div style={{ background: "black", height: "100vh", width: "100vw" }} />;
   }
 
-  if (notificationsEnabled !== "true") {
-    return (
-      <div
-        style={{
-          background: "black",
-          height: "100vh",
-          width: "100vw",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontSize: "1.5rem",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <img
-          src="/icons/icon-192x192.png"
-          alt="Mman Plaza"
-          style={{ width: 96, height: 96, marginBottom: 20 }}
-        />
-
-        <div style={{ marginBottom: 10 }}>
-          <strong>Welcome to Mman Plaza</strong>
-        </div>
-
-        <div style={{ opacity: 0.8, marginBottom: 30 }}>
-          Preparing your experience…
-        </div>
-
-        <EnableNotifications />
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 pb-24">
+      {notificationsEnabled !== "true" && (
+        <div className="mb-4 p-3 bg-purple-900/40 border border-purple-700 rounded-lg text-purple-200 text-sm">
+          Notifications are off.
+          <a href="/notifications" className="underline ml-1">
+            Enable them?
+          </a>
+        </div>
+      )}
+
       <h1 className="text-3xl font-extrabold tracking-tight mb-6 
                      bg-gradient-to-r from-purple-400 to-pink-300 
                      bg-clip-text text-transparent">
