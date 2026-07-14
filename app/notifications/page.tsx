@@ -9,6 +9,7 @@ export default function NotificationsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState<string | null>(null);
 
+  // Load user + notification flag
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -21,27 +22,54 @@ export default function NotificationsPage() {
     loadUser();
   }, [supabase]);
 
-  function disableNotifications() {
-    localStorage.setItem("notifications_enabled", "false");
-    setNotificationsEnabled("false");
-  }
-
-  async function sendTestNotification() {
+  // Disable notifications
+  async function disableNotifications() {
     if (!userId) return;
 
-    await fetch("/functions/v1/send-push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subscription: null, // server will fetch user subscription
-        payload: {
-          title: "MMAN Plaza",
-          body: "Your notification settings are working!",
-          icon: "/icons/mman-192.png",
-          url: "/notifications",
-        },
-      }),
-    });
+    await supabase.from("push_subscriptions").delete().eq("user_id", userId);
+
+    localStorage.setItem("notifications_enabled", "false");
+    setNotificationsEnabled("false");
+
+    alert("Notifications disabled.");
+  }
+
+  // Test notification
+  async function sendTestNotification() {
+    if (!userId) {
+      alert("You must be logged in.");
+      return;
+    }
+
+    const { data: sub } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", userId)
+      .single();
+
+    if (!sub?.subscription) {
+      alert("No push subscription found. Enable notifications first.");
+      return;
+    }
+
+    await fetch(
+      "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription: sub.subscription,
+          payload: {
+            title: "MMAN Plaza",
+            body: "Your notification settings are working!",
+            icon: "/icons/mman-192.png",
+            url: "/notifications",
+          },
+        }),
+      }
+    );
+
+    alert("Test notification sent!");
   }
 
   return (
@@ -56,14 +84,14 @@ export default function NotificationsPage() {
         <h2 className="text-lg font-semibold mb-3">Notification Settings</h2>
 
         {notificationsEnabled !== "true" ? (
-          <div>
+          <>
             <p className="text-sm text-gray-600 mb-3">
               Notifications are currently <strong>disabled</strong>.
             </p>
             <EnableNotifications />
-          </div>
+          </>
         ) : (
-          <div>
+          <>
             <p className="text-sm text-gray-600 mb-3">
               Notifications are <strong>enabled</strong>.
             </p>
@@ -81,7 +109,7 @@ export default function NotificationsPage() {
             >
               Send Test Notification
             </button>
-          </div>
+          </>
         )}
       </div>
     </div>
