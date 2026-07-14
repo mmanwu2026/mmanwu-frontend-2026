@@ -5,20 +5,10 @@ import { useEffect, useState } from "react";
 
 import PlazaCard from "@/components/plaza/PlazaCard";
 import VisionCard from "@/app/vision-square/components/VisionCard";
-import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import EnableNotifications from "@/components/EnableNotifications";
 
-interface ReactionCounts {
-  mask1: number;
-  mask2: number;
-  mask3: number;
-  mask4: number;
-  mask5: number;
-  mask6: number;
-}
-
 interface UnifiedFeedItem {
-  square_type: "plaza" | "vision-square" | "sound-square";
+  square_type: "plaza" | "vision-square";
   post: any;
   creator: any;
   trending_score: number;
@@ -51,57 +41,19 @@ export default function UnifiedFeedPage() {
     if (loading) return;
     setLoading(true);
 
-    // PLAZA
+    // PLAZA ONLY
     const plaza = await supabase
       .from("posts")
       .select("*, profiles(*)")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
-    // VISION
+    // VISION ONLY
     const vision = await supabase
       .from("vision_posts")
       .select("*, profiles(*)")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
-
-    // SOUND — fetch posts
-    const sound = await supabase
-      .from("sound_posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + LIMIT - 1);
-
-    const soundIds = (sound.data ?? []).map((p: any) => p.id);
-
-    // SOUND — fetch reactions separately
-    let reactionMap: Record<string, ReactionCounts> = {};
-
-    if (soundIds.length > 0) {
-      const { data: reactionRows } = await supabase
-        .from("reactions")
-        .select("post_id, maskTier")
-        .in("post_id", soundIds)
-        .eq("post_type", "sound");
-
-      // initialize all posts
-      soundIds.forEach((id) => {
-        reactionMap[id] = {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
-      });
-
-      // fill counts
-      reactionRows?.forEach((r: { post_id: string; maskTier: number }) => {
-        const key = `mask${r.maskTier}` as keyof ReactionCounts;
-        reactionMap[r.post_id][key] += 1;
-      });
-    }
 
     const plazaMapped: UnifiedFeedItem[] =
       plaza.data?.map((p: any) => ({
@@ -125,58 +77,8 @@ export default function UnifiedFeedPage() {
           (p.positivity_ratio ?? 0) * 0.1,
       })) ?? [];
 
-    // ⭐ SOUND — merge reactions + compute spirit + positivity
-    const soundMapped: UnifiedFeedItem[] =
-      sound.data?.map((p: any) => {
-        const counts = reactionMap[p.id] ?? {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
-
-        const spiritFromMasks =
-          counts.mask1 * 1 +
-          counts.mask2 * 2 +
-          counts.mask3 * 3 +
-          counts.mask4 * 4 +
-          counts.mask5 * 5 +
-          counts.mask6 * 6;
-
-        const totalCount =
-          counts.mask1 +
-          counts.mask2 +
-          counts.mask3 +
-          counts.mask4 +
-          counts.mask5 +
-          counts.mask6;
-
-        const positiveCount =
-          counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
-
-        const positivity =
-          totalCount > 0 ? positiveCount / totalCount : p.positivity_ratio ?? 0.5;
-
-        return {
-          square_type: "sound-square",
-          post: {
-            ...p,
-            automask: p.automask,
-            reactions: counts,
-            spirit_score: p.spirit_score ?? spiritFromMasks,
-            positivity_ratio: positivity,
-          },
-          creator: null,
-          trending_score:
-            (p.share_count ?? 0) * 0.4 +
-            (p.spirit_score ?? spiritFromMasks) * 0.4 +
-            (positivity ?? 0.5) * 0.2,
-        };
-      }) ?? [];
-
-    const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
+    // ⭐ SOUND REMOVED — ONLY PLAZA + VISION
+    const combined = [...items, ...plazaMapped, ...visionMapped];
 
     combined.sort((a, b) => {
       const timeA = new Date(a.post.created_at).getTime();
@@ -239,7 +141,7 @@ export default function UnifiedFeedPage() {
 
   return (
     <div className="p-4 pb-24">
-      <h1 className="text-2xl font-bold mb-4">MMAN PLAZA — Unified Feed</h1>
+      <h1 className="text-2xl font-bold mb-4">MMAN PLAZA — Unified Feed (Diagnostic Mode)</h1>
 
       <div className="space-y-6">
         {items.map((item) => {
@@ -258,19 +160,6 @@ export default function UnifiedFeedPage() {
 
           if (item.square_type === "vision-square") {
             return <VisionCard key={item.post.id} post={item.post} />;
-          }
-
-          if (item.square_type === "sound-square") {
-            // ⭐ GUARANTEE reactions exist
-            if (!item.post.reactions) return null;
-
-            return (
-              <SoundPostCard
-                key={item.post.id}
-                post={{ ...item.post, onDeleted: handleDelete }}
-                isTrending={item.trending_score > 5}
-              />
-            );
           }
 
           return null;
