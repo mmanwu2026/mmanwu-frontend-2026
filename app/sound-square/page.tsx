@@ -46,7 +46,6 @@ interface CardSoundPost {
   comment_count: number;
 }
 
-
 export default function SoundSquareIndex() {
   const { supabase } = useSupabase();
   const [recentPosts, setRecentPosts] = useState<CardSoundPost[]>([]);
@@ -54,33 +53,33 @@ export default function SoundSquareIndex() {
   useEffect(() => {
     async function loadRecent() {
       const { data, error } = await supabase
-        .from("sound_posts")
-        .select(`
-          id,
-          title,
-          media_url,
-          audio_url,
-          creator_id,
-          created_at,
+  .from("sound_posts")
+  .select(`
+    id,
+    title,
+    media_url,
+    audio_url,
+    creator_id,
+    created_at,
 
-          users:creator_id (
-            username,
-            avatar_url
-          ),
+    creator_id (
+      username,
+      avatar_url
+    ),
 
-          comments:sound_post_comments (
-            id,
-            content,
-            created_at,
-            user_id,
-            profiles:user_id (
-              username,
-              avatar_url
-            )
-          )
-        `)
-        .order("created_at", { ascending: false })
-        .limit(6);
+    sound_post_comments (
+      id,
+      content,
+      created_at,
+      user_id,
+      user_id (
+        username,
+        avatar_url
+      )
+    )
+  `)
+  .order("created_at", { ascending: false })
+  .limit(6);
 
       if (error || !data) return;
 
