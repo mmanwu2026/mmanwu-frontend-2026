@@ -95,9 +95,11 @@ export default function UnifiedFeedPage() {
     square_type: "sound-square",
     post: {
       ...p,
-      autoMask: p.automask,
 
-      // ⭐ FIX — SoundPostCard requires reaction counts
+      // ⭐ MUST NOT rename this
+      automask: p.automask,
+
+      // ⭐ MUST provide default reactions
       reactions: {
         mask1: 0,
         mask2: 0,
@@ -106,6 +108,10 @@ export default function UnifiedFeedPage() {
         mask5: 0,
         mask6: 0,
       },
+
+      // ⭐ MUST ensure these exist
+      spirit_score: p.spirit_score ?? 0,
+      positivity_ratio: p.positivity_ratio ?? 0.5,
     },
 
     creator: null,
