@@ -14,14 +14,15 @@ interface UserRow {
 export default function MessengerPage() {
   const { supabase } = useSupabase();
 
-  // ⭐ Replaces useUser()
   const [uid, setUid] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Load authenticated user
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
     async function loadSession() {
       const session = await supabase.auth.getSession();
@@ -32,7 +33,7 @@ export default function MessengerPage() {
     loadSession();
   }, [supabase]);
 
-  // ⭐ Fetch other users
+  /* ---------------- LOAD USERS ---------------- */
   useEffect(() => {
     async function loadUsers() {
       if (!uid) {
@@ -52,7 +53,7 @@ export default function MessengerPage() {
     loadUsers();
   }, [uid, supabase]);
 
-  // ⭐ Loading states
+  /* ---------------- LOADING STATES ---------------- */
   if (sessionLoading || loading) {
     return (
       <div className="p-6 text-white">
@@ -62,7 +63,6 @@ export default function MessengerPage() {
     );
   }
 
-  // ⭐ Not logged in
   if (!uid) {
     return (
       <div className="p-6 text-white">
@@ -72,13 +72,47 @@ export default function MessengerPage() {
     );
   }
 
-  // ⭐ Render Messenger
+  /* ---------------- MOBILE + DESKTOP LAYOUT ---------------- */
   return (
-    <div className="flex h-full">
-      <MessengerSidebar users={users} userId={uid} />
+    <div className="h-screen flex flex-col bg-black text-white">
 
-      <div className="flex-1 flex items-center justify-center text-gray-400">
-        Select a conversation
+      {/* ⭐ Mobile Header */}
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-800">
+        <h1 className="text-xl font-bold">Messenger</h1>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="px-3 py-2 bg-purple-700 rounded-lg"
+        >
+          Contacts
+        </button>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* ⭐ Sidebar (mobile drawer + desktop fixed) */}
+        <div
+          className={`
+            fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
+            transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+            md:static md:translate-x-0 md:w-72 md:flex-shrink-0
+          `}
+        >
+          <MessengerSidebar users={users} userId={uid} />
+
+          {/* Close button for mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden absolute top-4 right-4 text-gray-300"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* ⭐ Main Content */}
+        <div className="flex-1 flex items-center justify-center text-gray-400 p-4 overflow-auto">
+          Select a conversation
+        </div>
       </div>
     </div>
   );
