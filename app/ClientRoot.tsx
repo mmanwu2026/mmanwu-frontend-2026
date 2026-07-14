@@ -5,14 +5,15 @@ import CallListener from "@/components/CallListener";
 import AppInstallPrompt from "@/components/AppInstallPrompt";
 import PushInitializer from "@/app/PushInitializer";
 
-// ⭐ EARLY SERVICE WORKER REGISTRATION
+// ⭐ REGISTER FIREBASE SERVICE WORKER (REQUIRED FOR FCM PUSH)
 function SWRegisterScript() {
   return (
     <script
       dangerouslySetInnerHTML={{
         __html: `
           if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.register('/firebase-messaging-sw.js')
+              .then(() => console.log('Firebase SW registered'))
               .catch(err => console.error('SW registration failed:', err));
           }
         `,
@@ -21,7 +22,7 @@ function SWRegisterScript() {
   );
 }
 
-// ⭐ MOBILE PWA RELIABILITY
+// ⭐ MOBILE PWA RELIABILITY (OPTIONAL BUT GOOD)
 function MobilePWAReliabilityScript() {
   return (
     <script
