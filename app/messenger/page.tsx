@@ -83,9 +83,17 @@ export default function MessengerPage() {
           onClick={() => setSidebarOpen(true)}
           className="px-3 py-2 bg-purple-700 rounded-lg"
         >
-          Contacts
+          Chats
         </button>
       </div>
+
+      {/* ⭐ Backdrop for mobile drawer */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 md:hidden z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       <div className="flex flex-1 overflow-hidden">
 
@@ -98,7 +106,11 @@ export default function MessengerPage() {
             md:static md:translate-x-0 md:w-72 md:flex-shrink-0
           `}
         >
-          <MessengerSidebar users={users} userId={uid} />
+          <MessengerSidebar
+            users={users}
+            userId={uid}
+            onSelect={() => setSidebarOpen(false)}   // ⭐ Auto-close drawer
+          />
 
           {/* Close button for mobile */}
           <button

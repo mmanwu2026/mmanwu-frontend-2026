@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import NewChatModal from "./NewChatModal";
 
@@ -40,11 +41,15 @@ const FALLBACK_AVATAR =
 export default function MessengerSidebar({
   users,
   userId,
+  onSelect, // ⭐ NEW: auto-close drawer callback
 }: {
   users: any[];
   userId: string;
+  onSelect?: () => void;
 }) {
   const { supabase } = useSupabase();
+  const router = useRouter();
+
   const [threads, setThreads] = useState<Thread[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
 
@@ -61,11 +66,11 @@ export default function MessengerSidebar({
     return users.find((u: any) => u.id === id) || null;
   }
 
+  /* ---------------- LOAD THREADS (logic unchanged) ---------------- */
   useEffect(() => {
     async function loadThreads() {
       if (!userId) return;
 
-      // 1. Rooms user is in
       const { data: userRoomsRaw } = await supabase
         .from("room_participants")
         .select("room_id, user_id, last_seen")
@@ -78,10 +83,8 @@ export default function MessengerSidebar({
         return;
       }
 
-      // ⭐ FIX: Explicit typing removes TS error
-      const roomIds = userRooms.map((r: RoomParticipant) => r.room_id);
+      const roomIds = userRooms.map((r) => r.room_id);
 
-      // 2. Fetch rooms
       const { data: roomsRaw } = await supabase
         .from("rooms")
         .select("id, is_group")
@@ -89,7 +92,6 @@ export default function MessengerSidebar({
 
       const rooms = (roomsRaw ?? []) as Room[];
 
-      // 3. Fetch participants
       const { data: participantsRaw } = await supabase
         .from("room_participants")
         .select("room_id, user_id, last_seen")
@@ -97,7 +99,6 @@ export default function MessengerSidebar({
 
       const participants = (participantsRaw ?? []) as RoomParticipant[];
 
-      // 4. Fetch ONLY real chat messages
       const { data: lastMessagesRaw } = await supabase
         .from("messages")
         .select("room_id, sender_id, message_type, content, created_at")
@@ -107,7 +108,6 @@ export default function MessengerSidebar({
 
       const lastMessages = (lastMessagesRaw ?? []) as Message[];
 
-      // Build lastMessage map
       const lastMessageMap: Record<string, Message> = {};
       for (const msg of lastMessages) {
         if (!lastMessageMap[msg.room_id]) {
@@ -115,8 +115,7 @@ export default function MessengerSidebar({
         }
       }
 
-      // Build threads
-      const finalThreads: Thread[] = rooms.map((room: Room) => {
+      const finalThreads: Thread[] = rooms.map((room) => {
         const roomParticipants = participants
           .filter((p) => p.room_id === room.id)
           .map((p) => p.user_id);
@@ -133,7 +132,6 @@ export default function MessengerSidebar({
           ? new Date(participantRecord.last_seen)
           : new Date(0);
 
-        // ⭐ Correct unread logic using last_seen
         const unreadCount = lastMessages.filter(
           (m) =>
             m.room_id === room.id &&
@@ -159,10 +157,15 @@ export default function MessengerSidebar({
     loadThreads();
   }, [userId, supabase]);
 
+  /* ---------------- UI ONLY BELOW THIS LINE ---------------- */
+
   return (
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
+
+      {/* Header */}
       <h2 className="text-white text-lg mb-4">Chats</h2>
 
+      {/* New Chat Button */}
       <button
         onClick={() => setShowNewChat(true)}
         className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-4"
@@ -170,6 +173,7 @@ export default function MessengerSidebar({
         + New Chat
       </button>
 
+      {/* Chat Threads */}
       <div className="space-y-2 mb-6">
         {threads.map((t) => {
           const profile = getUserProfile(t.otherUserId);
@@ -182,13 +186,22 @@ export default function MessengerSidebar({
               : FALLBACK_AVATAR;
 
           return (
-            <Link
+            <button
               key={t.roomId}
-              href={`/messenger/${t.roomId}`}
-              className="block px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white"
+              onClick={() => {
+                onSelect?.(); // ⭐ Auto-close drawer
+                router.push(`/messenger/${t.roomId}`);
+              }}
+              className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-left"
             >
               <div className="flex items-center gap-3">
-                <img src={avatar} alt="avatar" className="avatar" />
+
+                {/* ⭐ Correct avatar sizing */}
+                <img
+                  src={avatar}
+                  alt="avatar"
+                  className="w-10 h-10 rounded-full object-cover"
+                />
 
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
@@ -220,11 +233,12 @@ export default function MessengerSidebar({
                   </div>
                 </div>
               </div>
-            </Link>
+            </button>
           );
         })}
       </div>
 
+      {/* New Chat Modal */}
       <NewChatModal
         open={showNewChat}
         onClose={() => setShowNewChat(false)}
