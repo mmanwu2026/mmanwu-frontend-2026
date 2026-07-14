@@ -1,3 +1,5 @@
+"use client";
+
 import { getMessaging, getToken } from "firebase/messaging";
 import { initializeApp } from "firebase/app";
 
