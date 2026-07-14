@@ -284,6 +284,22 @@ export default function UnifiedFeedPage() {
       });
     }
 
+    /* ⭐ Fetch comments for sound posts */
+    let soundCommentMap: Record<string, any[]> = {};
+    soundIds.forEach((id) => (soundCommentMap[id] = []));
+
+    if (soundIds.length > 0) {
+      const { data: soundComments } = await supabase
+        .from("sound_post_comments")
+        .select("*, users(*)")
+        .in("post_id", soundIds)
+        .order("created_at", { ascending: true });
+
+      soundComments?.forEach((c) => {
+        soundCommentMap[c.post_id].push(c);
+      });
+    }
+
     const soundMapped: UnifiedFeedItem[] =
       sound.data?.map((p: any) => {
         const reactions = soundReactionMap[p.id] ?? {
@@ -334,6 +350,7 @@ export default function UnifiedFeedPage() {
             positivity_ratio: positivity,
             total_reactions: total,
             automask,
+            comments: soundCommentMap[p.id] || [], // ⭐ FIXED
           },
           creator: null,
           trending_score: p.trending_score ?? 0,

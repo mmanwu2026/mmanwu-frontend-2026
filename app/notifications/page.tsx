@@ -34,43 +34,6 @@ export default function NotificationsPage() {
     alert("Notifications disabled.");
   }
 
-  // Test notification
-  async function sendTestNotification() {
-  if (!userId) {
-    alert("You must be logged in.");
-    return;
-  }
-
-  const session = await supabase.auth.getSession();
-  const accessToken = session.data.session?.access_token;
-
-  if (!accessToken) {
-    alert("No access token found.");
-    return;
-  }
-
-  await fetch(
-    "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        targetUserId: userId,
-        title: "MMAN Plaza",
-        body: "Your notification settings are working!",
-        data: {
-          roomId: "test-room",
-          callerId: userId,
-        },
-      }),
-    }
-  );
-
-  alert("Test notification sent!");
-}
 
   return (
     <div className="min-h-screen bg-white text-gray-900 p-4">
@@ -103,12 +66,6 @@ export default function NotificationsPage() {
               Disable Notifications
             </button>
 
-            <button
-              onClick={sendTestNotification}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500"
-            >
-              Send Test Notification
-            </button>
           </>
         )}
       </div>
