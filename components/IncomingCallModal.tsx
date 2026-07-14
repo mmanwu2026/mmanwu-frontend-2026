@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
 
 interface IncomingCall {
-  id: string;
-  room_id: string;
+  id: string;        // event id
+  room_id: string;   // actual call room id
   caller_id: string;
 }
 
@@ -20,6 +20,7 @@ export function IncomingCallModal({
   const router = useRouter();
   const { supabase } = useSupabase();
 
+  // Auto-timeout after 30 seconds
   useEffect(() => {
     const timer = setTimeout(async () => {
       await supabase
@@ -34,13 +35,16 @@ export function IncomingCallModal({
   }, [call.id, supabase, onClose]);
 
   async function accept() {
+    // Mark event as accepted
     await supabase
       .from("call_events")
       .update({ status: "accepted" })
       .eq("id", call.id);
 
     onClose();
-    router.push(`/call/${call.room_id}?role=callee`);
+
+    // ⭐ Correct navigation to CallRoom with role=callee
+    router.push(`/callroom?roomId=${call.room_id}&role=callee`);
   }
 
   async function decline() {
