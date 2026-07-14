@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useSupabase } from "@/app/context/SupabaseContext";
@@ -35,7 +34,18 @@ export default function UnifiedFeedPage() {
     setNotificationsEnabled(flag);
   }, []);
 
-  if (!hydrated) return null;
+  // Stable placeholder for SSR/CSR match
+  if (!hydrated) {
+    return (
+      <div
+        style={{
+          background: "black",
+          height: "100vh",
+          width: "100vw",
+        }}
+      />
+    );
+  }
 
   // Gate: ask for notifications before showing feed
   if (notificationsEnabled !== "true") {
@@ -154,13 +164,12 @@ export default function UnifiedFeedPage() {
     setLoading(false);
   }
 
-  // Required callbacks
   function handleDelete(id: string) {
     setItems((prev) => prev.filter((item) => item.post.id !== id));
   }
 
   function handleReact() {
-    // Add real-time reaction updates later
+    // hook for future real-time reaction updates
   }
 
   return (
@@ -183,12 +192,7 @@ export default function UnifiedFeedPage() {
           }
 
           if (item.square_type === "vision-square") {
-            return (
-              <VisionCard
-                key={item.post.id}
-                post={item.post}
-              />
-            );
+            return <VisionCard key={item.post.id} post={item.post} />;
           }
 
           if (item.square_type === "sound-square") {

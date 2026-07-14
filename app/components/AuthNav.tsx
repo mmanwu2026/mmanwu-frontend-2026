@@ -86,7 +86,7 @@ export default function MobileAuthNav() {
 
         {/* LEFT — MMAN PLAZA */}
         <div className="text-xl font-extrabold tracking-wide text-purple-200 drop-shadow-sm">
-          <Link href="/plaza">MMAN PLAZA</Link>
+          <Link href="/">MMAN PLAZA</Link>
         </div>
 
         {/* CENTER — Logo */}
