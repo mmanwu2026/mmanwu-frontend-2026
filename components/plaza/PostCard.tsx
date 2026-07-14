@@ -39,7 +39,6 @@ export default function PostCard({
 
   const { supabase } = useSupabase();
 
-  // ⭐ FIXED — authenticated user
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,7 +54,6 @@ export default function PostCard({
 
   const isOwnPost = uid === post.creator_id;
 
-  // Load follow state
   useEffect(() => {
     async function loadFollowState() {
       if (!uid || isOwnPost) {
@@ -76,7 +74,6 @@ export default function PostCard({
     loadFollowState();
   }, [uid, post.creator_id, supabase, isOwnPost]);
 
-  // Follow/unfollow
   async function toggleFollow() {
     if (!uid || isOwnPost || busy) return;
 
@@ -118,13 +115,13 @@ export default function PostCard({
         relative w-full rounded-2xl transition-all duration-500
       `}
     >
-      <div className="plaza-card-base p-5 rounded-2xl relative">
+      <div className="plaza-card-base clean p-5 rounded-2xl bg-white border border-gray-200 shadow-sm">
 
         {/* HEADER */}
         <div className="flex items-center justify-between mb-3">
 
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">
+            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">
               {post.autoMask === 2 && "😤"}
               {post.autoMask === 3 && "😊"}
               {post.autoMask === 4 && "🤩"}
@@ -133,10 +130,10 @@ export default function PostCard({
             </div>
 
             <div className="flex flex-col">
-              <span className="text-white/90 text-sm font-semibold">
+              <span className="text-gray-900 text-sm font-semibold">
                 {post.creator_id}
               </span>
-              <span className="text-white/40 text-xs">
+              <span className="text-gray-500 text-xs">
                 Spirit Score: {spiritScore}
               </span>
             </div>
@@ -149,8 +146,8 @@ export default function PostCard({
               disabled={busy}
               className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                 isFollowing
-                  ? "bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
-                  : "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                  ? "bg-gray-200 text-gray-900 border-gray-300 hover:bg-gray-300"
+                  : "bg-blue-600 text-white border-blue-600 hover:bg-blue-500"
               } ${busy ? "opacity-70 cursor-not-allowed" : ""}`}
             >
               {isFollowing ? "Following" : "Follow"}
@@ -159,7 +156,7 @@ export default function PostCard({
         </div>
 
         {/* CONTENT */}
-        <p className="text-white/90 whitespace-pre-wrap mb-4">
+        <p className="text-gray-900 whitespace-pre-wrap mb-4">
           {post.content}
         </p>
 
@@ -179,7 +176,7 @@ export default function PostCard({
           <div className="mt-4 flex justify-end">
             <button
               onClick={() => onDelete?.(post.id)}
-              className="text-red-400 text-xs hover:text-red-300 transition"
+              className="text-red-600 text-xs hover:text-red-500 transition"
             >
               Delete
             </button>
