@@ -6,10 +6,14 @@ import EnableNotifications from "@/components/EnableNotifications";
 
 export default function NotificationsPage() {
   const { supabase } = useSupabase();
+
   const [userId, setUserId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState<string | null>(null);
 
-  // Load user + notification flag
+  const [notifList, setNotifList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -22,7 +26,29 @@ export default function NotificationsPage() {
     loadUser();
   }, [supabase]);
 
-  // Disable notifications
+  /* ---------------- FETCH NOTIFICATIONS ---------------- */
+  useEffect(() => {
+    if (!userId) return;
+    loadNotifications();
+  }, [userId]);
+
+  async function loadNotifications() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*, actor:users(*)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setNotifList(data);
+    }
+
+    setLoading(false);
+  }
+
+  /* ---------------- DISABLE NOTIFICATIONS ---------------- */
   async function disableNotifications() {
     if (!userId) return;
 
@@ -34,16 +60,16 @@ export default function NotificationsPage() {
     alert("Notifications disabled.");
   }
 
-
   return (
     <div className="min-h-screen bg-white text-gray-900 p-4">
       <h1 className="text-xl font-bold mb-4">Notifications</h1>
 
       <p className="mb-6 text-gray-700">
-        Manage your notification preferences and test your setup.
+        Manage your notification preferences and view your activity alerts.
       </p>
 
-      <div className="p-4 border rounded-lg bg-gray-50">
+      {/* ---------------- SETTINGS ---------------- */}
+      <div className="p-4 border rounded-lg bg-gray-50 mb-6">
         <h2 className="text-lg font-semibold mb-3">Notification Settings</h2>
 
         {notificationsEnabled !== "true" ? (
@@ -65,9 +91,49 @@ export default function NotificationsPage() {
             >
               Disable Notifications
             </button>
-
           </>
         )}
+      </div>
+
+      {/* ---------------- NOTIFICATION LIST ---------------- */}
+      <h2 className="text-lg font-semibold mb-3">Your Notifications</h2>
+
+      {loading && <p className="text-gray-600">Loading...</p>}
+
+      {notifList.length === 0 && !loading && (
+        <p className="text-gray-600">You have no notifications yet.</p>
+      )}
+
+      <div className="space-y-4">
+        {notifList.map((n) => (
+          <div
+            key={n.id}
+            className="p-4 border rounded-lg bg-gray-50 flex items-start gap-3"
+          >
+            {/* Actor Avatar */}
+            <img
+              src={n.actor?.avatar_url || "/default-avatar.png"}
+              alt="actor avatar"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+
+            <div className="flex-1">
+              <p className="text-sm text-gray-800">
+                <strong>{n.actor?.username || "Someone"}</strong>{" "}
+                {n.message}
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+                {new Date(n.created_at).toLocaleString()}
+              </p>
+
+              {/* Event Type Tag */}
+              <span className="inline-block mt-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
+                {n.event_type}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
