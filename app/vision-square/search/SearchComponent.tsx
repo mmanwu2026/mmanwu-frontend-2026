@@ -149,7 +149,6 @@ export default function SearchComponent() {
       return;
     }
 
-    // ⭐ Normalize creator + comment profiles
     const normalized: EnrichedPost[] = (data || []).map((post: any) => {
       const creator =
         Array.isArray(post.users) && post.users.length > 0
@@ -199,7 +198,6 @@ export default function SearchComponent() {
       };
     });
 
-    // ⭐ Recalculate reactions + positivity + automask
     const enriched: EnrichedPost[] = [];
 
     for (const post of normalized) {
@@ -248,18 +246,18 @@ export default function SearchComponent() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 text-white">
+    <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
       <div className="mb-6 flex justify-between items-center">
         <Link
           href="/plaza"
-          className="text-gray-300 hover:text-purple-300 transition"
+          className="text-gray-600 hover:text-purple-600 transition"
         >
           ← Plaza
         </Link>
 
         <Link
           href="/vision-square/create"
-          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
         >
           + Upload Vision
         </Link>
@@ -271,20 +269,20 @@ export default function SearchComponent() {
         <input
           type="text"
           placeholder="Search title, creator, or #hashtag…"
-          className="flex-1 p-2 rounded bg-gray-700"
+          className="flex-1 p-2 rounded bg-gray-100 border border-gray-300"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
 
         <button
           onClick={() => handleSearch()}
-          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
         >
           Search
         </button>
       </div>
 
-      {loading && <p className="text-gray-400">Searching…</p>}
+      {loading && <p className="text-gray-500">Searching…</p>}
 
       {searched && !loading && results.length === 0 && (
         <p className="text-gray-500">No results found.</p>

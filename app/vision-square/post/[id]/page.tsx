@@ -58,7 +58,6 @@ export default function VisionPostPage() {
   const params = useParams();
   const id = params?.id as string;
 
-  // ⭐ FIXED — authenticated user
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -202,55 +201,55 @@ export default function VisionPostPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-white">
-        <p className="text-gray-400">Loading Vision post…</p>
+      <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
+        <p className="text-gray-500">Loading Vision post…</p>
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-white">
-        <p className="text-red-400">Vision post not found.</p>
+      <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
+        <p className="text-red-500">Vision post not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 text-white">
+    <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
 
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
       {/* Navigation */}
-      <div className="mb-6 flex justify-between items-center">
-        <Link
-          href="/vision-square/feed"
-          className="text-gray-300 hover:text-purple-300 transition"
-        >
-          ← Back to Vision feed
-        </Link>
+<div className="mb-6 flex justify-between items-center">
+  <Link
+    href="/vision-square/feed"
+    className="text-gray-600 hover:text-purple-600 transition"
+  >
+    ← Back to Vision feed
+  </Link>
 
-        <Link
-          href="/plaza"
-          className="text-gray-300 hover:text-purple-300 transition"
-        >
-          Plaza →
-        </Link>
+  <Link
+    href="/plaza"
+    className="text-gray-600 hover:text-purple-600 transition"
+  >
+    Plaza →
+  </Link>
 
-        {uid && (
-          <Link
-            href={`/profile/${uid}`}
-            className="text-gray-300 hover:text-purple-300 transition"
-          >
-            Profile →
-          </Link>
-        )}
-      </div>
+  {uid && (
+    <Link
+      href={`/profile/${uid}`}
+      className="text-gray-600 hover:text-purple-600 transition"
+    >
+      Profile →
+    </Link>
+  )}
+</div>
 
       {post.title && (
-        <h1 className="text-3xl font-bold mb-6 text-purple-200">
+        <h1 className="text-3xl font-bold mb-6 text-purple-700">
           {post.title}
         </h1>
       )}

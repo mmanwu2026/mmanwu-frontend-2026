@@ -186,18 +186,18 @@ export default function VisionSquareTrending() {
   }, [supabase]);
 
   return (
-    <div className="max-w-2xl mx-auto p-6 text-white">
+    <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
       <div className="mb-6 flex justify-between items-center">
         <Link
-          href="/plaza"
-          className="text-gray-300 hover:text-purple-300 transition"
+          href="/vision-square/feed"
+          className="text-gray-600 hover:text-purple-600 transition"
         >
-          ← Plaza
+          ← Back to Vision feed
         </Link>
 
         <Link
           href="/vision-square/create"
-          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
         >
           + Upload Vision
         </Link>
@@ -205,7 +205,7 @@ export default function VisionSquareTrending() {
 
       <h1 className="text-3xl font-bold mb-6">Trending on Vision Square</h1>
 
-      {loading && <p className="text-gray-400">Loading trending posts…</p>}
+      {loading && <p className="text-gray-500">Loading trending posts…</p>}
 
       {!loading && posts.length === 0 && (
         <p className="text-gray-500">No trending posts yet.</p>

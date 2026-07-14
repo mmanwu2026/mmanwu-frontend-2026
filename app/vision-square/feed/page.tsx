@@ -233,15 +233,15 @@ export default function VisionSquareFeed() {
   }, [posts, fetchingMore, endReached]);
 
   return (
-    <div className="max-w-2xl mx-auto p-6 text-white">
+    <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
       <div className="mb-6 flex justify-between items-center">
-        <Link href="/plaza" className="text-gray-300 hover:text-purple-300 transition">
+        <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
           ← Plaza
         </Link>
 
         <Link
           href="/vision-square/create"
-          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
         >
           + Upload Vision
         </Link>
@@ -249,7 +249,7 @@ export default function VisionSquareFeed() {
 
       <h1 className="text-3xl font-bold mb-6">Vision Square</h1>
 
-      {loading && <p className="text-gray-400">Loading Vision posts…</p>}
+      {loading && <p className="text-gray-500">Loading Vision posts…</p>}
 
       {posts.map((post) => (
         <VisionCard
@@ -264,7 +264,7 @@ export default function VisionSquareFeed() {
       ))}
 
       {fetchingMore && (
-        <p className="text-gray-400 text-center mt-4">Loading more…</p>
+        <p className="text-gray-500 text-center mt-4">Loading more…</p>
       )}
 
       {endReached && (
@@ -272,13 +272,6 @@ export default function VisionSquareFeed() {
           You’ve reached the end of Vision Square.
         </p>
       )}
-
-      <Link
-        href="/vision-square/create"
-        className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-full shadow-lg transition"
-      >
-        + Vision Composer
-      </Link>
     </div>
   );
 }

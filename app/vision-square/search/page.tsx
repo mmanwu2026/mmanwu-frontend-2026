@@ -5,7 +5,13 @@ import SearchComponent from "./SearchComponent";
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="text-white p-6">Loading search…</div>}>
+    <Suspense
+      fallback={
+        <div className="bg-white text-gray-900 p-6">
+          Loading search…
+        </div>
+      }
+    >
       <SearchComponent />
     </Suspense>
   );
