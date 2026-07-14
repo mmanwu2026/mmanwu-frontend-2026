@@ -19,6 +19,7 @@ interface UnifiedFeedItem {
 export default function UnifiedFeedPage() {
   const { supabase, user } = useSupabase();
 
+  // All hooks MUST be declared before any conditional return
   const [hydrated, setHydrated] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState<string | null>(null);
 
@@ -34,7 +35,90 @@ export default function UnifiedFeedPage() {
     setNotificationsEnabled(flag);
   }, []);
 
-  // Stable placeholder for SSR/CSR match
+  // Load feed only when notifications are enabled
+  useEffect(() => {
+    if (notificationsEnabled === "true") {
+      loadMore();
+    }
+  }, [notificationsEnabled]);
+
+  async function loadMore() {
+    if (loading) return;
+    setLoading(true);
+
+    const plaza = await supabase
+      .from("posts")
+      .select("*, profiles(*)")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + LIMIT - 1);
+
+    const vision = await supabase
+      .from("vision_posts")
+      .select("*, profiles(*)")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + LIMIT - 1);
+
+    const sound = await supabase
+      .from("sound_posts")
+      .select("*, profiles(*)")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + LIMIT - 1);
+
+    const plazaMapped =
+      plaza.data?.map((p: any) => ({
+        square_type: "plaza",
+        post: p,
+        creator: p.profiles,
+        trending_score:
+          (p.reactions ?? 0) * 0.6 +
+          (p.spirit_score ?? 0) * 0.3 +
+          (p.positivity_ratio ?? 0) * 0.1,
+      })) ?? [];
+
+    const visionMapped =
+      vision.data?.map((p: any) => ({
+        square_type: "vision-square",
+        post: p,
+        creator: p.profiles,
+        trending_score:
+          (p.reactions ?? 0) * 0.6 +
+          (p.spirit_score ?? 0) * 0.3 +
+          (p.positivity_ratio ?? 0) * 0.1,
+      })) ?? [];
+
+    const soundMapped =
+      sound.data?.map((p: any) => ({
+        square_type: "sound-square",
+        post: p,
+        creator: p.profiles,
+        trending_score:
+          (p.reactions ?? 0) * 0.6 +
+          (p.spirit_score ?? 0) * 0.3 +
+          (p.positivity_ratio ?? 0) * 0.1,
+      })) ?? [];
+
+    const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
+
+    combined.sort((a, b) => {
+      const timeA = new Date(a.post.created_at).getTime();
+      const timeB = new Date(b.post.created_at).getTime();
+      const scoreA = a.trending_score * 0.6 + timeA * 0.4;
+      const scoreB = b.trending_score * 0.6 + timeB * 0.4;
+      return scoreB - scoreA;
+    });
+
+    setItems(combined);
+    setOffset(offset + LIMIT);
+    setLoading(false);
+  }
+
+  function handleDelete(id: string) {
+    setItems((prev) => prev.filter((item) => item.post.id !== id));
+  }
+
+  function handleReact() {}
+
+  // ⭐ Now we do conditional UI rendering — NOT conditional hook rendering
   if (!hydrated) {
     return (
       <div
@@ -47,7 +131,6 @@ export default function UnifiedFeedPage() {
     );
   }
 
-  // Gate: ask for notifications before showing feed
   if (notificationsEnabled !== "true") {
     return (
       <div
@@ -82,94 +165,6 @@ export default function UnifiedFeedPage() {
         <EnableNotifications />
       </div>
     );
-  }
-
-  // Load initial batch once notifications are enabled
-  useEffect(() => {
-    loadMore();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function loadMore() {
-    if (loading) return;
-    setLoading(true);
-
-    // Plaza posts
-    const plaza = await supabase
-      .from("posts")
-      .select("*, profiles(*)")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + LIMIT - 1);
-
-    // Vision posts
-    const vision = await supabase
-      .from("vision_posts")
-      .select("*, profiles(*)")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + LIMIT - 1);
-
-    // Sound posts
-    const sound = await supabase
-      .from("sound_posts")
-      .select("*, profiles(*)")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + LIMIT - 1);
-
-    const plazaMapped: UnifiedFeedItem[] =
-      plaza.data?.map((p: any) => ({
-        square_type: "plaza",
-        post: p,
-        creator: p.profiles,
-        trending_score:
-          (p.reactions ?? 0) * 0.6 +
-          (p.spirit_score ?? 0) * 0.3 +
-          (p.positivity_ratio ?? 0) * 0.1,
-      })) ?? [];
-
-    const visionMapped: UnifiedFeedItem[] =
-      vision.data?.map((p: any) => ({
-        square_type: "vision-square",
-        post: p,
-        creator: p.profiles,
-        trending_score:
-          (p.reactions ?? 0) * 0.6 +
-          (p.spirit_score ?? 0) * 0.3 +
-          (p.positivity_ratio ?? 0) * 0.1,
-      })) ?? [];
-
-    const soundMapped: UnifiedFeedItem[] =
-      sound.data?.map((p: any) => ({
-        square_type: "sound-square",
-        post: p,
-        creator: p.profiles,
-        trending_score:
-          (p.reactions ?? 0) * 0.6 +
-          (p.spirit_score ?? 0) * 0.3 +
-          (p.positivity_ratio ?? 0) * 0.1,
-      })) ?? [];
-
-    const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
-
-    // TikTok-style hybrid ranking
-    combined.sort((a, b) => {
-      const timeA = new Date(a.post.created_at).getTime();
-      const timeB = new Date(b.post.created_at).getTime();
-      const scoreA = a.trending_score * 0.6 + timeA * 0.4;
-      const scoreB = b.trending_score * 0.6 + timeB * 0.4;
-      return scoreB - scoreA;
-    });
-
-    setItems(combined);
-    setOffset(offset + LIMIT);
-    setLoading(false);
-  }
-
-  function handleDelete(id: string) {
-    setItems((prev) => prev.filter((item) => item.post.id !== id));
-  }
-
-  function handleReact() {
-    // hook for future real-time reaction updates
   }
 
   return (
