@@ -6,8 +6,16 @@ import { useEffect, useState } from "react";
 import PlazaCard from "@/components/plaza/PlazaCard";
 import VisionCard from "@/app/vision-square/components/VisionCard";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
-
 import EnableNotifications from "@/components/EnableNotifications";
+
+interface ReactionCounts {
+  mask1: number;
+  mask2: number;
+  mask3: number;
+  mask4: number;
+  mask5: number;
+  mask6: number;
+}
 
 interface UnifiedFeedItem {
   square_type: "plaza" | "vision-square" | "sound-square";
@@ -19,7 +27,6 @@ interface UnifiedFeedItem {
 export default function UnifiedFeedPage() {
   const { supabase, user } = useSupabase();
 
-  // All hooks must be declared before any conditional return
   const [hydrated, setHydrated] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState<string | null>(null);
 
@@ -28,14 +35,12 @@ export default function UnifiedFeedPage() {
   const [offset, setOffset] = useState(0);
   const LIMIT = 20;
 
-  // Hydration + notification flag
   useEffect(() => {
     setHydrated(true);
     const flag = localStorage.getItem("notifications_enabled");
     setNotificationsEnabled(flag);
   }, []);
 
-  // Load feed only when notifications are enabled
   useEffect(() => {
     if (notificationsEnabled === "true") {
       loadMore();
@@ -46,28 +51,67 @@ export default function UnifiedFeedPage() {
     if (loading) return;
     setLoading(true);
 
-    // Plaza posts
+    // PLAZA
     const plaza = await supabase
       .from("posts")
       .select("*, profiles(*)")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
-    // Vision posts
+    // VISION
     const vision = await supabase
       .from("vision_posts")
       .select("*, profiles(*)")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
-    // ⭐ SOUND POSTS — FIXED (no profiles join)
+    // SOUND — fetch posts first
     const sound = await supabase
       .from("sound_posts")
       .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
-    const plazaMapped =
+    const soundIds = (sound.data ?? []).map((p: any) => p.id);
+
+    // SOUND — fetch reactions separately and aggregate
+    let reactionMap: Record<string, ReactionCounts> = {};
+    if (soundIds.length > 0) {
+      const { data: reactionRows } = await supabase
+        .from("reactions")
+        .select("post_id, maskTier, post_type")
+        .in("post_id", soundIds)
+        .eq("post_type", "sound");
+
+      reactionMap = {};
+      soundIds.forEach((id) => {
+        reactionMap[id] = {
+          mask1: 0,
+          mask2: 0,
+          mask3: 0,
+          mask4: 0,
+          mask5: 0,
+          mask6: 0,
+        };
+      });
+
+      reactionRows?.forEach((r: { post_id: string; maskTier: number }) => {
+        const key = `mask${r.maskTier}` as keyof ReactionCounts;
+        if (!reactionMap[r.post_id]) {
+          reactionMap[r.post_id] = {
+            mask1: 0,
+            mask2: 0,
+            mask3: 0,
+            mask4: 0,
+            mask5: 0,
+            mask6: 0,
+          };
+        }
+        reactionMap[r.post_id][key] += 1;
+      });
+    }
+
+    const plazaMapped: UnifiedFeedItem[] =
       plaza.data?.map((p: any) => ({
         square_type: "plaza",
         post: p,
@@ -78,7 +122,7 @@ export default function UnifiedFeedPage() {
           (p.positivity_ratio ?? 0) * 0.1,
       })) ?? [];
 
-    const visionMapped =
+    const visionMapped: UnifiedFeedItem[] =
       vision.data?.map((p: any) => ({
         square_type: "vision-square",
         post: p,
@@ -89,42 +133,58 @@ export default function UnifiedFeedPage() {
           (p.positivity_ratio ?? 0) * 0.1,
       })) ?? [];
 
-    // ⭐ SOUND POSTS — FIXED MAPPING
- const soundMapped =
-  sound.data?.map((p: any) => ({
-    square_type: "sound-square",
-    post: {
-      ...p,
+    const soundMapped: UnifiedFeedItem[] =
+      sound.data?.map((p: any) => {
+        const counts = reactionMap[p.id] ?? {
+          mask1: 0,
+          mask2: 0,
+          mask3: 0,
+          mask4: 0,
+          mask5: 0,
+          mask6: 0,
+        };
 
-      // ⭐ MUST NOT rename this
-      automask: p.automask,
+        const spiritFromMasks =
+          counts.mask1 * 1 +
+          counts.mask2 * 2 +
+          counts.mask3 * 3 +
+          counts.mask4 * 4 +
+          counts.mask5 * 5 +
+          counts.mask6 * 6;
 
-      // ⭐ MUST provide default reactions
-      reactions: {
-        mask1: 0,
-        mask2: 0,
-        mask3: 0,
-        mask4: 0,
-        mask5: 0,
-        mask6: 0,
-      },
+        const totalCount =
+          counts.mask1 +
+          counts.mask2 +
+          counts.mask3 +
+          counts.mask4 +
+          counts.mask5 +
+          counts.mask6;
 
-      // ⭐ MUST ensure these exist
-      spirit_score: p.spirit_score ?? 0,
-      positivity_ratio: p.positivity_ratio ?? 0.5,
-    },
+        const positiveCount =
+          counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
 
-    creator: null,
+        const positivity =
+          totalCount > 0 ? positiveCount / totalCount : p.positivity_ratio ?? 0.5;
 
-    trending_score:
-      (p.share_count ?? 0) * 0.4 +
-      (p.spirit_score ?? 0) * 0.4 +
-      (p.positivity_ratio ?? 0) * 0.2,
-  })) ?? [];
+        return {
+          square_type: "sound-square",
+          post: {
+            ...p,
+            automask: p.automask,
+            reactions: counts,
+            spirit_score: p.spirit_score ?? spiritFromMasks,
+            positivity_ratio: positivity,
+          },
+          creator: null,
+          trending_score:
+            (p.share_count ?? 0) * 0.4 +
+            (p.spirit_score ?? spiritFromMasks) * 0.4 +
+            (positivity ?? 0.5) * 0.2,
+        };
+      }) ?? [];
 
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
-    // TikTok-style hybrid ranking
     combined.sort((a, b) => {
       const timeA = new Date(a.post.created_at).getTime();
       const timeB = new Date(b.post.created_at).getTime();
@@ -142,9 +202,10 @@ export default function UnifiedFeedPage() {
     setItems((prev) => prev.filter((item) => item.post.id !== id));
   }
 
-  function handleReact() {}
+  function handleReact() {
+    // unified feed can later refetch or adjust local state if needed
+  }
 
-  // ⭐ Hydration-safe placeholder
   if (!hydrated) {
     return (
       <div
@@ -157,7 +218,6 @@ export default function UnifiedFeedPage() {
     );
   }
 
-  // ⭐ Notification gating
   if (notificationsEnabled !== "true") {
     return (
       <div
