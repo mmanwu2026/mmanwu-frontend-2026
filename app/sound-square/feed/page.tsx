@@ -315,7 +315,6 @@ return (
       </p>
     )}
 
-    <FloatingComposer />
   </div>
 );
 }
