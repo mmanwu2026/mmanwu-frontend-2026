@@ -18,9 +18,9 @@ export default function NotificationsPage() {
   }, [supabase]);
 
   return (
-    <div className="text-white p-4">
-      <h1 className="text-xl font-bold mb-4">Notifications</h1>
-      <p>Your notifications will appear here.</p>
-    </div>
-  );
+  <div className="min-h-screen bg-white text-gray-900 p-4">
+    <h1 className="text-xl font-bold mb-4">Notifications</h1>
+    <p>Your notifications will appear here.</p>
+  </div>
+);
 }

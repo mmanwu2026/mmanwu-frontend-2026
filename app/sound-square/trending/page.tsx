@@ -119,7 +119,10 @@ export default function TrendingSoundSquare() {
         mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
-      const spiritScore = post.spirit_score ?? 0;
+      const spiritScore = postReactions.reduce(
+  (sum, r) => sum + (r.maskTier ?? 0),
+  0
+);
 
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)
