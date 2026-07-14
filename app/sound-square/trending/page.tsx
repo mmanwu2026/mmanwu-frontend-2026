@@ -170,7 +170,7 @@ export default function TrendingSoundSquare() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
-        creator_name: null, // ⭐ REQUIRED BY TYPE
+        creator_name: null,
         created_at: post.created_at,
 
         spirit_score: spiritScore,
@@ -201,14 +201,19 @@ export default function TrendingSoundSquare() {
   }
 
   return (
-    <div className="min-h-screen text-white p-6">
+    <div className="min-h-screen bg-white text-gray-900 p-6">
       <TopBar />
 
       <h1 className="text-4xl font-bold mb-6">Trending Sounds</h1>
 
       {loading && <p>Loading trending sounds...</p>}
 
-      <Link href="/sound-square">Back to Sound Square</Link>
+      <Link
+        href="/sound-square"
+        className="text-purple-600 hover:text-purple-700 underline mb-4 inline-block"
+      >
+        Back to Sound Square
+      </Link>
 
       <div className="flex flex-col gap-6 mb-6">
         {posts.map((post) => (

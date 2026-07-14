@@ -8,7 +8,7 @@ export default async function SoundSquarePage() {
   const posts = await loadSoundPosts();
 
   return (
-    <div className="min-h-screen text-white p-6">
+    <div className="min-h-screen bg-white text-gray-900 p-6">
       <TopBar />
 
       <h1 className="text-2xl font-bold mb-4">Sound Square</h1>

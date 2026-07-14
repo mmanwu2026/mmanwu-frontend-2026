@@ -284,38 +284,38 @@ export default function SoundSquareFeed() {
     setPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
-  return (
-    <div className="min-h-screen text-white p-6">
-      <TopBar />
-      <FeedToggle />
+return (
+  <div className="min-h-screen bg-white text-gray-900 p-6">
+    <TopBar />
+    <FeedToggle />
 
-      <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
+    <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
 
-      {loading && <p>Loading sounds...</p>}
+    {loading && <p>Loading sounds...</p>}
 
-      <div className="flex flex-col gap-6 mb-6">
-        {posts.map((post) => (
-          <SoundPostCard
-            key={post.id}
-            post={{ ...post, onDeleted: handleDeleted }}
-            isTrending={false}
-          />
-        ))}
-      </div>
-
-      {hasMore && (
-        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
-          {loadingMore && <p className="text-gray-400">Loading more...</p>}
-        </div>
-      )}
-
-      {!hasMore && (
-        <p className="text-gray-500 text-sm mt-4 text-center">
-          You’ve reached the end of the feed.
-        </p>
-      )}
-
-      <FloatingComposer />
+    <div className="flex flex-col gap-6 mb-6">
+      {posts.map((post) => (
+        <SoundPostCard
+          key={post.id}
+          post={{ ...post, onDeleted: handleDeleted }}
+          isTrending={false}
+        />
+      ))}
     </div>
-  );
+
+    {hasMore && (
+      <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
+        {loadingMore && <p className="text-gray-400">Loading more...</p>}
+      </div>
+    )}
+
+    {!hasMore && (
+      <p className="text-gray-500 text-sm mt-4 text-center">
+        You’ve reached the end of the feed.
+      </p>
+    )}
+
+    <FloatingComposer />
+  </div>
+);
 }

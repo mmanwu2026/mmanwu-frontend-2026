@@ -144,7 +144,7 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
   if (loading) {
     return (
-      <div className="min-h-screen text-white p-6">
+      <div className="min-h-screen bg-white text-gray-900 p-6">
         <TopBar />
         <p>Loading post...</p>
       </div>
@@ -153,7 +153,7 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
   if (!post) {
     return (
-      <div className="min-h-screen text-white p-6">
+      <div className="min-h-screen bg-white text-gray-900 p-6">
         <TopBar />
         <p>Post not found.</p>
       </div>
@@ -161,16 +161,16 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
   }
 
   return (
-    <div className="min-h-screen text-white p-6">
+    <div className="min-h-screen bg-white text-gray-900 p-6">
       <TopBar />
 
       <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
 
-      <p className="text-gray-400 mb-4">
+      <p className="text-gray-600 mb-4">
         Uploaded by{" "}
         <Link
           href={`/profile/${post.creator_id}`}
-          className="text-purple-300 hover:text-purple-400 underline"
+          className="text-purple-600 hover:text-purple-700 underline"
         >
           {post.users.username}
         </Link>{" "}
@@ -240,8 +240,8 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
       <SoundShareButton postId={post.id} />
 
-<SoundComments postId={post.id} onSubmittedAction={() => {}} />
-<SoundCommentList postId={post.id} />
+      <SoundComments postId={post.id} onSubmittedAction={() => {}} />
+      <SoundCommentList postId={post.id} />
     </div>
   );
 }
