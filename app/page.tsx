@@ -90,19 +90,31 @@ export default function UnifiedFeedPage() {
       })) ?? [];
 
     // ⭐ SOUND POSTS — FIXED MAPPING
-    const soundMapped =
-      sound.data?.map((p: any) => ({
-        square_type: "sound-square",
-        post: {
-          ...p,
-          autoMask: p.automask, // normalize field name
-        },
-        creator: null, // SoundSquare has no FK to profiles
-        trending_score:
-          (p.share_count ?? 0) * 0.4 +
-          (p.spirit_score ?? 0) * 0.4 +
-          (p.positivity_ratio ?? 0) * 0.2,
-      })) ?? [];
+ const soundMapped =
+  sound.data?.map((p: any) => ({
+    square_type: "sound-square",
+    post: {
+      ...p,
+      autoMask: p.automask,
+
+      // ⭐ FIX — SoundPostCard requires reaction counts
+      reactions: {
+        mask1: 0,
+        mask2: 0,
+        mask3: 0,
+        mask4: 0,
+        mask5: 0,
+        mask6: 0,
+      },
+    },
+
+    creator: null,
+
+    trending_score:
+      (p.share_count ?? 0) * 0.4 +
+      (p.spirit_score ?? 0) * 0.4 +
+      (p.positivity_ratio ?? 0) * 0.2,
+  })) ?? [];
 
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
