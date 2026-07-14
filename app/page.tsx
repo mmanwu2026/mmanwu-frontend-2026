@@ -303,8 +303,12 @@ export default function UnifiedFeedPage() {
   }
 
   return (
-    <div className="p-4 pb-24">
-      <h1 className="text-2xl font-bold mb-4">MMAN PLAZA — Unified Feed</h1>
+<div className="p-4 pb-24">
+  <h1 className="text-3xl font-extrabold tracking-tight mb-6 
+                 bg-gradient-to-r from-purple-400 to-pink-300 
+                 bg-clip-text text-transparent">
+    Unified Feed
+  </h1>
 
       <div className="space-y-6">
         {items.map((item) => {
