@@ -49,32 +49,21 @@ export default function NotificationsPage() {
     return;
   }
 
-  const { data: sub } = await supabase
-    .from("push_subscriptions")
-    .select("subscription")
-    .eq("user_id", userId)
-    .single();
-
-  if (!sub?.subscription) {
-    alert("No push subscription found. Enable notifications first.");
-    return;
-  }
-
   await fetch(
     "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,   // ⭐ REQUIRED
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        subscription: sub.subscription,
-        payload: {
-          title: "MMAN Plaza",
-          body: "Your notification settings are working!",
-          icon: "/icons/mman-192.png",
-          url: "/notifications",
+        targetUserId: userId,
+        title: "MMAN Plaza",
+        body: "Your notification settings are working!",
+        data: {
+          roomId: "test-room",
+          callerId: userId,
         },
       }),
     }
