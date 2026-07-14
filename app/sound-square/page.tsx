@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
-import TopBar from "@/components/navigation/TopBar";
 import type { CardSoundPost, SoundComment } from "@/app/sound-square/types";
 
 type ReactionCounts = {
@@ -176,71 +175,71 @@ export default function SoundSquareIndex() {
     setLoading(false);
   }
 
-  return (
-    <div className="min-h-screen bg-white text-gray-900 p-6">
-      <TopBar />
+return (
+  <div className="min-h-screen bg-white text-gray-900 p-6">
+    {/* TopBar removed */}
 
-      {/* Navigation */}
-      <div className="mb-6 flex justify-between items-center">
-        <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
-          ← Plaza
-        </Link>
+    {/* Navigation */}
+    <div className="mb-6 flex justify-between items-center">
+      <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
+        ← Plaza
+      </Link>
 
-        <Link
-          href="/sound-square/create"
-          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
-        >
-          + Upload Sound
-        </Link>
-      </div>
-
-      <h1 className="text-3xl font-bold mb-2">Sound Square</h1>
-      <p className="text-gray-600 mb-8">
-        Explore beats, reactions, and trending audio moments shared by the community.
-      </p>
-
-      {/* ⭐ Toggle */}
-      <div className="flex gap-4 mb-6">
-        <Link href="/sound-square/feed" className="font-semibold text-purple-700">
-          Recent
-        </Link>
-
-        <Link href="/sound-square/trending" className="text-gray-600 hover:text-purple-700">
-          Trending
-        </Link>
-      </div>
-
-      {/* ⭐ Recent Posts Preview */}
-      <h2 className="text-xl font-semibold mb-4 text-purple-700">Recent Posts</h2>
-
-      <div className="space-y-6">
-        {recentPosts.map((post) => (
-          <SoundPostCard key={post.id} post={post} />
-        ))}
-      </div>
-
-      {/* Main Links */}
-      <div className="space-y-4 mt-10">
-        <Link
-          href="/sound-square/feed"
-          className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
-        >
-          <h2 className="text-xl font-semibold text-purple-700 mb-1">Sound Feed</h2>
-          <p className="text-gray-600 text-sm">
-            See the latest uploads from creators across Sound Square.
-          </p>
-        </Link>
-
-        <Link
-          href="/sound-square/trending"
-          className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
-        >
-          <h2 className="text-xl font-semibold text-purple-700 mb-1">Trending</h2>
-          <p className="text-gray-600 text-sm">
-            Discover the highest‑spirit and most reacted sound posts.
-          </p>
-        </Link>
-      </div>
+      <Link
+        href="/sound-square/create"
+        className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
+      >
+        + Upload Sound
+      </Link>
     </div>
-  );
+
+    <h1 className="text-3xl font-bold mb-2">Sound Square</h1>
+    <p className="text-gray-600 mb-8">
+      Explore beats, reactions, and trending audio moments shared by the community.
+    </p>
+
+    {/* ⭐ Toggle */}
+    <div className="flex gap-4 mb-6">
+      <Link href="/sound-square/feed" className="font-semibold text-purple-700">
+        Recent
+      </Link>
+
+      <Link href="/sound-square/trending" className="text-gray-600 hover:text-purple-700">
+        Trending
+      </Link>
+    </div>
+
+    {/* ⭐ Recent Posts Preview */}
+    <h2 className="text-xl font-semibold mb-4 text-purple-700">Recent Posts</h2>
+
+    <div className="space-y-6">
+      {recentPosts.map((post) => (
+        <SoundPostCard key={post.id} post={post} />
+      ))}
+    </div>
+
+    {/* Main Links */}
+    <div className="space-y-4 mt-10">
+      <Link
+        href="/sound-square/feed"
+        className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
+      >
+        <h2 className="text-xl font-semibold text-purple-700 mb-1">Sound Feed</h2>
+        <p className="text-gray-600 text-sm">
+          See the latest uploads from creators across Sound Square.
+        </p>
+      </Link>
+
+      <Link
+        href="/sound-square/trending"
+        className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
+      >
+        <h2 className="text-xl font-semibold text-purple-700 mb-1">Trending</h2>
+        <p className="text-gray-600 text-sm">
+          Discover the highest‑spirit and most reacted sound posts.
+        </p>
+      </Link>
+    </div>
+  </div>
+);
 }
