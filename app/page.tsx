@@ -86,13 +86,48 @@ export default function UnifiedFeedPage() {
                 reactions[key] = Math.max(0, (reactions[key] ?? 0) - 1);
               }
 
+              /* ⭐ Recompute spirit_score, positivity, automask */
+              const total =
+                reactions.mask1 +
+                reactions.mask2 +
+                reactions.mask3 +
+                reactions.mask4 +
+                reactions.mask5 +
+                reactions.mask6;
+
+              const spirit =
+                reactions.mask1 * 1 +
+                reactions.mask2 * 2 +
+                reactions.mask3 * 3 +
+                reactions.mask4 * 4 +
+                reactions.mask5 * 5 +
+                reactions.mask6 * 6;
+
+              const positiveCount =
+                reactions.mask3 +
+                reactions.mask4 +
+                reactions.mask5 +
+                reactions.mask6;
+
+              const positivity = total > 0 ? positiveCount / total : 0.5;
+
+              let automask = 2;
+              if (spirit > 500) automask = 6;
+              else if (spirit > 300) automask = 5;
+              else if (spirit > 100) automask = 4;
+              else if (spirit > 20) automask = 3;
+
               return {
                 ...item,
                 post: {
                   ...item.post,
-                  reactions, // ⭐ unified feed only updates reactions
+                  reactions,
+                  spirit_score: spirit,
+                  positivity_ratio: positivity,
+                  total_reactions: total,
+                  automask,
                 },
-                trending_score: item.trending_score, // ⭐ trending stays as-is
+                trending_score: item.trending_score,
               };
             })
           );
@@ -145,7 +180,7 @@ export default function UnifiedFeedPage() {
 
     const plazaMapped: UnifiedFeedItem[] =
       plaza.data?.map((p: any) => {
-        const counts = plazaReactionMap[p.id] ?? {
+        const reactions = plazaReactionMap[p.id] ?? {
           mask1: 0,
           mask2: 0,
           mask3: 0,
@@ -154,11 +189,45 @@ export default function UnifiedFeedPage() {
           mask6: 0,
         };
 
+        const total =
+          reactions.mask1 +
+          reactions.mask2 +
+          reactions.mask3 +
+          reactions.mask4 +
+          reactions.mask5 +
+          reactions.mask6;
+
+        const spirit =
+          reactions.mask1 * 1 +
+          reactions.mask2 * 2 +
+          reactions.mask3 * 3 +
+          reactions.mask4 * 4 +
+          reactions.mask5 * 5 +
+          reactions.mask6 * 6;
+
+        const positiveCount =
+          reactions.mask3 +
+          reactions.mask4 +
+          reactions.mask5 +
+          reactions.mask6;
+
+        const positivity = total > 0 ? positiveCount / total : 0.5;
+
+        let automask = 2;
+        if (spirit > 500) automask = 6;
+        else if (spirit > 300) automask = 5;
+        else if (spirit > 100) automask = 4;
+        else if (spirit > 20) automask = 3;
+
         return {
           square_type: "plaza",
           post: {
             ...p,
-            reactions: counts, // ⭐ only reactions
+            reactions,
+            spirit_score: spirit,
+            positivity_ratio: positivity,
+            total_reactions: total,
+            automask,
           },
           creator: p.profiles,
           trending_score: p.trending_score ?? 0,
@@ -175,7 +244,7 @@ export default function UnifiedFeedPage() {
     const visionMapped: UnifiedFeedItem[] =
       vision.data?.map((p: any) => ({
         square_type: "vision-square",
-        post: p, // ⭐ VisionCard computes its own values
+        post: p,
         creator: p.profiles,
         trending_score: p.trending_score ?? 0,
       })) ?? [];
@@ -217,7 +286,7 @@ export default function UnifiedFeedPage() {
 
     const soundMapped: UnifiedFeedItem[] =
       sound.data?.map((p: any) => {
-        const counts = soundReactionMap[p.id] ?? {
+        const reactions = soundReactionMap[p.id] ?? {
           mask1: 0,
           mask2: 0,
           mask3: 0,
@@ -226,11 +295,45 @@ export default function UnifiedFeedPage() {
           mask6: 0,
         };
 
+        const total =
+          reactions.mask1 +
+          reactions.mask2 +
+          reactions.mask3 +
+          reactions.mask4 +
+          reactions.mask5 +
+          reactions.mask6;
+
+        const spirit =
+          reactions.mask1 * 1 +
+          reactions.mask2 * 2 +
+          reactions.mask3 * 3 +
+          reactions.mask4 * 4 +
+          reactions.mask5 * 5 +
+          reactions.mask6 * 6;
+
+        const positiveCount =
+          reactions.mask3 +
+          reactions.mask4 +
+          reactions.mask5 +
+          reactions.mask6;
+
+        const positivity = total > 0 ? positiveCount / total : 0.5;
+
+        let automask = 2;
+        if (spirit > 500) automask = 6;
+        else if (spirit > 300) automask = 5;
+        else if (spirit > 100) automask = 4;
+        else if (spirit > 20) automask = 3;
+
         return {
           square_type: "sound-square",
           post: {
             ...p,
-            reactions: counts, // ⭐ only reactions
+            reactions,
+            spirit_score: spirit,
+            positivity_ratio: positivity,
+            total_reactions: total,
+            automask,
           },
           creator: null,
           trending_score: p.trending_score ?? 0,
