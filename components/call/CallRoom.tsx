@@ -214,6 +214,7 @@ export default function CallRoom({
 
           if (!pc || row.sender_id === userId) return;
 
+          // Caller receives answer
           if (role === "caller" && row.type === "answer") {
             setCallStatus("connecting");
 
@@ -227,13 +228,42 @@ export default function CallRoom({
             pendingCandidatesRef.current = [];
           }
 
+          // Callee receives offer
           if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
             hasProcessedOfferRef.current = true;
 
+            // 1. Set remote description (caller’s offer)
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
             );
 
+            // 2. Ensure callee has local media BEFORE creating answer
+            let localStream = localVideoRef.current?.srcObject as MediaStream | null;
+            if (!localStream) {
+              localStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode },
+                audio: true,
+              });
+
+              localStream.getTracks().forEach((track) =>
+                pc.addTrack(track, localStream!)
+              );
+
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = localStream;
+                localVideoRef.current.muted = true;
+                localVideoRef.current.play().catch(() => {});
+              }
+
+              setJoined(true);
+            } else {
+              // if stream exists but tracks not added, ensure they’re on pc
+              localStream.getTracks().forEach((track) =>
+                pc.addTrack(track, localStream!)
+              );
+            }
+
+            // 3. Create and send answer with media
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -245,6 +275,7 @@ export default function CallRoom({
             });
           }
 
+          // ICE candidates
           if (row.type === "candidate") {
             if (!pc.remoteDescription) {
               pendingCandidatesRef.current.push(row.payload);
@@ -258,7 +289,7 @@ export default function CallRoom({
       .subscribe();
 
     return () => supabase.removeChannel(signalingChannel);
-  }, [roomId, userId, role, supabase]);
+  }, [roomId, userId, role, supabase, facingMode]);
 
   /* ---------------- CALL EVENTS (DECLINE + CANCEL + START) ---------------- */
 
@@ -283,6 +314,7 @@ export default function CallRoom({
             setCallStatus("declined");
           }
 
+          // callee accepted; we’re connecting, but remoteJoined will only flip when media arrives
           if (row.type === "call_started") {
             setCallStatus("connecting");
           }
