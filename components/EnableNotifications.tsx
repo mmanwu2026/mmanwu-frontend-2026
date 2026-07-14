@@ -2,21 +2,7 @@
 
 import { useState } from "react";
 import { useSupabase } from "../app/context/SupabaseContext";
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
+import { registerPushToken } from "@/src/push/registerPushToken";
 
 export default function EnableNotifications() {
   const { supabase } = useSupabase();
@@ -43,22 +29,11 @@ export default function EnableNotifications() {
         return;
       }
 
-      // Register service worker
-      const reg = await navigator.serviceWorker.register("/sw.js");
+      // Register Firebase messaging service worker
+      await navigator.serviceWorker.register("/firebase-messaging-sw.js");
 
-      // Create push subscription
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-        ),
-      });
-
-      // Save subscription
-      await supabase.from("push_subscriptions").upsert({
-        user_id: user.id,
-        subscription,
-      });
+      // Generate and save FCM token
+      await registerPushToken(user.id, supabase);
 
       // Mark enabled
       localStorage.setItem("notifications_enabled", "true");
@@ -67,7 +42,7 @@ export default function EnableNotifications() {
       setLoading(false);
 
     } catch (err) {
-      console.error("Push setup failed:", err);
+      console.error("FCM setup failed:", err);
       alert("Could not enable notifications.");
       setLoading(false);
     }
