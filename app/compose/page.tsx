@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import GatekeeperModal from "@/app/components/GatekeeperModal";
 import SpiritToast from "@/app/components/SpiritToast";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface GatekeeperResponse {
   autoApprove?: boolean;
@@ -19,7 +19,13 @@ interface RewriteOption {
 
 export default function ComposerPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { supabase } = useSupabase();
+
+  // ⭐ Composer should ONLY render on /compose
+  if (!pathname || !pathname.startsWith("/compose")) {
+    return null;
+  }
 
   const [uid, setUid] = useState<string | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -59,15 +65,13 @@ export default function ComposerPage() {
   async function publishToSupabase(finalText: string): Promise<void> {
     if (!uid) return;
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("posts")
       .insert({
         content: finalText,
         creator_id: uid,
         mask: 0,
-      })
-      .select()
-      .single();
+      });
 
     if (error) {
       console.error("Post insert error:", error);
@@ -116,7 +120,6 @@ export default function ComposerPage() {
 
   return (
     <>
-      {/* ⭐ Gatekeeper Modal via portal */}
       {showGatekeeper && gatekeeperOptions && (
         <GatekeeperModal
           options={gatekeeperOptions}
@@ -125,19 +128,11 @@ export default function ComposerPage() {
         />
       )}
 
-      {/* ⭐ Spirit Toast */}
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {/* ⭐ Full Page Composer */}
-      <div
-        className="
-          min-h-screen w-full bg-white flex flex-col
-          pt-[env(safe-area-inset-top)]
-          pb-[env(safe-area-inset-bottom)]
-        "
-      >
+      <div className="min-h-screen w-full bg-white flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h1 className="text-lg font-semibold text-gray-900">Create Post</h1>
           <button
@@ -150,13 +145,7 @@ export default function ComposerPage() {
 
         <div className="flex-1 p-4">
           <textarea
-            className="
-              w-full h-full
-              bg-gray-50 text-gray-900
-              rounded-xl p-4
-              resize-none
-              focus:outline-none focus:ring-2 focus:ring-purple-500
-            "
+            className="w-full h-full bg-gray-50 text-gray-900 rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
             placeholder="Share your thoughts…"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -167,12 +156,7 @@ export default function ComposerPage() {
           <button
             onClick={handleSubmit}
             disabled={!content.trim() || loadingUser || !uid}
-            className="
-              w-full py-3 rounded-xl font-semibold
-              bg-purple-600 text-white
-              disabled:bg-purple-300 disabled:text-gray-100
-              hover:bg-purple-700 transition
-            "
+            className="w-full py-3 rounded-xl font-semibold bg-purple-600 text-white disabled:bg-purple-300 disabled:text-gray-100 hover:bg-purple-700 transition"
           >
             {loadingUser ? "Posting…" : "Post"}
           </button>
