@@ -47,6 +47,114 @@ export default function UnifiedFeedPage() {
     }
   }, [notificationsEnabled]);
 
+  /* ⭐⭐⭐ REALTIME REACTION UPDATES — PLAZA + SOUND + VISION ⭐⭐⭐ */
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("realtime-reactions")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reactions",
+        },
+        (payload: any) => {
+          const row = payload.new ?? payload.old;
+          if (!row) return;
+
+          const { post_id, post_type, maskTier } = row;
+          if (!post_id || !post_type || !maskTier) return;
+
+          setItems((prev) =>
+            prev.map((item) => {
+              const match =
+                (post_type === "plaza" && item.square_type === "plaza") ||
+                (post_type === "sound" && item.square_type === "sound-square") ||
+                (post_type === "vision" && item.square_type === "vision-square");
+
+              if (!match || item.post.id !== post_id) return item;
+
+              const reactions = { ...item.post.reactions };
+              const key = `mask${maskTier}` as keyof ReactionCounts;
+
+              if (payload.eventType === "INSERT") {
+                reactions[key] = (reactions[key] ?? 0) + 1;
+              } else if (payload.eventType === "DELETE") {
+                reactions[key] = Math.max(0, (reactions[key] ?? 0) - 1);
+              }
+
+              const total =
+                reactions.mask1 +
+                reactions.mask2 +
+                reactions.mask3 +
+                reactions.mask4 +
+                reactions.mask5 +
+                reactions.mask6;
+
+              const spiritFromMasks =
+                reactions.mask1 * 1 +
+                reactions.mask2 * 2 +
+                reactions.mask3 * 3 +
+                reactions.mask4 * 4 +
+                reactions.mask5 * 5 +
+                reactions.mask6 * 6;
+
+              const positiveCount =
+                reactions.mask3 +
+                reactions.mask4 +
+                reactions.mask5 +
+                reactions.mask6;
+
+              const positivity =
+                total > 0 ? positiveCount / total : item.post.positivity_ratio ?? 0.5;
+
+              let trending_score = item.trending_score;
+
+              if (item.square_type === "plaza") {
+                trending_score =
+                  (item.post.spirit_score ?? spiritFromMasks) * 0.6 +
+                  total * 0.4;
+              }
+
+              if (item.square_type === "sound-square") {
+                trending_score =
+                  (item.post.share_count ?? 0) * 0.4 +
+                  (item.post.spirit_score ?? spiritFromMasks) * 0.4 +
+                  (positivity ?? 0.5) * 0.2;
+              }
+
+              if (item.square_type === "vision-square") {
+                trending_score =
+                  (item.post.spirit_score ?? spiritFromMasks) * 0.6 +
+                  total * 0.4;
+              }
+
+              return {
+                ...item,
+                post: {
+                  ...item.post,
+                  reactions,
+                  spirit_score: item.post.spirit_score ?? spiritFromMasks,
+                  positivity_ratio: positivity,
+                  total_reactions: total,
+                  automask: item.post.automask ?? 2,
+                },
+                trending_score,
+              };
+            })
+          );
+        }
+      );
+
+    channel.subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [supabase]);
+
   async function loadMore() {
     if (loading) return;
     setLoading(true);
@@ -303,12 +411,12 @@ export default function UnifiedFeedPage() {
   }
 
   return (
-<div className="p-4 pb-24">
-  <h1 className="text-3xl font-extrabold tracking-tight mb-6 
-                 bg-gradient-to-r from-purple-400 to-pink-300 
-                 bg-clip-text text-transparent">
-    Unified Feed
-  </h1>
+    <div className="p-4 pb-24">
+      <h1 className="text-3xl font-extrabold tracking-tight mb-6 
+                     bg-gradient-to-r from-purple-400 to-pink-300 
+                     bg-clip-text text-transparent">
+        Unified Feed
+      </h1>
 
       <div className="space-y-6">
         {items.map((item) => {
@@ -330,7 +438,6 @@ export default function UnifiedFeedPage() {
           }
 
           if (item.square_type === "sound-square") {
-            // reactions are guaranteed above
             return (
               <SoundPostCard
                 key={item.post.id}
