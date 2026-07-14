@@ -36,41 +36,52 @@ export default function NotificationsPage() {
 
   // Test notification
   async function sendTestNotification() {
-    if (!userId) {
-      alert("You must be logged in.");
-      return;
-    }
-
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", userId)
-      .single();
-
-    if (!sub?.subscription) {
-      alert("No push subscription found. Enable notifications first.");
-      return;
-    }
-
-    await fetch(
-      "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscription: sub.subscription,
-          payload: {
-            title: "MMAN Plaza",
-            body: "Your notification settings are working!",
-            icon: "/icons/mman-192.png",
-            url: "/notifications",
-          },
-        }),
-      }
-    );
-
-    alert("Test notification sent!");
+  if (!userId) {
+    alert("You must be logged in.");
+    return;
   }
+
+  const session = await supabase.auth.getSession();
+  const accessToken = session.data.session?.access_token;
+
+  if (!accessToken) {
+    alert("No access token found.");
+    return;
+  }
+
+  const { data: sub } = await supabase
+    .from("push_subscriptions")
+    .select("subscription")
+    .eq("user_id", userId)
+    .single();
+
+  if (!sub?.subscription) {
+    alert("No push subscription found. Enable notifications first.");
+    return;
+  }
+
+  await fetch(
+    "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,   // ⭐ REQUIRED
+      },
+      body: JSON.stringify({
+        subscription: sub.subscription,
+        payload: {
+          title: "MMAN Plaza",
+          body: "Your notification settings are working!",
+          icon: "/icons/mman-192.png",
+          url: "/notifications",
+        },
+      }),
+    }
+  );
+
+  alert("Test notification sent!");
+}
 
   return (
     <div className="min-h-screen bg-white text-gray-900 p-4">
