@@ -120,10 +120,22 @@ export default function CallRoom({
 
       pendingRemoteStreamRef.current.addTrack(event.track);
 
-      const el = remoteVideoRef.current;
-      if (el) {
+      const attach = () => {
+        const el = remoteVideoRef.current;
+        if (!el || !pendingRemoteStreamRef.current) return false;
         el.srcObject = pendingRemoteStreamRef.current;
-        el.play().catch(() => {});
+        el
+          .play()
+          .catch(() => {
+            /* ignore */
+          });
+        return true;
+      };
+
+      if (!attach()) {
+        const interval = setInterval(() => {
+          if (attach()) clearInterval(interval);
+        }, 200);
       }
 
       setCallStatus("active");
@@ -136,18 +148,6 @@ export default function CallRoom({
       pcRef.current = null;
     };
   }, [roomId, userId, supabase, role]);
-
-  /* ---------------- REMOTE STREAM ATTACH ---------------- */
-  useEffect(() => {
-    const el = remoteVideoRef.current;
-    if (!el) return;
-
-    if (pendingRemoteStreamRef.current) {
-      el.srcObject = pendingRemoteStreamRef.current;
-      el.play().catch(() => {});
-      pendingRemoteStreamRef.current = null;
-    }
-  }, [remoteVideoRef.current]);
 
   /* ---------------- JOIN CALL ---------------- */
   async function joinCall() {
@@ -198,7 +198,7 @@ export default function CallRoom({
 
   /* ---------------- SIGNALING SUBSCRIPTION ---------------- */
   useEffect(() => {
-    const channel = supabase
+    const signalingChannel = supabase
       .channel(`call-${roomId}`)
       .on(
         "postgres_changes",
@@ -216,7 +216,6 @@ export default function CallRoom({
 
           if (role === "caller" && row.type === "answer") {
             setCallStatus("connecting");
-            setRemoteJoined(true);
 
             await pc.setRemoteDescription(
               new RTCSessionDescription(row.payload)
@@ -258,7 +257,7 @@ export default function CallRoom({
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => supabase.removeChannel(signalingChannel);
   }, [roomId, userId, role, supabase]);
 
   /* ---------------- CALL EVENTS (DECLINE + CANCEL + START) ---------------- */
@@ -285,7 +284,6 @@ export default function CallRoom({
           }
 
           if (row.type === "call_started") {
-            setRemoteJoined(true);
             setCallStatus("connecting");
           }
 
@@ -427,10 +425,6 @@ export default function CallRoom({
 
     if (timerRef.current) clearInterval(timerRef.current);
     setCallTimer(0);
-
-    supabase.getChannels().forEach((ch) => {
-      supabase.removeChannel(ch);
-    });
   }
 
   /* ---------------- CANCEL CALL (CALLER, RINGING ONLY) ---------------- */
