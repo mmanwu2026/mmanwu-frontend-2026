@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import { sendPush } from "@/lib/sendPush";
 
 /* ---------------- FETCH TARGET FCM TOKEN ---------------- */
 async function getTargetFCMToken(userId: string, supabase: any) {
@@ -175,46 +174,45 @@ export default function MessengerThread({
   }
 
   /* ---------------- CALL BUTTON ---------------- */
-async function startCall() {
-  if (!otherUserId) return;
+  async function startCall() {
+    if (!otherUserId) return;
 
-  const newRoomId = crypto.randomUUID();
-  const callId = crypto.randomUUID();
+    const newRoomId = crypto.randomUUID();
+    const callId = crypto.randomUUID();
 
-  await supabase.from("call_events").insert({
-    type: "incoming_call",
-    call_id: callId,
-    room_id: newRoomId,
-    caller_id: userId,
-    caller_name: usernames[userId] || "Unknown",
-    target_user_id: otherUserId,
-    url: `/call/${newRoomId}`,
-    status: "ringing",
-    created_at: new Date().toISOString(),
-  });
-
-  await supabase.from("call_events").insert({
-    type: "call_started",
-    call_id: callId,
-    room_id: newRoomId,
-    caller_id: userId,
-    target_user_id: otherUserId,
-    status: "started",
-    created_at: new Date().toISOString(),
-  });
-
-  // ⭐ NEW: Invoke your FCM HTTP v1 Supabase Edge Function
-  await supabase.functions.invoke("send-incoming-call-push", {
-    body: {
-      target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
+    await supabase.from("call_events").insert({
+      type: "incoming_call",
+      call_id: callId,
       room_id: newRoomId,
+      caller_id: userId,
       caller_name: usernames[userId] || "Unknown",
-    },
-  });
+      target_user_id: otherUserId,
+      url: `/call/${newRoomId}`,
+      status: "ringing",
+      created_at: new Date().toISOString(),
+    });
 
-  router.push(`/call/${newRoomId}?role=caller`);
-}
+    await supabase.from("call_events").insert({
+      type: "call_started",
+      call_id: callId,
+      room_id: newRoomId,
+      caller_id: userId,
+      target_user_id: otherUserId,
+      status: "started",
+      created_at: new Date().toISOString(),
+    });
 
+    // ⭐ NEW: Invoke your FCM HTTP v1 Supabase Edge Function
+    await supabase.functions.invoke("send-incoming-call-push", {
+      body: {
+        target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
+        room_id: newRoomId,
+        caller_name: usernames[userId] || "Unknown",
+      },
+    });
+
+    router.push(`/call/${newRoomId}?role=caller`);
+  }
   /* ---------------- UI ONLY BELOW THIS LINE ---------------- */
 
   return (
