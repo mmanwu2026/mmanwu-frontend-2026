@@ -41,9 +41,35 @@ export function IncomingCallModal({
       .update({ status: "accepted" })
       .eq("id", call.id);
 
-    onClose();
+    // ⭐ Wait for caller to create the offer
+    const pollOffer = async () => {
+      const { data: offer } = await supabase
+        .from("call_signaling")
+        .select("*")
+        .eq("room_id", call.room_id)
+        .eq("type", "offer")
+        .maybeSingle();
 
-    // ⭐ Correct navigation to CallRoom with role=callee
+      return offer;
+    };
+
+    let offer = await pollOffer();
+
+    // If no offer yet, poll until it appears
+    if (!offer) {
+      const interval = setInterval(async () => {
+        const newOffer = await pollOffer();
+        if (newOffer) {
+          clearInterval(interval);
+          onClose();
+          router.push(`/callroom?roomId=${call.room_id}&role=callee`);
+        }
+      }, 300);
+      return;
+    }
+
+    // Offer already exists → navigate immediately
+    onClose();
     router.push(`/callroom?roomId=${call.room_id}&role=callee`);
   }
 
