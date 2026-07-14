@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
-import type { PostgrestResponse } from "@supabase/supabase-js";
 
 type Role = "caller" | "callee";
 
@@ -56,7 +55,6 @@ export default function CallRoom({
     "ringing" | "connecting" | "declined" | "active"
   >(role === "caller" ? "ringing" : "connecting");
 
-  // UI state
   const [muted, setMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
@@ -69,6 +67,9 @@ export default function CallRoom({
 
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showCancelledModal, setShowCancelledModal] = useState(false);
+
+  // store latest offer for callee auto-answer
+  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
 
   /* ---------------- PEER CONNECTION SETUP ---------------- */
   useEffect(() => {
@@ -104,7 +105,6 @@ export default function CallRoom({
 
     pc.onicecandidate = async (event) => {
       if (!event.candidate) return;
-
       await supabase.from("call_signaling").insert({
         room_id: roomId,
         sender_id: userId,
@@ -117,18 +117,13 @@ export default function CallRoom({
       if (!pendingRemoteStreamRef.current) {
         pendingRemoteStreamRef.current = new MediaStream();
       }
-
       pendingRemoteStreamRef.current.addTrack(event.track);
 
       const attach = () => {
         const el = remoteVideoRef.current;
         if (!el || !pendingRemoteStreamRef.current) return false;
         el.srcObject = pendingRemoteStreamRef.current;
-        el
-          .play()
-          .catch(() => {
-            /* ignore */
-          });
+        el.play().catch(() => {});
         return true;
       };
 
@@ -144,13 +139,15 @@ export default function CallRoom({
     };
 
     return () => {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
       pc.close();
       pcRef.current = null;
     };
   }, [roomId, userId, supabase, role]);
 
-  /* ---------------- JOIN CALL ---------------- */
-  async function joinCall() {
+  /* ---------------- JOIN CALL (CALLER) ---------------- */
+  async function joinCallCaller() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode },
       audio: true,
@@ -167,17 +164,6 @@ export default function CallRoom({
 
     setJoined(true);
 
-    if (role === "callee") {
-      await supabase.from("call_events").insert({
-        type: "call_started",
-        room_id: roomId,
-        caller_id: userId,
-        target_user_id: userId,
-        call_id: roomId,
-        status: "started",
-      });
-    }
-
     if (role === "caller" && !hasSentOfferRef.current) {
       hasSentOfferRef.current = true;
 
@@ -193,7 +179,72 @@ export default function CallRoom({
         type: "offer",
         payload: { sdp: offer.sdp, type: offer.type },
       });
+
+      await supabase.from("call_events").insert({
+        type: "call_started",
+        room_id: roomId,
+        caller_id: userId,
+        target_user_id: userId,
+        call_id: roomId,
+        status: "started",
+      });
     }
+  }
+
+  /* ---------------- AUTO-ANSWER (CALLEE) ---------------- */
+  async function autoAnswerCallee() {
+    if (role !== "callee") return;
+    if (!pendingOfferRef.current) return;
+    if (hasProcessedOfferRef.current) return;
+
+    const pc = pcRef.current;
+    if (!pc) return;
+
+    hasProcessedOfferRef.current = true;
+
+    // 1. Set remote description from stored offer
+    await pc.setRemoteDescription(
+      new RTCSessionDescription(pendingOfferRef.current)
+    );
+
+    // 2. Get local media (this triggers browser permission popup)
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode },
+      audio: true,
+    });
+
+    localStream.getTracks().forEach((track) =>
+      pc.addTrack(track, localStream)
+    );
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.muted = true;
+      localVideoRef.current.play().catch(() => {});
+    }
+
+    setJoined(true);
+    setCallStatus("connecting");
+
+    // 3. Create and send answer AFTER media is attached
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await supabase.from("call_signaling").insert({
+      room_id: roomId,
+      sender_id: userId,
+      type: "answer",
+      payload: { sdp: answer.sdp, type: answer.type },
+    });
+
+    await supabase.from("call_events").insert({
+      type: "call_started",
+      room_id: roomId,
+      caller_id: userId,
+      target_user_id: userId,
+      call_id: roomId,
+      status: "started",
+    });
   }
 
   /* ---------------- SIGNALING SUBSCRIPTION ---------------- */
@@ -228,51 +279,12 @@ export default function CallRoom({
             pendingCandidatesRef.current = [];
           }
 
-          // Callee receives offer
-          if (row.type === "offer" && role === "callee" && !hasProcessedOfferRef.current) {
-            hasProcessedOfferRef.current = true;
-
-            // 1. Set remote description (caller’s offer)
-            await pc.setRemoteDescription(
-              new RTCSessionDescription(row.payload)
-            );
-
-            // 2. Ensure callee has local media BEFORE creating answer
-            let localStream = localVideoRef.current?.srcObject as MediaStream | null;
-            if (!localStream) {
-              localStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode },
-                audio: true,
-              });
-
-              localStream.getTracks().forEach((track) =>
-                pc.addTrack(track, localStream!)
-              );
-
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = localStream;
-                localVideoRef.current.muted = true;
-                localVideoRef.current.play().catch(() => {});
-              }
-
-              setJoined(true);
-            } else {
-              // if stream exists but tracks not added, ensure they’re on pc
-              localStream.getTracks().forEach((track) =>
-                pc.addTrack(track, localStream!)
-              );
-            }
-
-            // 3. Create and send answer with media
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            await supabase.from("call_signaling").insert({
-              room_id: roomId,
-              sender_id: userId,
-              type: "answer",
-              payload: { sdp: answer.sdp, type: answer.type },
-            });
+          // Callee receives offer → store and auto-answer
+          if (row.type === "offer" && role === "callee") {
+            pendingOfferRef.current = row.payload;
+            setCallStatus("connecting");
+            // auto-answer with permission popup
+            autoAnswerCallee().catch(() => {});
           }
 
           // ICE candidates
@@ -281,7 +293,6 @@ export default function CallRoom({
               pendingCandidatesRef.current.push(row.payload);
               return;
             }
-
             await pc.addIceCandidate(new RTCIceCandidate(row.payload));
           }
         }
@@ -291,9 +302,7 @@ export default function CallRoom({
     return () => supabase.removeChannel(signalingChannel);
   }, [roomId, userId, role, supabase, facingMode]);
 
-  /* ---------------- CALL EVENTS (DECLINE + CANCEL + START) ---------------- */
-
-  // Caller-side decline + start + cancel detection
+  /* ---------------- CALL EVENTS ---------------- */
   useEffect(() => {
     if (role !== "caller") return;
 
@@ -314,7 +323,6 @@ export default function CallRoom({
             setCallStatus("declined");
           }
 
-          // callee accepted; we’re connecting, but remoteJoined will only flip when media arrives
           if (row.type === "call_started") {
             setCallStatus("connecting");
           }
@@ -329,7 +337,6 @@ export default function CallRoom({
     return () => supabase.removeChannel(eventsChannel);
   }, [roomId, userId, role, supabase]);
 
-  // Callee-side cancel detection (A2 modal)
   useEffect(() => {
     if (role !== "callee") return;
 
@@ -382,11 +389,10 @@ export default function CallRoom({
     };
   }, [callStatus]);
 
-  /* ---------------- CONTROLS: MUTE / CAMERA / FLIP ---------------- */
+  /* ---------------- CONTROLS ---------------- */
   function toggleMute() {
     const stream = localVideoRef.current?.srcObject as MediaStream | null;
     if (!stream) return;
-
     stream.getAudioTracks().forEach((t) => (t.enabled = muted));
     setMuted(!muted);
   }
@@ -394,7 +400,6 @@ export default function CallRoom({
   function toggleCamera() {
     const stream = localVideoRef.current?.srcObject as MediaStream | null;
     if (!stream) return;
-
     stream.getVideoTracks().forEach((t) => (t.enabled = cameraOn));
     setCameraOn(!cameraOn);
   }
@@ -432,20 +437,17 @@ export default function CallRoom({
     pcRef.current = null;
 
     const localStream = localVideoRef.current?.srcObject as MediaStream | null;
-    if (localStream) {
-      localStream.getTracks().forEach((t) => t.stop());
-    }
+    if (localStream) localStream.getTracks().forEach((t) => t.stop());
 
     const remoteStream = remoteVideoRef.current?.srcObject as MediaStream | null;
-    if (remoteStream) {
-      remoteStream.getTracks().forEach((t) => t.stop());
-    }
+    if (remoteStream) remoteStream.getTracks().forEach((t) => t.stop());
 
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
 
     pendingRemoteStreamRef.current = null;
     pendingCandidatesRef.current = [];
+    pendingOfferRef.current = null;
 
     hasSentOfferRef.current = false;
     hasProcessedOfferRef.current = false;
@@ -459,7 +461,6 @@ export default function CallRoom({
     setCallTimer(0);
   }
 
-  /* ---------------- CANCEL CALL (CALLER, RINGING ONLY) ---------------- */
   async function cancelCall() {
     if (role !== "caller") return;
     if (callStatus !== "ringing" && callStatus !== "connecting") return;
@@ -477,33 +478,26 @@ export default function CallRoom({
     router.push("/messenger");
   }
 
-  /* ---------------- END CALL ---------------- */
   function endCall() {
     fullTeardown();
     router.push("/messenger");
   }
 
-  /* ---------------- UI ---------------- */
   const formattedTimer = `${Math.floor(callTimer / 60)
     .toString()
     .padStart(2, "0")}:${(callTimer % 60).toString().padStart(2, "0")}`;
 
   return (
     <div className="flex flex-col h-full p-4 text-white">
-
-      {/* Callee cancel modal (A2) */}
       {showCancelledModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-neutral-900 p-6 rounded-xl text-center border border-neutral-700">
             <p className="text-white mb-4">Caller cancelled the call.</p>
-            <p className="text-neutral-400 mb-4">
-              Returning to Messenger…
-            </p>
+            <p className="text-neutral-400 mb-4">Returning to Messenger…</p>
           </div>
         </div>
       )}
 
-      {/* Status + timer */}
       {role === "caller" && (
         <div className="text-center text-neutral-300 mb-4 text-lg">
           {callStatus === "ringing" && "📞 Ringing…"}
@@ -548,17 +542,7 @@ export default function CallRoom({
         </div>
       )}
 
-      {/* Video layout */}
-      <div
-        className="
-          flex flex-col md:flex-row
-          gap-4
-          flex-1
-          items-center
-          justify-center
-        "
-      >
-        {/* Local video */}
+      <div className="flex flex-col md:flex-row gap-4 flex-1 items-center justify-center">
         <div className="relative w-full md:w-1/2 bg-black rounded-lg overflow-hidden">
           <div className="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
             You
@@ -572,7 +556,6 @@ export default function CallRoom({
           />
         </div>
 
-        {/* Remote video */}
         <div className="relative w-full md:w-1/2 bg-black rounded-lg overflow-hidden">
           <div className="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
             Remote
@@ -586,7 +569,6 @@ export default function CallRoom({
         </div>
       </div>
 
-      {/* Controls */}
       <div className="flex justify-center mt-6 gap-4">
         <button
           onClick={toggleMute}
@@ -628,7 +610,6 @@ export default function CallRoom({
         )}
       </div>
 
-      {/* End call confirmation modal */}
       {showEndConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-neutral-900 p-6 rounded-xl text-center border border-neutral-700">
@@ -651,11 +632,10 @@ export default function CallRoom({
         </div>
       )}
 
-      {/* Join button */}
-      {!joined && (
+      {role === "caller" && !joined && (
         <div className="flex justify-center mt-4">
           <button
-            onClick={joinCall}
+            onClick={joinCallCaller}
             className="px-6 py-3 bg-green-600 rounded-lg text-lg hover:bg-green-500"
           >
             Join Call
