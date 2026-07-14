@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSupabase } from "../app/context/SupabaseContext";
-import { registerPushToken } from "@/src/push/registerPushToken";
+import { registerPushToken } from "@/app/push/registerPushToken";
 
 export default function EnableNotifications() {
   const { supabase } = useSupabase();
