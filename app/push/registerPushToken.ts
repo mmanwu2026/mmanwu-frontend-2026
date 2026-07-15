@@ -1,7 +1,7 @@
 "use client";
 
 import { initializeApp } from "firebase/app";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwfuss2PPc6rG3MJljxZFJ5ZuzC9L4KHI",
@@ -20,8 +20,11 @@ if (typeof window !== "undefined") {
 }
 
 export async function registerPushToken(userId: string, supabase: any) {
-  if (typeof window === "undefined" || !messaging) {
-    console.log("registerPushToken called outside browser or messaging not ready");
+  if (!messaging) return;
+
+  // ⭐ Ensure browser supports FCM
+  if (!(await isSupported())) {
+    console.log("Firebase Messaging not supported");
     return;
   }
 
