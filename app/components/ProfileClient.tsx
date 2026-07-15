@@ -398,7 +398,7 @@ async function startConversation(otherUserId: string) {
     const { data: newRoom, error } = await supabase
       .from("rooms")
       .insert({
-        created_by: authUserId,   // ⭐ REQUIRED FIELD
+        created_by: authUserId,
         is_group: false,
       })
       .select("id")
@@ -418,8 +418,8 @@ async function startConversation(otherUserId: string) {
     ]);
   }
 
-  // 5. Redirect to Messenger
-  router.push(`/messenger?room=${roomId}`);
+  // 5. Redirect to Messenger — ⭐ correct route
+  router.push(`/messenger/${roomId}`);
 }
 
   // Load reactions ON plaza posts
