@@ -14,23 +14,61 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+/**
+ * Handles background push messages from FCM HTTP v1.
+ * This is triggered even when the PWA is minimized or backgrounded.
+ */
 messaging.onBackgroundMessage((payload) => {
-  const notificationTitle = payload.notification?.title || "Incoming Call";
+  console.log("[Service Worker] Background message received:", payload);
+
+  const title =
+    payload.notification?.title ||
+    payload.data?.caller_name ||
+    "Incoming Call";
+
+  const body =
+    payload.notification?.body ||
+    `${payload.data?.caller_name || "Someone"} is calling you…`;
+
+  const roomId = payload.data?.room_id;
+
   const notificationOptions = {
-    body: payload.notification?.body || "",
-    icon: "/icons/call.png",
-    badge: "/icons/badge.png",
-    data: payload.data,
+    body,
+    icon: "/icons/call-large.png",
+    badge: "/icons/badge-72.png",
+    requireInteraction: true, // ⭐ Keeps notification visible
+    data: {
+      room_id: roomId,
+      caller_name: payload.data?.caller_name,
+      url: roomId ? `/call/${roomId}?role=callee` : "/",
+    },
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(title, notificationOptions);
 });
 
+/**
+ * Handles notification click → opens call room reliably.
+ */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const roomId = event.notification.data?.room_id;
+
+  const url = event.notification.data?.url || "/";
+  console.log("[Service Worker] Notification click → navigating to:", url);
 
   event.waitUntil(
-    clients.openWindow(`/call/${roomId}?role=callee`)
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If app is already open, focus + navigate
+      for (const client of clientList) {
+        if ("focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
   );
 });
