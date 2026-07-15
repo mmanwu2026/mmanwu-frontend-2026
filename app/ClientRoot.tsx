@@ -17,10 +17,10 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
         const url = reg.active?.scriptURL || "";
 
         // Remove old Web Push worker
-        if (url.includes("sw.js")) {
-          console.log("Removing old Web Push service worker:", url);
-          reg.unregister();
-        }
+        if (url.endsWith("/sw.js")) {
+  console.log("Removing old Web Push service worker:", url);
+  reg.unregister();
+}
       });
 
       // Register Firebase Messaging worker
