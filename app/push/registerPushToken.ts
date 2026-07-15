@@ -28,9 +28,8 @@ export async function registerPushToken(userId: string, supabase: any) {
 
   try {
     const token = await getToken(messaging, {
-      vapidKey: "BI9wYnTkPRfLirfuF3ngGyzIRXIVb5ePw3gNFfdxHd-yjJwwyCS-Cdwca4xOvs_InKXenn39AYZ0VlLkDo8bdY",
-      serviceWorkerRegistration: registration,
-    });
+  serviceWorkerRegistration: registration,
+});
 
     if (!token) {
       console.log("No FCM token generated");
