@@ -4,6 +4,9 @@ import { useSupabase } from "@/app/context/SupabaseContext";
 import { useEffect, useState } from "react";
 import EnableNotifications from "@/components/EnableNotifications";
 
+const FALLBACK_AVATAR =
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
+
 export default function NotificationsPage() {
   const { supabase } = useSupabase();
 
@@ -37,7 +40,7 @@ export default function NotificationsPage() {
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("*, actor:users(*)")
+      .select("*, actor:actor_id(*)")   // ⭐ Correct join
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -52,6 +55,7 @@ export default function NotificationsPage() {
   async function disableNotifications() {
     if (!userId) return;
 
+    // Old Web Push table — safe to delete, harmless if empty
     await supabase.from("push_subscriptions").delete().eq("user_id", userId);
 
     localStorage.setItem("notifications_enabled", "false");
@@ -112,7 +116,7 @@ export default function NotificationsPage() {
           >
             {/* Actor Avatar */}
             <img
-              src={n.actor?.avatar_url || "/default-avatar.png"}
+              src={n.actor?.avatar_url || FALLBACK_AVATAR}
               alt="actor avatar"
               className="w-10 h-10 rounded-full object-cover"
             />
