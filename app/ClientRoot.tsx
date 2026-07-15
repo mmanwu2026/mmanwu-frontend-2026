@@ -8,22 +8,22 @@ import PushInitializer from "@/app/PushInitializer";
 
 export default function ClientRoot({ children }: { children: React.ReactNode }) {
 
-  // ⭐ AUTOMATIC SERVICE WORKER MIGRATION (phones included)
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
+    // ⭐ Remove ONLY the old legacy Web Push worker
     navigator.serviceWorker.getRegistrations().then(registrations => {
       registrations.forEach(reg => {
         const url = reg.active?.scriptURL || "";
 
-        // Remove old Web Push worker
+        // Remove ONLY /sw.js — do NOT remove firebase-messaging-sw.js
         if (url.endsWith("/sw.js")) {
-  console.log("Removing old Web Push service worker:", url);
-  reg.unregister();
-}
+          console.log("Removing old Web Push service worker:", url);
+          reg.unregister();
+        }
       });
 
-      // Register Firebase Messaging worker
+      // ⭐ Register Firebase Messaging worker BEFORE PushInitializer runs
       navigator.serviceWorker
         .register("/firebase-messaging-sw.js")
         .then(() => console.log("Firebase messaging SW registered"))
