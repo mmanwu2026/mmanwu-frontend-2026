@@ -31,13 +31,6 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
-  // ⭐ OPTIONAL: Ask permission early on mobile
-  useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-  }, []);
-
   return (
     <>
       <div id="modal-root"></div>
