@@ -10,10 +10,24 @@ export default function PushInitializer() {
   useEffect(() => {
     if (!user) return;
 
-    console.log("PushInitializer → registering FCM token for:", user.id);
+    async function init() {
+      // ⭐ Wait for SW to be fully ready
+      const registration = await navigator.serviceWorker.ready;
 
-    registerPushToken(user.id, supabase);
-  }, [user]);
+      // ⭐ Wait until SW is actually controlling the page
+      if (!navigator.serviceWorker.controller) {
+        console.log("Waiting for SW to control the page...");
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log("PushInitializer → SW ready & controlling page");
+      console.log("PushInitializer → registering FCM token for:", user!.id);
+
+      registerPushToken(user!.id, supabase);
+    }
+
+    init();
+  }, [user, supabase]);
 
   return null;
 }
