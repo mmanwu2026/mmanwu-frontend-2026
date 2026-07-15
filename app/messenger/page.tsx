@@ -33,7 +33,7 @@ export default function MessengerPage() {
     loadSession();
   }, [supabase]);
 
-  /* ---------------- LOAD USERS ---------------- */
+  /* ---------------- LOAD USERS (FOLLOWED ONLY) ---------------- */
   useEffect(() => {
     async function loadUsers() {
       if (!uid) {
@@ -41,12 +41,42 @@ export default function MessengerPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      // Step A — get IDs of users you follow
+      const { data: following, error: followError } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", uid);
+
+      if (followError) {
+        console.error("Error loading follow list:", followError);
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+
+      const ids = following?.map(f => f.following_id) ?? [];
+
+      if (ids.length === 0) {
+        // You follow nobody yet
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+
+      // Step B — load profiles for those followed users
+      const { data: profiles, error: profileError } = await supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url")
-        .neq("id", uid);
+        .in("id", ids);
 
-      if (!error && data) setUsers(data as UserRow[]);
+      if (profileError) {
+        console.error("Error loading followed profiles:", profileError);
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+
+      setUsers(profiles as UserRow[]);
       setLoading(false);
     }
 
@@ -97,7 +127,7 @@ export default function MessengerPage() {
 
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ⭐ Sidebar (mobile drawer + desktop fixed) */}
+        {/* ⭐ Sidebar */}
         <div
           className={`
             fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
@@ -109,7 +139,7 @@ export default function MessengerPage() {
           <MessengerSidebar
             users={users}
             userId={uid}
-            onSelect={() => setSidebarOpen(false)}   // ⭐ Auto-close drawer
+            onSelect={() => setSidebarOpen(false)}
           />
 
           {/* Close button for mobile */}
@@ -123,7 +153,9 @@ export default function MessengerPage() {
 
         {/* ⭐ Main Content */}
         <div className="flex-1 flex items-center justify-center text-gray-400 p-4 overflow-auto">
-          Select a conversation
+          {users.length === 0
+            ? "Follow someone to start a conversation."
+            : "Select a conversation"}
         </div>
       </div>
     </div>
