@@ -16,6 +16,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+        {/* ⭐ Register Firebase SW BEFORE React loads */}
+        <script src="/sw-register.js" />
       </head>
 
       <body className="h-full flex flex-col overflow-x-hidden">
