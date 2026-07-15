@@ -367,6 +367,7 @@ export default function ProfileClient({
   // ⭐ NEW — Start a private conversation with this user
 async function startConversation(otherUserId: string) {
   if (!authUserId) return;
+  if (!authUserId) return; 
 
   // 1. Check if conversation already exists
   const { data: existing } = await supabase
