@@ -3,7 +3,6 @@
 import { ClientProviders } from "./client-providers";
 import AuthNavWrapper from "@/app/components/AuthNavWrapper";
 import { UnreadProvider } from "@/app/context/UnreadContext";
-import SWRegister from "./sw-register";
 import UpdateBanner from "@/components/UpdateBanner";
 import BottomNav from "@/app/components/BottomNav";
 
@@ -20,7 +19,6 @@ export default function ProvidersWrapper({ children }) {
           </div>
 
           <UpdateBanner />
-          <SWRegister />
 
           {/* Scrollable content */}
           <div className="flex-1 min-h-0 pb-[80px] overflow-y-auto">
