@@ -202,14 +202,16 @@ export default function MessengerThread({
       created_at: new Date().toISOString(),
     });
 
-    // ⭐ NEW: Invoke your FCM HTTP v1 Supabase Edge Function
     await supabase.functions.invoke("send-incoming-call-push", {
-      body: {
-        target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
-        room_id: newRoomId,
-        caller_name: usernames[userId] || "Unknown",
-      },
-    });
+  body: JSON.stringify({
+    target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
+    room_id: newRoomId,
+    caller_name: usernames[userId] || "Unknown",
+  }),
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
     router.push(`/call/${newRoomId}?role=caller`);
   }
