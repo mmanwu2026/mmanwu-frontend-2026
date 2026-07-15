@@ -369,21 +369,26 @@ async function startConversation(otherUserId: string) {
   if (authLoading) return;
   if (!authUserId) return;
 
-  // 1. Check if conversation already exists
-  const { data: existing } = await supabase
+  // 1. Try direction A → me → them
+  const { data: convoA } = await supabase
     .from("conversations")
     .select("id")
-    .or(
-      `and(user1.eq.${authUserId},user2.eq.${otherUserId}),and(user1.eq.${otherUserId},user2.eq.${authUserId})`
-    )
-    .limit(1);
+    .eq("user1", authUserId)
+    .eq("user2", otherUserId)
+    .maybeSingle();
 
-  let conversationId;
+  // 2. Try direction B → them → me
+  const { data: convoB } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("user1", otherUserId)
+    .eq("user2", authUserId)
+    .maybeSingle();
 
-  if (existing && existing.length > 0) {
-    conversationId = existing[0].id;
-  } else {
-    // 2. Create new conversation
+  let conversationId = convoA?.id || convoB?.id;
+
+  // 3. Create if none exists
+  if (!conversationId) {
     const { data: created } = await supabase
       .from("conversations")
       .insert({
@@ -396,7 +401,7 @@ async function startConversation(otherUserId: string) {
     conversationId = created.id;
   }
 
-  // 3. Redirect to Messenger
+  // 4. Redirect
   router.push(`/messenger?chat=${conversationId}`);
 }
 
