@@ -12,27 +12,23 @@ const firebaseConfig = {
   appId: "1:328867796060:web:af1fd5cc070d3097084299",
 };
 
-let messaging: ReturnType<typeof getMessaging> | null = null;
-
-if (typeof window !== "undefined") {
-  const app = initializeApp(firebaseConfig);
-  messaging = getMessaging(app);
-}
-
 export async function registerPushToken(userId: string, supabase: any) {
-  if (!messaging) return;
-
   // ⭐ Ensure browser supports FCM
   if (!(await isSupported())) {
     console.log("Firebase Messaging not supported");
     return;
   }
 
-  try {
-    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+  // ⭐ Wait for SW control
+  const registration = await navigator.serviceWorker.ready;
 
+  // ⭐ Initialize Firebase Messaging AFTER SW is ready
+  const app = initializeApp(firebaseConfig);
+  const messaging = getMessaging(app);
+
+  try {
     const token = await getToken(messaging, {
-      vapidKey: "BI9wYnTKpRLirufF3ngG2ylRXlVb5ePw3gNFfdxHd-yjJvwycS-Cdwca4xOvs_InKXenn39yAY2OlVLkDo8bdY",
+      vapidKey: "BI9wYnTkPRfLirfuF3ngGyzIRXIVb5ePw3gNFfdxHd-yjJwwyCS-Cdwca4xOvs_InKXenn39AYZ0VlLkDo8bdY",
       serviceWorkerRegistration: registration,
     });
 
