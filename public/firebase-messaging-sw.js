@@ -15,11 +15,34 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 /**
- * Handles background push messages from FCM HTTP v1.
- * This is triggered even when the PWA is minimized or backgrounded.
+ * ⭐ KEEP‑ALIVE HANDLER
+ * Prevents service worker from being killed by mobile browsers.
+ */
+self.addEventListener("push", (event) => {
+  try {
+    const data = event.data?.json();
+
+    if (data?.type === "keepalive") {
+      console.log("[SW] Keepalive ping received");
+      return; // Do NOT show a notification
+    }
+  } catch (err) {
+    console.log("[SW] Keepalive parse error:", err);
+  }
+});
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "keepalive-sync") {
+    console.log("[SW] Background sync triggered");
+    event.waitUntil(fetch("/api/pwa-sync-ping").catch(() => {}));
+  }
+});
+
+/**
+ * MAIN: Incoming call notifications
  */
 messaging.onBackgroundMessage((payload) => {
-  console.log("[Service Worker] Background message received:", payload);
+  console.log("[SW] Background message:", payload);
 
   const title =
     payload.notification?.title ||
@@ -36,7 +59,9 @@ messaging.onBackgroundMessage((payload) => {
     body,
     icon: "/icons/call-large.png",
     badge: "/icons/badge-72.png",
-    requireInteraction: true, // ⭐ Keeps notification visible
+    requireInteraction: true,
+    renotify: true,
+    tag: "incoming-call",
     data: {
       room_id: roomId,
       caller_name: payload.data?.caller_name,
@@ -48,27 +73,21 @@ messaging.onBackgroundMessage((payload) => {
 });
 
 /**
- * Handles notification click → opens call room reliably.
+ * Notification click → open call room
  */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const url = event.notification.data?.url || "/";
-  console.log("[Service Worker] Notification click → navigating to:", url);
+  console.log("[SW] Notification click → navigating:", url);
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // If app is already open, focus + navigate
       for (const client of clientList) {
-        if ("focus" in client) {
-          client.navigate(url);
-          return client.focus();
-        }
+        client.navigate(url);
+        return client.focus();
       }
-      // Otherwise open a new window
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
+      return clients.openWindow(url);
     })
   );
 });

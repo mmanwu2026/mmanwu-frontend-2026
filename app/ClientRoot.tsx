@@ -26,7 +26,27 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
       // ⭐ Register Firebase Messaging worker BEFORE PushInitializer runs
       navigator.serviceWorker
         .register("/firebase-messaging-sw.js")
-        .then(() => console.log("Firebase messaging SW registered"))
+        .then(() => {
+          console.log("Firebase messaging SW registered");
+
+          // ⭐ PART 3 — Background Sync Scheduler (TypeScript-safe)
+          if ("SyncManager" in window) {
+            navigator.serviceWorker.ready.then((reg) => {
+              // Extend type safely so TS stops complaining
+              const syncReg = reg as ServiceWorkerRegistration & {
+                sync?: {
+                  register: (tag: string) => Promise<void>;
+                };
+              };
+
+              if (syncReg.sync) {
+                setInterval(() => {
+                  syncReg.sync!.register("keepalive-sync").catch(() => {});
+                }, 25000); // every 25 seconds
+              }
+            });
+          }
+        })
         .catch(err => console.error("FCM SW registration failed:", err));
     });
   }, []);
