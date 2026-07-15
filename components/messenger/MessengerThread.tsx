@@ -177,6 +177,9 @@ export default function MessengerThread({
   async function startCall() {
     if (!otherUserId) return;
 
+    const session = await supabase.auth.getSession();
+  console.log("MessengerThread session:", session.data.session);
+  
     const newRoomId = crypto.randomUUID();
     const callId = crypto.randomUUID();
 
@@ -203,23 +206,13 @@ export default function MessengerThread({
     });
 
     // ⭐ NEW: Invoke your FCM HTTP v1 Supabase Edge Function
-    const { data: session } = await supabase.auth.getSession();
-
-await fetch(
-  "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-incoming-call-push",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${session?.session?.access_token}`,
-    },
-    body: JSON.stringify({
-      target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
-      room_id: newRoomId,
-      caller_name: usernames[userId] || "Unknown",
-    }),
-  }
-);
+    await supabase.functions.invoke("send-incoming-call-push", {
+      body: {
+        target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
+        room_id: newRoomId,
+        caller_name: usernames[userId] || "Unknown",
+      },
+    });
 
     router.push(`/call/${newRoomId}?role=caller`);
   }

@@ -24,7 +24,6 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       {
         auth: {
           persistSession: true,
-          storage: typeof window !== "undefined" ? localStorage : undefined,
           autoRefreshToken: true,
         },
       }
@@ -34,25 +33,17 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // ⭐ Restore session only on client
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("supabase_session");
-      if (saved) {
-        const session = JSON.parse(saved);
-        supabase.auth.setSession(session);
-        setUser(session.user ?? null);
-      }
-    }
-
-    // ⭐ Listen for session changes
+    // ⭐ Correct session listener (no manual override)
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (typeof window !== "undefined" && session) {
-          localStorage.setItem("supabase_session", JSON.stringify(session));
-        }
         setUser(session?.user ?? null);
       }
     );
+
+    // ⭐ Load initial session
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+    });
 
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
