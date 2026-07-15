@@ -364,6 +364,40 @@ export default function ProfileClient({
     }
   }
 
+  // ⭐ NEW — Start a private conversation with this user
+async function startConversation(otherUserId: string) {
+  if (!authUserId) return;
+
+  // 1. Check if conversation already exists
+  const { data: existing } = await supabase
+    .from("conversations")
+    .select("id")
+    .or(`user1.eq.${authUserId},user2.eq.${otherUserId}`)
+    .or(`user1.eq.${otherUserId},user2.eq.${authUserId}`)
+    .limit(1);
+
+  let conversationId;
+
+  if (existing && existing.length > 0) {
+    conversationId = existing[0].id;
+  } else {
+    // 2. Create new conversation
+    const { data: created } = await supabase
+      .from("conversations")
+      .insert({
+        user1: authUserId,
+        user2: otherUserId,
+      })
+      .select("id")
+      .single();
+
+    conversationId = created.id;
+  }
+
+  // 3. Redirect to Messenger
+  router.push(`/messenger?chat=${conversationId}`);
+}
+
   // Load reactions ON plaza posts
   useEffect(() => {
     async function loadReactions() {
@@ -850,31 +884,44 @@ return (
             </div>
           </div>
 
-          {/* Follow / Edit */}
-          <div className="mt-4 flex gap-3">
-            {!isOwnProfile && authUserId && (
-              <button
-                onClick={handleFollowToggle}
-                disabled={busy || authLoading}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                  isFollowing
-                    ? "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                    : "bg-purple-600 text-white hover:bg-purple-500"
-                }`}
-              >
-                {isFollowing ? "Following" : "Follow"}
-              </button>
-            )}
+{/* Follow / Edit */}
+<div className="mt-4 flex gap-3">
 
-            {isOwnProfile && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
-              >
-                Edit Profile
-              </button>
-            )}
-          </div>
+  {!isOwnProfile && authUserId && (
+    <button
+      onClick={handleFollowToggle}
+      disabled={busy || authLoading}
+      className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+        isFollowing
+          ? "bg-gray-200 text-gray-900 hover:bg-gray-300"
+          : "bg-purple-600 text-white hover:bg-purple-500"
+      }`}
+    >
+      {isFollowing ? "Following" : "Follow"}
+    </button>
+  )}
+
+  {/* ⭐ NEW — MESSAGE BUTTON (Patch 2) */}
+  {!isOwnProfile && authUserId && (
+    <button
+      onClick={() => startConversation(profile.id)}
+      className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition"
+    >
+      Message
+    </button>
+  )}
+
+  {isOwnProfile && (
+    <button
+      onClick={() => setShowEditModal(true)}
+      className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
+    >
+      Edit Profile
+    </button>
+  )}
+
+</div>
+
         </div>
       </div>
     </div>
