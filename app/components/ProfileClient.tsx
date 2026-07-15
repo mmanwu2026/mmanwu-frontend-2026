@@ -369,40 +369,38 @@ async function startConversation(otherUserId: string) {
   if (authLoading) return;
   if (!authUserId) return;
 
-  // 1. Try direction A → me → them
-  const { data: convoA } = await supabase
-    .from("conversations")
+  // 1. Check if a room already exists between these two users
+  const { data: existingRooms } = await supabase
+    .from("rooms")
     .select("id")
-    .eq("user1", authUserId)
-    .eq("user2", otherUserId)
-    .maybeSingle();
+    .contains("participants", [authUserId, otherUserId])
+    .limit(1);
 
-  // 2. Try direction B → them → me
-  const { data: convoB } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("user1", otherUserId)
-    .eq("user2", authUserId)
-    .maybeSingle();
+  let roomId;
 
-  let conversationId = convoA?.id || convoB?.id;
-
-  // 3. Create if none exists
-  if (!conversationId) {
-    const { data: created } = await supabase
-      .from("conversations")
+  if (existingRooms && existingRooms.length > 0) {
+    roomId = existingRooms[0].id;
+  } else {
+    // 2. Create a new room
+    const { data: newRoom } = await supabase
+      .from("rooms")
       .insert({
-        user1: authUserId,
-        user2: otherUserId,
+        created_at: new Date().toISOString(),
       })
       .select("id")
       .single();
 
-    conversationId = created.id;
+    roomId = newRoom.id;
+
+    // 3. Add both participants
+    await supabase.from("room_participants").insert([
+      { room_id: roomId, user_id: authUserId },
+      { room_id: roomId, user_id: otherUserId },
+    ]);
   }
 
-  // 4. Redirect
-  router.push(`/messenger?chat=${conversationId}`);
+  // 4. Redirect to Messenger
+  router.push(`/messenger?room=${roomId}`);
 }
 
   // Load reactions ON plaza posts
