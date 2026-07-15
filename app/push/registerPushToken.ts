@@ -26,9 +26,11 @@ export async function registerPushToken(userId: string, supabase: any) {
   }
 
   try {
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+
     const token = await getToken(messaging, {
       vapidKey: "BI9wYnTKpRLirufF3ngG2ylRXlVb5ePw3gNFfdxHd-yjJvwycS-Cdwca4xOvs_InKXenn39yAY2OlVLkDo8bdY",
-      serviceWorkerRegistration: await navigator.serviceWorker.ready,
+      serviceWorkerRegistration: registration,
     });
 
     if (!token) {
