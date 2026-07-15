@@ -366,15 +366,16 @@ export default function ProfileClient({
 
   // ⭐ NEW — Start a private conversation with this user
 async function startConversation(otherUserId: string) {
+  if (authLoading) return;
   if (!authUserId) return;
-  if (!authUserId) return; 
 
   // 1. Check if conversation already exists
   const { data: existing } = await supabase
     .from("conversations")
     .select("id")
-    .or(`user1.eq.${authUserId},user2.eq.${otherUserId}`)
-    .or(`user1.eq.${otherUserId},user2.eq.${authUserId}`)
+    .or(
+      `and(user1.eq.${authUserId},user2.eq.${otherUserId}),and(user1.eq.${otherUserId},user2.eq.${authUserId})`
+    )
     .limit(1);
 
   let conversationId;
@@ -905,11 +906,12 @@ return (
   {/* ⭐ NEW — MESSAGE BUTTON (Patch 2) */}
   {!isOwnProfile && authUserId && (
     <button
-      onClick={() => startConversation(profile.id)}
-      className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition"
-    >
-      Message
-    </button>
+  disabled={authLoading || !authUserId}
+  onClick={() => startConversation(profile.id)}
+  className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50"
+>
+  Message
+</button>
   )}
 
   {isOwnProfile && (
