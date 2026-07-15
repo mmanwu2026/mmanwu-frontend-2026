@@ -395,13 +395,19 @@ async function startConversation(otherUserId: string) {
 
   // 3. If no shared room exists, create a new one
   if (!roomId) {
-    const { data: newRoom } = await supabase
+    const { data: newRoom, error } = await supabase
       .from("rooms")
       .insert({
-        created_by: authUserId,
+        created_by: authUserId,   // ⭐ REQUIRED FIELD
+        is_group: false,
       })
       .select("id")
       .single();
+
+    if (error) {
+      console.error("Room creation failed:", error);
+      return;
+    }
 
     roomId = newRoom.id;
 
