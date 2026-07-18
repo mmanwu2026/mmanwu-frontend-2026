@@ -324,5 +324,21 @@ body.has-update-banner .pt-20 {
 }
 
 /* ------------------------------------------------------------ */
+/* SUBHEADER ANIMATION                                         */
+/* ------------------------------------------------------------ */
+
+.unified-feed-slide {
+  display: inline-block;
+  white-space: nowrap;
+  animation: unifiedSlide 12s linear infinite;
+  opacity: 0.9;
+}
+
+@keyframes unifiedSlide {
+  0% { transform: translateX(60%); }
+  100% { transform: translateX(-60%); }
+}
+
+/* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */

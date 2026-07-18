@@ -394,11 +394,13 @@ export default function UnifiedFeedPage() {
         </div>
       )}
 
-      <h1 className="text-3xl font-extrabold tracking-tight mb-6 
-                     bg-gradient-to-r from-purple-400 to-pink-300 
-                     bg-clip-text text-transparent">
-        Unified Feed
-      </h1>
+      <h1
+  className="text-3xl font-extrabold tracking-tight mb-6 
+             bg-gradient-to-r from-purple-400 to-pink-300 
+             bg-clip-text text-transparent unified-feed-slide"
+>
+  Unified Feed
+</h1>
 
       <div className="space-y-6">
         {items.map((item) => {

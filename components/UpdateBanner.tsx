@@ -47,16 +47,13 @@ export default function UpdateBanner({ authLoading }: UpdateBannerProps) {
   }
 
   return (
-    <div className="fixed left-1/2 -translate-x-1/2 top-[64px] z-[9999]">
-      <div className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
-        <span className="font-medium text-sm">Refresh required</span>
-        <button
-          onClick={refreshApp}
-          className="bg-white text-blue-600 px-3 py-1 rounded-full text-sm font-semibold"
-        >
-          Refresh
-        </button>
-      </div>
+    <div className="fixed top-[64px] left-4 z-[9999]">
+      <button
+        onClick={refreshApp}
+        className="bg-blue-600 text-white px-3 py-1 rounded-full shadow-md text-sm font-semibold"
+      >
+        Refresh
+      </button>
     </div>
   );
 }
