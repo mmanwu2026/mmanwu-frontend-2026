@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-const FORCE_UPDATE = false; // manual trigger if needed
+interface UpdateBannerProps {
+  authLoading?: boolean;
+}
 
-export default function UpdateBanner({ authLoading }: { authLoading: boolean }) {
+export default function UpdateBanner({ authLoading }: UpdateBannerProps) {
   const [show, setShow] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -35,7 +37,8 @@ export default function UpdateBanner({ authLoading }: { authLoading: boolean }) 
     }
   }, [authLoading]);
 
-  // ⭐ Manual trigger
+  // ⭐ Manual trigger (optional)
+  const FORCE_UPDATE = false;
   useEffect(() => {
     if (FORCE_UPDATE) {
       setShow(true);
