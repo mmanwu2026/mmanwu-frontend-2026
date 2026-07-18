@@ -49,19 +49,24 @@ self.addEventListener("activate", (event) => {
 // ⭐ Fetch event — stale-while-revalidate caching
 self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request).then((response) => {
-        // ⭐ Update cache in background
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, response.clone());
-        });
-        return response;
-      });
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(event.request);
 
+      const networkFetch = fetch(event.request)
+        .then((response) => {
+          // Clone BEFORE using
+          const responseClone = response.clone();
+          cache.put(event.request, responseClone);
+          return response;
+        })
+        .catch(() => cached);
+
+      // Return cached immediately if available
       return cached || networkFetch;
     })
   );
 });
+
 
 // ⭐ Listen for SKIP_WAITING from UpdateBanner
 self.addEventListener("message", (event) => {
