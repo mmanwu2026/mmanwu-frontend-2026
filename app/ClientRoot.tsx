@@ -11,43 +11,49 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-    // ⭐ Remove ONLY the old legacy Web Push worker
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      registrations.forEach(reg => {
+    navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+      // ⭐ Remove ONLY the old legacy push worker (if it existed)
+      registrations.forEach((reg) => {
         const url = reg.active?.scriptURL || "";
-
-        // Remove ONLY /sw.js — do NOT remove firebase-messaging-sw.js
-        if (url.endsWith("/sw.js")) {
-          console.log("Removing old Web Push service worker:", url);
+        if (url.endsWith("/old-push-sw.js")) {
+          console.log("Removing legacy push SW:", url);
           reg.unregister();
         }
       });
 
-      // ⭐ Register Firebase Messaging worker BEFORE PushInitializer runs
-      navigator.serviceWorker
+      // ⭐ Register Firebase Messaging SW
+      await navigator.serviceWorker
         .register("/firebase-messaging-sw.js")
-        .then(() => {
-          console.log("Firebase messaging SW registered");
+        .then(() => console.log("Firebase messaging SW registered"))
+        .catch((err) => console.error("FCM SW registration failed:", err));
 
-          // ⭐ PART 3 — Background Sync Scheduler (TypeScript-safe)
-          if ("SyncManager" in window) {
-            navigator.serviceWorker.ready.then((reg) => {
-              // Extend type safely so TS stops complaining
-              const syncReg = reg as ServiceWorkerRegistration & {
-                sync?: {
-                  register: (tag: string) => Promise<void>;
-                };
-              };
+      // ⭐ Register the new UpdateBanner + caching SW
+      await navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => console.log("UpdateBanner SW registered"))
+        .catch((err) => console.error("UpdateBanner SW registration failed:", err));
 
-              if (syncReg.sync) {
-                setInterval(() => {
-                  syncReg.sync!.register("keepalive-sync").catch(() => {});
-                }, 25000); // every 25 seconds
-              }
-            });
+      // ⭐ Listen for SW update messages and dispatch to UpdateBanner
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data?.type === "sw-update") {
+          window.dispatchEvent(new Event("sw-update"));
+        }
+      });
+
+      // ⭐ Background Sync Scheduler (safe)
+      if ("SyncManager" in window) {
+        navigator.serviceWorker.ready.then((reg) => {
+          const syncReg = reg as ServiceWorkerRegistration & {
+            sync?: { register: (tag: string) => Promise<void> };
+          };
+
+          if (syncReg.sync) {
+            setInterval(() => {
+              syncReg.sync!.register("keepalive-sync").catch(() => {});
+            }, 25000);
           }
-        })
-        .catch(err => console.error("FCM SW registration failed:", err));
+        });
+      }
     });
   }, []);
 
