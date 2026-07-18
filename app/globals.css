@@ -319,7 +319,7 @@ svg {
 /* UPDATE BANNER                                           */
 /* ------------------------------------------------------------ */
 
-.has-update-banner {
+body.has-update-banner .pt-20 {
   padding-top: 56px; /* matches h-14 */
 }
 
