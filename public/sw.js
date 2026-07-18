@@ -48,25 +48,30 @@ self.addEventListener("activate", (event) => {
 
 // ⭐ Fetch event — stale-while-revalidate caching
 self.addEventListener("fetch", (event) => {
+  const req = event.request;
+
+  // ⭐ Do NOT cache POST, PUT, PATCH, DELETE, OPTIONS
+  if (req.method !== "GET") {
+    return;
+  }
+
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
-      const cached = await cache.match(event.request);
+      const cached = await cache.match(req);
 
-      const networkFetch = fetch(event.request)
+      const networkFetch = fetch(req)
         .then((response) => {
           // Clone BEFORE using
           const responseClone = response.clone();
-          cache.put(event.request, responseClone);
+          cache.put(req, responseClone);
           return response;
         })
         .catch(() => cached);
 
-      // Return cached immediately if available
       return cached || networkFetch;
     })
   );
 });
-
 
 // ⭐ Listen for SKIP_WAITING from UpdateBanner
 self.addEventListener("message", (event) => {
