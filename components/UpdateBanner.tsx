@@ -47,13 +47,13 @@ export default function UpdateBanner({ authLoading }: UpdateBannerProps) {
   }
 
   return (
-    <div className="fixed top-[64px] left-4 z-[9999]">
-      <button
-        onClick={refreshApp}
-        className="bg-blue-600 text-white px-3 py-1 rounded-full shadow-md text-sm font-semibold"
-      >
-        Refresh
-      </button>
-    </div>
+    <div className="fixed left-4 top-[56px] z-[9999]">
+  <button
+    onClick={refreshApp}
+    className="bg-blue-600 text-white px-3 py-1 rounded-full shadow-md text-sm font-semibold"
+  >
+    Refresh
+  </button>
+</div>
   );
 }

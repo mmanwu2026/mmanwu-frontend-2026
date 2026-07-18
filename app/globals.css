@@ -330,13 +330,16 @@ body.has-update-banner .pt-20 {
 .unified-feed-slide {
   display: inline-block;
   white-space: nowrap;
-  animation: unifiedSlide 12s linear infinite;
-  opacity: 0.9;
+  animation: unifiedSlide 6s linear infinite;
 }
 
 @keyframes unifiedSlide {
-  0% { transform: translateX(60%); }
-  100% { transform: translateX(-60%); }
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 /* ------------------------------------------------------------ */
