@@ -52,7 +52,7 @@ export default function VisionCard({
   const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
   const safeMedia = post.media_url
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
-      post.media_url.split("/vision_files/")[1]
+      post.media_url.replace(/^.*vision_files\//, "")
     )}`
   : null;
 
