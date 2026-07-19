@@ -9,6 +9,9 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ["*"],
     },
+
+    // ⭐ Critical fix: disable Turbopack to stop missing chunks
+    turbo: false,
   },
 
   async rewrites() {
