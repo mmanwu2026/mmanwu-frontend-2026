@@ -54,12 +54,12 @@ export default function VisionCard({
 
   // ✅ Images use direct Storage URL; videos go through edge function
   const safeMedia = post.media_url
-    ? isVideo
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-media?path=${encodeURIComponent(
-          post.media_url.replace(/^.*vision_files\//, "")
-        )}`
-      : post.media_url
-    : null;
+  ? isVideo
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
+        post.media_url.replace(/^.*vision_files\//, "")
+      )}`
+    : post.media_url
+  : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
   const [localSpirit, setLocalSpirit] = useState(post.spirit_score ?? 0);
