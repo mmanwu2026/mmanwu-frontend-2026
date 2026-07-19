@@ -50,10 +50,14 @@ export default function VisionCard({
   const [showAllComments, setShowAllComments] = useState(false);
 
   const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
-  const safeMedia = post.media_url
-  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
-      post.media_url.replace(/^.*vision_files\//, "")
-    )}`
+  const isVideo = post.media_url?.match(/\.(mp4|mov|m4v)$/i);
+
+const safeMedia = post.media_url
+  ? isVideo
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
+        post.media_url.replace(/^.*vision_files\//, "")
+      )}`
+    : post.media_url
   : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
@@ -78,12 +82,6 @@ export default function VisionCard({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
-
-  const isVideo =
-    safeMedia &&
-    (safeMedia.endsWith(".mp4") ||
-      safeMedia.endsWith(".webm") ||
-      safeMedia.endsWith(".mov"));
 
   useEffect(() => {
     if (!isVideo || !videoRef.current) return;
