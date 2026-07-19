@@ -50,15 +50,16 @@ export default function VisionCard({
   const [showAllComments, setShowAllComments] = useState(false);
 
   const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
-  const isVideo = post.media_url?.match(/\.(mp4|mov|m4v)$/i);
+  const isVideo = !!post.media_url?.match(/\.(mp4|mov|m4v)$/i);
 
-const safeMedia = post.media_url
-  ? isVideo
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
-        post.media_url.replace(/^.*vision_files\//, "")
-      )}`
-    : post.media_url
-  : null;
+  // ✅ Images use direct Storage URL; videos go through edge function
+  const safeMedia = post.media_url
+    ? isVideo
+      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-media?path=${encodeURIComponent(
+          post.media_url.replace(/^.*vision_files\//, "")
+        )}`
+      : post.media_url
+    : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
   const [localSpirit, setLocalSpirit] = useState(post.spirit_score ?? 0);
@@ -81,7 +82,6 @@ const safeMedia = post.media_url
   const [muted, setMuted] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isVideo || !videoRef.current) return;
@@ -93,7 +93,7 @@ const safeMedia = post.media_url
             videoRef.current
               ?.play()
               .catch(() => {
-                /* Chrome sometimes throws NotSupportedError */
+                // Chrome sometimes throws NotSupportedError
               });
           } else {
             videoRef.current?.pause();
@@ -110,7 +110,7 @@ const safeMedia = post.media_url
   async function refreshReactions() {
     const { data: reactionRows } = await supabase
       .from("reactions")
-      .select('"maskTier"')
+      .select("maskTier")
       .eq("post_id", post.id)
       .eq("post_type", "vision");
 
@@ -322,7 +322,6 @@ const safeMedia = post.media_url
 
   return (
     <div
-      ref={cardRef}
       data-vision-card
       className="bg-gray-900 rounded-xl p-4 mb-6 shadow-lg"
     >
@@ -369,41 +368,40 @@ const safeMedia = post.media_url
         </h2>
       )}
 
-      {/* ⭐ Corrected Media Rendering */}
+      {/* ⭐ Media Rendering */}
       <div className="mb-4 relative">
-  {safeMedia ? (
-    isVideo ? (
-      <>
- <video
-  ref={videoRef}
-  src={safeMedia}
-  muted={muted}
-  autoPlay
-  playsInline
-  webkit-playsinline="true"
-  controls
-  preload="auto"
-  className="rounded-lg w-full"
->
-  <source src={safeMedia} type="video/mp4" />
-</video>
+        {safeMedia ? (
+          isVideo ? (
+            <>
+              <video
+                ref={videoRef}
+                src={safeMedia}
+                muted={muted}
+                autoPlay
+                playsInline
+                controls
+                preload="auto"
+                className="rounded-lg w-full"
+              >
+                <source src={safeMedia} type="video/mp4" />
+              </video>
 
-        <button
-          onClick={() => setMuted(!muted)}
-          className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
-        >
-          {muted ? "🔇" : "🔊"}
-        </button>
-      </>
-    ) : (
-      <img
-        src={safeMedia}
-        className="rounded-lg w-full"
-        alt="vision media"
-      />
-    )
-  ) : null}
-</div>
+              <button
+                onClick={() => setMuted(!muted)}
+                className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
+              >
+                {muted ? "🔇" : "🔊"}
+              </button>
+            </>
+          ) : (
+            <img
+              src={safeMedia}
+              className="rounded-lg w-full"
+              alt="vision media"
+            />
+          )
+        ) : null}
+      </div>
 
       <div className="text-gray-300 mb-3 text-sm">
         <p>SpiritScore: {localSpirit}</p>
@@ -446,14 +444,20 @@ const safeMedia = post.media_url
               }
 
               if (post.media_url) {
-                const mediaPath = post.media_url.split("/vision/")[1];
+                const mediaPath = post.media_url.split(
+                  "/vision_files/"
+                )[1];
                 if (mediaPath) {
-                  await supabase.storage.from("vision").remove([mediaPath]);
+                  await supabase.storage
+                    .from("vision_files")
+                    .remove([mediaPath]);
                 }
               }
 
               if (post.thumbnail_url) {
-                const thumbPath = post.thumbnail_url.split("/vision-thumbnails/")[1];
+                const thumbPath = post.thumbnail_url.split(
+                  "/vision-thumbnails/"
+                )[1];
                 if (thumbPath) {
                   await supabase.storage
                     .from("vision-thumbnails")
@@ -488,13 +492,16 @@ const safeMedia = post.media_url
                 <img
                   src={comment.profiles?.avatar_url || FALLBACK_AVATAR}
                   className={`${commentAvatarSize} rounded-full`}
+                  alt="comment avatar"
                 />
                 <span className="text-sm font-semibold text-purple-200">
                   {comment.profiles?.username || "unknown"}
                 </span>
               </div>
 
-              <p className="ml-8 text-gray-400 text-sm">{comment.content}</p>
+              <p className="ml-8 text-gray-400 text-sm">
+                {comment.content}
+              </p>
             </div>
           ))}
 
