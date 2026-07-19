@@ -49,13 +49,14 @@ self.addEventListener("activate", (event) => {
 // ⭐ Fetch event — stale-while-revalidate caching
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  const url = new URL(req.url);
 
   // 🚫 Do NOT intercept Supabase Edge Function streaming requests
   if (url.origin.includes("supabase.co")) {
     return; // Let the browser handle it normally
   }
 
-  // ⭐ Do NOT cache POST, PUT, PATCH, DELETE, OPTIONS
+  // 🚫 Do NOT cache POST, PUT, PATCH, DELETE, OPTIONS
   if (req.method !== "GET") {
     return;
   }
@@ -66,7 +67,6 @@ self.addEventListener("fetch", (event) => {
 
       const networkFetch = fetch(req)
         .then((response) => {
-          // Clone BEFORE using
           const responseClone = response.clone();
           cache.put(req, responseClone);
           return response;
