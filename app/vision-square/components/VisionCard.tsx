@@ -369,35 +369,38 @@ export default function VisionCard({
 
       {/* ⭐ Corrected Media Rendering */}
       <div className="mb-4 relative">
-        {safeMedia ? (
-          isVideo ? (
-            <>
-              <video
-                ref={videoRef}
-                muted={muted}
-                playsInline
-                controls
-                className="rounded-lg w-full"
-              >
-                <source src={safeMedia} type="video/mp4" />
-              </video>
+  {safeMedia ? (
+    isVideo ? (
+      <>
+        <video
+          ref={videoRef}
+          muted={muted}
+          autoPlay
+          playsInline
+          webkit-playsinline="true"
+          controls
+          className="rounded-lg w-full"
+          onClick={() => videoRef.current?.play()}
+        >
+          <source src={safeMedia} type="video/mp4" />
+        </video>
 
-              <button
-                onClick={() => setMuted(!muted)}
-                className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
-              >
-                {muted ? "🔇" : "🔊"}
-              </button>
-            </>
-          ) : (
-            <img
-              src={safeMedia}
-              className="rounded-lg w-full"
-              alt="vision media"
-            />
-          )
-        ) : null}
-      </div>
+        <button
+          onClick={() => setMuted(!muted)}
+          className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
+      </>
+    ) : (
+      <img
+        src={safeMedia}
+        className="rounded-lg w-full"
+        alt="vision media"
+      />
+    )
+  ) : null}
+</div>
 
       <div className="text-gray-300 mb-3 text-sm">
         <p>SpiritScore: {localSpirit}</p>
