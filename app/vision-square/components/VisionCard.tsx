@@ -50,7 +50,11 @@ export default function VisionCard({
   const [showAllComments, setShowAllComments] = useState(false);
 
   const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
-  const safeMedia = typeof post.media_url === "string" ? post.media_url : null;
+  const safeMedia = post.media_url
+  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
+      post.media_url.split("/vision_files/")[1]
+    )}`
+  : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
   const [localSpirit, setLocalSpirit] = useState(post.spirit_score ?? 0);
