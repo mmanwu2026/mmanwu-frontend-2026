@@ -8,7 +8,7 @@ const ASSETS_TO_CACHE = [
   "/manifest.json"
 ];
 
-// ⭐ Install event — cache assets
+// ⭐ Install event — cache assets + force immediate activation
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -16,11 +16,11 @@ self.addEventListener("install", (event) => {
     })
   );
 
-  // ⭐ Activate new SW immediately
+  // ⭐ Critical: activate new SW immediately
   self.skipWaiting();
 });
 
-// ⭐ Activate event — clean old caches + notify clients
+// ⭐ Activate event — clean old caches + take over all tabs
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
@@ -34,7 +34,7 @@ self.addEventListener("activate", (event) => {
         })
       );
 
-      // ⭐ Take control of all tabs
+      // ⭐ Critical: take control of ALL open tabs immediately
       await self.clients.claim();
 
       // ⭐ Notify all tabs that a new version is available
