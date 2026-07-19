@@ -374,7 +374,7 @@ const safeMedia = post.media_url
   {safeMedia ? (
     isVideo ? (
       <>
-        <video
+ <video
   ref={videoRef}
   src={safeMedia}
   muted={muted}
@@ -382,9 +382,10 @@ const safeMedia = post.media_url
   playsInline
   webkit-playsinline="true"
   controls
+  preload="auto"
   className="rounded-lg w-full"
-  onClick={() => videoRef.current?.play()}
 >
+  <source src={safeMedia} type="video/mp4" />
 </video>
 
         <button
