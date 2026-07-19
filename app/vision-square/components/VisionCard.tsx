@@ -28,7 +28,6 @@ export default function VisionCard({
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ FIXED — load authenticated user ID correctly
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,8 +87,15 @@ export default function VisionCard({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) videoRef.current?.play();
-          else videoRef.current?.pause();
+          if (entry.isIntersecting) {
+            videoRef.current
+              ?.play()
+              .catch(() => {
+                /* Chrome sometimes throws NotSupportedError */
+              });
+          } else {
+            videoRef.current?.pause();
+          }
         });
       },
       { threshold: 0.6 }
@@ -139,7 +145,6 @@ export default function VisionCard({
     router.refresh();
   }
 
-  // ⭐ FIXED — creator check
   const isCreator = uid === post.creator_id;
   const isPositive = localMask >= 3;
 
@@ -326,7 +331,6 @@ export default function VisionCard({
         />
       )}
 
-      {/* ⭐ Corrected Creator Profile Link */}
       <div className="flex items-center justify-between mb-3">
         <Link
           href={`/profile/${post.creator_id}?from=vision`}
@@ -363,17 +367,21 @@ export default function VisionCard({
         </h2>
       )}
 
+      {/* ⭐ Corrected Media Rendering */}
       <div className="mb-4 relative">
         {safeMedia ? (
           isVideo ? (
             <>
               <video
                 ref={videoRef}
-                src={safeMedia}
                 muted={muted}
                 playsInline
+                controls
                 className="rounded-lg w-full"
-              />
+              >
+                <source src={safeMedia} type="video/mp4" />
+              </video>
+
               <button
                 onClick={() => setMuted(!muted)}
                 className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
@@ -417,12 +425,10 @@ export default function VisionCard({
         />
       </div>
 
-      {/* ⭐ DELETE BUTTON — ONLY FOR CREATOR */}
       {isCreator && (
         <button
           onClick={async () => {
             try {
-              // 1. Delete post (cascade deletes reactions)
               const { error: deleteError } = await supabase
                 .from("vision_posts")
                 .delete()
@@ -433,7 +439,6 @@ export default function VisionCard({
                 return;
               }
 
-              // 2. Delete video file
               if (post.media_url) {
                 const mediaPath = post.media_url.split("/vision/")[1];
                 if (mediaPath) {
@@ -441,7 +446,6 @@ export default function VisionCard({
                 }
               }
 
-              // 3. Delete thumbnail file
               if (post.thumbnail_url) {
                 const thumbPath = post.thumbnail_url.split("/vision-thumbnails/")[1];
                 if (thumbPath) {
@@ -451,7 +455,6 @@ export default function VisionCard({
                 }
               }
 
-              // 4. Remove from feed UI
               if (typeof post.onDeleted === "function") {
                 post.onDeleted(post.id);
               }
@@ -551,4 +554,5 @@ export default function VisionCard({
         {post.created_at ? new Date(post.created_at).toLocaleString() : ""}
       </p>
     </div>
-  )}  
+  );
+}
