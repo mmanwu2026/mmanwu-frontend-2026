@@ -50,6 +50,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
+  // 🚫 Do NOT intercept Supabase Edge Function streaming requests
+  if (url.origin.includes("supabase.co")) {
+    return; // Let the browser handle it normally
+  }
+
   // ⭐ Do NOT cache POST, PUT, PATCH, DELETE, OPTIONS
   if (req.method !== "GET") {
     return;
