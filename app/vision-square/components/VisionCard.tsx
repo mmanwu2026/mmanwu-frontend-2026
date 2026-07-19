@@ -375,17 +375,17 @@ const safeMedia = post.media_url
     isVideo ? (
       <>
         <video
-          ref={videoRef}
-          muted={muted}
-          autoPlay
-          playsInline
-          webkit-playsinline="true"
-          controls
-          className="rounded-lg w-full"
-          onClick={() => videoRef.current?.play()}
-        >
-          <source src={safeMedia} type="video/mp4" />
-        </video>
+  ref={videoRef}
+  src={safeMedia}
+  muted={muted}
+  autoPlay
+  playsInline
+  webkit-playsinline="true"
+  controls
+  className="rounded-lg w-full"
+  onClick={() => videoRef.current?.play()}
+>
+</video>
 
         <button
           onClick={() => setMuted(!muted)}
