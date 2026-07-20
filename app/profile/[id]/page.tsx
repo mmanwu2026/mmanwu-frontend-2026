@@ -2,26 +2,24 @@
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+export default async function Page({ params }: { params: { id: string } }) {
+  const { id } = params;
 
+  // ⭐ Use your existing authenticated server-side Supabase client
   const supabase = await createSupabaseServerClient();
 
-  // Viewer identity
+  // ⭐ Viewer identity
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const viewerId = user?.id ?? null;
 
-  // Fetch profile
-  const { data: profileRaw } = await supabase
+  // ⭐ Fetch profile by ID
+  const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
-    .select(`
+    .select(
+      `
       id,
       username,
       display_name,
@@ -37,12 +35,12 @@ export default async function Page({
       website_url,
       verified,
       privacy_type
-    `)
+    `
+    )
     .eq("id", id)
     .single();
 
-  // Profile not found
-  if (!profileRaw) {
+  if (!profileRaw || profileError) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
         <div className="mt-6 text-lg font-semibold">Profile not found</div>
@@ -50,7 +48,7 @@ export default async function Page({
     );
   }
 
-  // Privacy enforcement
+  // ⭐ Privacy enforcement
   const isOwner = viewerId === profileRaw.id;
   const isPrivate = profileRaw.privacy_type === "private";
 
@@ -67,10 +65,11 @@ export default async function Page({
     );
   }
 
-  // Fetch posts
+  // ⭐ Fetch posts
   const { data: postsRaw } = await supabase
     .from("posts")
-    .select(`
+    .select(
+      `
       id,
       creator_id,
       content,
@@ -78,22 +77,22 @@ export default async function Page({
       spirit_score,
       automask,
       positivity_ratio
-    `)
+    `
+    )
     .eq("creator_id", id)
     .order("created_at", { ascending: false });
 
   const posts = postsRaw ?? [];
 
-  // ⭐ FIX: Add is_private so ProfileClient type is satisfied
+  // ⭐ Prepare profile object
   const profile = {
     ...profileRaw,
     is_private: profileRaw.privacy_type === "private",
-    posts: [],
+    posts,
   };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
-      {/* ⭐ AuthNav is global — do NOT import it here */}
       <ProfileClient profile={profile} posts={posts} />
     </div>
   );
