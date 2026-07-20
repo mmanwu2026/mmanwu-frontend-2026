@@ -1,17 +1,21 @@
-// ⭐ CLEAN, STABLE, FINAL VERSION
+// ⭐ CLEAN PROMISE-PARAMS VERSION
 // DO NOT add "use client" here — this must remain a Server Component.
 
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
 import MobileAuthNav from "@/app/components/AuthNav";
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  // ⭐ Promise params — safe again
+  const { id } = await params;
 
-  // ⭐ Supabase server client
   const supabase = await createSupabaseServerClient();
 
-  // ⭐ Get viewer identity (MUCH more reliable than getSession)
+  // ⭐ Reliable viewer identity
   const {
     data: { user },
   } = await supabase.auth.getUser();
