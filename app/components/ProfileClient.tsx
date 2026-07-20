@@ -850,73 +850,81 @@ if (!authUserId && !authLoading) {
 
 return (
   <>
-{/* HEADER */}
-<div className="w-full bg-white text-gray-900 border-b border-gray-200">
-  {/* Banner */}
-  <div
-    className="h-32 w-full"
-    style={{ backgroundColor: bannerColor }}
-  />
+    {/* HEADER */}
+    <div className="w-full bg-white text-gray-900 border-b border-gray-200">
+      {/* Banner */}
+      <div
+        className="h-32 w-full"
+        style={{ backgroundColor: bannerColor }}
+      />
 
-  {/* Avatar + Info */}
-  <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
+      {/* Avatar + Info */}
+      <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
 
-    {/* LEFT — Avatar */}
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
-        {isOwnProfile ? (
-          <AvatarUploader
-            userId={profile.id}
-            currentAvatar={profile.avatar_url}
-          />
-        ) : (
-          <img
-            src={profile.avatar_url || FALLBACK_AVATAR}
-            onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
+        {/* LEFT — Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
+            {isOwnProfile ? (
+              <AvatarUploader
+                userId={profile.id}
+                currentAvatar={profile.avatar_url}
+              />
+            ) : (
+              <img
+                src={profile.avatar_url || FALLBACK_AVATAR}
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
 
-      {isOwnProfile && (
-        <button
-          onClick={() =>
-            document.getElementById("avatar-upload-input")?.click()
-          }
-          className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
-        >
-          Upload Avatar
-        </button>
-      )}
-    </div>
+          {isOwnProfile && (
+            <button
+              onClick={() =>
+                document.getElementById("avatar-upload-input")?.click()
+              }
+              className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
+            >
+              Upload Avatar
+            </button>
+          )}
+        </div>
 
-    {/* RIGHT — Info */}
-    <div className="flex flex-col flex-1">
+        {/* RIGHT — Info */}
+        <div className="flex flex-col flex-1">
 
-      {/* Name + Badges */}
-      <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          {profile.display_name}
-        </h1>
+          {/* Name + Badges */}
+          <div className="flex items-center gap-2">
 
-        {profile.verified && (
-          <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
-            ✔
-          </span>
-        )}
+            {/* ⭐ FIXED USERNAME — always readable */}
+            <h1
+              className="text-2xl font-semibold"
+              style={{
+                color: "#111", // deep neutral
+                textShadow: "0 0 4px rgba(0,0,0,0.35)", // subtle halo for contrast
+              }}
+            >
+              {profile.display_name}
+            </h1>
 
-        <span
-          className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
-          style={{
-            backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
-            color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
-          }}
-        >
-          Tier {profile.mask_tier}
-        </span>
-      </div>
+            {profile.verified && (
+              <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
+                ✔
+              </span>
+            )}
 
-      <p className="text-gray-500">@{profile.username}</p>
+            <span
+              className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
+              style={{
+                backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
+                color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
+              }}
+            >
+              Tier {profile.mask_tier}
+            </span>
+          </div>
+
+          <p className="text-gray-500">@{profile.username}</p>
 
       {/* BIO — privacy patched */}
       {viewerAllowed && profile.bio && (
