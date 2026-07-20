@@ -1,3 +1,5 @@
+"use client";
+
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
 import TopBar from "@/components/navigation/TopBar";
@@ -28,27 +30,28 @@ type Profile = {
   spirit_score: number;
   positivity_ratio: number;
   posts: Post[];
-  privacy_type?: string; // ⭐ NEW
   is_private: boolean;
+  dm_permission: string;
 };
 
 export default async function Page({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  // ⭐ Your project requires Promise params — we keep it
+  const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  
-  // ⭐ Fetch viewer identity
+
+  // ⭐ Viewer identity
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   const viewerId = session?.user?.id ?? null;
 
-  // ⭐ Fetch profile INCLUDING privacy_type
+  // ⭐ Fetch profile (corrected — no privacy_type)
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -62,8 +65,8 @@ export default async function Page({
       verified,
       location,
       website_url,
-      privacy_type,
       is_private,
+      dm_permission,
 
       followers_count:follows!follows_following_id_fkey(count),
       following_count:follows!follows_follower_id_fkey(count),
@@ -77,10 +80,8 @@ export default async function Page({
     .eq("id", id)
     .single();
 
-  const profileNotFound = !!profileError || !profileRaw;
-
   // ⭐ If profile doesn't exist
-  if (profileNotFound) {
+  if (profileError || !profileRaw) {
     return (
       <div className="p-6 text-white">
         <TopBar />
@@ -89,11 +90,10 @@ export default async function Page({
     );
   }
 
-  // ⭐ Privacy enforcement
-  const privacy = profileRaw.privacy_type ?? "public";
+  // ⭐ Privacy enforcement (correct field)
   const isOwner = viewerId === profileRaw.id;
 
-  if (privacy === "private" && !isOwner) {
+  if (profileRaw.is_private && !isOwner) {
     return (
       <div className="p-6 text-white">
         <TopBar />
@@ -107,10 +107,7 @@ export default async function Page({
     );
   }
 
-  // ⭐ Build profile object
-  let profile: Profile | null = null;
-  let posts: Post[] = [];
-
+  // ⭐ Compute spirit score + positivity ratio
   const spirit_score =
     profileRaw.posts?.reduce(
       (sum: number, p: any) => sum + (p.spirit_score ?? 0),
@@ -125,7 +122,8 @@ export default async function Page({
         ) / profileRaw.posts.length
       : 0.5;
 
-  profile = {
+  // ⭐ Build profile object
+  const profile: Profile = {
     ...profileRaw,
     mask_tier: Number(profileRaw.mask_tier),
     followers_count: profileRaw.followers_count?.[0]?.count ?? 0,
@@ -150,12 +148,12 @@ export default async function Page({
     .eq("creator_id", id)
     .order("created_at", { ascending: false });
 
-  posts = postsRaw ?? [];
+  const posts = postsRaw ?? [];
 
   return (
     <div className="p-6 text-white">
       <TopBar />
-      <ProfileClient profile={profile!} posts={posts} />
+      <ProfileClient profile={profile} posts={posts} />
     </div>
   );
 }
