@@ -51,53 +51,58 @@ export default function RoomPage() {
     loadOther();
   }, [userId, roomId, supabase]);
 
-  /* ---------------- DM PRIVACY CHECK (Patch 8 + Patch 10) ---------------- */
-  useEffect(() => {
-    if (!userId || !otherUserId || !roomId) return;
+/* ---------------- DM PRIVACY CHECK ---------------- */
+useEffect(() => {
+  if (!userId || !otherUserId || !roomId) return;
 
-    async function checkDmPrivacy() {
-      // 1. Load other user's profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_private")
-        .eq("id", otherUserId)
-        .single();
+  async function checkDmPrivacy() {
+    // 1. Load other user's profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("privacy_type")
+      .eq("id", otherUserId)
+      .single();
 
-      if (!profile) {
-        setDmAllowed(false);
-        return;
-      }
-
-      // 2. Public profile → DM allowed
-      if (!profile.is_private) {
-        setDmAllowed(true);
-      } else {
-        // 3. Private profile → must be following
-        const { data: followRow } = await supabase
-          .from("follows")
-          .select("id")
-          .eq("follower_id", userId)
-          .eq("following_id", otherUserId)
-          .maybeSingle();
-
-        const isFollowing = !!followRow;
-        setDmAllowed(isFollowing);
-      }
-
-      // ⭐ PATCH 10 — Check if room is locked
-      const { data: room } = await supabase
-        .from("rooms")
-        .select("locked")
-        .eq("id", roomId)
-        .single();
-
-      if (room?.locked) {
-        setDmAllowed(false);
-      }
+    if (!profile) {
+      setDmAllowed(false);
+      return;
     }
 
-    checkDmPrivacy();
-  }, [userId, otherUserId, roomId, supabase]);
+    const isPrivate = profile.privacy_type === "private";
+    const isOwner = userId === otherUserId;
+
+    // 2. Public profile → DM allowed
+    if (!isPrivate) {
+      setDmAllowed(true);
+      return;
+    }
+
+    // 3. Private profile → must be following OR owner
+    const { data: followRow } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", userId)
+      .eq("following_id", otherUserId)
+      .maybeSingle();
+
+    const isFollower = !!followRow;
+
+    setDmAllowed(isOwner || isFollower);
+
+    // 4. Room locked → override
+    const { data: room } = await supabase
+      .from("rooms")
+      .select("locked")
+      .eq("id", roomId)
+      .single();
+
+    if (room?.locked) {
+      setDmAllowed(false);
+    }
+  }
+
+  checkDmPrivacy();
+}, [userId, otherUserId, roomId, supabase]);
 
   /* ---------------- LOADING USER ---------------- */
   if (!userId) {
