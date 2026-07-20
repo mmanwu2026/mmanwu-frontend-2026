@@ -1,31 +1,24 @@
-// ⭐ DIAGNOSTIC VERSION — ALWAYS RENDERS SOMETHING
-// DO NOT add "use client" here.
+// ⭐ CLEAN, STABLE, FINAL VERSION
+// DO NOT add "use client" here — this must remain a Server Component.
 
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
-import TopBar from "@/components/navigation/TopBar";
+import MobileAuthNav from "@/app/components/AuthNav";
 
-export default async function Page({
-  params,
-}: {
-  params: { id: string };
-}) {
-  // ⭐ Step 1 — Confirm params work
+export default async function Page({ params }: { params: { id: string } }) {
   const id = params.id;
-  console.log("🔍 DIAGNOSTIC: PROFILE PAGE LOADED WITH ID =", id);
 
-  // ⭐ Step 2 — Create Supabase client
+  // ⭐ Supabase server client
   const supabase = await createSupabaseServerClient();
 
-  // ⭐ Step 3 — Get viewer session
+  // ⭐ Get viewer identity (MUCH more reliable than getSession)
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const viewerId = session?.user?.id ?? null;
-  console.log("🔍 DIAGNOSTIC: VIEWER ID =", viewerId);
+  const viewerId = user?.id ?? null;
 
-  // ⭐ Step 4 — Fetch profile
+  // ⭐ Fetch profile
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -48,42 +41,34 @@ export default async function Page({
     .eq("id", id)
     .single();
 
-  console.log("🔍 DIAGNOSTIC: PROFILE RAW =", profileRaw);
-  console.log("🔍 DIAGNOSTIC: PROFILE ERROR =", profileError);
-
-  // ⭐ Step 5 — If profile missing, show diagnostic
-  if (!profileRaw) {
+  // ⭐ Profile not found
+  if (profileError || !profileRaw) {
     return (
-      <div className="p-6 text-white">
-        <TopBar />
-        <p className="mt-6 text-lg">❌ Profile not found</p>
-        <p className="mt-2 text-sm text-gray-400">ID: {id}</p>
+      <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
+        <MobileAuthNav />
+        <div className="mt-6 text-lg font-semibold">Profile not found</div>
       </div>
     );
   }
 
-  // ⭐ Step 6 — Privacy diagnostic
+  // ⭐ Privacy enforcement
   const isOwner = viewerId === profileRaw.id;
-  console.log("🔍 DIAGNOSTIC: is_private =", profileRaw.is_private);
-  console.log("🔍 DIAGNOSTIC: isOwner =", isOwner);
 
   if (profileRaw.is_private && !isOwner) {
     return (
-      <div className="p-6 text-white">
-        <TopBar />
+      <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
+        <MobileAuthNav />
         <div className="mt-20 text-center">
-          <p className="text-xl font-semibold">🔒 Private Profile</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Viewer ID: {viewerId ?? "null"}  
-            <br />
-            Owner ID: {profileRaw.id}
+          <p className="text-xl font-semibold">This profile is private.</p>
+          <p className="text-sm text-gray-600 mt-2">
+            Only the owner can view this profile.
           </p>
         </div>
       </div>
     );
   }
 
-  // ⭐ Step 7 — Fetch posts
+  // ⭐ Fetch posts
   const { data: postsRaw } = await supabase
     .from("posts")
     .select(`
@@ -98,9 +83,9 @@ export default async function Page({
     .eq("creator_id", id)
     .order("created_at", { ascending: false });
 
-  console.log("🔍 DIAGNOSTIC: POSTS RAW =", postsRaw);
+  const posts = postsRaw ?? [];
 
-  // ⭐ Step 8 — Build profile object
+  // ⭐ Build final profile object
   const profile = {
     ...profileRaw,
     mask_tier: Number(profileRaw.mask_tier),
@@ -111,35 +96,11 @@ export default async function Page({
     posts: [],
   };
 
-  console.log("🔍 DIAGNOSTIC: FINAL PROFILE OBJ =", profile);
-
-  // ⭐ Step 9 — Render diagnostic wrapper + ProfileClient
+  // ⭐ FINAL RENDER — with padding under sticky AuthNav
   return (
-    <div className="p-6 text-white">
-      <TopBar />
-
-      <div className="mt-4 p-4 bg-purple-900/20 border border-purple-700 rounded">
-        <p className="font-semibold text-purple-300">🔍 DIAGNOSTIC MODE ACTIVE</p>
-        <p className="text-sm text-purple-200 mt-2">
-          If the page goes blank below this box, ProfileClient is crashing.
-        </p>
-        <p className="text-xs text-purple-300 mt-2">
-          profile.id: {profile.id}  
-          <br />
-          viewerId: {viewerId ?? "null"}  
-          <br />
-          is_private: {String(profile.is_private)}  
-          <br />
-          followers_count: {profile.followers_count}  
-          <br />
-          following_count: {profile.following_count}  
-          <br />
-          posts count: {postsRaw?.length ?? 0}
-        </p>
-      </div>
-
-      {/* ⭐ If ProfileClient crashes, the diagnostic box above still shows */}
-      <ProfileClient profile={profile} posts={postsRaw ?? []} />
+    <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
+      <MobileAuthNav />
+      <ProfileClient profile={profile} posts={posts} />
     </div>
   );
 }

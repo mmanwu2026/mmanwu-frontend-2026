@@ -824,6 +824,30 @@ useEffect(() => {
     profile.positivity_ratio = totalPositivity;
   }, [posts, reactionCounts, soundPosts, visionPosts, profile]);
 
+  if (!hydrated) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+      <p className="text-gray-500 text-sm">Loading profile…</p>
+    </div>
+  );
+}
+
+if (authLoading && !authUserId) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+      <p className="text-gray-500 text-sm">Loading profile…</p>
+    </div>
+  );
+}
+
+if (!authUserId && !authLoading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+      <p className="text-gray-500 text-sm">Redirecting…</p>
+    </div>
+  );
+}
+
 return (
   <>
 {/* HEADER */}
