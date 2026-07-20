@@ -13,7 +13,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -26,7 +25,6 @@ export default function SettingsPage() {
 
       await loadProfile(id);
       await loadPendingRequests(id);
-      await loadBlockedUsers(id);
 
       setLoading(false);
     }
@@ -47,22 +45,12 @@ export default function SettingsPage() {
   /* ---------------- LOAD FOLLOW REQUESTS ---------------- */
   async function loadPendingRequests(id: string) {
     const { data } = await supabase
-      .from("followers")
+      .from("follow_requests")
       .select("*, follower: follower_id(*)")
       .eq("target_id", id)
       .eq("status", "pending");
 
     setPendingRequests(data || []);
-  }
-
-  /* ---------------- LOAD BLOCKED USERS ---------------- */
-  async function loadBlockedUsers(id: string) {
-    const { data } = await supabase
-      .from("blocks")
-      .select("*, blocked: blocked_id(*)")
-      .eq("user_id", id);
-
-    setBlockedUsers(data || []);
   }
 
   /* ---------------- SAVE PRIVACY SETTINGS ---------------- */
@@ -86,7 +74,7 @@ export default function SettingsPage() {
   /* ---------------- APPROVE FOLLOW REQUEST ---------------- */
   async function approveRequest(followerId: string) {
     await supabase
-      .from("followers")
+      .from("follow_requests")
       .update({ status: "approved" })
       .eq("follower_id", followerId)
       .eq("target_id", userId);
@@ -97,33 +85,12 @@ export default function SettingsPage() {
   /* ---------------- REJECT FOLLOW REQUEST ---------------- */
   async function rejectRequest(followerId: string) {
     await supabase
-      .from("followers")
+      .from("follow_requests")
       .delete()
       .eq("follower_id", followerId)
       .eq("target_id", userId);
 
     await loadPendingRequests(userId!);
-  }
-
-  /* ---------------- BLOCK USER ---------------- */
-  async function blockUser(targetId: string) {
-    await supabase.from("blocks").insert({
-      user_id: userId,
-      blocked_id: targetId,
-    });
-
-    await loadBlockedUsers(userId!);
-  }
-
-  /* ---------------- UNBLOCK USER ---------------- */
-  async function unblockUser(targetId: string) {
-    await supabase
-      .from("blocks")
-      .delete()
-      .eq("user_id", userId)
-      .eq("blocked_id", targetId);
-
-    await loadBlockedUsers(userId!);
   }
 
   if (loading) {
@@ -214,35 +181,6 @@ export default function SettingsPage() {
                     Reject
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ---------------- BLOCKED USERS ---------------- */}
-      <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg">
-        <h2 className="text-lg font-semibold mb-3">Blocked Users</h2>
-
-        {blockedUsers.length === 0 ? (
-          <p className="opacity-70">You have not blocked anyone.</p>
-        ) : (
-          <div className="space-y-3">
-            {blockedUsers.map((b) => (
-              <div
-                key={b.blocked_id}
-                className="flex items-center justify-between"
-              >
-                <span>
-                  {b.blocked.display_name || b.blocked.username}
-                </span>
-
-                <button
-                  onClick={() => unblockUser(b.blocked_id)}
-                  className="px-3 py-1 bg-red-600 rounded"
-                >
-                  Unblock
-                </button>
               </div>
             ))}
           </div>
