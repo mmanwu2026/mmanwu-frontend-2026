@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import NewChatModal from "./NewChatModal";
@@ -41,7 +40,7 @@ const FALLBACK_AVATAR =
 export default function MessengerSidebar({
   users,
   userId,
-  onSelect, // ⭐ NEW: auto-close drawer callback
+  onSelect,
 }: {
   users: any[];
   userId: string;
@@ -66,7 +65,7 @@ export default function MessengerSidebar({
     return users.find((u: any) => u.id === id) || null;
   }
 
-  /* ---------------- LOAD THREADS (logic unchanged) ---------------- */
+  /* ---------------- LOAD THREADS ---------------- */
   useEffect(() => {
     async function loadThreads() {
       if (!userId) return;
@@ -103,7 +102,6 @@ export default function MessengerSidebar({
         .from("messages")
         .select("room_id, sender_id, message_type, content, created_at")
         .in("room_id", roomIds)
-        .in("message_type", ["text", "image", "audio"])
         .order("created_at", { ascending: false });
 
       const lastMessages = (lastMessagesRaw ?? []) as Message[];
@@ -136,7 +134,6 @@ export default function MessengerSidebar({
           (m) =>
             m.room_id === room.id &&
             m.sender_id !== userId &&
-            ["text", "image", "audio"].includes(m.message_type) &&
             new Date(m.created_at) > lastSeen
         ).length;
 
@@ -157,15 +154,46 @@ export default function MessengerSidebar({
     loadThreads();
   }, [userId, supabase]);
 
-  /* ---------------- UI ONLY BELOW THIS LINE ---------------- */
+  /* ---------------- PATCH 12 — Realtime new message indicator ---------------- */
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel("sidebar-new-messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const msg = payload.new;
+
+          setThreads((prev) =>
+            prev.map((t) => {
+              if (t.roomId !== msg.room_id) return t;
+              if (msg.sender_id === userId) return t;
+
+              return {
+                ...t,
+                unreadCount: t.unreadCount + 1,
+                lastMessage: msg,
+              };
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, supabase]);
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
 
-      {/* Header */}
       <h2 className="text-white text-lg mb-4">Chats</h2>
 
-      {/* New Chat Button */}
       <button
         onClick={() => setShowNewChat(true)}
         className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-4"
@@ -173,7 +201,6 @@ export default function MessengerSidebar({
         + New Chat
       </button>
 
-      {/* Chat Threads */}
       <div className="space-y-2 mb-6">
         {threads.map((t) => {
           const profile = getUserProfile(t.otherUserId);
@@ -189,14 +216,13 @@ export default function MessengerSidebar({
             <button
               key={t.roomId}
               onClick={() => {
-                onSelect?.(); // ⭐ Auto-close drawer
+                onSelect?.();
                 router.push(`/messenger/${t.roomId}`);
               }}
               className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-left"
             >
               <div className="flex items-center gap-3">
 
-                {/* ⭐ Correct avatar sizing */}
                 <img
                   src={avatar}
                   alt="avatar"
@@ -224,11 +250,15 @@ export default function MessengerSidebar({
 
                   <div className="text-neutral-400 text-sm">
                     {t.lastMessage
-                      ? t.lastMessage.message_type === "call_offer"
-                        ? `Call started by ${t.lastMessage.sender_id}`
-                        : `${t.lastMessage.sender_id}: ${
-                            t.lastMessage.content ?? t.lastMessage.message_type
-                          }`
+                      ? t.lastMessage.message_type === "text"
+                        ? `${t.lastMessage.sender_id}: ${t.lastMessage.content}`
+                        : t.lastMessage.message_type === "image"
+                        ? `${t.lastMessage.sender_id} sent an image`
+                        : t.lastMessage.message_type === "audio"
+                        ? `${t.lastMessage.sender_id} sent an audio clip`
+                        : t.lastMessage.message_type === "video"
+                        ? `${t.lastMessage.sender_id} sent a video`
+                        : `${t.lastMessage.sender_id}: ${t.lastMessage.message_type}`
                       : "No messages yet"}
                   </div>
                 </div>
@@ -238,7 +268,6 @@ export default function MessengerSidebar({
         })}
       </div>
 
-      {/* New Chat Modal */}
       <NewChatModal
         open={showNewChat}
         onClose={() => setShowNewChat(false)}

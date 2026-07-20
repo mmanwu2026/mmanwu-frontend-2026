@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [privacyType, setPrivacyType] = useState("public"); // ⭐ NEW
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +19,7 @@ export default function SignupPage() {
     setLoading(true);
     setErrorMsg("");
 
-    // ⭐ Check if username already exists (correct table: profiles)
+    // ⭐ Check if username already exists
     const { data: existing } = await supabase
       .from("profiles")
       .select("id")
@@ -50,14 +51,15 @@ export default function SignupPage() {
       return;
     }
 
-    // ⭐ Create profile row with correct defaults
+    // ⭐ Create profile row with privacy_type included
     const { error: profileError } = await supabase.from("profiles").insert({
       id: userId,
       username,
       bio: "",
       avatar_url: null,
       spirit_score: 0,
-      mask_tier: 2, // ⭐ Correct default mask tier
+      mask_tier: 2,
+      privacy_type: privacyType, // ⭐ NEW FIELD
     });
 
     if (profileError) {
@@ -101,6 +103,17 @@ export default function SignupPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+
+        {/* ⭐ NEW PRIVACY SELECTOR */}
+        <select
+          className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+          value={privacyType}
+          onChange={(e) => setPrivacyType(e.target.value)}
+          required
+        >
+          <option value="public">Public Profile</option>
+          <option value="private">Private Profile</option>
+        </select>
 
         {errorMsg && (
           <p className="text-red-400 text-sm">{errorMsg}</p>

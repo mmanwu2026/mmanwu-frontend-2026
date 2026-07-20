@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 const FALLBACK_AVATAR =
@@ -12,12 +12,17 @@ const FALLBACK_AVATAR =
 export default function MobileAuthNav() {
   const { supabase } = useSupabase();
   const pathname = usePathname() ?? "";
+  const router = useRouter();
 
   const [uid, setUid] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // ⭐ NEW — Pending follow requests count
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // ⭐ Hydration + profile avatar loader
   useEffect(() => {
     setHydrated(true);
 
@@ -55,6 +60,23 @@ export default function MobileAuthNav() {
 
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
+
+  // ⭐ NEW — Load pending follow requests
+  useEffect(() => {
+    async function loadPending() {
+      if (!uid) return;
+
+      const { data } = await supabase
+        .from("follow_requests")
+        .select("id")
+        .eq("target_id", uid)
+        .eq("status", "pending");
+
+      setPendingCount(data?.length ?? 0);
+    }
+
+    loadPending();
+  }, [uid, supabase]);
 
   if (!hydrated) {
     return (
@@ -117,8 +139,9 @@ export default function MobileAuthNav() {
               />
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white text-black rounded-lg shadow-lg p-2 z-[9999]">
+                <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-lg shadow-lg p-2 z-[9999]">
 
+                  {/* Profile */}
                   <Link
                     href={`/profile/${uid}`}
                     className="block px-3 py-2 hover:bg-gray-100 rounded"
@@ -126,6 +149,20 @@ export default function MobileAuthNav() {
                     Profile
                   </Link>
 
+                  {/* ⭐ Follow Requests + Badge */}
+                  <Link
+                    href="/follow-requests"
+                    className="relative block px-3 py-2 hover:bg-gray-100 rounded"
+                  >
+                    Follow Requests
+                    {pendingCount > 0 && (
+                      <span className="absolute right-3 top-2 bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* Settings */}
                   <Link
                     href="/settings"
                     className="block px-3 py-2 hover:bg-gray-100 rounded"
@@ -133,6 +170,7 @@ export default function MobileAuthNav() {
                     Settings
                   </Link>
 
+                  {/* Logout */}
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded"

@@ -48,6 +48,7 @@ type Profile = {
   website_url?: string | null;
   followers_count: number;
   following_count: number;
+  is_private: boolean;
 };
 
 type Post = {
@@ -129,18 +130,19 @@ export default function ProfileClient({
     loadSession();
   }, [supabase]);
 
-  const [hydrated, setHydrated] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "posts" | "visionposts" | "soundposts" | "reactions"
-  >("posts");
-  const [gridMode, setGridMode] = useState(false);
-  const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
-  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
-  const [followersCount, setFollowersCount] = useState(profile.followers_count);
-  const [followingCount, setFollowingCount] = useState(profile.following_count);
-  const [busy, setBusy] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [givenReactions, setGivenReactions] = useState<any[]>([]);
+const [hydrated, setHydrated] = useState(false);
+const [activeTab, setActiveTab] = useState<
+  "posts" | "visionposts" | "soundposts" | "reactions"
+>("posts");
+const [gridMode, setGridMode] = useState(false);
+const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
+const [isFollowing, setIsFollowing] = useState(false);        // ⭐ NEW
+const [hasRequested, setHasRequested] = useState(false);      // ⭐ NEW
+const [followersCount, setFollowersCount] = useState(profile.followers_count);
+const [followingCount, setFollowingCount] = useState(profile.following_count);
+const [busy, setBusy] = useState(false);                      // already existed
+const [showEditModal, setShowEditModal] = useState(false);
+const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
   const [soundPosts, setSoundPosts] = useState<CardSoundPost[]>([]);
   const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
@@ -157,11 +159,16 @@ export default function ProfileClient({
   const isOwnProfile = hydrated && authUserId === profile.id;
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
+  const privacy = (profile as any).privacy_type ?? "public";
+const viewerIsOwner = authUserId === profile.id;
+const viewerAllowed = privacy === "public" || viewerIsOwner;
+
   useEffect(() => setHydrated(true), []);
 
   // Load Sound posts
   useEffect(() => {
     async function loadSoundPosts() {
+      if (!viewerAllowed) return;
       const { data, error } = await supabase
         .from("sound_posts")
         .select(`
@@ -278,91 +285,111 @@ export default function ProfileClient({
   }, [profile.id, supabase]);
 
   // Load follow state
-  useEffect(() => {
-    let active = true;
-
-    async function loadFollowState() {
-      if (!authUserId || authLoading || isOwnProfile) {
-        setIsFollowing(null);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", authUserId)
-        .eq("following_id", profile.id)
-        .maybeSingle();
-
-      if (!active) return;
-
-      setIsFollowing(!!data);
+useEffect(() => {
+  async function loadFollowState() {
+    if (!authUserId || authLoading || isOwnProfile) {
+      setIsFollowing(false);
+      setHasRequested(false);
+      return;
     }
 
-    loadFollowState();
-    return () => {
-      active = false;
-    };
-  }, [supabase, authUserId, authLoading, profile.id, isOwnProfile]);
+    // A. Check if already following
+    const { data: followData } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", authUserId)
+      .eq("following_id", profile.id)
+      .maybeSingle();
 
-  // Follow toggle (migrated from useUser to Supabase session)
-  async function handleFollowToggle() {
-    if (!authUserId || authLoading || isOwnProfile || busy) return;
-
-    setBusy(true);
-
-    try {
-      if (!isFollowing) {
-        const { error } = await supabase.from("follows").insert({
-          follower_id: authUserId,
-          following_id: profile.id,
-        });
-
-        if (!error) {
-          setIsFollowing(true);
-          setFollowersCount((c) => c + 1);
-
-          const { data: sub } = await supabase
-            .from("push_subscriptions")
-            .select("subscription")
-            .eq("user_id", profile.id)
-            .single();
-
-          if (sub?.subscription) {
-            await fetch(
-              "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  subscription: sub.subscription,
-                  payload: {
-                    title: "New Follower 👣",
-                    body: `${authEmail || "Someone"} started following you`,
-                    icon: "/icons/mman-192.png",
-                    url: `/profile/${authUserId}`,
-                  },
-                }),
-              }
-            );
-          }
-        }
-      } else {
-        const { error } = await supabase
-          .from("follows")
-          .delete()
-          .eq("follower_id", authUserId)
-          .eq("following_id", profile.id);
-
-        if (!error) {
-          setIsFollowing(false);
-          setFollowersCount((c) => Math.max(0, c - 1));
-        }
-      }
-    } finally {
-      setBusy(false);
+    if (followData) {
+      setIsFollowing(true);
+      setHasRequested(false);
+      return;
     }
+
+    // B. Check if a follow request is pending
+    const { data: requestData } = await supabase
+      .from("follow_requests")
+      .select("status")
+      .eq("requester_id", authUserId)
+      .eq("target_id", profile.id)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (requestData) {
+      setHasRequested(true);
+      setIsFollowing(false);
+      return;
+    }
+
+    // C. Not following, no request
+    setIsFollowing(false);
+    setHasRequested(false);
   }
+
+  loadFollowState();
+}, [authUserId, authLoading, profile.id, isOwnProfile]);
+
+// Follow toggle (migrated from useUser to Supabase session)
+async function handleFollowToggle() {
+  if (!authUserId || busy) return;
+  setBusy(true);
+
+  try {
+    // CASE 1 — Already following → unfollow
+    if (isFollowing) {
+      await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", authUserId)
+        .eq("following_id", profile.id);
+
+      setIsFollowing(false);
+      setHasRequested(false);
+      return;
+    }
+
+    // CASE 2 — Private profile → send follow request
+    if (profile.is_private) {
+      await supabase.from("follow_requests").insert({
+        requester_id: authUserId,
+        target_id: profile.id,
+        status: "pending",
+      });
+
+      // ⭐ NEW — Notification for private profile owner
+      await supabase.from("notifications").insert({
+        user_id: profile.id,          // private profile owner
+        actor_id: authUserId,         // requester
+        event_type: "follow_request",
+        message: "requested to follow you",
+      });
+
+      setHasRequested(true);
+      setIsFollowing(false);
+      return;
+    }
+
+    // CASE 3 — Public profile → follow instantly
+    await supabase.from("follows").insert({
+      follower_id: authUserId,
+      following_id: profile.id,
+    });
+
+    // ⭐ NEW — Notification for public profile owner
+    await supabase.from("notifications").insert({
+      user_id: profile.id,          // public profile owner
+      actor_id: authUserId,         // follower
+      event_type: "new_follower",
+      message: "started following you",
+    });
+
+    setIsFollowing(true);
+    setHasRequested(false);
+  } finally {
+    setBusy(false);
+  }
+}
 
   // ⭐ NEW — Start a private conversation with this user
 async function startConversation(otherUserId: string) {
@@ -425,6 +452,8 @@ async function startConversation(otherUserId: string) {
   // Load reactions ON plaza posts
   useEffect(() => {
     async function loadReactions() {
+  if (!viewerAllowed) return;
+
       if (!posts || posts.length === 0) return;
 
       const { data } = await supabase
@@ -445,11 +474,12 @@ async function startConversation(otherUserId: string) {
     }
 
     loadReactions();
-  }, [posts, supabase]);
+  }, [posts, supabase, viewerAllowed]);
 
   // Load reactions GIVEN by this user (profile owner)
   useEffect(() => {
     async function loadGivenReactions() {
+      if (!viewerAllowed) return;
       const { data } = await supabase
         .from("reactions")
         .select(`
@@ -466,277 +496,296 @@ async function startConversation(otherUserId: string) {
     }
 
     loadGivenReactions();
-  }, [profile.id, supabase]);
+  }, [profile.id, supabase, viewerAllowed]);
 
   // Load Vision posts
-  async function fetchVisionPosts(initial = false) {
-    if (visionEndReached && !initial) return;
+async function fetchVisionPosts(initial = false) {
+  // ⭐ PRIVACY PATCH — block loading if viewer is not allowed
+  if (!viewerAllowed) return;
 
-    if (initial) {
-      setVisionLoading(true);
-      setVisionEndReached(false);
-    } else {
-      setVisionFetchingMore(true);
-    }
+  if (visionEndReached && !initial) return;
 
-    const lastCreatedAt =
-      visionPosts.length > 0
-        ? visionPosts[visionPosts.length - 1].created_at
-        : null;
-
-    let query = supabase
-      .from("vision_posts")
-      .select(`
-        id,
-        title,
-        media_url,
-        creator_id,
-        created_at,
-        spirit_score,
-        positivity_ratio,
-        automask,
-        tags,
-
-        users:creator_id (
-          username,
-          avatar_url
-        ),
-
-        comments:vision_post_comments (
-          id,
-          content,
-          raw_input,
-          created_at,
-          automask,
-          positivity_ratio,
-          user_id,
-          profiles:user_id (
-            username,
-            avatar_url
-          )
-        )
-      `)
-      .eq("creator_id", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE);
-
-    if (lastCreatedAt) {
-      query = query.lt("created_at", lastCreatedAt);
-    }
-
-    const { data } = await query;
-
-    if (!data) {
-      setVisionLoading(false);
-      setVisionFetchingMore(false);
-      return;
-    }
-
-    if (data.length < PAGE_SIZE) setVisionEndReached(true);
-
-    const normalized = data.map((post: any) => {
-      const creator =
-        Array.isArray(post.users) && post.users.length > 0
-          ? post.users[0]
-          : post.users;
-
-      const comments =
-        post.comments?.map((c: any) => {
-          const profileObj =
-            Array.isArray(c.profiles) && c.profiles.length > 0
-              ? c.profiles[0]
-              : c.profiles;
-
-          return {
-            id: c.id,
-            content: c.content,
-            raw_input: c.raw_input ?? null,
-            created_at: c.created_at,
-            automask: c.automask,
-            positivity_ratio: c.positivity_ratio ?? 0.5,
-            user_id: c.user_id,
-            profiles: {
-              username: profileObj?.username ?? "unknown",
-              avatar_url: profileObj?.avatar_url || FALLBACK_AVATAR,
-            },
-          };
-        }) ?? [];
-
-      return {
-        ...post,
-        media_url: post.media_url || null,
-        tags: Array.isArray(post.tags) ? post.tags : [],
-        users: {
-          username: creator?.username ?? "unknown",
-          avatar_url: creator?.avatar_url || FALLBACK_AVATAR,
-        },
-        comments,
-        comment_count: comments.length,
-      };
-    });
-
-    const enriched: VisionPost[] = [];
-
-    for (const post of normalized) {
-      const { data: reactionRows } = await supabase
-        .from("reactions")
-        .select('post_id, "maskTier"')
-        .eq("post_id", post.id)
-        .eq("post_type", "vision");
-
-      const rows: { maskTier: number }[] = reactionRows ?? [];
-
-      const counts = {
-        mask1: rows.filter((r) => r.maskTier === 1).length,
-        mask2: rows.filter((r) => r.maskTier === 2).length,
-        mask3: rows.filter((r) => r.maskTier === 3).length,
-        mask4: rows.filter((r) => r.maskTier === 4).length,
-        mask5: rows.filter((r) => r.maskTier === 5).length,
-        mask6: rows.filter((r) => r.maskTier === 6).length,
-      };
-
-      const total = rows.length;
-      const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
-      const positivity = total > 0 ? positiveCount / total : 0.5;
-
-      const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
-
-      let autoMask = 2;
-      if (spirit > 20) autoMask = 3;
-      if (spirit > 100) autoMask = 4;
-      if (spirit > 300) autoMask = 5;
-      if (spirit > 500) autoMask = 6;
-
-      enriched.push({
-        ...post,
-        reactions: counts,
-        spirit_score: spirit,
-        positivity_ratio: positivity,
-        automask: autoMask,
-        total_reactions: total,
-      });
-    }
-
-    setVisionPosts((prev) => {
-      const map = new Map<string, VisionPost>();
-      for (const p of [...prev, ...enriched]) map.set(p.id, p);
-      return Array.from(map.values());
-    });
-
-    setVisionLoading(false);
-    setVisionFetchingMore(false);
+  if (initial) {
+    setVisionLoading(true);
+    setVisionEndReached(false);
+  } else {
+    setVisionFetchingMore(true);
   }
 
-  useEffect(() => {
-    if (
-      activeTab === "visionposts" &&
-      visionPosts.length === 0 &&
-      !visionLoading
-    ) {
-      fetchVisionPosts(true);
-    }
-  }, [activeTab, visionPosts.length, visionLoading]);
+  const lastCreatedAt =
+    visionPosts.length > 0
+      ? visionPosts[visionPosts.length - 1].created_at
+      : null;
 
-  useEffect(() => {
-    function onScroll() {
-      if (activeTab !== "visionposts") return;
-      if (visionEndReached || visionFetchingMore) return;
+  let query = supabase
+    .from("vision_posts")
+    .select(`
+      id,
+      title,
+      media_url,
+      creator_id,
+      created_at,
+      spirit_score,
+      positivity_ratio,
+      automask,
+      tags,
 
-      const scrollPos =
-        window.innerHeight + document.documentElement.scrollTop;
-      const bottom = document.documentElement.offsetHeight - 300;
+      users:creator_id (
+        username,
+        avatar_url
+      ),
 
-      if (scrollPos >= bottom) fetchVisionPosts(false);
-    }
+      comments:vision_post_comments (
+        id,
+        content,
+        raw_input,
+        created_at,
+        automask,
+        positivity_ratio,
+        user_id,
+        profiles:user_id (
+          username,
+          avatar_url
+        )
+      )
+    `)
+    .eq("creator_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(PAGE_SIZE);
 
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [activeTab, visionPosts, visionFetchingMore, visionEndReached]);
+  if (lastCreatedAt) {
+    query = query.lt("created_at", lastCreatedAt);
+  }
+
+  const { data } = await query;
+
+  if (!data) {
+    setVisionLoading(false);
+    setVisionFetchingMore(false);
+    return;
+  }
+
+  if (data.length < PAGE_SIZE) setVisionEndReached(true);
+
+  const normalized = data.map((post: any) => {
+    const creator =
+      Array.isArray(post.users) && post.users.length > 0
+        ? post.users[0]
+        : post.users;
+
+    const comments =
+      post.comments?.map((c: any) => {
+        const profileObj =
+          Array.isArray(c.profiles) && c.profiles.length > 0
+            ? c.profiles[0]
+            : c.profiles;
+
+        return {
+          id: c.id,
+          content: c.content,
+          raw_input: c.raw_input ?? null,
+          created_at: c.created_at,
+          automask: c.automask,
+          positivity_ratio: c.positivity_ratio ?? 0.5,
+          user_id: c.user_id,
+          profiles: {
+            username: profileObj?.username ?? "unknown",
+            avatar_url: profileObj?.avatar_url || FALLBACK_AVATAR,
+          },
+        };
+      }) ?? [];
+
+    return {
+      ...post,
+      media_url: post.media_url || null,
+      tags: Array.isArray(post.tags) ? post.tags : [],
+      users: {
+        username: creator?.username ?? "unknown",
+        avatar_url: creator?.avatar_url || FALLBACK_AVATAR,
+      },
+      comments,
+      comment_count: comments.length,
+    };
+  });
+
+  const enriched: VisionPost[] = [];
+
+  for (const post of normalized) {
+    const { data: reactionRows } = await supabase
+      .from("reactions")
+      .select('post_id, "maskTier"')
+      .eq("post_id", post.id)
+      .eq("post_type", "vision");
+
+    const rows: { maskTier: number }[] = reactionRows ?? [];
+
+    const counts = {
+      mask1: rows.filter((r) => r.maskTier === 1).length,
+      mask2: rows.filter((r) => r.maskTier === 2).length,
+      mask3: rows.filter((r) => r.maskTier === 3).length,
+      mask4: rows.filter((r) => r.maskTier === 4).length,
+      mask5: rows.filter((r) => r.maskTier === 5).length,
+      mask6: rows.filter((r) => r.maskTier === 6).length,
+    };
+
+    const total = rows.length;
+    const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
+    const positivity = total > 0 ? positiveCount / total : 0.5;
+
+    const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
+
+    let autoMask = 2;
+    if (spirit > 20) autoMask = 3;
+    if (spirit > 100) autoMask = 4;
+    if (spirit > 300) autoMask = 5;
+    if (spirit > 500) autoMask = 6;
+
+    enriched.push({
+      ...post,
+      reactions: counts,
+      spirit_score: spirit,
+      positivity_ratio: positivity,
+      automask: autoMask,
+      total_reactions: total,
+    });
+  }
+
+  setVisionPosts((prev) => {
+    const map = new Map<string, VisionPost>();
+    for (const p of [...prev, ...enriched]) map.set(p.id, p);
+    return Array.from(map.values());
+  });
+
+  setVisionLoading(false);
+  setVisionFetchingMore(false);
+}
+
+// ⭐ INITIAL LOAD — privacy‑patched
+useEffect(() => {
+  if (
+    viewerAllowed &&
+    activeTab === "visionposts" &&
+    visionPosts.length === 0 &&
+    !visionLoading
+  ) {
+    fetchVisionPosts(true);
+  }
+}, [activeTab, visionPosts.length, visionLoading, viewerAllowed]);
+
+// ⭐ INFINITE SCROLL — privacy‑patched
+useEffect(() => {
+  function onScroll() {
+    if (activeTab !== "visionposts") return;
+    if (!viewerAllowed) return;
+    if (visionEndReached || visionFetchingMore) return;
+
+    const scrollPos =
+      window.innerHeight + document.documentElement.scrollTop;
+    const bottom = document.documentElement.offsetHeight - 300;
+
+    if (scrollPos >= bottom) fetchVisionPosts(false);
+  }
+
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
+}, [
+  activeTab,
+  visionPosts,
+  visionFetchingMore,
+  visionEndReached,
+  viewerAllowed,
+]);
 
   // NEW reactionPostMap loader
   useEffect(() => {
-    async function buildMap() {
-      if (givenReactions.length === 0) {
-        setReactionPostMap({});
-        return;
-      }
-
-      const plazaIds = givenReactions
-        .filter((r) => r.post_type === "plaza")
-        .map((r) => r.post_id);
-
-      const soundIds = givenReactions
-        .filter((r) => r.post_type === "sound")
-        .map((r) => r.post_id);
-
-      const visionIds = givenReactions
-        .filter((r) => r.post_type === "vision")
-        .map((r) => r.post_id);
-
-      const map: Record<string, { username: string; content: string }> = {};
-
-      if (plazaIds.length > 0) {
-        const { data } = await supabase
-          .from("posts")
-          .select(`
-            id,
-            content,
-            creator_id,
-            profiles:creator_id ( username )
-          `)
-          .in("id", plazaIds);
-
-        (data || []).forEach((p: any) => {
-          map[p.id] = {
-            username: p.profiles?.username ?? "unknown",
-            content: p.content ?? "",
-          };
-        });
-      }
-
-      if (soundIds.length > 0) {
-        const { data } = await supabase
-          .from("sound_posts")
-          .select(`
-            id,
-            title,
-            creator_id,
-            profiles:creator_id ( username )
-          `)
-          .in("id", soundIds);
-
-        (data || []).forEach((p: any) => {
-          map[p.id] = {
-            username: p.profiles?.username ?? "unknown",
-            content: p.title ?? "",
-          };
-        });
-      }
-
-      if (visionIds.length > 0) {
-        const { data } = await supabase
-          .from("vision_posts")
-          .select(`
-            id,
-            title,
-            creator_id,
-            users:creator_id ( username )
-          `)
-          .in("id", visionIds);
-
-        (data || []).forEach((p: any) => {
-          map[p.id] = {
-            username: p.users?.username ?? "unknown",
-            content: p.title ?? "",
-          };
-        });
-      }
-
-      setReactionPostMap(map);
+  async function buildMap() {
+    // ⭐ PRIVACY PATCH — block loading if viewer is not allowed
+    if (!viewerAllowed) {
+      setReactionPostMap({});
+      return;
     }
 
-    buildMap();
-  }, [givenReactions, supabase]);
+    if (givenReactions.length === 0) {
+      setReactionPostMap({});
+      return;
+    }
+
+    const plazaIds = givenReactions
+      .filter((r) => r.post_type === "plaza")
+      .map((r) => r.post_id);
+
+    const soundIds = givenReactions
+      .filter((r) => r.post_type === "sound")
+      .map((r) => r.post_id);
+
+    const visionIds = givenReactions
+      .filter((r) => r.post_type === "vision")
+      .map((r) => r.post_id);
+
+    const map: Record<string, { username: string; content: string }> = {};
+
+    if (plazaIds.length > 0) {
+      const { data } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          content,
+          creator_id,
+          profiles:creator_id ( username )
+        `)
+        .in("id", plazaIds);
+
+      (data || []).forEach((p: any) => {
+        map[p.id] = {
+          username: p.profiles?.username ?? "unknown",
+          content: p.content ?? "",
+        };
+      });
+    }
+
+    if (soundIds.length > 0) {
+      const { data } = await supabase
+        .from("sound_posts")
+        .select(`
+          id,
+          title,
+          creator_id,
+          profiles:creator_id ( username )
+        `)
+        .in("id", soundIds);
+
+      (data || []).forEach((p: any) => {
+        map[p.id] = {
+          username: p.profiles?.username ?? "unknown",
+          content: p.title ?? "",
+        };
+      });
+    }
+
+    if (visionIds.length > 0) {
+      const { data } = await supabase
+        .from("vision_posts")
+        .select(`
+          id,
+          title,
+          creator_id,
+          users:creator_id ( username )
+        `)
+        .in("id", visionIds);
+
+      (data || []).forEach((p: any) => {
+        map[p.id] = {
+          username: p.users?.username ?? "unknown",
+          content: p.title ?? "",
+        };
+      });
+    }
+
+    setReactionPostMap(map);
+  }
+
+  buildMap();
+}, [givenReactions, supabase, viewerAllowed]);
 
   // Recompute Profile Header Stats (Plaza + Sound + Vision)
   useEffect(() => {
@@ -802,160 +851,200 @@ if (!authUserId && !authLoading) {
 
 return (
   <>
-    {/* HEADER */}
-    <div className="w-full bg-white text-gray-900 border-b border-gray-200">
-      {/* Banner */}
-      <div
-        className="h-32 w-full"
-        style={{ backgroundColor: bannerColor }}
-      />
+{/* HEADER */}
+<div className="w-full bg-white text-gray-900 border-b border-gray-200">
+  {/* Banner */}
+  <div
+    className="h-32 w-full"
+    style={{ backgroundColor: bannerColor }}
+  />
 
-      {/* Avatar + Info */}
-      <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
+  {/* Avatar + Info */}
+  <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
 
-        {/* LEFT — Avatar */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
-            {isOwnProfile ? (
-              <AvatarUploader
-                userId={profile.id}
-                currentAvatar={profile.avatar_url}
-              />
-            ) : (
-              <img
-                src={profile.avatar_url || FALLBACK_AVATAR}
-                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
-
-          {isOwnProfile && (
-            <button
-              onClick={() =>
-                document.getElementById("avatar-upload-input")?.click()
-              }
-              className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
-            >
-              Upload Avatar
-            </button>
-          )}
-        </div>
-
-        {/* RIGHT — Info */}
-        <div className="flex flex-col flex-1">
-
-          {/* Name + Badges */}
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              {profile.display_name}
-            </h1>
-
-            {profile.verified && (
-              <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
-                ✔
-              </span>
-            )}
-
-            <span
-              className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
-              style={{
-                backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
-                color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
-              }}
-            >
-              Tier {profile.mask_tier}
-            </span>
-          </div>
-
-          <p className="text-gray-500">@{profile.username}</p>
-
-          {profile.bio && (
-            <p className="mt-2 text-gray-700 max-w-xl leading-relaxed">
-              {profile.bio}
-            </p>
-          )}
-
-          {/* Stats */}
-          <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
-            <div>
-              <p className="text-lg font-semibold text-gray-900">{followersCount}</p>
-              <p className="text-xs text-gray-500">Followers</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold text-gray-900">{followingCount}</p>
-              <p className="text-xs text-gray-500">Following</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold text-gray-900">{profile.spirit_score}</p>
-              <p className="text-xs text-gray-500">Spirit</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold text-gray-900">
-                {Math.round(profile.positivity_ratio * 100)}%
-              </p>
-              <p className="text-xs text-gray-500">Positivity</p>
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold text-gray-900">
-                {new Date(profile.created_at).toLocaleDateString()}
-              </p>
-              <p className="text-xs text-gray-500">Joined</p>
-            </div>
-          </div>
-
-{/* Follow / Edit */}
-<div className="mt-4 flex gap-3">
-
-  {!isOwnProfile && authUserId && (
-    <button
-      onClick={handleFollowToggle}
-      disabled={busy || authLoading}
-      className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-        isFollowing
-          ? "bg-gray-200 text-gray-900 hover:bg-gray-300"
-          : "bg-purple-600 text-white hover:bg-purple-500"
-      }`}
-    >
-      {isFollowing ? "Following" : "Follow"}
-    </button>
-  )}
-
-  {/* ⭐ NEW — MESSAGE BUTTON (Patch 2) */}
-  {!isOwnProfile && authUserId && (
-    <button
-  disabled={authLoading || !authUserId}
-  onClick={() => startConversation(profile.id)}
-  className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50"
->
-  Message
-</button>
-  )}
-
-  {isOwnProfile && (
-    <button
-      onClick={() => setShowEditModal(true)}
-      className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
-    >
-      Edit Profile
-    </button>
-  )}
-
-</div>
-
-        </div>
+    {/* LEFT — Avatar */}
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
+        {isOwnProfile ? (
+          <AvatarUploader
+            userId={profile.id}
+            currentAvatar={profile.avatar_url}
+          />
+        ) : (
+          <img
+            src={profile.avatar_url || FALLBACK_AVATAR}
+            onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
+
+      {isOwnProfile && (
+        <button
+          onClick={() =>
+            document.getElementById("avatar-upload-input")?.click()
+          }
+          className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
+        >
+          Upload Avatar
+        </button>
+      )}
     </div>
 
-    {/* CONTENT BELOW */}
-    <div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
+    {/* RIGHT — Info */}
+    <div className="flex flex-col flex-1">
 
-      {/* Tabs */}
-      <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
+      {/* Name + Badges */}
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {profile.display_name}
+        </h1>
+
+        {profile.verified && (
+          <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
+            ✔
+          </span>
+        )}
+
+        <span
+          className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
+          style={{
+            backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
+            color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
+          }}
+        >
+          Tier {profile.mask_tier}
+        </span>
+      </div>
+
+      <p className="text-gray-500">@{profile.username}</p>
+
+      {/* BIO — privacy patched */}
+      {viewerAllowed && profile.bio && (
+        <p className="mt-2 text-gray-700 max-w-xl leading-relaxed">
+          {profile.bio}
+        </p>
+      )}
+
+      {!viewerAllowed && (
+        <p className="mt-2 text-gray-500">This profile is private.</p>
+      )}
+
+      {/* Stats — privacy patched */}
+      {viewerAllowed && (
+        <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
+          <div>
+            <p className="text-lg font-semibold text-gray-900">{followersCount}</p>
+            <p className="text-xs text-gray-500">Followers</p>
+          </div>
+
+          <div>
+            <p className="text-lg font-semibold text-gray-900">{followingCount}</p>
+            <p className="text-xs text-gray-500">Following</p>
+          </div>
+
+          <div>
+            <p className="text-lg font-semibold text-gray-900">{profile.spirit_score}</p>
+            <p className="text-xs text-gray-500">Spirit</p>
+          </div>
+
+          <div>
+            <p className="text-lg font-semibold text-gray-900">
+              {Math.round(profile.positivity_ratio * 100)}%
+            </p>
+            <p className="text-xs text-gray-500">Positivity</p>
+          </div>
+
+          <div>
+            <p className="text-lg font-semibold text-gray-900">
+              {new Date(profile.created_at).toLocaleDateString()}
+            </p>
+            <p className="text-xs text-gray-500">Joined</p>
+          </div>
+        </div>
+      )}
+
+      {/* Follow / Edit / Message — privacy patched */}
+      <div className="mt-4 flex gap-3">
+
+{/* ⭐ Follow Button Logic */}
+{!isOwnProfile && authUserId && (
+  <div className="mt-4">
+    {/* CASE 1 — Already following */}
+    {isFollowing && (
+      <button
+        onClick={handleFollowToggle}
+        disabled={busy}
+        className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
+      >
+        Following
+      </button>
+    )}
+
+    {/* CASE 2 — Follow request already sent */}
+    {!isFollowing && hasRequested && (
+      <button
+        disabled
+        className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-300 text-gray-600 transition"
+      >
+        Requested
+      </button>
+    )}
+
+    {/* CASE 3 — Not following, no request */}
+    {!isFollowing && !hasRequested && (
+      <button
+        onClick={handleFollowToggle}
+        disabled={busy}
+        className="px-4 py-2 rounded-lg text-sm font-semibold bg-purple-600 text-white hover:bg-purple-500 transition"
+      >
+        Follow
+      </button>
+    )}
+  </div>
+)}
+
+        {/* Message button */}
+        {!isOwnProfile && authUserId && viewerAllowed && (
+          <button
+            disabled={!viewerAllowed || authLoading || !authUserId}
+            onClick={() => viewerAllowed && startConversation(profile.id)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50"
+          >
+            Message
+          </button>
+        )}
+
+        {/* Edit Profile */}
+        {isOwnProfile && (
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
+          >
+            Edit Profile
+          </button>
+        )}
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{/* CONTENT BELOW */}
+<div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
+
+  {/* Tabs — privacy patched */}
+  <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
+
+    {!viewerAllowed && (
+      <p className="text-gray-500 text-center mt-2">
+        This profile is private.
+      </p>
+    )}
+
+    {viewerAllowed && (
+      <>
         <button
           onClick={() => setActiveTab("posts")}
           className={
@@ -999,199 +1088,207 @@ return (
         >
           Reactions
         </button>
-      </div>
-
-      {/* Grid toggle */}
-      {activeTab === "posts" && (
-        <div className="flex justify-end mt-2">
-          <button
-            onClick={() => setGridMode((prev) => !prev)}
-            className="text-xs text-gray-500 hover:text-gray-700 transition"
-          >
-            {gridMode ? "List View" : "Grid View"}
-          </button>
-        </div>
-      )}
-
-      {/* PLAZA POSTS */}
-      {activeTab === "posts" && (
-        <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
-          {posts && posts.length > 0 ? (
-            posts.map((post) => {
-              const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
-
-              const total =
-                counts.mask1 +
-                counts.mask2 +
-                counts.mask3 +
-                counts.mask4 +
-                counts.mask5 +
-                counts.mask6;
-
-              const spirit_score =
-                1 * counts.mask1 +
-                2 * counts.mask2 +
-                3 * counts.mask3 +
-                4 * counts.mask4 +
-                5 * counts.mask5 +
-                6 * counts.mask6;
-
-              const positive =
-                counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
-
-              const positivity_ratio = total > 0 ? positive / total : 0.5;
-
-              let autoMask = 2;
-              if (spirit_score > 20) autoMask = 3;
-              if (spirit_score > 100) autoMask = 4;
-              if (spirit_score > 300) autoMask = 5;
-              if (spirit_score > 500) autoMask = 6;
-
-              return (
-                <div
-                  key={post.id}
-                  className={
-                    gridMode
-                      ? "animate-fadeInUp"
-                      : "pb-4 border-b border-gray-200 last:border-b-0 animate-fadeInUp"
-                  }
-                >
-                  <PostCard
-                    post={{
-                      id: post.id,
-                      creator_id: post.creator_id,
-                      content: post.content,
-                      created_at: post.created_at,
-                      spirit_score,
-                      autoMask,
-                    }}
-                    reactions={counts}
-                    positivityRatio={positivity_ratio}
-                    onReact={() => {}}
-                    showDelete={authUserId === profile.id}
-                    onDelete={async (postId) => {
-                      await supabase.from("posts").delete().eq("id", postId);
-                      router.refresh();
-                    }}
-                  />
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-gray-500 text-center">No posts yet…</p>
-          )}
-        </div>
-      )}
-
-      {/* VISION POSTS */}
-      {activeTab === "visionposts" && (
-        <div className="space-y-6">
-          {visionLoading && visionPosts.length === 0 && (
-            <p className="text-gray-500 text-center mt-6">
-              Loading visions…
-            </p>
-          )}
-
-          {!visionLoading && visionPosts.length === 0 && (
-            <p className="text-gray-500 text-center mt-6">
-              No visions yet…
-            </p>
-          )}
-
-          {visionPosts.map((post) => (
-            <VisionCard key={post.id} post={post} smallAvatar />
-          ))}
-
-          {visionFetchingMore && (
-            <p className="text-gray-500 text-center mt-4">
-              Loading more visions…
-            </p>
-          )}
-
-          {visionEndReached && visionPosts.length > 0 && (
-            <p className="text-gray-500 text-center mt-4">
-              You’ve reached the end of this creator’s visions.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* SOUND POSTS */}
-      {activeTab === "soundposts" && (
-        <div className="space-y-6">
-          {soundPosts && soundPosts.length > 0 ? (
-            soundPosts.map((post) => (
-              <SoundPostCard key={post.id} post={post} isTrending={false} />
-            ))
-          ) : (
-            <p className="text-gray-500 text-center mt-6">
-              No soundposts yet…
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* REACTIONS */}
-      {activeTab === "reactions" && (
-        <div className="space-y-4">
-          {Object.keys(reactionPostMap).length === 0 && (
-            <p className="text-gray-500 text-center mt-6">
-              Loading reactions…
-            </p>
-          )}
-
-          {Object.keys(reactionPostMap).length > 0 && (
-            <>
-              {givenReactions.length === 0 ? (
-                <p className="text-gray-500 text-center mt-6">
-                  No reactions yet…
-                </p>
-              ) : (
-                givenReactions.map((r) => {
-                  const info = reactionPostMap[r.post_id];
-                  const username = info?.username ?? "unknown";
-                  const content = info?.content ?? "";
-
-                  return (
-                    <div
-                      key={r.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                    >
-                      <p className="text-sm text-gray-700 mb-2">
-                        You reacted{" "}
-                        <span className="font-semibold text-purple-700">
-                          Mask {r.maskTier}
-                        </span>{" "}
-                        to{" "}
-                        <span className="font-semibold">@{username}</span>
-                      </p>
-
-                      <p className="text-gray-800 mb-2 italic">
-                        “{content.slice(0, 120)}…”
-                      </p>
-
-                      <p className="text-xs text-gray-500">
-                        {new Date(r.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  );
-                })
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-
-    {/* Edit Profile Modal */}
-    {showEditModal && (
-      <Modal onClose={() => setShowEditModal(false)}>
-        <EditProfileForm
-          profile={profile}
-          onClose={() => setShowEditModal(false)}
-        />
-      </Modal>
+      </>
     )}
-  </>
+
+  </div>
+
+  {/* Grid toggle — unchanged */}
+  {activeTab === "posts" && viewerAllowed && (
+    <div className="flex justify-end mt-2">
+      <button
+        onClick={() => setGridMode((prev) => !prev)}
+        className="text-xs text-gray-500 hover:text-gray-700 transition"
+      >
+        {gridMode ? "List View" : "Grid View"}
+      </button>
+    </div>
+  )}
+
+{/* PLAZA POSTS */}
+{viewerAllowed && activeTab === "posts" && (
+  <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+    {posts && posts.length > 0 ? (
+      posts.map((post) => {
+        const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+
+        const total =
+          counts.mask1 +
+          counts.mask2 +
+          counts.mask3 +
+          counts.mask4 +
+          counts.mask5 +
+          counts.mask6;
+
+        const spirit_score =
+          1 * counts.mask1 +
+          2 * counts.mask2 +
+          3 * counts.mask3 +
+          4 * counts.mask4 +
+          5 * counts.mask5 +
+          6 * counts.mask6;
+
+        const positive =
+          counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
+
+        const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+        let autoMask = 2;
+        if (spirit_score > 20) autoMask = 3;
+        if (spirit_score > 100) autoMask = 4;
+        if (spirit_score > 300) autoMask = 5;
+        if (spirit_score > 500) autoMask = 6;
+
+        return (
+          <div
+            key={post.id}
+            className={
+              gridMode
+                ? "animate-fadeInUp"
+                : "pb-4 border-b border-gray-200 last:border-b-0 animate-fadeInUp"
+            }
+          >
+            <PostCard
+              post={{
+                id: post.id,
+                creator_id: post.creator_id,
+                content: post.content,
+                created_at: post.created_at,
+                spirit_score,
+                autoMask,
+              }}
+              reactions={counts}
+              positivityRatio={positivity_ratio}
+              onReact={() => {}}
+              showDelete={authUserId === profile.id}
+              onDelete={async (postId) => {
+                await supabase.from("posts").delete().eq("id", postId);
+                router.refresh();
+              }}
+            />
+          </div>
+        );
+      })
+    ) : (
+      <p className="text-gray-500 text-center">No posts yet…</p>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "posts" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+{/* VISION POSTS */}
+{viewerAllowed && activeTab === "visionposts" && (
+  <div className="space-y-6">
+    {visionLoading && visionPosts.length === 0 && (
+      <p className="text-gray-500 text-center mt-6">Loading visions…</p>
+    )}
+
+    {!visionLoading && visionPosts.length === 0 && (
+      <p className="text-gray-500 text-center mt-6">No visions yet…</p>
+    )}
+
+    {visionPosts.map((post) => (
+      <VisionCard key={post.id} post={post} smallAvatar />
+    ))}
+
+    {visionFetchingMore && (
+      <p className="text-gray-500 text-center mt-4">Loading more visions…</p>
+    )}
+
+    {visionEndReached && visionPosts.length > 0 && (
+      <p className="text-gray-500 text-center mt-4">
+        You’ve reached the end of this creator’s visions.
+      </p>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "visionposts" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+ {/* SOUND POSTS */}
+{viewerAllowed && activeTab === "soundposts" && (
+  <div className="space-y-6">
+    {soundPosts && soundPosts.length > 0 ? (
+      soundPosts.map((post) => (
+        <SoundPostCard key={post.id} post={post} isTrending={false} />
+      ))
+    ) : (
+      <p className="text-gray-500 text-center mt-6">No soundposts yet…</p>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "soundposts" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+{/* REACTIONS */}
+{viewerAllowed && activeTab === "reactions" && (
+  <div className="space-y-4">
+    {Object.keys(reactionPostMap).length === 0 && (
+      <p className="text-gray-500 text-center mt-6">Loading reactions…</p>
+    )}
+
+    {Object.keys(reactionPostMap).length > 0 && (
+      <>
+        {givenReactions.length === 0 ? (
+          <p className="text-gray-500 text-center mt-6">No reactions yet…</p>
+        ) : (
+          givenReactions.map((r) => {
+            const info = reactionPostMap[r.post_id];
+            const username = info?.username ?? "unknown";
+            const content = info?.content ?? "";
+
+            return (
+              <div
+                key={r.id}
+                className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+              >
+                <p className="text-sm text-gray-700 mb-2">
+                  You reacted{" "}
+                  <span className="font-semibold text-purple-700">
+                    Mask {r.maskTier}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold">@{username}</span>
+                </p>
+
+                <p className="text-gray-800 mb-2 italic">
+                  “{content.slice(0, 120)}…”
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  {new Date(r.created_at).toLocaleString()}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "reactions" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+</div>   {/* closes CONTENT wrapper */}
+
+ {/* Edit Profile Modal */}
+{showEditModal && (
+  <Modal onClose={() => setShowEditModal(false)}>
+    <EditProfileForm
+      profile={profile}
+      onClose={() => setShowEditModal(false)}
+    />
+  </Modal>
+)}
+</>
 );
 }

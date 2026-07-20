@@ -3,12 +3,14 @@
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useEffect, useState } from "react";
 import EnableNotifications from "@/components/EnableNotifications";
+import { useRouter } from "next/navigation";
 
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
 export default function NotificationsPage() {
   const { supabase } = useSupabase();
+  const router = useRouter();
 
   const [userId, setUserId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export default function NotificationsPage() {
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("*, actor:actor_id(*)")   // ⭐ Correct join
+      .select("*, actor:actor_id(*)")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -55,7 +57,6 @@ export default function NotificationsPage() {
   async function disableNotifications() {
     if (!userId) return;
 
-    // Old Web Push table — safe to delete, harmless if empty
     await supabase.from("push_subscriptions").delete().eq("user_id", userId);
 
     localStorage.setItem("notifications_enabled", "false");
@@ -109,35 +110,66 @@ export default function NotificationsPage() {
       )}
 
       <div className="space-y-4">
-        {notifList.map((n) => (
-          <div
-            key={n.id}
-            className="p-4 border rounded-lg bg-gray-50 flex items-start gap-3"
-          >
-            {/* Actor Avatar */}
-            <img
-              src={n.actor?.avatar_url || FALLBACK_AVATAR}
-              alt="actor avatar"
-              className="w-10 h-10 rounded-full object-cover"
-            />
+        {notifList.map((n) => {
+          const actor = n.actor || {};
 
-            <div className="flex-1">
-              <p className="text-sm text-gray-800">
-                <strong>{n.actor?.username || "Someone"}</strong>{" "}
-                {n.message}
-              </p>
+          return (
+            <div
+              key={n.id}
+              className="p-4 border rounded-lg bg-gray-50 flex items-start gap-3 cursor-pointer"
+              onClick={() => {
+                if (n.event_type === "dm_message" && n.dm_room_id) {
+                  router.push(`/messenger/${n.dm_room_id}`);
+                }
+              }}
+            >
+              <img
+                src={actor.avatar_url || FALLBACK_AVATAR}
+                alt="actor avatar"
+                className="w-10 h-10 rounded-full object-cover"
+              />
 
-              <p className="text-xs text-gray-500 mt-1">
-                {new Date(n.created_at).toLocaleString()}
-              </p>
+              <div className="flex-1">
 
-              {/* Event Type Tag */}
-              <span className="inline-block mt-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
-                {n.event_type}
-              </span>
+                {/* DM Message Notification */}
+                {n.event_type === "dm_message" ? (
+                  <>
+                    <p className="text-sm text-gray-800">
+                      <strong>
+                        {actor.display_name ||
+                          actor.username ||
+                          "Someone"}
+                      </strong>{" "}
+                      sent you a message
+                    </p>
+
+                    <p className="text-neutral-600 text-sm mt-1 line-clamp-1">
+                      {n.message_type === "text" && n.message}
+                      {n.message_type === "image" && "Sent an image"}
+                      {n.message_type === "audio" && "Sent an audio clip"}
+                      {n.message_type === "video" && "Sent a video"}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-800">
+                      <strong>{actor.username || "Someone"}</strong>{" "}
+                      {n.message}
+                    </p>
+                  </>
+                )}
+
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date(n.created_at).toLocaleString()}
+                </p>
+
+                <span className="inline-block mt-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
+                  {n.event_type}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

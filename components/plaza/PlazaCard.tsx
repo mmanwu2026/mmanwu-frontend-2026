@@ -19,6 +19,7 @@ interface CreatorProfile {
   id: string;
   username: string | null;
   avatar_url: string | null;
+  privacy_type?: string; // ⭐ NEW
 }
 
 interface PlazaPost {
@@ -48,6 +49,9 @@ export default function PlazaCard({
   const { supabase } = useSupabase();
   const isCreator = userId === post.creator_id;
 
+  const privacy = creator?.privacy_type ?? "public";
+  const isAllowed = privacy === "public" || isCreator;
+
   const FALLBACK_AVATAR =
     "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
@@ -58,7 +62,7 @@ export default function PlazaCard({
     let active = true;
 
     async function loadFollowState() {
-      if (!userId || isCreator) {
+      if (!userId || isCreator || !isAllowed) {
         if (active) setIsFollowing(null);
         return;
       }
@@ -77,10 +81,10 @@ export default function PlazaCard({
     return () => {
       active = false;
     };
-  }, [userId, post.creator_id, isCreator, supabase]);
+  }, [userId, post.creator_id, isCreator, supabase, isAllowed]);
 
   async function toggleFollow() {
-    if (!userId || isCreator || busy) return;
+    if (!userId || isCreator || busy || !isAllowed) return;
 
     setBusy(true);
 
@@ -149,6 +153,7 @@ export default function PlazaCard({
         className={`aura-mask-${post.autoMask} aura-intensity-${intensity} rounded-2xl`}
       >
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm w-full flex flex-col p-6">
+          
           {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-3">
             <Link
@@ -169,7 +174,7 @@ export default function PlazaCard({
               </div>
             </Link>
 
-            {!isCreator && isFollowing !== null && (
+            {isAllowed && !isCreator && isFollowing !== null && (
               <button
                 onClick={toggleFollow}
                 disabled={busy}
@@ -207,9 +212,15 @@ export default function PlazaCard({
           )}
 
           {/* CONTENT */}
-          <p className="whitespace-pre-line text-base leading-relaxed text-gray-900 text-center mt-4 px-4 max-h-[200px] overflow-y-auto">
-            {post.content}
-          </p>
+          {isAllowed ? (
+            <p className="whitespace-pre-line text-base leading-relaxed text-gray-900 text-center mt-4 px-4 max-h-[200px] overflow-y-auto">
+              {post.content}
+            </p>
+          ) : (
+            <p className="text-center text-gray-500 mt-4">
+              This post is private.
+            </p>
+          )}
 
           {/* FOOTER */}
           <div className="mt-4 w-full border-t border-gray-200 pt-3">
@@ -229,21 +240,25 @@ export default function PlazaCard({
             )}
 
             <div className="mt-4 w-full flex justify-center">
-              <ReactionBar
-                postType="plaza"
-                postId={post.id}
-                creatorId={post.creator_id}
-                reactions={post.reactions}
-                spiritScore={post.spirit_score}
-                positivityRatio={post.positivity_ratio}
-                onReact={onReactAction}
-              />
+              {isAllowed && (
+                <ReactionBar
+                  postType="plaza"
+                  postId={post.id}
+                  creatorId={post.creator_id}
+                  reactions={post.reactions}
+                  spiritScore={post.spirit_score}
+                  positivityRatio={post.positivity_ratio}
+                  onReact={onReactAction}
+                />
+              )}
             </div>
 
-            <PlazaComments
-              postId={post.id}
-              postCreatorId={post.creator_id}
-            />
+            {isAllowed && (
+              <PlazaComments
+                postId={post.id}
+                postCreatorId={post.creator_id}
+              />
+            )}
           </div>
         </div>
       </div>

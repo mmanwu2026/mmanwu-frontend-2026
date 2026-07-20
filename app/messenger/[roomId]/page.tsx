@@ -15,6 +15,9 @@ export default function RoomPage() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [otherUserId, setOtherUserId] = useState<string | undefined>(undefined);
 
+  // ⭐ DM privacy state
+  const [dmAllowed, setDmAllowed] = useState<boolean | null>(null);
+
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
     async function loadUser() {
@@ -48,11 +51,84 @@ export default function RoomPage() {
     loadOther();
   }, [userId, roomId, supabase]);
 
+  /* ---------------- DM PRIVACY CHECK (Patch 8 + Patch 10) ---------------- */
+  useEffect(() => {
+    if (!userId || !otherUserId || !roomId) return;
+
+    async function checkDmPrivacy() {
+      // 1. Load other user's profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_private")
+        .eq("id", otherUserId)
+        .single();
+
+      if (!profile) {
+        setDmAllowed(false);
+        return;
+      }
+
+      // 2. Public profile → DM allowed
+      if (!profile.is_private) {
+        setDmAllowed(true);
+      } else {
+        // 3. Private profile → must be following
+        const { data: followRow } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", userId)
+          .eq("following_id", otherUserId)
+          .maybeSingle();
+
+        const isFollowing = !!followRow;
+        setDmAllowed(isFollowing);
+      }
+
+      // ⭐ PATCH 10 — Check if room is locked
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("locked")
+        .eq("id", roomId)
+        .single();
+
+      if (room?.locked) {
+        setDmAllowed(false);
+      }
+    }
+
+    checkDmPrivacy();
+  }, [userId, otherUserId, roomId, supabase]);
+
+  /* ---------------- LOADING USER ---------------- */
   if (!userId) {
     return <div className="p-6 text-white">Loading user…</div>;
   }
 
-  /* ---------------- UI-ONLY MOBILE + DESKTOP LAYOUT ---------------- */
+  /* ---------------- LOADING PRIVACY CHECK ---------------- */
+  if (dmAllowed === null) {
+    return <div className="p-6 text-white">Checking privacy…</div>;
+  }
+
+  /* ---------------- DM BLOCKED ---------------- */
+  if (dmAllowed === false) {
+    return (
+      <div className="p-6 text-white">
+        <button
+          onClick={() => router.push("/messenger")}
+          className="px-3 py-2 bg-gray-800 rounded-lg mb-4"
+        >
+          ← Back
+        </button>
+
+        <div className="text-gray-300">
+          This user is private or this conversation is locked.  
+          You must follow them to send messages.
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- DM ALLOWED ---------------- */
   return (
     <div className="flex flex-col h-screen bg-black text-white">
 
@@ -79,6 +155,7 @@ export default function RoomPage() {
           userId={userId}
           roomId={roomId}
           otherUserId={otherUserId}
+          dmAllowed={dmAllowed}
         />
       </div>
     </div>

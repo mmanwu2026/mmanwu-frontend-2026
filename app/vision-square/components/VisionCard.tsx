@@ -38,6 +38,11 @@ export default function VisionCard({
     loadUser();
   }, [supabase]);
 
+  /* ⭐ PRIVACY ENFORCEMENT */
+  const privacy = post.creator_privacy_type ?? "public";
+  const isCreator = uid === post.creator_id;
+  const isAllowed = privacy === "public" || isCreator;
+
   const safeReactions = post.reactions ?? {
     mask1: 0,
     mask2: 0,
@@ -52,14 +57,13 @@ export default function VisionCard({
   const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
   const isVideo = !!post.media_url?.match(/\.(mp4|mov|m4v)$/i);
 
-  // ✅ Images use direct Storage URL; videos go through edge function
   const safeMedia = post.media_url
-  ? isVideo
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
-        post.media_url.replace(/^.*vision_files\//, "")
-      )}`
-    : post.media_url
-  : null;
+    ? isVideo
+      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
+          post.media_url.replace(/^.*vision_files\//, "")
+        )}`
+      : post.media_url
+    : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
   const [localSpirit, setLocalSpirit] = useState(post.spirit_score ?? 0);
@@ -90,11 +94,7 @@ export default function VisionCard({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            videoRef.current
-              ?.play()
-              .catch(() => {
-                // Chrome sometimes throws NotSupportedError
-              });
+            videoRef.current?.play().catch(() => {});
           } else {
             videoRef.current?.pause();
           }
@@ -108,6 +108,8 @@ export default function VisionCard({
   }, [isVideo]);
 
   async function refreshReactions() {
+    if (!isAllowed) return;
+
     const { data: reactionRows } = await supabase
       .from("reactions")
       .select("maskTier")
@@ -147,7 +149,6 @@ export default function VisionCard({
     router.refresh();
   }
 
-  const isCreator = uid === post.creator_id;
   const isPositive = localMask >= 3;
 
   const [commentText, setCommentText] = useState("");
@@ -159,6 +160,16 @@ export default function VisionCard({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   async function runGatekeeper(rawText: string) {
+    if (!isAllowed) {
+      return {
+        rewriteNeeded: false,
+        autoApprove: false,
+        finalText: "",
+        automask: 2,
+        positivityRatio: 0.5,
+      };
+    }
+
     try {
       const res = await fetch("/api/gatekeeper", {
         method: "POST",
@@ -184,6 +195,11 @@ export default function VisionCard({
     automask: number,
     positivity: number
   ) {
+    if (!isAllowed) {
+      setCommentError("This post is private.");
+      return false;
+    }
+
     if (!finalText || finalText.trim().length === 0) {
       setCommentError("Comment cannot be empty.");
       return false;
@@ -220,6 +236,11 @@ export default function VisionCard({
 
     if (!uid) {
       setCommentError("You must be logged in to comment.");
+      return;
+    }
+
+    if (!isAllowed) {
+      setCommentError("This post is private.");
       return;
     }
 
@@ -291,6 +312,11 @@ export default function VisionCard({
   }
 
   async function acceptRewrite(rewrite: string) {
+    if (!isAllowed) {
+      setCommentError("This post is private.");
+      return;
+    }
+
     if (!rewrite || rewrite.trim().length === 0) {
       setCommentError("Rewrite cannot be empty.");
       return;
@@ -320,6 +346,7 @@ export default function VisionCard({
     setLoadingComment(false);
   }
 
+  /* ⭐⭐⭐ JSX RENDERING — PART 1 ⭐⭐⭐ */
   return (
     <div
       data-vision-card
@@ -332,6 +359,7 @@ export default function VisionCard({
         />
       )}
 
+      {/* ⭐ HEADER */}
       <div className="flex items-center justify-between mb-3">
         <Link
           href={`/profile/${post.creator_id}?from=vision`}
@@ -362,73 +390,90 @@ export default function VisionCard({
         </Link>
       </div>
 
-      {post.title && (
-        <h2 className="text-xl font-semibold mb-2 text-purple-200">
-          {post.title}
-        </h2>
+      {/* ⭐ TITLE */}
+      {isAllowed ? (
+        post.title && (
+          <h2 className="text-xl font-semibold mb-2 text-purple-200">
+            {post.title}
+          </h2>
+        )
+      ) : (
+        <p className="text-gray-400 text-sm mb-2">This post is private.</p>
       )}
 
-      {/* ⭐ Media Rendering */}
-      <div className="mb-4 relative">
-        {safeMedia ? (
-          isVideo ? (
-            <>
-              <video
-                ref={videoRef}
+      {/* ⭐ MEDIA */}
+      {isAllowed && (
+        <div className="mb-4 relative">
+          {safeMedia ? (
+            isVideo ? (
+              <>
+                <video
+                  ref={videoRef}
+                  src={safeMedia}
+                  muted={muted}
+                  autoPlay
+                  playsInline
+                  controls
+                  preload="auto"
+                  className="rounded-lg w-full"
+                >
+                  <source src={safeMedia} type="video/mp4" />
+                </video>
+
+                <button
+                  onClick={() => setMuted(!muted)}
+                  className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
+                >
+                  {muted ? "🔇" : "🔊"}
+                </button>
+              </>
+            ) : (
+              <img
                 src={safeMedia}
-                muted={muted}
-                autoPlay
-                playsInline
-                controls
-                preload="auto"
                 className="rounded-lg w-full"
-              >
-                <source src={safeMedia} type="video/mp4" />
-              </video>
+                alt="vision media"
+              />
+            )
+          ) : null}
+        </div>
+      )}
 
-              <button
-                onClick={() => setMuted(!muted)}
-                className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
-              >
-                {muted ? "🔇" : "🔊"}
-              </button>
-            </>
-          ) : (
-            <img
-              src={safeMedia}
-              className="rounded-lg w-full"
-              alt="vision media"
-            />
-          )
-        ) : null}
-      </div>
+      {/* ⭐ METRICS */}
+      {isAllowed && (
+        <div className="text-gray-300 mb-3 text-sm">
+          <p>SpiritScore: {localSpirit}</p>
+          <p>Positivity: {Math.round(localPositivity * 100)}%</p>
+          <p>Mask: {localMask}</p>
+          <p>Reactions: {localTotalReactions}</p>
+        </div>
+      )}
 
-      <div className="text-gray-300 mb-3 text-sm">
-        <p>SpiritScore: {localSpirit}</p>
-        <p>Positivity: {Math.round(localPositivity * 100)}%</p>
-        <p>Mask: {localMask}</p>
-        <p>Reactions: {localTotalReactions}</p>
-      </div>
-
-      <ReactionBar
-        postType="vision"
-        postId={post.id}
-        creatorId={post.creator_id}
-        reactions={localReactions}
-        spiritScore={localSpirit}
-        positivityRatio={localPositivity}
-        onReact={refreshReactions}
-      />
-
-      <div className="mt-3">
-        <VisionShareButton
+       {/* ⭐ REACTIONS */}
+      {isAllowed && (
+        <ReactionBar
+          postType="vision"
           postId={post.id}
-          title={post.title}
-          imageUrl={post.media_url ?? ""}
-          creatorUsername={post.users?.username ?? "unknown"}
+          creatorId={post.creator_id}
+          reactions={localReactions}
+          spiritScore={localSpirit}
+          positivityRatio={localPositivity}
+          onReact={refreshReactions}
         />
-      </div>
+      )}
 
+      {/* ⭐ SHARE */}
+      {isAllowed && (
+        <div className="mt-3">
+          <VisionShareButton
+            postId={post.id}
+            title={post.title}
+            imageUrl={post.media_url ?? ""}
+            creatorUsername={post.users?.username ?? "unknown"}
+          />
+        </div>
+      )}
+
+      {/* ⭐ DELETE */}
       {isCreator && (
         <button
           onClick={async () => {
@@ -444,9 +489,7 @@ export default function VisionCard({
               }
 
               if (post.media_url) {
-                const mediaPath = post.media_url.split(
-                  "/vision_files/"
-                )[1];
+                const mediaPath = post.media_url.split("/vision_files/")[1];
                 if (mediaPath) {
                   await supabase.storage
                     .from("vision_files")
@@ -480,7 +523,8 @@ export default function VisionCard({
         </button>
       )}
 
-      {post.comments && post.comments.length > 0 && (
+      {/* ⭐ COMMENTS */}
+      {isAllowed && post.comments && post.comments.length > 0 && (
         <div className="mt-4">
           <p className="text-gray-300 text-sm font-medium mb-2">
             💬 {post.comment_count} comments
@@ -516,53 +560,57 @@ export default function VisionCard({
         </div>
       )}
 
-      <div className="mt-4 bg-gray-800 p-3 rounded-lg">
-        <textarea
-          className="w-full bg-gray-700 text-white rounded p-2 text-sm"
-          placeholder="Write a comment…"
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          rows={2}
-        />
+      {/* ⭐ COMMENT BOX */}
+      {isAllowed && (
+        <div className="mt-4 bg-gray-800 p-3 rounded-lg">
+          <textarea
+            className="w-full bg-gray-700 text-white rounded p-2 text-sm"
+            placeholder="Write a comment…"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            rows={2}
+          />
 
-        {commentError && (
-          <p className="text-red-400 text-sm mt-1">{commentError}</p>
-        )}
+          {commentError && (
+            <p className="text-red-400 text-sm mt-1">{commentError}</p>
+          )}
 
-        {showGateModal && gateData && (
-          <div className="bg-gray-700 p-3 rounded mt-3 border border-yellow-500/40">
-            <p className="text-yellow-300 text-sm mb-2">
-              The spirits suggest a more uplifting version:
-            </p>
+          {showGateModal && gateData && (
+            <div className="bg-gray-700 p-3 rounded mt-3 border border-yellow-500/40">
+              <p className="text-yellow-300 text-sm mb-2">
+                The spirits suggest a more uplifting version:
+              </p>
 
-            {(gateData.rewrites || []).map((r: string, idx: number) => (
+              {(gateData.rewrites || []).map((r: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => acceptRewrite(r)}
+                  className="block w-full text-left p-2 mb-2 bg-neutral-600 rounded hover:bg-neutral-500"
+                >
+                  {r}
+                </button>
+              ))}
+
               <button
-                key={idx}
-                onClick={() => acceptRewrite(r)}
-                className="block w-full text-left p-2 mb-2 bg-neutral-600 rounded hover:bg-neutral-500"
+                onClick={() => setShowGateModal(false)}
+                className="bg-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-500"
               >
-                {r}
+                Keep original
               </button>
-            ))}
+            </div>
+          )}
 
-            <button
-              onClick={() => setShowGateModal(false)}
-              className="bg-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-500"
-            >
-              Keep original
-            </button>
-          </div>
-        )}
+          <button
+            onClick={submitComment}
+            disabled={loadingComment}
+            className="mt-2 bg-purple-600 px-4 py-2 rounded text-sm hover:bg-purple-500 disabled:opacity-50"
+          >
+            {loadingComment ? "Posting…" : "Post comment"}
+          </button>
+        </div>
+      )}
 
-        <button
-          onClick={submitComment}
-          disabled={loadingComment}
-          className="mt-2 bg-purple-600 px-4 py-2 rounded text-sm hover:bg-purple-500 disabled:opacity-50"
-        >
-          {loadingComment ? "Posting…" : "Post comment"}
-        </button>
-      </div>
-
+      {/* ⭐ TIMESTAMP */}
       <p className="text-gray-400 text-sm mt-3">
         {post.created_at ? new Date(post.created_at).toLocaleString() : ""}
       </p>

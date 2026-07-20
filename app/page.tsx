@@ -86,7 +86,6 @@ export default function UnifiedFeedPage() {
                 reactions[key] = Math.max(0, (reactions[key] ?? 0) - 1);
               }
 
-              /* ⭐ Recompute spirit_score, positivity, automask */
               const total =
                 reactions.mask1 +
                 reactions.mask2 +
@@ -241,10 +240,28 @@ export default function UnifiedFeedPage() {
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
+    const visionCreatorIds = (vision.data ?? []).map((p: any) => p.creator_id);
+
+    let visionPrivacyMap: Record<string, string> = {};
+
+    if (visionCreatorIds.length > 0) {
+      const { data: visionCreators } = await supabase
+        .from("profiles")
+        .select("id, privacy_type")
+        .in("id", visionCreatorIds);
+
+      visionCreators?.forEach((c) => {
+        visionPrivacyMap[c.id] = c.privacy_type ?? "public";
+      });
+    }
+
     const visionMapped: UnifiedFeedItem[] =
       vision.data?.map((p: any) => ({
         square_type: "vision-square",
-        post: p,
+        post: {
+          ...p,
+          creator_privacy_type: visionPrivacyMap[p.creator_id] ?? "public",
+        },
         creator: p.profiles,
         trending_score: p.trending_score ?? 0,
       })) ?? [];
@@ -257,8 +274,21 @@ export default function UnifiedFeedPage() {
       .range(offset, offset + LIMIT - 1);
 
     const soundIds = (sound.data ?? []).map((p: any) => p.id);
+    const soundCreatorIds = (sound.data ?? []).map((p: any) => p.creator_id);
 
     let soundReactionMap: Record<string, ReactionCounts> = {};
+    let soundPrivacyMap: Record<string, string> = {};
+
+    if (soundCreatorIds.length > 0) {
+      const { data: soundCreators } = await supabase
+        .from("profiles")
+        .select("id, privacy_type")
+        .in("id", soundCreatorIds);
+
+      soundCreators?.forEach((c) => {
+        soundPrivacyMap[c.id] = c.privacy_type ?? "public";
+      });
+    }
 
     if (soundIds.length > 0) {
       const { data: soundReactionRows } = await supabase
@@ -350,7 +380,8 @@ export default function UnifiedFeedPage() {
             positivity_ratio: positivity,
             total_reactions: total,
             automask,
-            comments: soundCommentMap[p.id] || [], // ⭐ FIXED
+            comments: soundCommentMap[p.id] || [],
+            creator_privacy_type: soundPrivacyMap[p.creator_id] ?? "public",
           },
           creator: null,
           trending_score: p.trending_score ?? 0,
@@ -360,7 +391,27 @@ export default function UnifiedFeedPage() {
     /* ---------------- COMBINE ---------------- */
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
-    combined.sort((a, b) => {
+    /* ⭐⭐⭐ PRIVACY ENFORCEMENT ⭐⭐⭐ */
+    const viewerId = user?.id ?? null;
+
+    const filtered = combined.filter((item) => {
+      const creator = item.creator;
+
+      // Sound posts have no creator → handled inside SoundPostCard
+      if (!creator) return true;
+
+      const privacy = creator.privacy_type ?? "public";
+      const isOwner = viewerId === creator.id;
+
+      if (privacy === "private" && !isOwner) {
+        return false;
+      }
+
+      return true;
+    });
+
+    /* ---------------- SORT AFTER PRIVACY ---------------- */
+    filtered.sort((a, b) => {
       const timeA = new Date(a.post.created_at).getTime();
       const timeB = new Date(b.post.created_at).getTime();
       const scoreA = a.trending_score * 0.6 + timeA * 0.4;
@@ -368,7 +419,7 @@ export default function UnifiedFeedPage() {
       return scoreB - scoreA;
     });
 
-    setItems(combined);
+    setItems(filtered);
     setOffset(offset + LIMIT);
     setLoading(false);
   }

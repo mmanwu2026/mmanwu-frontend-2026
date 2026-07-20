@@ -19,10 +19,12 @@ export default function MessengerThread({
   userId,
   otherUserId,
   roomId,
+  dmAllowed,
 }: {
   userId: string;
   otherUserId?: string;
   roomId?: string;
+  dmAllowed: boolean;
 }) {
   if (!roomId) return null;
 
@@ -38,13 +40,37 @@ export default function MessengerThread({
   const subscribedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  /* ---------------- LOAD MESSAGES ---------------- */
+  /* ---------------- PATCH 11 — Typing Indicator State ---------------- */
+  const [otherTyping, setOtherTyping] = useState(false);
+
+  /* ---------------- PATCH 8 — DM PRIVACY ENFORCEMENT ---------------- */
+  if (!dmAllowed) {
+    return (
+      <div className="flex flex-col h-full bg-neutral-950">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-40">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">
+              {usernames[otherUserId || ""] || "Conversation"}
+            </span>
+            <span className="text-xs text-neutral-400">{roomId}</span>
+          </div>
+        </div>
+
+        {/* Blocked Message */}
+        <div className="flex-1 flex items-center justify-center text-neutral-400 px-4">
+          This user is private. You must follow them to send messages.
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- LOAD MESSAGES (now all types) ---------------- */
   async function loadMessages() {
     const { data } = await supabase
       .from("messages")
       .select("*")
       .eq("room_id", finalRoomId)
-      .eq("message_type", "text")
       .order("created_at", { ascending: true });
 
     setMessages(data || []);
@@ -103,7 +129,7 @@ export default function MessengerThread({
     loadUsernames();
   }, [messages, userId, otherUserId, supabase]);
 
-  /* ---------------- REALTIME ---------------- */
+  /* ---------------- REALTIME MESSAGES (all types) ---------------- */
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -117,22 +143,19 @@ export default function MessengerThread({
           const msg = payload.new;
           if (msg.room_id !== finalRoomId) return;
 
-          if (msg.message_type === "text") {
-            if (!msg.content || msg.content.trim() === "") return;
-
-            if (msg.sender_id !== userId) {
-              await supabase
-                .from("messages")
-                .update({ delivered_at: new Date().toISOString() })
-                .eq("id", msg.id)
-                .is("delivered_at", null);
-            }
-
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg];
-            });
+          // For any incoming message, mark delivered
+          if (msg.sender_id !== userId) {
+            await supabase
+              .from("messages")
+              .update({ delivered_at: new Date().toISOString() })
+              .eq("id", msg.id)
+              .is("delivered_at", null);
           }
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
         }
       )
       .subscribe();
@@ -140,6 +163,29 @@ export default function MessengerThread({
     return () => {
       supabase.removeChannel(channel);
       subscribedRef.current = false;
+    };
+  }, [finalRoomId, userId, supabase]);
+
+  /* ---------------- PATCH 11 — REALTIME TYPING EVENTS ---------------- */
+  useEffect(() => {
+    const channel = supabase
+      .channel(`typing-${finalRoomId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "typing_events" },
+        (payload) => {
+          const evt = payload.new;
+
+          if (evt.room_id !== finalRoomId) return;
+          if (evt.user_id === userId) return;
+
+          setOtherTyping(evt.is_typing);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, [finalRoomId, userId, supabase]);
 
@@ -158,19 +204,112 @@ export default function MessengerThread({
     markSeen();
   }, [userId, finalRoomId, supabase]);
 
-  /* ---------------- SEND MESSAGE ---------------- */
+  /* ---------------- SEND TEXT MESSAGE ---------------- */
   async function sendMessage() {
     const trimmed = newMessage.trim();
     if (!trimmed) return;
 
-    await supabase.from("messages").insert({
+    // Stop typing indicator
+    await supabase.from("typing_events").insert({
+      room_id: finalRoomId,
+      user_id: userId,
+      is_typing: false,
+    });
+
+    // Insert the actual message
+    const { data, error } = await supabase.from("messages").insert({
       room_id: finalRoomId,
       sender_id: userId,
       content: trimmed,
       message_type: "text",
     });
 
+    if (error) {
+      console.error("sendMessage error:", error);
+    }
+
+    // Ensure otherUserId is defined
+    if (!otherUserId) {
+      console.warn("Cannot send DM notification: otherUserId is undefined");
+      setNewMessage("");
+      return;
+    }
+
+    // In-app DM notification
+    await supabase.from("notifications").insert({
+      user_id: otherUserId,
+      actor_id: userId,
+      event_type: "dm_message",
+      message: trimmed,
+      dm_room_id: finalRoomId,
+      message_type: "text",
+    });
+
+    // Push notification
+    await supabase.functions.invoke("send-dm-push", {
+      body: {
+        target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
+        sender_name: usernames[userId] || "Unknown",
+        message: trimmed,
+      },
+    });
+
     setNewMessage("");
+  }
+
+  /* ---------------- PATCH 14 — UPLOAD & SEND MEDIA ---------------- */
+  async function uploadAndSend(file: File, type: "image" | "audio" | "video") {
+    const ext = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+
+    const bucket = type === "audio" ? "sound_files" : "vision_files";
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, file);
+
+    if (error) {
+      console.error("Upload error:", error);
+      return;
+    }
+
+    const url = supabase.storage.from(bucket).getPublicUrl(fileName).data.publicUrl;
+
+    await supabase.from("messages").insert({
+      room_id: finalRoomId,
+      sender_id: userId,
+      message_type: type,
+      content: url,
+    });
+
+    if (otherUserId) {
+      await supabase.from("notifications").insert({
+        user_id: otherUserId,
+        actor_id: userId,
+        event_type: "dm_message",
+        message: url,
+        dm_room_id: finalRoomId,
+        message_type: type,
+      });
+    }
+  }
+
+  async function handleImageUpload(e: any) {
+    const file = e.target.files[0];
+    if (!file) return;
+    await uploadAndSend(file, "image");
+  }
+
+  async function handleAudioUpload(e: any) {
+    const file = e.target.files[0];
+    if (!file) return;
+    await uploadAndSend(file, "audio");
+  }
+
+  async function handleVideoUpload(e: any) {
+    const file = e.target.files[0];
+    if (!file) return;
+    await uploadAndSend(file, "video");
   }
 
   /* ---------------- CALL BUTTON ---------------- */
@@ -178,8 +317,8 @@ export default function MessengerThread({
     if (!otherUserId) return;
 
     const session = await supabase.auth.getSession();
-  console.log("MessengerThread session:", session.data.session);
-  
+    console.log("MessengerThread session:", session.data.session);
+
     const newRoomId = crypto.randomUUID();
     const callId = crypto.randomUUID();
 
@@ -205,7 +344,6 @@ export default function MessengerThread({
       created_at: new Date().toISOString(),
     });
 
-    // ⭐ NEW: Invoke your FCM HTTP v1 Supabase Edge Function
     await supabase.functions.invoke("send-incoming-call-push", {
       body: {
         target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
@@ -216,6 +354,7 @@ export default function MessengerThread({
 
     router.push(`/call/${newRoomId}?role=caller`);
   }
+
   /* ---------------- UI ONLY BELOW THIS LINE ---------------- */
 
   return (
@@ -254,6 +393,13 @@ export default function MessengerThread({
             {usernames[otherUserId || ""] || "Conversation"}
           </span>
           <span className="text-xs text-neutral-400">{finalRoomId}</span>
+
+          {/* Typing Indicator */}
+          {otherTyping && (
+            <span className="text-xs text-blue-400 animate-pulse">
+              Typing…
+            </span>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -312,8 +458,30 @@ export default function MessengerThread({
                   {usernames[m.sender_id] || m.sender_id}
                 </div>
 
-                {/* Content */}
-                <div className="text-sm leading-relaxed">{m.content}</div>
+                {/* Content / Attachments */}
+                {m.message_type === "text" && (
+                  <div className="text-sm leading-relaxed">{m.content}</div>
+                )}
+
+                {m.message_type === "image" && (
+                  <img
+                    src={m.content}
+                    className="rounded-lg max-w-full mt-2"
+                    alt="attachment"
+                  />
+                )}
+
+                {m.message_type === "audio" && (
+                  <audio controls className="mt-2 w-full">
+                    <source src={m.content} />
+                  </audio>
+                )}
+
+                {m.message_type === "video" && (
+                  <video controls className="mt-2 max-w-full rounded-lg">
+                    <source src={m.content} />
+                  </video>
+                )}
 
                 {/* Status */}
                 {isLastOutgoing && (
@@ -331,11 +499,66 @@ export default function MessengerThread({
 
       {/* Composer */}
       <div className="p-4 border-t border-neutral-800 bg-neutral-900">
+
+        {/* Attachment buttons */}
+        <div className="flex gap-2 mb-3">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+            id="image-upload"
+          />
+          <label
+            htmlFor="image-upload"
+            className="px-3 py-2 bg-neutral-800 text-white rounded cursor-pointer"
+          >
+            📷 Image
+          </label>
+
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={handleAudioUpload}
+            className="hidden"
+            id="audio-upload"
+          />
+          <label
+            htmlFor="audio-upload"
+            className="px-3 py-2 bg-neutral-800 text-white rounded cursor-pointer"
+          >
+            🎤 Audio
+          </label>
+
+          <input
+            type="file"
+            accept="video/*"
+            onChange={handleVideoUpload}
+            className="hidden"
+            id="video-upload"
+          />
+          <label
+            htmlFor="video-upload"
+            className="px-3 py-2 bg-neutral-800 text-white rounded cursor-pointer"
+          >
+            🎥 Video
+          </label>
+        </div>
+
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={async (e) => {
+              setNewMessage(e.target.value);
+
+              // Send typing event
+              await supabase.from("typing_events").insert({
+                room_id: finalRoomId,
+                user_id: userId,
+                is_typing: true,
+              });
+            }}
             className="flex-1 px-3 py-2 rounded-lg bg-neutral-800 text-white outline-none"
             placeholder="Type a message…"
           />

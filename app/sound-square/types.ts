@@ -50,4 +50,7 @@ export type CardSoundPost = {
 
   comments: SoundComment[];
   comment_count: number;
+
+  /* ⭐ NEW — REQUIRED FOR PRIVACY ENFORCEMENT */
+  creator_privacy_type?: string;
 };
