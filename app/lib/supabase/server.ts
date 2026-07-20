@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/auth-helpers-nextjs";
 
 export async function createSupabaseServerClient() {
   // ⭐ Your Next.js version returns a Promise — so we await it
@@ -13,10 +13,12 @@ export async function createSupabaseServerClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-
-        // ⭐ Your cookieStore does NOT support set/remove — so we NO-OP them
-        set() {},
-        remove() {},
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options });
+        },
       },
     }
   );
