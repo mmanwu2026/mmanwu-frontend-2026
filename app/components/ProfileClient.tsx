@@ -897,15 +897,9 @@ return (
           <div className="flex items-center gap-2">
 
             {/* ⭐ FIXED USERNAME — always readable */}
-            <h1
-              className="text-2xl font-semibold"
-              style={{
-                color: "#111", // deep neutral
-                textShadow: "0 0 4px rgba(0,0,0,0.35)", // subtle halo for contrast
-              }}
-            >
-              {profile.display_name}
-            </h1>
+<h1 className="mman-username-display">
+  {profile.display_name}
+</h1>
 
             {profile.verified && (
               <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
