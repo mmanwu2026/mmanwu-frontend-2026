@@ -1,9 +1,9 @@
-// app/lib/supabase/server.ts
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export async function createSupabaseServerClient() {
-  const cookieStore = await cookies(); // Next 16: async
+  // ⭐ FIX — your Next.js version returns a Promise
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,12 +13,8 @@ export async function createSupabaseServerClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
-          cookieStore.set(name, value, options);
-        },
-        remove(name: string) {
-          cookieStore.delete(name);
-        },
+        set() {},
+        remove() {},
       },
     }
   );
