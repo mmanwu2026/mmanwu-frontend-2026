@@ -1031,6 +1031,265 @@ return (
         </div>
       </div>
     </div>
-  </>
-);
+
+{/* CONTENT BELOW */}
+<div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
+
+  {/* Tabs — privacy patched */}
+  <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
+
+    {!viewerAllowed && (
+      <p className="text-gray-500 text-center mt-2">
+        This profile is private.
+      </p>
+    )}
+
+    {viewerAllowed && (
+      <>
+        <button
+          onClick={() => setActiveTab("posts")}
+          className={
+            activeTab === "posts"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Posts
+        </button>
+
+        <button
+          onClick={() => setActiveTab("visionposts")}
+          className={
+            activeTab === "visionposts"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Vision Posts
+        </button>
+
+        <button
+          onClick={() => setActiveTab("soundposts")}
+          className={
+            activeTab === "soundposts"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Soundposts
+        </button>
+
+        <button
+          onClick={() => setActiveTab("reactions")}
+          className={
+            activeTab === "reactions"
+              ? "text-purple-700 font-semibold"
+              : "text-gray-500"
+          }
+        >
+          Reactions
+        </button>
+      </>
+    )}
+
+  </div>
+
+  {/* Grid toggle — unchanged */}
+  {activeTab === "posts" && viewerAllowed && (
+    <div className="flex justify-end mt-2">
+      <button
+        onClick={() => setGridMode((prev) => !prev)}
+        className="text-xs text-gray-500 hover:text-gray-700 transition"
+      >
+        {gridMode ? "List View" : "Grid View"}
+      </button>
+    </div>
+  )}
+
+{/* PLAZA POSTS */}
+{viewerAllowed && activeTab === "posts" && (
+  <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
+    {posts && posts.length > 0 ? (
+      posts.map((post) => {
+        const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+
+        const total =
+          counts.mask1 +
+          counts.mask2 +
+          counts.mask3 +
+          counts.mask4 +
+          counts.mask5 +
+          counts.mask6;
+
+        const spirit_score =
+          1 * counts.mask1 +
+          2 * counts.mask2 +
+          3 * counts.mask3 +
+          4 * counts.mask4 +
+          5 * counts.mask5 +
+          6 * counts.mask6;
+
+        const positive =
+          counts.mask3 + counts.mask4 + counts.mask5 + counts.mask6;
+
+        const positivity_ratio = total > 0 ? positive / total : 0.5;
+
+        let autoMask = 2;
+        if (spirit_score > 20) autoMask = 3;
+        if (spirit_score > 100) autoMask = 4;
+        if (spirit_score > 300) autoMask = 5;
+        if (spirit_score > 500) autoMask = 6;
+
+        return (
+          <div
+            key={post.id}
+            className={
+              gridMode
+                ? "animate-fadeInUp"
+                : "pb-4 border-b border-gray-200 last:border-b-0 animate-fadeInUp"
+            }
+          >
+            <PostCard
+              post={{
+                id: post.id,
+                creator_id: post.creator_id,
+                content: post.content,
+                created_at: post.created_at,
+                spirit_score,
+                autoMask,
+              }}
+              reactions={counts}
+              positivityRatio={positivity_ratio}
+              onReact={() => {}}
+              showDelete={authUserId === profile.id}
+              onDelete={async (postId) => {
+                await supabase.from("posts").delete().eq("id", postId);
+                router.refresh();
+              }}
+            />
+          </div>
+        );
+      })
+    ) : (
+      <p className="text-gray-500 text-center">No posts yet…</p>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "posts" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+{/* VISION POSTS */}
+{viewerAllowed && activeTab === "visionposts" && (
+  <div className="space-y-6">
+    {visionLoading && visionPosts.length === 0 && (
+      <p className="text-gray-500 text-center mt-6">Loading visions…</p>
+    )}
+
+    {!visionLoading && visionPosts.length === 0 && (
+      <p className="text-gray-500 text-center mt-6">No visions yet…</p>
+    )}
+
+    {visionPosts.map((post) => (
+      <VisionCard key={post.id} post={post} smallAvatar />
+    ))}
+
+    {visionFetchingMore && (
+      <p className="text-gray-500 text-center mt-4">Loading more visions…</p>
+    )}
+
+    {visionEndReached && visionPosts.length > 0 && (
+      <p className="text-gray-500 text-center mt-4">
+        You’ve reached the end of this creator’s visions.
+      </p>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "visionposts" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+ {/* SOUND POSTS */}
+{viewerAllowed && activeTab === "soundposts" && (
+  <div className="space-y-6">
+    {soundPosts && soundPosts.length > 0 ? (
+      soundPosts.map((post) => (
+        <SoundPostCard key={post.id} post={post} isTrending={false} />
+      ))
+    ) : (
+      <p className="text-gray-500 text-center mt-6">No soundposts yet…</p>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "soundposts" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+{/* REACTIONS */}
+{viewerAllowed && activeTab === "reactions" && (
+  <div className="space-y-4">
+    {Object.keys(reactionPostMap).length === 0 && (
+      <p className="text-gray-500 text-center mt-6">Loading reactions…</p>
+    )}
+
+    {Object.keys(reactionPostMap).length > 0 && (
+      <>
+        {givenReactions.length === 0 ? (
+          <p className="text-gray-500 text-center mt-6">No reactions yet…</p>
+        ) : (
+          givenReactions.map((r) => {
+            const info = reactionPostMap[r.post_id];
+            const username = info?.username ?? "unknown";
+            const content = info?.content ?? "";
+
+            return (
+              <div
+                key={r.id}
+                className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+              >
+                <p className="text-sm text-gray-700 mb-2">
+                  You reacted{" "}
+                  <span className="font-semibold text-purple-700">
+                    Mask {r.maskTier}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold">@{username}</span>
+                </p>
+
+                <p className="text-gray-800 mb-2 italic">
+                  “{content.slice(0, 120)}…”
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  {new Date(r.created_at).toLocaleString()}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </>
+    )}
+  </div>
+)}
+
+{!viewerAllowed && activeTab === "reactions" && (
+  <p className="text-gray-500 text-center mt-6">This profile is private.</p>
+)}
+
+</div>   {/* closes CONTENT wrapper */}
+
+ {/* Edit Profile Modal */}
+{showEditModal && (
+  <Modal onClose={() => setShowEditModal(false)}>
+    <EditProfileForm
+      profile={profile}
+      onClose={() => setShowEditModal(false)}
+    />
+  </Modal>
+)}
+</>
+)
 }
