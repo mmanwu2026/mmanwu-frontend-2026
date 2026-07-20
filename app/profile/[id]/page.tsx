@@ -1,6 +1,6 @@
+// ⭐ Server Component — DO NOT add "use client"
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
-import MobileAuthNav from "@/app/components/AuthNav";
 
 export default async function Page({
   params,
@@ -11,12 +11,14 @@ export default async function Page({
 
   const supabase = await createSupabaseServerClient();
 
+  // Viewer identity
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const viewerId = user?.id ?? null;
 
+  // Fetch profile
   const { data: profileRaw } = await supabase
     .from("profiles")
     .select(`
@@ -39,22 +41,22 @@ export default async function Page({
     .eq("id", id)
     .single();
 
+  // Profile not found
   if (!profileRaw) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
-        <MobileAuthNav />
         <div className="mt-6 text-lg font-semibold">Profile not found</div>
       </div>
     );
   }
 
+  // Privacy enforcement
   const isOwner = viewerId === profileRaw.id;
   const isPrivate = profileRaw.privacy_type === "private";
 
   if (isPrivate && !isOwner) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
-        <MobileAuthNav />
         <div className="mt-20 text-center">
           <p className="text-xl font-semibold">This profile is private.</p>
           <p className="text-sm text-gray-600 mt-2">
@@ -65,6 +67,7 @@ export default async function Page({
     );
   }
 
+  // Fetch posts
   const { data: postsRaw } = await supabase
     .from("posts")
     .select(`
@@ -81,7 +84,7 @@ export default async function Page({
 
   const posts = postsRaw ?? [];
 
-  // ⭐ FIX: include is_private derived from privacy_type
+  // ⭐ FIX: Add is_private so ProfileClient type is satisfied
   const profile = {
     ...profileRaw,
     is_private: profileRaw.privacy_type === "private",
@@ -90,7 +93,7 @@ export default async function Page({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
-      <MobileAuthNav />
+      {/* ⭐ AuthNav is global — do NOT import it here */}
       <ProfileClient profile={profile} posts={posts} />
     </div>
   );
