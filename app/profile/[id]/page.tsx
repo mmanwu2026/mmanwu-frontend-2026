@@ -1,6 +1,3 @@
-// ⭐ CLEAN PROMISE-PARAMS VERSION
-// DO NOT add "use client" here — this must remain a Server Component.
-
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
 import MobileAuthNav from "@/app/components/AuthNav";
@@ -10,7 +7,6 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // ⭐ Promise params — safe again
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
@@ -22,8 +18,8 @@ export default async function Page({
 
   const viewerId = user?.id ?? null;
 
-  // ⭐ Fetch profile
-  const { data: profileRaw, error: profileError } = await supabase
+  // ⭐ Fetch profile using your REAL schema
+  const { data: profileRaw } = await supabase
     .from("profiles")
     .select(`
       id,
@@ -32,21 +28,21 @@ export default async function Page({
       avatar_url,
       bio,
       mask_tier,
+      spirit_score,
+      positivity_ratio,
       created_at,
-      verified,
+      followers_count,
+      following_count,
       location,
       website_url,
-      is_private,
-      dm_permission,
-
-      followers_count:follows!follows_following_id_fkey(count),
-      following_count:follows!follows_follower_id_fkey(count)
+      verified,
+      privacy_type
     `)
     .eq("id", id)
     .single();
 
   // ⭐ Profile not found
-  if (profileError || !profileRaw) {
+  if (!profileRaw) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
         <MobileAuthNav />
@@ -57,8 +53,9 @@ export default async function Page({
 
   // ⭐ Privacy enforcement
   const isOwner = viewerId === profileRaw.id;
+  const isPrivate = profileRaw.privacy_type === "private";
 
-  if (profileRaw.is_private && !isOwner) {
+  if (isPrivate && !isOwner) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
         <MobileAuthNav />
@@ -92,11 +89,6 @@ export default async function Page({
   // ⭐ Build final profile object
   const profile = {
     ...profileRaw,
-    mask_tier: Number(profileRaw.mask_tier),
-    followers_count: profileRaw.followers_count?.[0]?.count ?? 0,
-    following_count: profileRaw.following_count?.[0]?.count ?? 0,
-    spirit_score: 0,
-    positivity_ratio: 0.5,
     posts: [],
   };
 

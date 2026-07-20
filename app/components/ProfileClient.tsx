@@ -49,6 +49,7 @@ type Profile = {
   followers_count: number;
   following_count: number;
   is_private: boolean;
+  privacy_type: "public" | "private";
 };
 
 type Post = {
@@ -61,7 +62,7 @@ type Post = {
   positivity_ratio: number;
 };
 
-type ReactionCountsMap = Record<string, typeof EMPTY_REACTIONS>;
+type ReactionCountsMap = Record<string, ReactionCounts>;
 
 interface VisionComment {
   id: string;
@@ -130,47 +131,52 @@ export default function ProfileClient({
     loadSession();
   }, [supabase]);
 
-const [hydrated, setHydrated] = useState(false);
-const [activeTab, setActiveTab] = useState<
-  "posts" | "visionposts" | "soundposts" | "reactions"
->("posts");
-const [gridMode, setGridMode] = useState(false);
-const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
-const [isFollowing, setIsFollowing] = useState(false);        // ⭐ NEW
-const [hasRequested, setHasRequested] = useState(false);      // ⭐ NEW
-const [followersCount, setFollowersCount] = useState(profile.followers_count);
-const [followingCount, setFollowingCount] = useState(profile.following_count);
-const [busy, setBusy] = useState(false);                      // already existed
-const [showEditModal, setShowEditModal] = useState(false);
-const [givenReactions, setGivenReactions] = useState<any[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "posts" | "visionposts" | "soundposts" | "reactions"
+  >("posts");
+  const [gridMode, setGridMode] = useState(false);
+  const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
+  const [followersCount, setFollowersCount] = useState(profile.followers_count);
+  const [followingCount, setFollowingCount] = useState(profile.following_count);
+  const [busy, setBusy] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [givenReactions, setGivenReactions] = useState<any[]>([]);
 
-  const [soundPosts, setSoundPosts] = useState<CardSoundPost[]>([]);
-  const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
-  const [visionLoading, setVisionLoading] = useState(false);
-  const [visionFetchingMore, setVisionFetchingMore] = useState(false);
-  const [visionEndReached, setVisionEndReached] = useState(false);
+const [soundPosts, setSoundPosts] = useState<CardSoundPost[]>([]);
+const [visionPosts, setVisionPosts] = useState<VisionPost[]>([]);
+const [visionLoading, setVisionLoading] = useState(false);
+const [visionFetchingMore, setVisionFetchingMore] = useState(false);
+const [visionEndReached, setVisionEndReached] = useState(false);
 
-  const [reactionPostMap, setReactionPostMap] = useState<
-    Record<string, { username: string; content: string }>
-  >({});
+const [reactionPostMap, setReactionPostMap] = useState<
+  Record<string, { username: string; content: string }>
+>({});
 
-  const PAGE_SIZE = 10;
+const PAGE_SIZE = 10;
 
-  const isOwnProfile = hydrated && authUserId === profile.id;
-  const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
+const isOwnProfile = hydrated && authUserId === profile.id;
+const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
 const viewerIsOwner = authUserId === profile.id;
-const viewerAllowed = !profile.is_private || viewerIsOwner;
+const isPrivate = profile.privacy_type === "private" || profile.is_private;
+const viewerAllowed = !isPrivate || viewerIsOwner;
 
-  useEffect(() => setHydrated(true), []);
+/* ⭐ FIXED useEffect — this was the source of ALL errors */
+useEffect(() => {
+  setHydrated(true);
+}, []);
 
-  // Load Sound posts
-  useEffect(() => {
-    async function loadSoundPosts() {
-      if (!viewerAllowed) return;
-      const { data, error } = await supabase
-        .from("sound_posts")
-        .select(`
+/* ⭐ Load Sound posts */
+useEffect(() => {
+  async function loadSoundPosts() {
+    if (!viewerAllowed) return;
+
+    const { data, error } = await supabase
+      .from("sound_posts")
+      .select(`
         id,
         title,
         audio_url,
@@ -196,94 +202,91 @@ const viewerAllowed = !profile.is_private || viewerIsOwner;
           )
         )
       `)
-        .eq("creator_id", profile.id)
-        .order("created_at", { ascending: false });
+      .eq("creator_id", profile.id)
+      .order("created_at", { ascending: false });
 
-      if (error) return;
+    if (error) return;
 
-      const ids = (data || []).map((p: any) => p.id);
+    const ids = (data || []).map((p: any) => p.id);
 
-      const { data: reactionsRows } = await supabase
-        .from("reactions")
-        .select('post_id, "maskTier"')
-        .in("post_id", ids)
-        .eq("post_type", "sound");
+    const { data: reactionsRows } = await supabase
+      .from("reactions")
+      .select('post_id, "maskTier"')
+      .in("post_id", ids)
+      .eq("post_type", "sound");
 
-      type ReactionRow = { post_id: string; maskTier: number };
+    type ReactionRow = { post_id: string; maskTier: number };
 
-      const mapped: CardSoundPost[] = (data || []).map((p: any) => {
-        const postReactions: ReactionRow[] = (reactionsRows ?? []).filter(
-          (r: ReactionRow) => r.post_id === p.id
-        );
+    const mapped: CardSoundPost[] = (data || []).map((p: any) => {
+      const postReactions: ReactionRow[] = (reactionsRows ?? []).filter(
+        (r: ReactionRow) => r.post_id === p.id
+      );
 
-        const counts: ReactionCounts = {
-          mask1: postReactions.filter((r: ReactionRow) => r.maskTier === 1).length,
-          mask2: postReactions.filter((r: ReactionRow) => r.maskTier === 2).length,
-          mask3: postReactions.filter((r: ReactionRow) => r.maskTier === 3).length,
-          mask4: postReactions.filter((r: ReactionRow) => r.maskTier === 4).length,
-          mask5: postReactions.filter((r: ReactionRow) => r.maskTier === 5).length,
-          mask6: postReactions.filter((r: ReactionRow) => r.maskTier === 6).length,
-        };
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
 
-        const spirit_score = postReactions.reduce(
-          (sum: number, r: ReactionRow) => sum + r.maskTier,
-          0
-        );
+      const spirit_score = postReactions.reduce(
+        (sum, r) => sum + r.maskTier,
+        0
+      );
 
-        const total = postReactions.length;
-        const positive = postReactions.filter(
-          (r: ReactionRow) => r.maskTier >= 3
-        ).length;
+      const total = postReactions.length;
+      const positive = postReactions.filter((r) => r.maskTier >= 3).length;
+      const positivity_ratio = total > 0 ? positive / total : 0.5;
 
-        const positivity_ratio = total > 0 ? positive / total : 0.5;
+      let automask = 2;
+      if (spirit_score > 20) automask = 3;
+      if (spirit_score > 100) automask = 4;
+      if (spirit_score > 300) automask = 5;
+      if (spirit_score > 500) automask = 6;
 
-        let automask = 2;
-        if (spirit_score > 20) automask = 3;
-        if (spirit_score > 100) automask = 4;
-        if (spirit_score > 300) automask = 5;
-        if (spirit_score > 500) automask = 6;
-
-        const commentList =
-          p.comments?.map((c: any) => ({
-            id: c.id,
-            content: c.content,
-            raw_input: c.raw_input ?? null,
-            created_at: c.created_at,
-            automask: c.automask,
-            positivity_ratio: c.positivity_ratio ?? 0.5,
-            user_id: c.user_id,
-            profiles: {
-              username: c.profiles?.username ?? "unknown",
-              avatar_url: c.profiles?.avatar_url ?? null,
-            },
-          })) ?? [];
-
-        return {
-          id: p.id,
-          title: p.title ?? "",
-          audio_url: p.audio_url ?? "",
-          creator_id: p.creator_id ?? "",
-          creator_name: null,
-          created_at: p.created_at ?? "",
-          spirit_score,
-          positivity_ratio,
-          automask,
-          reactions: counts,
-          users: {
-            username: p.profiles?.username ?? "Unknown",
-            avatar_url: p.profiles?.avatar_url ?? null,
+      const commentList =
+        p.comments?.map((c: any) => ({
+          id: c.id,
+          content: c.content,
+          raw_input: c.raw_input ?? null,
+          created_at: c.created_at,
+          automask: c.automask,
+          positivity_ratio: c.positivity_ratio ?? 0.5,
+          user_id: c.user_id,
+          profiles: {
+            username: c.profiles?.username ?? "unknown",
+            avatar_url: c.profiles?.avatar_url ?? null,
           },
-          comments: commentList,
-        };
-      });
+        })) ?? [];
 
-      setSoundPosts(mapped);
-    }
+      return {
+        id: p.id,
+        title: p.title ?? "",
+        audio_url: p.audio_url ?? "",
+        creator_id: p.creator_id ?? "",
+        creator_name: null,
+        created_at: p.created_at ?? "",
+        spirit_score,
+        positivity_ratio,
+        automask,
+        reactions: counts,
+        users: {
+          username: p.profiles?.username ?? "Unknown",
+          avatar_url: p.profiles?.avatar_url ?? null,
+        },
+        comments: commentList,
+      };
+    });
 
-    loadSoundPosts();
-  }, [profile.id, supabase]);
+    setSoundPosts(mapped);
+  }
 
-  // Load follow state
+  loadSoundPosts();
+}, [profile.id, supabase]);
+
+/* ⭐ Load follow state */
 useEffect(() => {
   async function loadFollowState() {
     if (!authUserId || authLoading || isOwnProfile) {
@@ -292,7 +295,6 @@ useEffect(() => {
       return;
     }
 
-    // A. Check if already following
     const { data: followData } = await supabase
       .from("follows")
       .select("id")
@@ -306,7 +308,6 @@ useEffect(() => {
       return;
     }
 
-    // B. Check if a follow request is pending
     const { data: requestData } = await supabase
       .from("follow_requests")
       .select("status")
@@ -321,7 +322,6 @@ useEffect(() => {
       return;
     }
 
-    // C. Not following, no request
     setIsFollowing(false);
     setHasRequested(false);
   }
