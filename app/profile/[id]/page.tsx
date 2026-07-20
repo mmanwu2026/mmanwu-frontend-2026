@@ -1,4 +1,5 @@
-"use client";
+// ⭐ IMPORTANT: This file MUST remain a Server Component.
+// DO NOT add "use client" here.
 
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
@@ -80,7 +81,6 @@ export default async function Page({
     .eq("id", id)
     .single();
 
-  // ⭐ If profile doesn't exist
   if (profileError || !profileRaw) {
     return (
       <div className="p-6 text-white">
@@ -90,7 +90,7 @@ export default async function Page({
     );
   }
 
-  // ⭐ Privacy enforcement (correct field)
+  // ⭐ Privacy enforcement
   const isOwner = viewerId === profileRaw.id;
 
   if (profileRaw.is_private && !isOwner) {
