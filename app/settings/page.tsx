@@ -62,8 +62,8 @@ export default function SettingsPage() {
     await supabase
       .from("profiles")
       .update({
-        is_private: profile.is_private,
-        dm_permission: profile.dm_permission,
+        privacy_type: profile.privacy_type,   // ⭐ FIXED
+        dm_permission: profile.dm_permission, // correct
       })
       .eq("id", userId);
 
@@ -110,16 +110,20 @@ export default function SettingsPage() {
       <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg">
         <h2 className="text-lg font-semibold mb-3">Privacy</h2>
 
+        {/* ⭐ FIXED: privacy_type instead of is_private */}
         <label className="flex items-center gap-3 mb-4">
           <input
             type="checkbox"
-            checked={profile.is_private}
+            checked={profile.privacy_type === "private"}
             onChange={(e) =>
-              setProfile({ ...profile, is_private: e.target.checked })
+              setProfile({
+                ...profile,
+                privacy_type: e.target.checked ? "private" : "public",
+              })
             }
           />
           <span>
-            {profile.is_private
+            {profile.privacy_type === "private"
               ? "Your profile is private — only approved followers can DM you."
               : "Your profile is public — anyone can DM you."}
           </span>
