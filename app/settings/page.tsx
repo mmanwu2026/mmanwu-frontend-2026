@@ -46,7 +46,7 @@ export default function SettingsPage() {
   async function loadPendingRequests(id: string) {
     const { data } = await supabase
       .from("follow_requests")
-      .select("*, follower: follower_id(*)")
+      .select("*, requester:requester_id(*)")
       .eq("target_id", id)
       .eq("status", "pending");
 
@@ -72,22 +72,22 @@ export default function SettingsPage() {
   }
 
   /* ---------------- APPROVE FOLLOW REQUEST ---------------- */
-  async function approveRequest(followerId: string) {
+  async function approveRequest(requesterId: string) {
     await supabase
       .from("follow_requests")
-      .update({ status: "approved" })
-      .eq("follower_id", followerId)
+      .update({ status: "accepted" })
+      .eq("requester_id", requesterId)
       .eq("target_id", userId);
 
     await loadPendingRequests(userId!);
   }
 
   /* ---------------- REJECT FOLLOW REQUEST ---------------- */
-  async function rejectRequest(followerId: string) {
+  async function rejectRequest(requesterId: string) {
     await supabase
       .from("follow_requests")
-      .delete()
-      .eq("follower_id", followerId)
+      .update({ status: "rejected" })
+      .eq("requester_id", requesterId)
       .eq("target_id", userId);
 
     await loadPendingRequests(userId!);
@@ -110,7 +110,6 @@ export default function SettingsPage() {
       <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg">
         <h2 className="text-lg font-semibold mb-3">Privacy</h2>
 
-        {/* Privacy Toggle */}
         <label className="flex items-center gap-3 mb-4">
           <input
             type="checkbox"
@@ -126,7 +125,6 @@ export default function SettingsPage() {
           </span>
         </label>
 
-        {/* DM Permission */}
         <label className="flex items-center gap-3">
           <span className="font-semibold">DM Permission:</span>
           <select
@@ -160,22 +158,22 @@ export default function SettingsPage() {
           <div className="space-y-3">
             {pendingRequests.map((req) => (
               <div
-                key={req.follower_id}
+                key={req.requester_id}
                 className="flex items-center justify-between"
               >
                 <span>
-                  {req.follower.display_name || req.follower.username}
+                  {req.requester.display_name || req.requester.username}
                 </span>
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => approveRequest(req.follower_id)}
+                    onClick={() => approveRequest(req.requester_id)}
                     className="px-3 py-1 bg-green-600 rounded"
                   >
                     Approve
                   </button>
                   <button
-                    onClick={() => rejectRequest(req.follower_id)}
+                    onClick={() => rejectRequest(req.requester_id)}
                     className="px-3 py-1 bg-red-600 rounded"
                   >
                     Reject
