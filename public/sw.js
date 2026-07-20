@@ -5,7 +5,7 @@ const CACHE_NAME = "mmanplaza-v1";
 const ASSETS_TO_CACHE = [
   "/",
   "/favicon.ico",
-  "/manifest.json"
+  "/manifest.json",
 ];
 
 // ⭐ Install event — cache assets + force immediate activation
@@ -38,8 +38,8 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();
 
       // ⭐ Notify all tabs that a new version is available
-      const clients = await self.clients.matchAll();
-      clients.forEach((client) =>
+      const clientsList = await self.clients.matchAll();
+      clientsList.forEach((client) =>
         client.postMessage({ type: "sw-update" })
       );
     })()
@@ -83,4 +83,35 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+});
+
+// ⭐ Handle notification clicks (incoming call, etc.)
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const roomId = data.room_id;
+  const targetUrl =
+    roomId ? `/call/${roomId}?role=callee` : "/messenger";
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      // Try to focus an existing client first
+      for (const client of allClients) {
+        const url = new URL(client.url);
+        if (url.pathname === targetUrl) {
+          await client.focus();
+          return;
+        }
+      }
+
+      // Otherwise open a new window
+      await self.clients.openWindow(targetUrl);
+    })()
+  );
 });
