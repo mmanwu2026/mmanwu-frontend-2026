@@ -35,12 +35,12 @@ type Profile = {
 export default async function Page({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
+  const { id } = params;
 
   const supabase = await createSupabaseServerClient();
-
+  
   // ⭐ Fetch viewer identity
   const {
     data: { session },
