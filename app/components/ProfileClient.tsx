@@ -159,9 +159,8 @@ const [givenReactions, setGivenReactions] = useState<any[]>([]);
   const isOwnProfile = hydrated && authUserId === profile.id;
   const bannerColor = MASK_TIER_COLORS[profile.mask_tier] ?? "#000000";
 
-  const privacy = (profile as any).privacy_type ?? "public";
 const viewerIsOwner = authUserId === profile.id;
-const viewerAllowed = privacy === "public" || viewerIsOwner;
+const viewerAllowed = !profile.is_private || viewerIsOwner;
 
   useEffect(() => setHydrated(true), []);
 
