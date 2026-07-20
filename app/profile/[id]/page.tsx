@@ -11,14 +11,12 @@ export default async function Page({
 
   const supabase = await createSupabaseServerClient();
 
-  // ⭐ Reliable viewer identity
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const viewerId = user?.id ?? null;
 
-  // ⭐ Fetch profile using your REAL schema
   const { data: profileRaw } = await supabase
     .from("profiles")
     .select(`
@@ -41,7 +39,6 @@ export default async function Page({
     .eq("id", id)
     .single();
 
-  // ⭐ Profile not found
   if (!profileRaw) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
@@ -51,7 +48,6 @@ export default async function Page({
     );
   }
 
-  // ⭐ Privacy enforcement
   const isOwner = viewerId === profileRaw.id;
   const isPrivate = profileRaw.privacy_type === "private";
 
@@ -69,7 +65,6 @@ export default async function Page({
     );
   }
 
-  // ⭐ Fetch posts
   const { data: postsRaw } = await supabase
     .from("posts")
     .select(`
@@ -86,13 +81,13 @@ export default async function Page({
 
   const posts = postsRaw ?? [];
 
-  // ⭐ Build final profile object
+  // ⭐ FIX: include is_private derived from privacy_type
   const profile = {
     ...profileRaw,
+    is_private: profileRaw.privacy_type === "private",
     posts: [],
   };
 
-  // ⭐ FINAL RENDER — with padding under sticky AuthNav
   return (
     <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
       <MobileAuthNav />
