@@ -2,8 +2,13 @@
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import ProfileClient from "@/app/components/ProfileClient";
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  // ⭐ Promise params — correct for your project
+  const { id } = await params;
 
   // ⭐ Use your existing authenticated server-side Supabase client
   const supabase = await createSupabaseServerClient();
@@ -40,6 +45,7 @@ export default async function Page({ params }: { params: { id: string } }) {
     .eq("id", id)
     .single();
 
+  // ⭐ Profile not found
   if (!profileRaw || profileError) {
     return (
       <div className="min-h-screen bg-white text-gray-900 pt-20 p-6">
