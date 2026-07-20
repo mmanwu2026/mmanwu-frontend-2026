@@ -918,7 +918,9 @@ return (
             </span>
           </div>
 
-          <p className="mman-username-handle">@{profile.username}</p>
+          <p className="text-gray-600 mt-1.5 leading-snug mman-username-handle">
+  @{profile.username}
+</p>
 
       {/* BIO — privacy patched */}
       {viewerAllowed && profile.bio && (
