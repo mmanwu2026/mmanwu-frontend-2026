@@ -248,14 +248,16 @@ export default function MessengerThread({
       dm_room_id: finalRoomId,
     });
 
-    // Push notification
-    await supabase.functions.invoke("send-dm-push", {
-      body: {
-        target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
-        sender_name: usernames[userId] || "Unknown",
-        message: trimmed,
-      },
-    });
+await supabase.functions.invoke("send-dm-push", {
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
+    sender_name: usernames[userId] || "Unknown",
+    message: trimmed,
+  }),
+});
 
     setNewMessage("");
   }
