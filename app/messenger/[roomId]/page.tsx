@@ -51,63 +51,65 @@ export default function RoomPage() {
     loadOther();
   }, [userId, roomId, supabase]);
 
-/* ---------------- DM PRIVACY CHECK ---------------- */
-useEffect(() => {
-  if (!userId || !otherUserId || !roomId) return;
+  /* ---------------- DM PRIVACY CHECK (FIXED) ---------------- */
+  useEffect(() => {
+    if (!userId || !otherUserId || !roomId) return;
 
-  async function checkDmPrivacy() {
-    // 1. Load other user's profile (SAFE)
-    const { data: profileRows } = await supabase
-      .from("profiles")
-      .select("privacy_type")
-      .eq("id", otherUserId)
-      .limit(1);
+    async function checkDmPrivacy() {
+      // 1. Load other user's profile
+      const { data: profileRows } = await supabase
+        .from("profiles")
+        .select("privacy_type")
+        .eq("id", otherUserId)
+        .limit(1);
 
-    const profile = profileRows?.[0] ?? null;
+      const profile = profileRows?.[0] ?? null;
 
-    if (!profile) {
-      setDmAllowed(false);
-      return;
+      if (!profile) {
+        setDmAllowed(false);
+        return;
+      }
+
+      const isPrivate = profile.privacy_type === "private";
+      const isOwner = userId === otherUserId;
+
+      // 2. If public → always allowed
+      if (!isPrivate) {
+        setDmAllowed(true);
+        return;
+      }
+
+      // 3. If private → must be APPROVED follower or owner
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", userId)        // viewer
+        .eq("following_id", otherUserId)  // target
+        .limit(1);
+
+      const isFollower = !!followRows?.[0];
+
+      // ⭐ FIXED: Approved followers CAN DM private accounts
+      const allowed = isOwner || isFollower;
+
+      setDmAllowed(allowed);
+
+      // 4. Room locked → override
+      const { data: roomRows } = await supabase
+        .from("rooms")
+        .select("locked")
+        .eq("id", roomId)
+        .limit(1);
+
+      const room = roomRows?.[0] ?? null;
+
+      if (room?.locked) {
+        setDmAllowed(false);
+      }
     }
 
-    const isPrivate = profile.privacy_type === "private";
-    const isOwner = userId === otherUserId;
-
-    // 2. Public profile → DM allowed
-    if (!isPrivate) {
-      setDmAllowed(true);
-      return;
-    }
-
-    // 3. Private profile → must be following OR owner (SAFE)
-    const { data: followRows } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", userId)
-      .eq("following_id", otherUserId)
-      .limit(1);
-
-    const followRow = followRows?.[0] ?? null;
-    const isFollower = !!followRow;
-
-    setDmAllowed(isOwner || isFollower);
-
-    // 4. Room locked → override (SAFE)
-    const { data: roomRows } = await supabase
-      .from("rooms")
-      .select("locked")
-      .eq("id", roomId)
-      .limit(1);
-
-    const room = roomRows?.[0] ?? null;
-
-    if (room?.locked) {
-      setDmAllowed(false);
-    }
-  }
-
-  checkDmPrivacy();
-}, [userId, otherUserId, roomId, supabase]);
+    checkDmPrivacy();
+  }, [userId, otherUserId, roomId, supabase]);
 
   /* ---------------- LOADING USER ---------------- */
   if (!userId) {
