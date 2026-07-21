@@ -12,6 +12,7 @@ interface ProfileResult {
   id: string;
   username: string;
   avatar_url: string | null;
+  privacy_type: "public" | "private";
 }
 
 interface PlazaResult {
@@ -73,34 +74,91 @@ export default function GlobalSearchPage() {
   }, [query]);
 
   async function runSearch(q: string) {
-    const [profiles, plaza, vision, sound, messenger] = await Promise.all([
-      supabase.from("profiles")
-        .select("id, username, avatar_url")
+    // Load viewer ID
+    const session = await supabase.auth.getSession();
+    const viewerId = session.data.session?.user?.id ?? null;
+
+    // Raw search queries
+    const [profilesRes, plaza, vision, sound, messengerRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, username, avatar_url, privacy_type")
         .ilike("username", `%${q}%`),
 
-      supabase.from("plaza_posts")
+      supabase
+        .from("plaza_posts")
         .select("id, content, created_at")
         .ilike("content", `%${q}%`),
 
-      supabase.from("vision_posts")
+      supabase
+        .from("vision_posts")
         .select("id, title, image_url, created_at")
         .ilike("title", `%${q}%`),
 
-      supabase.from("sound_posts")
+      supabase
+        .from("sound_posts")
         .select("id, title, audio_url, created_at")
         .ilike("title", `%${q}%`),
 
-      supabase.from("profiles")
-        .select("id, username, avatar_url")
+      supabase
+        .from("profiles")
+        .select("id, username, avatar_url, privacy_type")
         .ilike("username", `%${q}%`)
     ]);
 
+    const profiles = profilesRes.data ?? [];
+    const messenger = messengerRes.data ?? [];
+
+    // Filter private profiles
+    const filteredProfiles: ProfileResult[] = [];
+    const filteredMessenger: ProfileResult[] = [];
+
+    for (const p of profiles) {
+      if (p.privacy_type !== "private") {
+        filteredProfiles.push(p);
+        continue;
+      }
+
+      if (!viewerId) continue;
+
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", p.id)
+        .limit(1);
+
+      if (followRows?.[0]) {
+        filteredProfiles.push(p);
+      }
+    }
+
+    for (const p of messenger) {
+      if (p.privacy_type !== "private") {
+        filteredMessenger.push(p);
+        continue;
+      }
+
+      if (!viewerId) continue;
+
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", p.id)
+        .limit(1);
+
+      if (followRows?.[0]) {
+        filteredMessenger.push(p);
+      }
+    }
+
     setResults({
-      profiles: profiles.data ?? [],
+      profiles: filteredProfiles,
       plaza: plaza.data ?? [],
       vision: vision.data ?? [],
       sound: sound.data ?? [],
-      messenger: messenger.data ?? [],
+      messenger: filteredMessenger,
     });
   }
 

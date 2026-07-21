@@ -413,7 +413,7 @@ useEffect(() => {
       }
 
       // CASE 2 — Private profile → follow request
-      if (profile.is_private) {
+      if (profile.privacy_type === "private") {
         await supabase.from("follow_requests").insert({
           requester_id: authUserId,
           target_id: profile.id,
