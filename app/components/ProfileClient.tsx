@@ -159,9 +159,15 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   const isOwnProfile = hydrated && authUserId === profile?.id;
   const bannerColor = MASK_TIER_COLORS[profile?.mask_tier ?? 1];
 
-  const viewerIsOwner = authUserId === profile?.id;
-  const isPrivate = profile?.privacy_type === "private";
-  const viewerAllowed = !isPrivate || viewerIsOwner || isFollowing;
+  // Derived values
+const viewerIsOwner = authUserId === profile?.id;
+const isPrivate = profile?.privacy_type === "private";
+
+// ⭐ Only compute viewerAllowed AFTER follow-state loads
+const viewerAllowed =
+  profile && authUserId !== null
+    ? (!isPrivate || viewerIsOwner || isFollowing)
+    : false;
 
     /* --------------------------------------------- */
   /* AUTH SESSION (Supabase)                       */
@@ -344,13 +350,12 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
 /* --------------------------------------------- */
 useEffect(() => {
   async function loadFollowState() {
-    if (!authUserId || authLoading || !profile || isOwnProfile) {
+    if (!authUserId || !profile) {
       setIsFollowing(false);
       setHasRequested(false);
       return;
     }
 
-    // ⭐ SAFE REPLACEMENT FOR maybeSingle()
     const { data: followRows } = await supabase
       .from("follows")
       .select("id")
@@ -366,34 +371,24 @@ useEffect(() => {
       return;
     }
 
-    // ⭐ SAFE REPLACEMENT FOR maybeSingle()
     const { data: requestRows } = await supabase
       .from("follow_requests")
-      .select("status")
+      .select("id")
       .eq("requester_id", authUserId)
       .eq("target_id", profile.id)
-      .eq("status", "pending")
       .limit(1);
 
-    const requestData = requestRows?.[0] ?? null;
-
-    if (requestData) {
-      setHasRequested(true);
-      setIsFollowing(false);
-      return;
-    }
-
     setIsFollowing(false);
-    setHasRequested(false);
+    setHasRequested(!!requestRows?.[0]);
   }
 
-  if (profile) {
+    if (profile) {
     setFollowersCount(profile.followers_count);
     setFollowingCount(profile.following_count);
   }
 
   loadFollowState();
-}, [authUserId, authLoading, profile, isOwnProfile, supabase]);
+}, [authUserId, profile, supabase]);
 
   /* --------------------------------------------- */
   /* FOLLOW TOGGLE                                  */
