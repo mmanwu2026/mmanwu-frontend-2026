@@ -1,7 +1,7 @@
 "use client";
 
-import { useSupabase } from "@/app/context/SupabaseContext";
 import { useEffect, useState } from "react";
+import { useSupabase } from "@/app/context/SupabaseContext";
 
 import PlazaCard from "@/components/plaza/PlazaCard";
 import VisionCard from "@/app/vision-square/components/VisionCard";
@@ -20,9 +20,18 @@ interface ReactionCounts {
 interface UnifiedFeedItem {
   square_type: "plaza" | "vision-square" | "sound-square";
   post: any;
-  creator: any;
+  creator: any | null;
   trending_score: number;
 }
+
+const EMPTY_REACTIONS: ReactionCounts = {
+  mask1: 0,
+  mask2: 0,
+  mask3: 0,
+  mask4: 0,
+  mask5: 0,
+  mask6: 0,
+};
 
 export default function UnifiedFeedPage() {
   const { supabase, user } = useSupabase();
@@ -38,15 +47,19 @@ export default function UnifiedFeedPage() {
   /* ---------------- HYDRATION ---------------- */
   useEffect(() => {
     setHydrated(true);
-    const flag = localStorage.getItem("notifications_enabled");
+    const flag = typeof window !== "undefined"
+      ? localStorage.getItem("notifications_enabled")
+      : null;
     setNotificationsEnabled(flag);
   }, []);
 
+  /* ---------------- INITIAL LOAD ---------------- */
   useEffect(() => {
-    if (notificationsEnabled === "true") {
+    if (notificationsEnabled === "true" && items.length === 0) {
+      // only run once, no infinite loop
       loadMore();
     }
-  }, [notificationsEnabled]);
+  }, [notificationsEnabled]); // items length checked inside
 
   /* ⭐⭐⭐ REALTIME REACTION UPDATES — PLAZA + SOUND + VISION ⭐⭐⭐ */
   useEffect(() => {
@@ -68,6 +81,9 @@ export default function UnifiedFeedPage() {
           const { post_id, post_type, maskTier } = row;
           if (!post_id || !post_type || !maskTier) return;
 
+          // avoid doing work before we have any items
+          if (!items.length) return;
+
           setItems((prev) =>
             prev.map((item) => {
               const match =
@@ -77,7 +93,11 @@ export default function UnifiedFeedPage() {
 
               if (!match || item.post.id !== post_id) return item;
 
-              const reactions = { ...item.post.reactions };
+              const reactions: ReactionCounts = {
+                ...EMPTY_REACTIONS,
+                ...(item.post.reactions ?? {}),
+              };
+
               const key = `mask${maskTier}` as keyof ReactionCounts;
 
               if (payload.eventType === "INSERT") {
@@ -126,7 +146,6 @@ export default function UnifiedFeedPage() {
                   total_reactions: total,
                   automask,
                 },
-                trending_score: item.trending_score,
               };
             })
           );
@@ -135,7 +154,7 @@ export default function UnifiedFeedPage() {
 
     channel.subscribe();
     return () => channel.unsubscribe();
-  }, [supabase]);
+  }, [supabase, items.length]);
 
   /* ---------------- LOAD MORE ---------------- */
   async function loadMore() {
@@ -161,14 +180,7 @@ export default function UnifiedFeedPage() {
         .eq("post_type", "plaza");
 
       plazaIds.forEach((id) => {
-        plazaReactionMap[id] = {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
+        plazaReactionMap[id] = { ...EMPTY_REACTIONS };
       });
 
       plazaReactionRows?.forEach((r) => {
@@ -179,14 +191,7 @@ export default function UnifiedFeedPage() {
 
     const plazaMapped: UnifiedFeedItem[] =
       plaza.data?.map((p: any) => {
-        const reactions = plazaReactionMap[p.id] ?? {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
+        const reactions = plazaReactionMap[p.id] ?? { ...EMPTY_REACTIONS };
 
         const total =
           reactions.mask1 +
@@ -298,14 +303,7 @@ export default function UnifiedFeedPage() {
         .eq("post_type", "sound");
 
       soundIds.forEach((id) => {
-        soundReactionMap[id] = {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
+        soundReactionMap[id] = { ...EMPTY_REACTIONS };
       });
 
       soundReactionRows?.forEach((r) => {
@@ -314,7 +312,6 @@ export default function UnifiedFeedPage() {
       });
     }
 
-    /* ⭐ Fetch comments for sound posts */
     let soundCommentMap: Record<string, any[]> = {};
     soundIds.forEach((id) => (soundCommentMap[id] = []));
 
@@ -332,14 +329,7 @@ export default function UnifiedFeedPage() {
 
     const soundMapped: UnifiedFeedItem[] =
       sound.data?.map((p: any) => {
-        const reactions = soundReactionMap[p.id] ?? {
-          mask1: 0,
-          mask2: 0,
-          mask3: 0,
-          mask4: 0,
-          mask5: 0,
-          mask6: 0,
-        };
+        const reactions = soundReactionMap[p.id] ?? { ...EMPTY_REACTIONS };
 
         const total =
           reactions.mask1 +
@@ -383,7 +373,7 @@ export default function UnifiedFeedPage() {
             comments: soundCommentMap[p.id] || [],
             creator_privacy_type: soundPrivacyMap[p.creator_id] ?? "public",
           },
-          creator: null,
+          creator: null, // sound posts handled in SoundPostCard
           trending_score: p.trending_score ?? 0,
         };
       }) ?? [];
@@ -394,21 +384,24 @@ export default function UnifiedFeedPage() {
     /* ⭐⭐⭐ PRIVACY ENFORCEMENT ⭐⭐⭐ */
     const viewerId = user?.id ?? null;
 
-const filtered = combined.filter((item) => {
-  const creator = item.creator;
+    const filtered = combined.filter((item) => {
+      const creator = item.creator;
 
-  // Sound posts → no creator → always allowed
-  if (!creator) return true;
+      // Sound posts → no creator → always allowed
+      if (!creator) return true;
 
-  const privacy = creator.privacy_type ?? "public";
+      const privacy = creator.privacy_type ?? "public";
+      const isOwner =
+        viewerId != null &&
+        creator.id != null &&
+        viewerId === creator.id;
 
-  const isOwner =
-    viewerId != null &&
-    creator.id != null &&
-    viewerId === creator.id;
+      if (privacy === "private" && !isOwner) {
+        return false;
+      }
 
-  return !(privacy === "private" && !isOwner);
-});
+      return true;
+    });
 
     /* ---------------- SORT AFTER PRIVACY ---------------- */
     filtered.sort((a, b) => {
@@ -428,10 +421,14 @@ const filtered = combined.filter((item) => {
     setItems((prev) => prev.filter((item) => item.post.id !== id));
   }
 
-  function handleReact() {}
+  function handleReact() {
+    // placeholder for future reaction handling
+  }
 
   if (!hydrated) {
-    return <div style={{ background: "black", height: "100vh", width: "100vw" }} />;
+    return (
+      <div style={{ background: "black", height: "100vh", width: "100vw" }} />
+    );
   }
 
   return (
@@ -446,12 +443,12 @@ const filtered = combined.filter((item) => {
       )}
 
       <h1
-  className="text-3xl font-extrabold tracking-tight mb-6 
-             bg-gradient-to-r from-purple-400 to-pink-300 
-             bg-clip-text text-transparent unified-feed-slide"
->
-  Unified Feed
-</h1>
+        className="text-3xl font-extrabold tracking-tight mb-6 
+                   bg-gradient-to-r from-purple-400 to-pink-300 
+                   bg-clip-text text-transparent unified-feed-slide"
+      >
+        Unified Feed
+      </h1>
 
       <div className="space-y-6">
         {items.map((item) => {
