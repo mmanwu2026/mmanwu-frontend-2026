@@ -18,6 +18,20 @@ async function getTargetFCMToken(userId: string, supabase: any) {
   return row?.fcm_token || null;
 }
 
+/* ---------------- FETCH TARGET WEBPUSH SUBSCRIPTION (SAFE) ---------------- */
+async function getTargetWebPushSubscription(userId: string, supabase: any) {
+  const { data: rows, error } = await supabase
+    .from("user_push_tokens")
+    .select("webpush_subscription")
+    .eq("user_id", userId)
+    .limit(1);
+
+  if (error) return null;
+
+  const row = rows?.[0] ?? null;
+  return row?.webpush_subscription || null;
+}
+
 export default function MessengerThread({
   userId,
   otherUserId,
@@ -249,13 +263,10 @@ export default function MessengerThread({
     });
 
 await supabase.functions.invoke("send-dm-push", {
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${supabase.supabaseKey}`,   // ⭐ REQUIRED
-  },
   body: JSON.stringify({
     target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
-    sender_name: usernames[userId] || "Unknown",
+    target_webpush_subscription: await getTargetWebPushSubscription(otherUserId, supabase),
+    sender_name: usernames[userId],
     message: trimmed,
   }),
 });
