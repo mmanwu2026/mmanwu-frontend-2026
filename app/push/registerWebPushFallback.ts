@@ -4,45 +4,47 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
   try {
     console.log("WebPush fallback → starting registration for:", userId);
 
-    // ⭐ MUST come from NEXT_PUBLIC_ env var (client-side)
     const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_WEBPUSH_VAPID_PUBLIC_KEY;
-
     if (!VAPID_PUBLIC_KEY) {
       console.error("WebPush fallback → ERROR: VAPID public key is missing!");
       return;
     }
 
-    // ⭐ Convert VAPID key to Uint8Array for Chrome
     const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
 
-    // ⭐ Wait for SW to be ready
     const registration = await navigator.serviceWorker.ready;
 
-    // ⭐ Remove old subscription (required for iOS + Chrome consistency)
-    const existing = await registration.pushManager.getSubscription();
-    if (existing) {
-      console.log("WebPush fallback → existing subscription found, unsubscribing...");
-      await existing.unsubscribe();
+    // Remove browser subscription
+    const existingBrowserSub = await registration.pushManager.getSubscription();
+    if (existingBrowserSub) {
+      console.log("WebPush fallback → unsubscribing browser subscription...");
+      await existingBrowserSub.unsubscribe();
     }
 
-    // ⭐ Create NEW WebPush subscription (NOT FCM mobile)
+    // ⭐ Remove Supabase row FIRST
+    await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", userId);
+
+    // Create new WebPush subscription
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey, // ⭐ THIS is the critical fix
+      applicationServerKey,
     });
 
     console.log("WebPush fallback → SUBSCRIPTION SUCCESS:", subscription);
 
-    // ⭐ Save subscription to Supabase
+    // Insert new row (no conflict now)
     const { error } = await supabase
       .from("push_subscriptions")
-      .upsert({
+      .insert({
         user_id: userId,
-        subscription, // JSON stored exactly as returned by browser
+        subscription,
       });
 
     if (error) {
-      console.error("WebPush fallback → Supabase upsert failed:", error);
+      console.error("WebPush fallback → Supabase insert failed:", error);
       return;
     }
 
