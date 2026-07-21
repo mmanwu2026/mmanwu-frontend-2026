@@ -8,6 +8,7 @@ import React, {
 } from "react";
 
 import { useSupabase } from "@/app/context/SupabaseContext";
+import { useIdentity } from "@/app/context/IdentityContext";   // ⭐ NEW
 import PlazaCard from "@/components/plaza/PlazaCard";
 import UnreadListener from "@/app/components/UnreadListener";
 
@@ -31,23 +32,17 @@ interface PlazaPostWithAggregates {
   reactions: ReactionCounts;
 }
 
-interface CreatorProfile {
-  id: string;
-  username: string | null;
-  avatar_url: string | null;
-}
-
 const PAGE_SIZE = 20;
 
 export default function PlazaPage() {
   const { supabase } = useSupabase();
+  const { fetchCreator, creators, authReady } = useIdentity();   // ⭐ NEW
 
   const [uid, setUid] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
 
   const [hydrated, setHydrated] = useState(false);
   const [posts, setPosts] = useState<PlazaPostWithAggregates[]>([]);
-  const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
@@ -76,7 +71,7 @@ export default function PlazaPage() {
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
-      if (!sessionReady) return;
+      if (!sessionReady || !authReady) return;   // ⭐ NEW
 
       if (!append) setLoading(true);
 
@@ -232,48 +227,25 @@ export default function PlazaPage() {
       if (!append) setLoading(false);
       setLoadingMore(false);
     },
-    [supabase, sessionReady]
+    [supabase, sessionReady, authReady]
   );
 
   useEffect(() => {
-    if (!sessionReady) return;
+    if (!sessionReady || !authReady) return;
     if (posts.length > 0) return;
     fetchPosts(0, false);
-  }, [sessionReady, fetchPosts, posts.length]);
+  }, [sessionReady, authReady, fetchPosts, posts.length]);
 
   const reloadPosts = useCallback(() => {
-    if (!sessionReady) return;
+    if (!sessionReady || !authReady) return;
     fetchPosts(0, false);
-  }, [sessionReady, fetchPosts]);
+  }, [sessionReady, authReady, fetchPosts]);
 
   // -----------------------------------------------------
-  // FETCH CREATOR PROFILES (RESTORED)
+  // FETCH CREATOR PROFILES (GLOBAL)
   // -----------------------------------------------------
-  async function fetchCreator(id: string) {
-  if (!sessionReady) return null;
-
-  if (creators[id]) return creators[id];
-
-  const { data: rows, error } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url")
-    .eq("id", id)
-    .limit(1);
-
-  if (error) return null;
-
-  const profile = rows?.[0] ?? null;
-
-  if (profile) {
-    setCreators((prev) => ({ ...prev, [id]: profile }));
-    return profile;
-  }
-
-  return null;
-}
-
   useEffect(() => {
-    if (!sessionReady) return;
+    if (!sessionReady || !authReady) return;
 
     const missingCreatorIds = posts
       .map((p) => p.creator_id)
@@ -283,10 +255,11 @@ export default function PlazaPage() {
 
     (async () => {
       for (const id of missingCreatorIds) {
-        await fetchCreator(id);
+        await fetchCreator(id);   // ⭐ GLOBAL identity loader
       }
     })();
-  }, [sessionReady, posts, creators]);
+  }, [sessionReady, authReady, posts, creators, fetchCreator]);
+
 
   // -----------------------------------------------------
   // DELETE POST
