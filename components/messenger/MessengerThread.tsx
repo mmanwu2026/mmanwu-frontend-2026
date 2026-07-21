@@ -251,6 +251,7 @@ export default function MessengerThread({
 await supabase.functions.invoke("send-dm-push", {
   headers: {
     "Content-Type": "application/json",
+    Authorization: `Bearer ${supabase.supabaseKey}`,   // ⭐ REQUIRED
   },
   body: JSON.stringify({
     target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
