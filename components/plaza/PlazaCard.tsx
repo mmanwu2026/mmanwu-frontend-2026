@@ -19,7 +19,7 @@ interface CreatorProfile {
   id: string;
   username: string | null;
   avatar_url: string | null;
-  privacy_type?: string; // ⭐ NEW
+  privacy_type?: string;
 }
 
 interface PlazaPost {
@@ -41,15 +41,24 @@ export default function PlazaCard({
   onReactAction,
 }: {
   post: PlazaPost;
-  creator: CreatorProfile;
+  creator?: CreatorProfile | null;
   userId: string;
   onDeleteAction: (id: string) => void;
   onReactAction: () => void;
 }) {
   const { supabase } = useSupabase();
+
+  // ⭐ Safe creator fallback so we never crash
+  const safeCreator: CreatorProfile = creator ?? {
+    id: "",
+    username: "unknown",
+    avatar_url: null,
+    privacy_type: "public",
+  };
+
   const isCreator = userId === post.creator_id;
 
-  const privacy = creator?.privacy_type ?? "public";
+  const privacy = safeCreator.privacy_type ?? "public";
   const isAllowed = privacy === "public" || isCreator;
 
   const FALLBACK_AVATAR =
@@ -62,7 +71,8 @@ export default function PlazaCard({
     let active = true;
 
     async function loadFollowState() {
-      if (!userId || isCreator || !isAllowed) {
+      // if no viewer, or viewer is creator, or post not allowed, or creator missing → no follow state
+      if (!userId || isCreator || !isAllowed || !safeCreator.id) {
         if (active) setIsFollowing(null);
         return;
       }
@@ -81,10 +91,10 @@ export default function PlazaCard({
     return () => {
       active = false;
     };
-  }, [userId, post.creator_id, isCreator, supabase, isAllowed]);
+  }, [userId, post.creator_id, isCreator, supabase, isAllowed, safeCreator.id]);
 
   async function toggleFollow() {
-    if (!userId || isCreator || busy || !isAllowed) return;
+    if (!userId || isCreator || busy || !isAllowed || !safeCreator.id) return;
 
     setBusy(true);
 
@@ -157,16 +167,16 @@ export default function PlazaCard({
           {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-3">
             <Link
-              href={`/profile/${creator.id}`}
+              href={safeCreator.id ? `/profile/${safeCreator.id}` : "#"}
               className="flex items-center gap-2 hover:opacity-80 transition"
             >
               <img
-                src={creator?.avatar_url || FALLBACK_AVATAR}
+                src={safeCreator.avatar_url || FALLBACK_AVATAR}
                 className="plaza-avatar border border-gray-300"
               />
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-gray-900">
-                  {creator?.username || "unknown"}
+                  {safeCreator.username || "unknown"}
                 </span>
                 <span className="text-xs text-gray-500">
                   {new Date(post.created_at).toLocaleString()}
@@ -174,7 +184,7 @@ export default function PlazaCard({
               </div>
             </Link>
 
-            {isAllowed && !isCreator && isFollowing !== null && (
+            {isAllowed && !isCreator && isFollowing !== null && safeCreator.id && (
               <button
                 onClick={toggleFollow}
                 disabled={busy}
