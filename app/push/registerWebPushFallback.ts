@@ -1,6 +1,10 @@
 import { urlBase64ToUint8Array } from "./utils";
 
 export async function registerWebPushFallback(userId: string, supabase: any) {
+
+  // ⭐ THIS IS THE EXACT SPOT — FIRST LINE INSIDE THE FUNCTION
+  console.log("WebPush fallback → VERSION 7 LOADED");
+
   try {
     console.log("WebPush fallback → starting registration for:", userId);
 
@@ -14,20 +18,17 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
 
     const registration = await navigator.serviceWorker.ready;
 
-    // Remove browser subscription
     const existingBrowserSub = await registration.pushManager.getSubscription();
     if (existingBrowserSub) {
       console.log("WebPush fallback → unsubscribing browser subscription...");
       await existingBrowserSub.unsubscribe();
     }
 
-    // ⭐ Remove Supabase row FIRST
     await supabase
       .from("push_subscriptions")
       .delete()
       .eq("user_id", userId);
 
-    // Create new WebPush subscription
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey,
@@ -35,7 +36,6 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
 
     console.log("WebPush fallback → SUBSCRIPTION SUCCESS:", subscription);
 
-    // Insert new row (no conflict now)
     const { error } = await supabase
       .from("push_subscriptions")
       .insert({
@@ -53,6 +53,4 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
   } catch (err) {
     console.error("WebPush fallback registration failed:", err);
   }
-  
-  console.log("WebPush fallback → VERSION 7");
 }
