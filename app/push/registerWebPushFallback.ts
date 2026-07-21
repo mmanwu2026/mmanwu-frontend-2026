@@ -24,12 +24,13 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
     }
 
     // ⭐ PUT THE DEBUG BLOCK HERE — EXACTLY HERE
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from("push_subscriptions")
-      .delete()
-      .eq("user_id", userId);
+const { data: deletedRows, error: deleteError } = await supabase
+  .from("push_subscriptions")
+  .delete()
+  .eq("user_id", userId)
+  .select(); // ⭐ forces returning rows
 
-    console.log("WebPush fallback → DELETE RESULT:", { deletedRows, deleteError });
+console.log("WebPush fallback → DELETE RESULT:", { deletedRows, deleteError });
 
     // Create new WebPush subscription
     const subscription = await registration.pushManager.subscribe({
