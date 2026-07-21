@@ -17,12 +17,12 @@ export default function SoundReactionBar({
   postId,
   creatorId,
   reactions,
-  onReact,
+   onReactAction,
 }: {
   postId: string;
   creatorId: string;
   reactions: ReactionCounts;
-  onReact: () => void;
+   onReactAction: () => void;
 }) {
   const { supabase } = useSupabase();
   const router = useRouter();
@@ -66,26 +66,28 @@ export default function SoundReactionBar({
       return;
     }
 
-    // ⭐ 2. Fetch YOUR OWN push subscription (correct)
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", uid) // logged-in user ONLY
-      .single();
+ // ⭐ 2. Fetch YOUR OWN push subscription (SAFE)
+const { data: rows } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid) // logged-in user ONLY
+  .limit(1);
 
-    // ⭐ 3. Insert notification into database
-    await fetch("/functions/v1/create-notification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipientId: creatorId,
-        actorId: uid,
-        postId,
-        postType: "sound",
-        message: `${email || "Someone"} reacted to your sound`,
-        eventType: "reaction",
-      }),
-    });
+const sub = rows?.[0] ?? null;
+
+// ⭐ 3. Insert notification into database
+await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: creatorId,
+    actorId: uid,
+    postId,
+    postType: "sound",   // ⭐ FIXED
+    message: `${email || "Someone"} reacted to your post`,
+    eventType: "reaction",
+  }),
+});
 
     // ⭐ 4. Trigger push notification
     if (sub?.subscription) {
@@ -109,7 +111,7 @@ export default function SoundReactionBar({
 
     // 5. Refresh UI
     router.refresh();
-    onReact();
+    onReactAction();
   }
 
   return (

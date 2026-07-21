@@ -22,7 +22,7 @@ interface PostCardProps {
     mask6: number;
   };
   positivityRatio: number;
-  onReact: () => void;
+  onReactAction: () => void;
 
   showDelete?: boolean;
   onDelete?: (postId: string) => void;
@@ -32,7 +32,7 @@ export default function PostCard({
   post,
   reactions,
   positivityRatio,
-  onReact,
+  onReactAction,
   showDelete = false,
   onDelete,
 }: PostCardProps) {
@@ -170,7 +170,7 @@ setIsFollowing(!!followRow);
           reactions={reactions}
           spiritScore={spiritScore}
           positivityRatio={positivityRatio}
-          onReact={onReact}
+          onReactAction={onReactAction}
         />
 
         {/* DELETE BUTTON */}

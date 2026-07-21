@@ -494,13 +494,13 @@ export default function SoundPostCard({
         <canvas ref={canvasRef} className="w-full h-24 mt-3" />
       </div>
 
-      {/* Reaction Bar */}
-      <SoundReactionBar
-        postId={post.id}
-        creatorId={post.creator_id}
-        reactions={reactions}
-        onReact={refreshReactions}
-      />
+{/* Reaction Bar */}
+<SoundReactionBar
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={reactions}
+  onReactAction={refreshReactions}
+/>
 
       {/* ⭐ Inline Latest Comment */}
       {latestComment && (

@@ -457,7 +457,7 @@ export default function VisionCard({
           reactions={localReactions}
           spiritScore={localSpirit}
           positivityRatio={localPositivity}
-          onReact={refreshReactions}
+          onReactAction={refreshReactions}
         />
       )}
 

@@ -260,7 +260,7 @@ if (active) setIsFollowing(!!followRow);
                   reactions={post.reactions}
                   spiritScore={post.spirit_score}
                   positivityRatio={post.positivity_ratio}
-                  onReact={onReactAction}
+                  onReactAction={onReactAction}
                 />
               )}
             </div>

@@ -250,24 +250,27 @@ export default function PlazaPage() {
   // FETCH CREATOR PROFILES (RESTORED)
   // -----------------------------------------------------
   async function fetchCreator(id: string) {
-    if (!sessionReady) return null;
+  if (!sessionReady) return null;
 
-    if (creators[id]) return creators[id];
+  if (creators[id]) return creators[id];
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, username, avatar_url")
-      .eq("id", id)
-      .single();
+  const { data: rows, error } = await supabase
+    .from("profiles")
+    .select("id, username, avatar_url")
+    .eq("id", id)
+    .limit(1);
 
-    if (!error && data) {
-      const profile = data as CreatorProfile;
-      setCreators((prev) => ({ ...prev, [id]: profile }));
-      return profile;
-    }
+  if (error) return null;
 
-    return null;
+  const profile = rows?.[0] ?? null;
+
+  if (profile) {
+    setCreators((prev) => ({ ...prev, [id]: profile }));
+    return profile;
   }
+
+  return null;
+}
 
   useEffect(() => {
     if (!sessionReady) return;

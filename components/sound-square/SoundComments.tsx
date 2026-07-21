@@ -39,20 +39,22 @@ export default function SoundComments({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  // ⭐ Load creator ID
-  useEffect(() => {
-    async function loadCreator() {
-      const { data } = await supabase
-        .from("sound_posts")
-        .select("creator_id")
-        .eq("id", postId)
-        .single();
+ // ⭐ Load creator ID (SAFE)
+useEffect(() => {
+  async function loadCreator() {
+    const { data: rows } = await supabase
+      .from("sound_posts")
+      .select("creator_id")
+      .eq("id", postId)
+      .limit(1);
 
-      if (data?.creator_id) setCreatorId(data.creator_id);
-    }
+    const row = rows?.[0] ?? null;
 
-    loadCreator();
-  }, [postId, supabase]);
+    if (row?.creator_id) setCreatorId(row.creator_id);
+  }
+
+  loadCreator();
+}, [postId, supabase]);
 
   async function handleSubmit() {
     if (!text.trim()) return;
@@ -101,26 +103,28 @@ export default function SoundComments({
       }),
     });
 
-    // ⭐ 2. Fetch YOUR OWN push subscription (correct)
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", uid) // logged-in user ONLY
-      .single();
+// ⭐ 2. Fetch YOUR OWN push subscription (SAFE)
+const { data: rows } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid)
+  .limit(1);
 
-    // ⭐ 3. Insert notification via Edge Function
-    await fetch("/functions/v1/create-notification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipientId: creatorId,
-        actorId: uid,
-        postId,
-        postType: "sound",
-        message: `${email || "Someone"} commented on your sound`,
-        eventType: "comment",
-      }),
-    });
+const sub = rows?.[0] ?? null;
+
+// ⭐ 3. Insert notification via Edge Function
+await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: creatorId,
+    actorId: uid,
+    postId,
+    postType: "sound",
+    message: `${email || "Someone"} commented on your sound`,
+    eventType: "comment",
+  }),
+});
 
     // ⭐ 4. Trigger push notification
     if (sub?.subscription) {

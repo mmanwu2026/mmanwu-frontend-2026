@@ -60,26 +60,27 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     }
   }
 
-  async function publishToSupabase(finalText: string): Promise<void> {
-    if (!uid) return;
+async function publishToSupabase(finalText: string): Promise<void> {
+  if (!uid) return;
 
-    const { data, error } = await supabase
-      .from("posts")
-      .insert({
-        content: finalText,
-        creator_id: uid,
-        mask: 0,
-      })
-      .select()
-      .single();
+  const { data: rows, error } = await supabase
+    .from("posts")
+    .insert({
+      content: finalText,
+      creator_id: uid,
+      mask: 0,
+    })
+    .select()
+    .limit(1);
 
-    if (error) {
-      console.error("Post insert error:", error);
-      return;
-    }
-
-    if (data) onPost(data);
+  if (error) {
+    console.error("Post insert error:", error);
+    return;
   }
+
+  const data = rows?.[0] ?? null;
+  if (data) onPost(data);
+}
 
   async function handleSubmit(): Promise<void> {
     if (!content.trim() || loadingUser || !uid) return;

@@ -4,15 +4,18 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
 
-/* ---------------- FETCH TARGET FCM TOKEN ---------------- */
+/* ---------------- FETCH TARGET FCM TOKEN (SAFE) ---------------- */
 async function getTargetFCMToken(userId: string, supabase: any) {
-  const { data } = await supabase
+  const { data: rows, error } = await supabase
     .from("user_push_tokens")
     .select("fcm_token")
     .eq("user_id", userId)
-    .single();
+    .limit(1);
 
-  return data?.fcm_token || null;
+  if (error) return null;
+
+  const row = rows?.[0] ?? null;
+  return row?.fcm_token || null;
 }
 
 export default function MessengerThread({

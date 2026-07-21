@@ -31,16 +31,22 @@ export default function SettingsPage() {
     loadUser();
   }, [supabase]);
 
-  /* ---------------- LOAD PROFILE ---------------- */
-  async function loadProfile(id: string) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", id)
-      .single();
+/* ---------------- LOAD PROFILE (SAFE) ---------------- */
+async function loadProfile(id: string) {
+  const { data: rows, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", id)
+    .limit(1);
 
-    setProfile(data);
+  if (error) {
+    setProfile(null);
+    return;
   }
+
+  const profile = rows?.[0] ?? null;
+  setProfile(profile);
+}
 
   /* ---------------- LOAD FOLLOW REQUESTS ---------------- */
   async function loadPendingRequests(id: string) {

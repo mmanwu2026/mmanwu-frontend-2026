@@ -79,7 +79,7 @@ export default function VisionPostPage() {
     async function fetchPost() {
       setLoading(true);
 
-      const { data, error } = await supabase
+      const { data: rows, error } = await supabase
         .from("vision_posts")
         .select(`
           id,
@@ -112,9 +112,11 @@ export default function VisionPostPage() {
           )
         `)
         .eq("id", id)
-        .single();
+        .limit(1);
 
-      if (error || !data) {
+      const data = rows?.[0] ?? null;
+
+      if (!data) {
         console.error(error);
         setLoading(false);
         return;
@@ -151,20 +153,20 @@ export default function VisionPostPage() {
         .eq("post_id", id)
         .eq("post_type", "vision");
 
-      const rows: ReactionRow[] = reactionRows ?? [];
+      const rowsR: ReactionRow[] = reactionRows ?? [];
 
       const counts = {
-        mask1: rows.filter((r) => r.maskTier === 1).length,
-        mask2: rows.filter((r) => r.maskTier === 2).length,
-        mask3: rows.filter((r) => r.maskTier === 3).length,
-        mask4: rows.filter((r) => r.maskTier === 4).length,
-        mask5: rows.filter((r) => r.maskTier === 5).length,
-        mask6: rows.filter((r) => r.maskTier === 6).length,
+        mask1: rowsR.filter((r) => r.maskTier === 1).length,
+        mask2: rowsR.filter((r) => r.maskTier === 2).length,
+        mask3: rowsR.filter((r) => r.maskTier === 3).length,
+        mask4: rowsR.filter((r) => r.maskTier === 4).length,
+        mask5: rowsR.filter((r) => r.maskTier === 5).length,
+        mask6: rowsR.filter((r) => r.maskTier === 6).length,
       };
 
-      const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
-      const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
-      const totalCount = rows.length;
+      const spirit = rowsR.reduce((sum, r) => sum + r.maskTier, 0);
+      const positiveCount = rowsR.filter((r) => r.maskTier >= 3).length;
+      const totalCount = rowsR.length;
 
       const positivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
 
@@ -223,30 +225,30 @@ export default function VisionPostPage() {
       )}
 
       {/* Navigation */}
-<div className="mb-6 flex justify-between items-center">
-  <Link
-    href="/vision-square/feed"
-    className="text-gray-600 hover:text-purple-600 transition"
-  >
-    ← Back to Vision feed
-  </Link>
+      <div className="mb-6 flex justify-between items-center">
+        <Link
+          href="/vision-square/feed"
+          className="text-gray-600 hover:text-purple-600 transition"
+        >
+          ← Back to Vision feed
+        </Link>
 
-  <Link
-    href="/plaza"
-    className="text-gray-600 hover:text-purple-600 transition"
-  >
-    Plaza →
-  </Link>
+        <Link
+          href="/plaza"
+          className="text-gray-600 hover:text-purple-600 transition"
+        >
+          Plaza →
+        </Link>
 
-  {uid && (
-    <Link
-      href={`/profile/${uid}`}
-      className="text-gray-600 hover:text-purple-600 transition"
-    >
-      Profile →
-    </Link>
-  )}
-</div>
+        {uid && (
+          <Link
+            href={`/profile/${uid}`}
+            className="text-gray-600 hover:text-purple-600 transition"
+          >
+            Profile →
+          </Link>
+        )}
+      </div>
 
       {post.title && (
         <h1 className="text-3xl font-bold mb-6 text-purple-700">
@@ -254,10 +256,8 @@ export default function VisionPostPage() {
         </h1>
       )}
 
-      {/* ⭐ VisionCard handles ALL comments */}
       <VisionCard post={post} />
 
-      {/* ⭐ Share Button */}
       <div className="mt-6">
         <VisionShareButton
           postId={post.id}

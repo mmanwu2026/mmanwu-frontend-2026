@@ -55,21 +55,23 @@ export default function NewChatModal({
       return;
     }
 
-    // 2. Create new room
-    const { data: room, error: roomError } = await supabase
-      .from("rooms")
-      .insert({
-        is_group: false,
-        created_by: userId,
-      })
-      .select()
-      .single();
+// 2. Create new room (SAFE)
+const { data: rows, error: roomError } = await supabase
+  .from("rooms")
+  .insert({
+    is_group: false,
+    created_by: userId,
+  })
+  .select()
+  .limit(1);
 
-    if (roomError || !room) {
-      console.error("Failed to create room:", roomError);
-      setCreating(null);
-      return;
-    }
+const room = rows?.[0] ?? null;
+
+if (roomError || !room) {
+  console.error("Failed to create room:", roomError);
+  setCreating(null);
+  return;
+}
 
     // 3. Add participants
     await supabase.from("room_participants").insert([

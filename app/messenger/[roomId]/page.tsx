@@ -56,12 +56,14 @@ useEffect(() => {
   if (!userId || !otherUserId || !roomId) return;
 
   async function checkDmPrivacy() {
-    // 1. Load other user's profile
-    const { data: profile } = await supabase
+    // 1. Load other user's profile (SAFE)
+    const { data: profileRows } = await supabase
       .from("profiles")
       .select("privacy_type")
       .eq("id", otherUserId)
-      .single();
+      .limit(1);
+
+    const profile = profileRows?.[0] ?? null;
 
     if (!profile) {
       setDmAllowed(false);
@@ -77,25 +79,27 @@ useEffect(() => {
       return;
     }
 
-const { data: followRows } = await supabase
-  .from("follows")
-  .select("id")
-  .eq("follower_id", userId)
-  .eq("following_id", otherUserId)
-  .limit(1);
+    // 3. Private profile → must be following OR owner (SAFE)
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", userId)
+      .eq("following_id", otherUserId)
+      .limit(1);
 
-const followRow = followRows?.[0] ?? null;
+    const followRow = followRows?.[0] ?? null;
+    const isFollower = !!followRow;
 
-const isFollower = !!followRow;
+    setDmAllowed(isOwner || isFollower);
 
-setDmAllowed(isOwner || isFollower);
-
-    // 4. Room locked → override
-    const { data: room } = await supabase
+    // 4. Room locked → override (SAFE)
+    const { data: roomRows } = await supabase
       .from("rooms")
       .select("locked")
       .eq("id", roomId)
-      .single();
+      .limit(1);
+
+    const room = roomRows?.[0] ?? null;
 
     if (room?.locked) {
       setDmAllowed(false);

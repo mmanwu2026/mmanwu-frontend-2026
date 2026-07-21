@@ -105,130 +105,135 @@ export default function PlazaComments({
       }),
     });
 
-    const result = await response.json();
+const result = await response.json();
 
-    if (!result.approved) {
-      setRewriteMode(true);
-      setRewriteMessage(result.toast);
-      return;
-    }
+if (!result.approved) {
+  setRewriteMode(true);
+  setRewriteMessage(result.toast);
+  return;
+}
 
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", uid)
-      .single();
+// ⭐ SAFE: no `.single()`
+const { data: rows } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid)
+  .limit(1);
 
-    await fetch("/functions/v1/create-notification", {
+const sub = rows?.[0] ?? null;
+
+await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: postCreatorId,
+    actorId: uid,
+    postId,
+    postType: "plaza",
+    message: `${email} commented on your post`,
+    eventType: "comment",
+  }),
+});
+
+if (sub?.subscription) {
+  await fetch(
+    "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        recipientId: postCreatorId,
-        actorId: uid,
-        postId,
-        postType: "plaza",
-        message: `${email} commented on your post`,
-        eventType: "comment",
+        subscription: sub.subscription,
+        payload: {
+          title: "New Comment 💬",
+          body: `${email} commented on your post`,
+          icon: "/icons/mman-192.png",
+          url: `/post/${postId}`,
+        },
       }),
-    });
-
-    if (sub?.subscription) {
-      await fetch(
-        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            subscription: sub.subscription,
-            payload: {
-              title: "New Comment 💬",
-              body: `${email} commented on your post`,
-              icon: "/icons/mman-192.png",
-              url: `/post/${postId}`,
-            },
-          }),
-        }
-      );
     }
+  );
+}
 
-    setText("");
-    setRewriteMode(false);
-    setToast(result.toast);
-    loadComments();
+setText("");
+setRewriteMode(false);
+setToast(result.toast);
+loadComments();
   }
 
-  async function submitReply(parentId: string) {
-    if (!replyText.trim()) return;
+async function submitReply(parentId: string) {
+  if (!replyText.trim()) return;
 
-    const session = await supabase.auth.getSession();
-    const uid = session.data.session?.user?.id;
-    const email = session.data.session?.user?.email || "Someone";
-    if (!uid) return;
+  const session = await supabase.auth.getSession();
+  const uid = session.data.session?.user?.id;
+  const email = session.data.session?.user?.email || "Someone";
+  if (!uid) return;
 
-    const response = await fetch("/api/plaza/comment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        postId,
-        content: replyText.trim(),
-        userId: uid,
-        parentCommentId: parentId,
-      }),
-    });
+  const response = await fetch("/api/plaza/comment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      postId,
+      content: replyText.trim(),
+      userId: uid,
+      parentCommentId: parentId,
+    }),
+  });
 
-    const result = await response.json();
+  const result = await response.json();
 
-    if (!result.approved) {
-      setRewriteMode(true);
-      setRewriteMessage(result.toast);
-      return;
-    }
-
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", uid)
-      .single();
-
-    await fetch("/functions/v1/create-notification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipientId: postCreatorId,
-        actorId: uid,
-        postId,
-        postType: "plaza",
-        commentId: parentId,
-        message: `${email} replied to a comment on your post`,
-        eventType: "reply",
-      }),
-    });
-
-    if (sub?.subscription) {
-      await fetch(
-        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            subscription: sub.subscription,
-            payload: {
-              title: "New Reply 💬",
-              body: `${email} replied to a comment on your post`,
-              icon: "/icons/mman-192.png",
-              url: `/post/${postId}`,
-            },
-          }),
-        }
-      );
-    }
-
-    setReplyText("");
-    setReplyTargetId(null);
-    setRewriteMode(false);
-    setToast(result.toast);
-    loadComments();
+  if (!result.approved) {
+    setRewriteMode(true);
+    setRewriteMessage(result.toast);
+    return;
   }
+
+  // ⭐ SAFE: no `.single()`
+  const { data: rows } = await supabase
+    .from("push_subscriptions")
+    .select("subscription")
+    .eq("user_id", uid)
+    .limit(1);
+
+  const sub = rows?.[0] ?? null;
+
+  await fetch("/functions/v1/create-notification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      recipientId: postCreatorId,
+      actorId: uid,
+      postId,
+      postType: "plaza",
+      commentId: parentId,
+      message: `${email} replied to a comment on your post`,
+      eventType: "reply",
+    }),
+  });
+
+  if (sub?.subscription) {
+    await fetch(
+      "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription: sub.subscription,
+          payload: {
+            title: "New Reply 💬",
+            body: `${email} replied to a comment on your post`,
+            icon: "/icons/mman-192.png",
+            url: `/post/${postId}`,
+          },
+        }),
+      }
+    );
+  }
+
+  setReplyText("");
+  setRewriteMode(false);
+  setToast(result.toast);
+  loadComments();
+}
 
   async function deleteComment(id: string) {
     await supabase.from("plaza_post_comments").delete().eq("id", id);

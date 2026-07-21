@@ -37,20 +37,24 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  // ⭐ Load creator ID
-  useEffect(() => {
-    async function loadCreator() {
-      const { data } = await supabase
-        .from("vision_posts")
-        .select("creator_id")
-        .eq("id", postId)
-        .single();
+/* ---------------- LOAD CREATOR ID (SAFE) ---------------- */
+useEffect(() => {
+  async function loadCreator() {
+    const { data: rows } = await supabase
+      .from("vision_posts")
+      .select("creator_id")
+      .eq("id", postId)
+      .limit(1);
 
-      if (data?.creator_id) setCreatorId(data.creator_id);
+    const row = rows?.[0] ?? null;
+
+    if (row?.creator_id) {
+      setCreatorId(row.creator_id);
     }
+  }
 
-    loadCreator();
-  }, [postId, supabase]);
+  loadCreator();
+}, [postId, supabase]);
 
   async function runGatekeeper(rawText: string) {
     try {
@@ -75,40 +79,43 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     }
   }
 
-  async function insertComment(
-    finalText: string,
-    automask: number,
-    positivity: number
-  ) {
-    if (!uid) {
-      setError("You must be logged in.");
-      return false;
-    }
+ /* ---------------- INSERT COMMENT ---------------- */
+async function insertComment(
+  finalText: string,
+  automask: number,
+  positivity: number
+) {
+  if (!uid) {
+    setError("You must be logged in.");
+    return false;
+  }
 
-    // 1. Save comment
-    const { error: dbError } = await supabase
-      .from("vision_post_comments")
-      .insert({
-        post_id: postId,
-        user_id: uid,
-        content: finalText,
-        raw_input: content,
-        automask,
-        positivity_ratio: positivity,
-      });
+  // 1. Save comment
+  const { error: dbError } = await supabase
+    .from("vision_post_comments")
+    .insert({
+      post_id: postId,
+      user_id: uid,
+      content: finalText,
+      raw_input: content,
+      automask,
+      positivity_ratio: positivity,
+    });
 
-    if (dbError) {
-      console.error(dbError);
-      setError("Failed to post comment.");
-      return false;
-    }
+  if (dbError) {
+    console.error(dbError);
+    setError("Failed to post comment.");
+    return false;
+  }
 
-    // 2. Fetch creator's push subscription
-   const { data: sub } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid)   // logged-in user ONLY
-  .single();
+  // 2. Fetch creator's push subscription (SAFE)
+  const { data: rows } = await supabase
+    .from("push_subscriptions")
+    .select("subscription")
+    .eq("user_id", uid)
+    .limit(1);
+
+  const sub = rows?.[0] ?? null;
 
     // ⭐ Insert notification into database (vision comment)
     await fetch("/functions/v1/create-notification", {

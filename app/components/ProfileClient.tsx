@@ -180,26 +180,32 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   /* --------------------------------------------- */
   useEffect(() => {
     async function loadProfile() {
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", profileId)
-        .single();
+  const { data: rows, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", profileId)
+    .limit(1);
 
-      setProfile(p ?? null);
+  if (error) {
+    setProfile(null);
+    return;
+  }
 
-      if (p) {
-        const { data: postRows } = await supabase
-          .from("posts")
-          .select("*")
-          .eq("creator_id", profileId)
-          .order("created_at", { ascending: false });
+  const p = rows?.[0] ?? null;
+  setProfile(p);
 
-        setPosts(postRows ?? []);
-        setFollowersCount(p.followers_count);
-        setFollowingCount(p.following_count);
-      }
-    }
+  if (p) {
+    const { data: postRows } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("creator_id", profileId)
+      .order("created_at", { ascending: false });
+
+    setPosts(postRows ?? []);
+    setFollowersCount(p.followers_count);
+    setFollowingCount(p.following_count);
+  }
+}
 
     loadProfile();
   }, [profileId, supabase]);
@@ -477,26 +483,29 @@ useEffect(() => {
     }
 
     if (!roomId) {
-      const { data: newRoom, error } = await supabase
-        .from("rooms")
-        .insert({
-          created_by: authUserId,
-          is_group: false,
-        })
-        .select("id")
-        .single();
+  const { data: rows, error } = await supabase
+    .from("rooms")
+    .insert({
+      created_by: authUserId,
+      is_group: false,
+    })
+    .select("id")
+    .limit(1);
 
-      if (error || !newRoom) return;
+  if (error) return;
 
-      roomId = newRoom.id;
+  const newRoom = rows?.[0] ?? null;
+  if (!newRoom) return;
 
-      await supabase.from("room_participants").insert([
-        { room_id: roomId, user_id: authUserId },
-        { room_id: roomId, user_id: otherUserId },
-      ]);
-    }
+  roomId = newRoom.id;
 
-    router.push(`/messenger/${roomId}`);
+  await supabase.from("room_participants").insert([
+    { room_id: roomId, user_id: authUserId },
+    { room_id: roomId, user_id: otherUserId },
+  ]);
+}
+
+router.push(`/messenger/${roomId}`);
   }
 
   /* --------------------------------------------- */
@@ -1272,7 +1281,7 @@ useEffect(() => {
                       }}
                       reactions={counts}
                       positivityRatio={positivity_ratio}
-                      onReact={() => {}}
+                      onReactAction={() => {}}
                       showDelete={authUserId === profile.id}
                       onDelete={async (postId) => {
                         await supabase

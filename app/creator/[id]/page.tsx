@@ -237,7 +237,7 @@ const creatorData = rows?.[0] ?? null;
                   reactions={post.reactions}
                   spiritScore={post.spiritScore}
                   positivityRatio={post.positivityRatio}
-                  onReact={() => {}}
+                  onReactAction={() => {}}
                 />
               </div>
             </div>

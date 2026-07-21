@@ -19,7 +19,7 @@ interface ReactionBarProps {
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
-  onReact: () => void;
+  onReactAction: () => void;
 }
 
 export default function ReactionBar({
@@ -29,7 +29,7 @@ export default function ReactionBar({
   reactions,
   spiritScore,
   positivityRatio,
-  onReact,
+  onReactAction,
 }: ReactionBarProps) {
   const { supabase } = useSupabase();
 
@@ -70,24 +70,27 @@ export default function ReactionBar({
       return;
     }
 
-    const { data: sub } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", uid)
-      .single();
+// ⭐ SAFE: no `.single()`
+const { data: rows } = await supabase
+  .from("push_subscriptions")
+  .select("subscription")
+  .eq("user_id", uid)
+  .limit(1);
 
-    await fetch("/functions/v1/create-notification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipientId: creatorId,
-        actorId: uid,
-        postId,
-        postType,
-        message: `${email || "Someone"} reacted to your post`,
-        eventType: "reaction",
-      }),
-    });
+const sub = rows?.[0] ?? null;
+
+await fetch("/functions/v1/create-notification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    recipientId: creatorId,
+    actorId: uid,
+    postId,
+    postType,
+    message: `${email || "Someone"} reacted to your post`,
+    eventType: "reaction",
+  }),
+});
 
     if (sub?.subscription) {
       await fetch(
@@ -108,7 +111,7 @@ export default function ReactionBar({
       );
     }
 
-    onReact();
+    onReactAction();
   };
 
   const baseBtn =

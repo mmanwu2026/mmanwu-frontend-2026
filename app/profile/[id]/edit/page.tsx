@@ -55,35 +55,42 @@ export default function EditProfilePage({
     }
   }, [hydrated, sessionLoading, uid, params.id, router]);
 
-  // ⭐ Load profile
-  useEffect(() => {
-    if (!hydrated || sessionLoading) return;
-    if (!uid) return;
-    if (params.id !== uid) return;
+ /* ---------------- LOAD PROFILE (SAFE) ---------------- */
+useEffect(() => {
+  if (!hydrated || sessionLoading) return;
+  if (!uid) return;
+  if (params.id !== uid) return;
 
-    (async () => {
-      setLoadingProfile(true);
+  (async () => {
+    setLoadingProfile(true);
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, bio, avatar_url")
-        .eq("id", uid)
-        .single();
+    const { data: rows, error } = await supabase
+      .from("profiles")
+      .select("id, username, bio, avatar_url")
+      .eq("id", uid)
+      .limit(1);
 
-      if (error || !data) {
-        setError("Failed to load profile.");
-        setLoadingProfile(false);
-        return;
-      }
-
-      const p = data as Profile;
-      setProfile(p);
-      setUsername(p.username ?? "");
-      setBio(p.bio ?? "");
-      setAvatarUrl(p.avatar_url ?? null);
+    if (error) {
+      setError("Failed to load profile.");
       setLoadingProfile(false);
-    })();
-  }, [hydrated, sessionLoading, uid, params.id, supabase]);
+      return;
+    }
+
+    const p = rows?.[0] ?? null;
+
+    if (!p) {
+      setError("Failed to load profile.");
+      setLoadingProfile(false);
+      return;
+    }
+
+    setProfile(p);
+    setUsername(p.username ?? "");
+    setBio(p.bio ?? "");
+    setAvatarUrl(p.avatar_url ?? null);
+    setLoadingProfile(false);
+  })();
+}, [hydrated, sessionLoading, uid, params.id, supabase]);
 
   // ⭐ Avatar upload
   async function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {

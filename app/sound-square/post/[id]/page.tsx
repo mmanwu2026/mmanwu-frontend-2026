@@ -41,35 +41,34 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
+useEffect(() => {
+  (async () => {
+    setLoading(true);
 
-      // ⭐ Load post
-      const { data, error } = await supabase
-        .from("sound_posts")
-        .select(`
-          id,
-          title,
-          audio_url,
-          creator_id,
-          created_at,
-          spirit_score,
-          positivity_ratio,
-          automask,
-          users:creator_id ( username, avatar_url )
-        `)
-        .eq("id", params.id)
-        .single();
+    const { data: rows, error } = await supabase
+      .from("sound_posts")
+      .select(`
+        id,
+        title,
+        audio_url,
+        creator_id,
+        created_at,
+        spirit_score,
+        positivity_ratio,
+        automask,
+        users:creator_id ( username, avatar_url )
+      `)
+      .eq("id", params.id)
+      .limit(1);
 
-      if (error || !data) {
-        console.error(error);
-        setLoading(false);
-        return;
-      }
+    if (error) {
+      console.error(error);
+      setLoading(false);
+      return;
+    }
 
-      const raw = data as any;
-
+    const raw = rows?.[0] ?? null;
+    
       // ⭐ Load shares
       const { data: shareRows } = await supabase
         .from("sound_post_shares")
@@ -185,17 +184,17 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
       />
 
       <SoundReactionBar
-        postId={post.id}
-        creatorId={post.creator_id}
-        reactions={post.reactions}
-        onReact={async () => {
-          // ⭐ Refresh reactions after reacting
-          const { data: reactionRows } = await supabase
-            .from("reactions")
-            .select("maskTier, value")
-            .eq("post_id", post.id)
-            .eq("post_type", "sound");
-
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={post.reactions}
+  onReactAction={async () => {
+    // ⭐ Refresh reactions after reacting
+    const { data: reactionRows } = await supabase
+      .from("reactions")
+      .select("maskTier, value")
+      .eq("post_id", post.id)
+      .eq("post_type", "sound");
+      
           const counts = {
             mask1: 0,
             mask2: 0,

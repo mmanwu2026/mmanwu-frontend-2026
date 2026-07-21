@@ -31,13 +31,15 @@ export default function MobileAuthNav() {
       setUid(user?.id ?? null);
 
       if (user?.id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("avatar_url")
-          .eq("id", user.id)
-          .single();
+const { data: rows } = await supabase
+  .from("profiles")
+  .select("avatar_url")
+  .eq("id", user.id)
+  .limit(1);
 
-        setAvatarUrl(profile?.avatar_url ?? FALLBACK_AVATAR);
+const profile = rows?.[0] ?? null;
+
+setAvatarUrl(profile?.avatar_url ?? FALLBACK_AVATAR);
       }
     });
 
@@ -47,13 +49,15 @@ export default function MobileAuthNav() {
         setUid(user?.id ?? null);
 
         if (user?.id) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("avatar_url")
-            .eq("id", user.id)
-            .single();
+const { data: rows } = await supabase
+  .from("profiles")
+  .select("avatar_url")
+  .eq("id", user.id)
+  .limit(1);
 
-          setAvatarUrl(profile?.avatar_url ?? FALLBACK_AVATAR);
+const profile = rows?.[0] ?? null;
+
+setAvatarUrl(profile?.avatar_url ?? FALLBACK_AVATAR);
         }
       }
     );
