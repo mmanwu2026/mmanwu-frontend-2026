@@ -382,13 +382,20 @@ await supabase.functions.invoke("send-push", {
       created_at: new Date().toISOString(),
     });
 
-    await supabase.functions.invoke("send-incoming-call-push", {
-      body: {
-        target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
-        room_id: newRoomId,
-        caller_name: usernames[userId] || "Unknown",
-      },
-    });
+ await supabase.functions.invoke("send-push", {
+  body: JSON.stringify({
+    targetUserId: otherUserId,
+    title: usernames[userId] || "Incoming Call",
+    body: `Incoming call from ${usernames[userId] || "Unknown"}`,
+    data: {
+      call_id: callId,
+      room_id: newRoomId,
+      caller_id: userId,
+      caller_name: usernames[userId] || "Unknown",
+      event: "incoming_call",
+    },
+  }),
+});
 
     router.push(`/call/${newRoomId}?role=caller`);
   }
