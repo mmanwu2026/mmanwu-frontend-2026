@@ -25,7 +25,7 @@ async function getTargetWebPushSubscription(userId: string, supabase: any) {
     .from("push_subscriptions")
     .select("subscription")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
 
