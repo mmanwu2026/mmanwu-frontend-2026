@@ -21,16 +21,15 @@ async function getTargetFCMToken(userId: string, supabase: any) {
 
 /* ---------------- FETCH TARGET WEBPUSH SUBSCRIPTION (SAFE) ---------------- */
 async function getTargetWebPushSubscription(userId: string, supabase: any) {
-  const { data: rows, error } = await supabase
-    .from("user_push_tokens")
-    .select("webpush_subscription")
+  const { data: row, error } = await supabase
+    .from("push_subscriptions")
+    .select("subscription")
     .eq("user_id", userId)
-    .limit(1);
+    .single();
 
   if (error) return null;
 
-  const row = rows?.[0] ?? null;
-  return row?.webpush_subscription || null;
+  return row?.subscription || null;
 }
 
 export default function MessengerThread({
