@@ -234,59 +234,65 @@ export default function MessengerThread({
     markSeen();
   }, [userId, finalRoomId, supabase]);
 
-  /* ---------------- SEND TEXT MESSAGE ---------------- */
-  async function sendMessage() {
-    const trimmed = newMessage.trim();
-    if (!trimmed) return;
+/* ---------------- SEND TEXT MESSAGE ---------------- */
+async function sendMessage() {
+  const trimmed = newMessage.trim();
+  if (!trimmed) return;
 
-    await supabase.from("typing_events").insert({
-      room_id: finalRoomId,
-      user_id: userId,
-      is_typing: false,
-    });
+  // Stop typing indicator
+  await supabase.from("typing_events").insert({
+    room_id: finalRoomId,
+    user_id: userId,
+    is_typing: false,
+  });
 
-    const { error } = await supabase.from("messages").insert({
-      room_id: finalRoomId,
-      sender_id: userId,
-      receiver_id: otherUserId,
-      content: trimmed,
-      message_type: "text",
-    });
+  // Save message
+  const { error } = await supabase.from("messages").insert({
+    room_id: finalRoomId,
+    sender_id: userId,
+    receiver_id: otherUserId,
+    content: trimmed,
+    message_type: "text",
+  });
 
-    if (error) {
-      console.error("sendMessage error:", error);
-    }
-
-    if (!otherUserId) {
-      console.warn("Cannot send DM notification: otherUserId is undefined");
-      setNewMessage("");
-      return;
-    }
-
-    await supabase.from("notifications").insert({
-      user_id: otherUserId,
-      actor_id: userId,
-      event_type: "message",
-      message: trimmed,
-      dm_room_id: finalRoomId,
-    });
-
-    await supabase.functions.invoke("send-push", {
-      body: JSON.stringify({
-        targetUserId: otherUserId,
-        title: usernames[userId],
-        body: trimmed,
-        data: {
-          event: "dm",
-          dm_room_id: finalRoomId,
-          sender_id: userId,
-          message: trimmed,
-        },
-      }),
-    });
-
-    setNewMessage("");
+  if (error) {
+    console.error("sendMessage error:", error);
   }
+
+  if (!otherUserId) {
+    console.warn("Cannot send DM notification: otherUserId is undefined");
+    setNewMessage("");
+    return;
+  }
+
+  // Save notification
+  await supabase.from("notifications").insert({
+    user_id: otherUserId,
+    actor_id: userId,
+    event_type: "message",
+    message: trimmed,
+    dm_room_id: finalRoomId,
+  });
+
+  /* ---------------- SANITIZED DM PUSH PAYLOAD ---------------- */
+  const safePayload = {
+    targetUserId: String(otherUserId ?? ""),
+    title: String(usernames?.[userId] ?? ""),
+    body: String(trimmed ?? ""),
+    data: {
+      event: "dm",
+      dm_room_id: String(finalRoomId ?? ""),
+      sender_id: String(userId ?? ""),
+      message: String(trimmed ?? ""),
+    },
+  };
+
+  await supabase.functions.invoke("send-push", {
+    body: JSON.stringify(safePayload),
+  });
+
+  setNewMessage("");
+}
 
   /* ---------------- PATCH 14 — UPLOAD & SEND MEDIA ---------------- */
   async function uploadAndSend(file: File, type: "image" | "audio" | "video") {
