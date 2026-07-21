@@ -41,19 +41,19 @@ export function IncomingCallModal({
       .update({ status: "accepted" })
       .eq("id", call.id);
 
-    // ⭐ Wait for caller to create the offer
-    const pollOffer = async () => {
-      const { data: offer } = await supabase
-        .from("call_signaling")
-        .select("*")
-        .eq("room_id", call.room_id)
-        .eq("type", "offer")
-        .maybeSingle();
+const pollOffer = async () => {
+  const { data: rows } = await supabase
+    .from("call_signaling")
+    .select("*")
+    .eq("room_id", call.room_id)
+    .eq("type", "offer")
+    .limit(1);
 
-      return offer;
-    };
+  const offer = rows?.[0] ?? null;
+  return offer;
+};
 
-    let offer = await pollOffer();
+let offer = await pollOffer();
 
     // If no offer yet, poll until it appears
     if (!offer) {

@@ -330,54 +330,60 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   }, [profile, supabase, viewerAllowed]);
 
   /* --------------------------------------------- */
-  /* LOAD FOLLOW STATE                              */
-  /* --------------------------------------------- */
-  useEffect(() => {
-    async function loadFollowState() {
-      if (!authUserId || authLoading || !profile || isOwnProfile) {
-        setIsFollowing(false);
-        setHasRequested(false);
-        return;
-      }
-
-      const { data: followData } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", authUserId)
-        .eq("following_id", profile.id)
-        .maybeSingle();
-
-      if (followData) {
-        setIsFollowing(true);
-        setHasRequested(false);
-        return;
-      }
-
-      const { data: requestData } = await supabase
-        .from("follow_requests")
-        .select("status")
-        .eq("requester_id", authUserId)
-        .eq("target_id", profile.id)
-        .eq("status", "pending")
-        .maybeSingle();
-
-      if (requestData) {
-        setHasRequested(true);
-        setIsFollowing(false);
-        return;
-      }
-
+/* LOAD FOLLOW STATE                             */
+/* --------------------------------------------- */
+useEffect(() => {
+  async function loadFollowState() {
+    if (!authUserId || authLoading || !profile || isOwnProfile) {
       setIsFollowing(false);
       setHasRequested(false);
+      return;
     }
 
-    if (profile) {
-      setFollowersCount(profile.followers_count);
-      setFollowingCount(profile.following_count);
+    // ⭐ SAFE REPLACEMENT FOR maybeSingle()
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", authUserId)
+      .eq("following_id", profile.id)
+      .limit(1);
+
+    const followData = followRows?.[0] ?? null;
+
+    if (followData) {
+      setIsFollowing(true);
+      setHasRequested(false);
+      return;
     }
 
-    loadFollowState();
-  }, [authUserId, authLoading, profile, isOwnProfile, supabase]);
+    // ⭐ SAFE REPLACEMENT FOR maybeSingle()
+    const { data: requestRows } = await supabase
+      .from("follow_requests")
+      .select("status")
+      .eq("requester_id", authUserId)
+      .eq("target_id", profile.id)
+      .eq("status", "pending")
+      .limit(1);
+
+    const requestData = requestRows?.[0] ?? null;
+
+    if (requestData) {
+      setHasRequested(true);
+      setIsFollowing(false);
+      return;
+    }
+
+    setIsFollowing(false);
+    setHasRequested(false);
+  }
+
+  if (profile) {
+    setFollowersCount(profile.followers_count);
+    setFollowingCount(profile.following_count);
+  }
+
+  loadFollowState();
+}, [authUserId, authLoading, profile, isOwnProfile, supabase]);
 
   /* --------------------------------------------- */
   /* FOLLOW TOGGLE                                  */

@@ -87,12 +87,13 @@ export default function CreatorProfilePage() {
     async function load() {
       setFetching(true);
 
-      // Fetch creator
-      const { data: creatorData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", actualId)
-        .maybeSingle();
+      const { data: rows } = await supabase
+  .from("users")
+  .select("*")
+  .eq("id", actualId)
+  .limit(1);
+
+const creatorData = rows?.[0] ?? null;
 
       setCreator(creatorData);
 

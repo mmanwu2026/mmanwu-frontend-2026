@@ -61,14 +61,16 @@ export default function PostCard({
         return;
       }
 
-      const { data } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", uid)
-        .eq("following_id", post.creator_id)
-        .maybeSingle();
+const { data: rows } = await supabase
+  .from("follows")
+  .select("id")
+  .eq("follower_id", uid)
+  .eq("following_id", post.creator_id)
+  .limit(1);
 
-      setIsFollowing(!!data);
+const followRow = rows?.[0] ?? null;
+
+setIsFollowing(!!followRow);
     }
 
     loadFollowState();

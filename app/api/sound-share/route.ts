@@ -41,12 +41,14 @@ export async function POST(req: Request) {
   }
 
   // ⭐ Prevent duplicate shares
-  const { data: existingShare } = await supabase
-    .from("sound_post_shares")
-    .select("id")
-    .eq("post_id", post_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
+const { data } = await supabase
+  .from("sound_post_shares")
+  .select("id")
+  .eq("post_id", post_id)
+  .eq("user_id", user.id)
+  .limit(1);
+
+const existingShare = data?.[0] ?? null;
 
   if (!existingShare) {
     await supabase.from("sound_post_shares").insert({

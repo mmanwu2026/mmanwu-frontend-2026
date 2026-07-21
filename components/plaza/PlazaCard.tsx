@@ -77,14 +77,16 @@ export default function PlazaCard({
         return;
       }
 
-      const { data } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", userId)
-        .eq("following_id", post.creator_id)
-        .maybeSingle();
+const { data: rows } = await supabase
+  .from("follows")
+  .select("id")
+  .eq("follower_id", userId)
+  .eq("following_id", post.creator_id)
+  .limit(1);
 
-      if (active) setIsFollowing(!!data);
+const followRow = rows?.[0] ?? null;
+
+if (active) setIsFollowing(!!followRow);
     }
 
     loadFollowState();

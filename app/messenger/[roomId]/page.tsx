@@ -77,17 +77,18 @@ useEffect(() => {
       return;
     }
 
-    // 3. Private profile → must be following OR owner
-    const { data: followRow } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", userId)
-      .eq("following_id", otherUserId)
-      .maybeSingle();
+const { data: followRows } = await supabase
+  .from("follows")
+  .select("id")
+  .eq("follower_id", userId)
+  .eq("following_id", otherUserId)
+  .limit(1);
 
-    const isFollower = !!followRow;
+const followRow = followRows?.[0] ?? null;
 
-    setDmAllowed(isOwner || isFollower);
+const isFollower = !!followRow;
+
+setDmAllowed(isOwner || isFollower);
 
     // 4. Room locked → override
     const { data: room } = await supabase

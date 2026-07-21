@@ -19,18 +19,20 @@ export default function SignupPage() {
     setLoading(true);
     setErrorMsg("");
 
-    // ⭐ Check if username already exists
-    const { data: existing } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
+// ⭐ Check if username already exists — SAFE VERSION
+const { data: rows } = await supabase
+  .from("profiles")
+  .select("id")
+  .eq("username", username)
+  .limit(1);
 
-    if (existing) {
-      setErrorMsg("Username already taken.");
-      setLoading(false);
-      return;
-    }
+const existing = rows?.[0] ?? null;
+
+if (existing) {
+  setErrorMsg("Username already taken.");
+  setLoading(false);
+  return;
+}
 
     // ⭐ Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
