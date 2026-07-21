@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
+import { registerWebPushFallback } from "@/app/push/registerWebPushFallback";
 
 /* ---------------- FETCH TARGET FCM TOKEN (SAFE) ---------------- */
 async function getTargetFCMToken(userId: string, supabase: any) {
@@ -145,6 +146,22 @@ export default function MessengerThread({
 
     loadUsernames();
   }, [messages, userId, otherUserId, supabase]);
+
+  /* ---------------- ENSURE WEBPUSH SUBSCRIPTION (AUTO-REFRESH) ---------------- */
+useEffect(() => {
+  async function ensureWebPush() {
+    // Fetch existing subscription from Supabase
+    const sub = await getTargetWebPushSubscription(userId, supabase);
+
+    // If missing → register a fresh one
+    if (!sub) {
+      console.log("No WebPush subscription found → registering fallback");
+      await registerWebPushFallback(userId, supabase);
+    }
+  }
+
+  ensureWebPush();
+}, [userId, supabase]);
 
   /* ---------------- REALTIME MESSAGES (all types) ---------------- */
   useEffect(() => {
