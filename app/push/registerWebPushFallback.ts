@@ -4,6 +4,7 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
   try {
     console.log("WebPush fallback → starting registration for:", userId);
 
+    // ⭐ MUST come from NEXT_PUBLIC_ env var (client-side)
     const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_WEBPUSH_VAPID_PUBLIC_KEY;
 
     if (!VAPID_PUBLIC_KEY) {
@@ -11,29 +12,33 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
       return;
     }
 
+    // ⭐ Convert VAPID key to Uint8Array for Chrome
+    const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+    // ⭐ Wait for SW to be ready
     const registration = await navigator.serviceWorker.ready;
 
-    // ⭐ Check for existing subscription (iOS requires unsubscribe before resubscribe)
+    // ⭐ Remove old subscription (required for iOS + Chrome consistency)
     const existing = await registration.pushManager.getSubscription();
     if (existing) {
       console.log("WebPush fallback → existing subscription found, unsubscribing...");
       await existing.unsubscribe();
     }
 
-    // ⭐ Create new subscription
+    // ⭐ Create NEW WebPush subscription (NOT FCM mobile)
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      applicationServerKey, // ⭐ THIS is the critical fix
     });
 
     console.log("WebPush fallback → SUBSCRIPTION SUCCESS:", subscription);
 
     // ⭐ Save subscription to Supabase
     const { error } = await supabase
-      .from("user_push_tokens")
+      .from("push_subscriptions")
       .upsert({
         user_id: userId,
-        webpush_subscription: subscription,
+        subscription, // JSON stored exactly as returned by browser
       });
 
     if (error) {
