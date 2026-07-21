@@ -53,4 +53,6 @@ export async function registerWebPushFallback(userId: string, supabase: any) {
   } catch (err) {
     console.error("WebPush fallback registration failed:", err);
   }
+  
+  console.log("WebPush fallback → VERSION 7");
 }
