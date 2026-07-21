@@ -19,6 +19,7 @@ interface PlazaResult {
   id: string;
   content: string;
   created_at: string;
+  creator_id: string;
 }
 
 interface VisionResult {
@@ -26,6 +27,7 @@ interface VisionResult {
   title: string;
   image_url: string;
   created_at: string;
+  creator_id: string;
 }
 
 interface SoundResult {
@@ -33,6 +35,7 @@ interface SoundResult {
   title: string;
   audio_url: string;
   created_at: string;
+  creator_id: string;
 }
 
 interface SearchResults {
@@ -74,42 +77,40 @@ export default function GlobalSearchPage() {
   }, [query]);
 
   async function runSearch(q: string) {
-    // Load viewer ID
     const session = await supabase.auth.getSession();
     const viewerId = session.data.session?.user?.id ?? null;
 
-    // Raw search queries
-    const [profilesRes, plaza, vision, sound, messengerRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, username, avatar_url, privacy_type")
-        .ilike("username", `%${q}%`),
+    const [profilesRes, plazaRes, visionRes, soundRes, messengerRes] =
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, username, avatar_url, privacy_type")
+          .ilike("username", `%${q}%`),
 
-      supabase
-        .from("plaza_posts")
-        .select("id, content, created_at")
-        .ilike("content", `%${q}%`),
+        supabase
+          .from("plaza_posts")
+          .select("id, content, created_at, creator_id")
+          .ilike("content", `%${q}%`),
 
-      supabase
-        .from("vision_posts")
-        .select("id, title, image_url, created_at")
-        .ilike("title", `%${q}%`),
+        supabase
+          .from("vision_posts")
+          .select("id, title, image_url, created_at, creator_id")
+          .ilike("title", `%${q}%`),
 
-      supabase
-        .from("sound_posts")
-        .select("id, title, audio_url, created_at")
-        .ilike("title", `%${q}%`),
+        supabase
+          .from("sound_posts")
+          .select("id, title, audio_url, created_at, creator_id")
+          .ilike("title", `%${q}%`),
 
-      supabase
-        .from("profiles")
-        .select("id, username, avatar_url, privacy_type")
-        .ilike("username", `%${q}%`)
-    ]);
+        supabase
+          .from("profiles")
+          .select("id, username, avatar_url, privacy_type")
+          .ilike("username", `%${q}%`)
+      ]);
 
     const profiles = profilesRes.data ?? [];
     const messenger = messengerRes.data ?? [];
 
-    // Filter private profiles
     const filteredProfiles: ProfileResult[] = [];
     const filteredMessenger: ProfileResult[] = [];
 
@@ -128,9 +129,7 @@ export default function GlobalSearchPage() {
         .eq("following_id", p.id)
         .limit(1);
 
-      if (followRows?.[0]) {
-        filteredProfiles.push(p);
-      }
+      if (followRows?.[0]) filteredProfiles.push(p);
     }
 
     for (const p of messenger) {
@@ -148,16 +147,51 @@ export default function GlobalSearchPage() {
         .eq("following_id", p.id)
         .limit(1);
 
-      if (followRows?.[0]) {
-        filteredMessenger.push(p);
-      }
+      if (followRows?.[0]) filteredMessenger.push(p);
     }
+
+    async function filterPosts<T extends { creator_id: string }>(posts: T[]): Promise<T[]> {
+      const output: T[] = [];
+
+      for (const post of posts) {
+        const { data: creatorRows } = await supabase
+          .from("profiles")
+          .select("privacy_type")
+          .eq("id", post.creator_id)
+          .limit(1);
+
+        const creator = creatorRows?.[0];
+        if (!creator) continue;
+
+        if (creator.privacy_type !== "private") {
+          output.push(post);
+          continue;
+        }
+
+        if (!viewerId) continue;
+
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", viewerId)
+          .eq("following_id", post.creator_id)
+          .limit(1);
+
+        if (followRows?.[0]) output.push(post);
+      }
+
+      return output;
+    }
+
+    const filteredPlaza = await filterPosts<PlazaResult>(plazaRes.data ?? []);
+    const filteredVision = await filterPosts<VisionResult>(visionRes.data ?? []);
+    const filteredSound = await filterPosts<SoundResult>(soundRes.data ?? []);
 
     setResults({
       profiles: filteredProfiles,
-      plaza: plaza.data ?? [],
-      vision: vision.data ?? [],
-      sound: sound.data ?? [],
+      plaza: filteredPlaza,
+      vision: filteredVision,
+      sound: filteredSound,
       messenger: filteredMessenger,
     });
   }
@@ -174,7 +208,6 @@ export default function GlobalSearchPage() {
 
       <div className="mt-6 space-y-8">
 
-        {/* People */}
         {results.profiles.length > 0 && (
           <section>
             <h2 className="text-xl font-bold mb-3">People</h2>
@@ -192,7 +225,6 @@ export default function GlobalSearchPage() {
           </section>
         )}
 
-        {/* Plaza */}
         {results.plaza.length > 0 && (
           <section>
             <h2 className="text-xl font-bold mb-3">Plaza Posts</h2>
@@ -202,7 +234,6 @@ export default function GlobalSearchPage() {
           </section>
         )}
 
-        {/* Vision */}
         {results.vision.length > 0 && (
           <section>
             <h2 className="text-xl font-bold mb-3">VisionSquare</h2>
@@ -212,7 +243,6 @@ export default function GlobalSearchPage() {
           </section>
         )}
 
-        {/* Sound */}
         {results.sound.length > 0 && (
           <section>
             <h2 className="text-xl font-bold mb-3">SoundSquare</h2>

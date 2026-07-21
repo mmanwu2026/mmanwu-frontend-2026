@@ -66,9 +66,14 @@ export default function SearchComponent() {
     const cleaned = q.replace("#", "").toLowerCase();
     const isHashtag = q.startsWith("#");
 
+    // Load viewer ID
+    const session = await supabase.auth.getSession();
+    const viewerId = session.data.session?.user?.id ?? null;
+
     let data: any[] | null = null;
     let error: any = null;
 
+    // Raw VisionSquare search
     if (isHashtag) {
       ({ data, error } = await supabase
         .from("vision_posts")
@@ -149,7 +154,40 @@ export default function SearchComponent() {
       return;
     }
 
-    const normalized: EnrichedPost[] = (data || []).map((post: any) => {
+    // PRIVACY FILTER — hide private creators unless viewer follows them
+    const privacyFiltered: any[] = [];
+
+    for (const post of data ?? []) {
+      const { data: creatorRows } = await supabase
+        .from("profiles")
+        .select("privacy_type")
+        .eq("id", post.creator_id)
+        .limit(1);
+
+      const creator = creatorRows?.[0];
+      if (!creator) continue;
+
+      if (creator.privacy_type !== "private") {
+        privacyFiltered.push(post);
+        continue;
+      }
+
+      if (!viewerId) continue;
+
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", post.creator_id)
+        .limit(1);
+
+      if (followRows?.[0]) {
+        privacyFiltered.push(post);
+      }
+    }
+
+    // Normalize posts
+    const normalized: EnrichedPost[] = privacyFiltered.map((post: any) => {
       const creator =
         Array.isArray(post.users) && post.users.length > 0
           ? post.users[0]
@@ -198,6 +236,7 @@ export default function SearchComponent() {
       };
     });
 
+    // Enrich reactions
     const enriched: EnrichedPost[] = [];
 
     for (const post of normalized) {
@@ -222,7 +261,6 @@ export default function SearchComponent() {
       const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
 
       const positivity = total > 0 ? positiveCount / total : 0.5;
-
       const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
 
       let autoMask = 2;
