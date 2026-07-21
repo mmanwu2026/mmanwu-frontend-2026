@@ -219,10 +219,11 @@ export default function MessengerThread({
       is_typing: false,
     });
 
-    // Insert the actual message
-    const { data, error } = await supabase.from("messages").insert({
+    // Insert the actual message (now with receiver_id)
+    const { error } = await supabase.from("messages").insert({
       room_id: finalRoomId,
       sender_id: userId,
+      receiver_id: otherUserId,
       content: trimmed,
       message_type: "text",
     });
@@ -238,14 +239,13 @@ export default function MessengerThread({
       return;
     }
 
-    // In-app DM notification
+    // In-app DM notification (aligned to notifications schema)
     await supabase.from("notifications").insert({
       user_id: otherUserId,
       actor_id: userId,
-      event_type: "dm_message",
+      event_type: "message",
       message: trimmed,
       dm_room_id: finalRoomId,
-      message_type: "text",
     });
 
     // Push notification
@@ -276,11 +276,13 @@ export default function MessengerThread({
       return;
     }
 
-    const url = supabase.storage.from(bucket).getPublicUrl(fileName).data.publicUrl;
+    const url =
+      supabase.storage.from(bucket).getPublicUrl(fileName).data.publicUrl;
 
     await supabase.from("messages").insert({
       room_id: finalRoomId,
       sender_id: userId,
+      receiver_id: otherUserId,
       message_type: type,
       content: url,
     });
@@ -289,10 +291,9 @@ export default function MessengerThread({
       await supabase.from("notifications").insert({
         user_id: otherUserId,
         actor_id: userId,
-        event_type: "dm_message",
+        event_type: "message",
         message: url,
         dm_room_id: finalRoomId,
-        message_type: type,
       });
     }
   }
@@ -362,7 +363,6 @@ export default function MessengerThread({
 
   return (
     <div className="flex flex-col h-full bg-neutral-950">
-
       {/* Clear Chat Modal */}
       {confirmClear && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -430,7 +430,8 @@ export default function MessengerThread({
           const isOutgoing = m.sender_id === userId;
           const isLastOutgoing =
             isOutgoing &&
-            messages.filter((x) => x.sender_id === userId).slice(-1)[0]?.id === m.id;
+            messages.filter((x) => x.sender_id === userId).slice(-1)[0]?.id ===
+              m.id;
 
           return (
             <div
@@ -502,7 +503,6 @@ export default function MessengerThread({
 
       {/* Composer */}
       <div className="p-4 border-t border-neutral-800 bg-neutral-900">
-
         {/* Attachment buttons */}
         <div className="flex gap-2 mb-3">
           <input
