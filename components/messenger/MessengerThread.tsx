@@ -279,12 +279,16 @@ useEffect(() => {
       dm_room_id: finalRoomId,
     });
 
-await supabase.functions.invoke("send-dm-push", {
+await supabase.functions.invoke("send-push", {
   body: JSON.stringify({
-    target_fcm_token: await getTargetFCMToken(otherUserId, supabase),
-    target_webpush_subscription: await getTargetWebPushSubscription(otherUserId, supabase),
-    sender_name: usernames[userId],
-    message: trimmed,
+    targetUserId: otherUserId,
+    title: usernames[userId],
+    body: trimmed,
+    data: {
+      dm_room_id: finalRoomId,
+      sender_id: userId,
+      message: trimmed,
+    },
   }),
 });
 
