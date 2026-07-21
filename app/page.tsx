@@ -451,36 +451,39 @@ export default function UnifiedFeedPage() {
       </h1>
 
       <div className="space-y-6">
-        {items.map((item) => {
-          if (item.square_type === "plaza") {
-            return (
-              <PlazaCard
-                key={item.post.id}
-                post={item.post}
-                creator={item.creator}
-                userId={user?.id ?? ""}
-                onDeleteAction={handleDelete}
-                onReactAction={handleReact}
-              />
-            );
-          }
+{items.map((item) => {
+  if (item.square_type === "plaza") {
+    if (!item.creator) return null; // ⭐ Prevent crash
+    return (
+      <PlazaCard
+        key={item.post.id}
+        post={item.post}
+        creator={item.creator}
+        userId={user?.id ?? ""}
+        onDeleteAction={handleDelete}
+        onReactAction={handleReact}
+      />
+    );
+  }
 
-          if (item.square_type === "vision-square") {
-            return <VisionCard key={item.post.id} post={item.post} />;
-          }
+  if (item.square_type === "vision-square") {
+    if (!item.creator) return null; // ⭐ Prevent crash
+    return <VisionCard key={item.post.id} post={item.post} />;
+  }
 
-          if (item.square_type === "sound-square") {
-            return (
-              <SoundPostCard
-                key={item.post.id}
-                post={{ ...item.post, onDeleted: handleDelete }}
-                isTrending={item.trending_score > 5}
-              />
-            );
-          }
+  if (item.square_type === "sound-square") {
+    return (
+      <SoundPostCard
+        key={item.post.id}
+        post={{ ...item.post, onDeleted: handleDelete }}
+        isTrending={item.trending_score > 5}
+      />
+    );
+  }
 
-          return null;
-        })}
+  return null;
+})}
+
       </div>
 
       <div className="flex justify-center mt-6">
