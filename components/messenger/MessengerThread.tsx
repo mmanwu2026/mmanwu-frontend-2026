@@ -147,20 +147,18 @@ export default function MessengerThread({
   }, [messages, userId, otherUserId, supabase]);
 
   /* ---------------- ENSURE WEBPUSH SUBSCRIPTION (AUTO-REFRESH) ---------------- */
-useEffect(() => {
-  async function ensureWebPush() {
-    // Fetch existing subscription from Supabase
-    const sub = await getTargetWebPushSubscription(userId, supabase);
+  useEffect(() => {
+    async function ensureWebPush() {
+      const sub = await getTargetWebPushSubscription(userId, supabase);
 
-    // If missing → register a fresh one
-    if (!sub) {
-      console.log("No WebPush subscription found → registering fallback");
-      await registerWebPushFallback(userId, supabase);
+      if (!sub) {
+        console.log("No WebPush subscription found → registering fallback");
+        await registerWebPushFallback(userId, supabase);
+      }
     }
-  }
 
-  ensureWebPush();
-}, [userId, supabase]);
+    ensureWebPush();
+  }, [userId, supabase]);
 
   /* ---------------- REALTIME MESSAGES (all types) ---------------- */
   useEffect(() => {
@@ -176,7 +174,6 @@ useEffect(() => {
           const msg = payload.new;
           if (msg.room_id !== finalRoomId) return;
 
-          // For any incoming message, mark delivered
           if (msg.sender_id !== userId) {
             await supabase
               .from("messages")
@@ -242,14 +239,12 @@ useEffect(() => {
     const trimmed = newMessage.trim();
     if (!trimmed) return;
 
-    // Stop typing indicator
     await supabase.from("typing_events").insert({
       room_id: finalRoomId,
       user_id: userId,
       is_typing: false,
     });
 
-    // Insert the actual message (now with receiver_id)
     const { error } = await supabase.from("messages").insert({
       room_id: finalRoomId,
       sender_id: userId,
@@ -262,14 +257,12 @@ useEffect(() => {
       console.error("sendMessage error:", error);
     }
 
-    // Ensure otherUserId is defined
     if (!otherUserId) {
       console.warn("Cannot send DM notification: otherUserId is undefined");
       setNewMessage("");
       return;
     }
 
-    // In-app DM notification (aligned to notifications schema)
     await supabase.from("notifications").insert({
       user_id: otherUserId,
       actor_id: userId,
@@ -278,18 +271,19 @@ useEffect(() => {
       dm_room_id: finalRoomId,
     });
 
-await supabase.functions.invoke("send-push", {
-  body: JSON.stringify({
-    targetUserId: otherUserId,
-    title: usernames[userId],
-    body: trimmed,
-    data: {
-      dm_room_id: finalRoomId,
-      sender_id: userId,
-      message: trimmed,
-    },
-  }),
-});
+    await supabase.functions.invoke("send-push", {
+      body: JSON.stringify({
+        targetUserId: otherUserId,
+        title: usernames[userId],
+        body: trimmed,
+        data: {
+          event: "dm",
+          dm_room_id: finalRoomId,
+          sender_id: userId,
+          message: trimmed,
+        },
+      }),
+    });
 
     setNewMessage("");
   }
@@ -382,20 +376,20 @@ await supabase.functions.invoke("send-push", {
       created_at: new Date().toISOString(),
     });
 
- await supabase.functions.invoke("send-push", {
-  body: JSON.stringify({
-    targetUserId: otherUserId,
-    title: usernames[userId] || "Incoming Call",
-    body: `Incoming call from ${usernames[userId] || "Unknown"}`,
-    data: {
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      caller_name: usernames[userId] || "Unknown",
-      event: "incoming_call",
-    },
-  }),
-});
+    await supabase.functions.invoke("send-push", {
+      body: JSON.stringify({
+        targetUserId: otherUserId,
+        title: "Incoming Call",
+        body: `${usernames[userId] || "Someone"} is calling you…`,
+        data: {
+          event: "incoming_call",
+          room_id: newRoomId,
+          call_id: callId,
+          caller_name: usernames[userId] || "Unknown",
+          url: `/call/${newRoomId}?role=callee`,
+        },
+      }),
+    });
 
     router.push(`/call/${newRoomId}?role=caller`);
   }

@@ -16,7 +16,6 @@ self.addEventListener("install", (event) => {
     })
   );
 
-  // ⭐ Critical: activate new SW immediately
   self.skipWaiting();
 });
 
@@ -24,7 +23,6 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      // ⭐ Delete old caches
       const keys = await caches.keys();
       await Promise.all(
         keys.map((key) => {
@@ -34,10 +32,8 @@ self.addEventListener("activate", (event) => {
         })
       );
 
-      // ⭐ Critical: take control of ALL open tabs immediately
       await self.clients.claim();
 
-      // ⭐ Notify all tabs that a new version is available
       const clientsList = await self.clients.matchAll();
       clientsList.forEach((client) =>
         client.postMessage({ type: "sw-update" })
@@ -51,12 +47,10 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 🚫 Do NOT intercept Supabase Edge Function streaming requests
   if (url.origin.includes("supabase.co")) {
-    return; // Let the browser handle it normally
+    return;
   }
 
-  // 🚫 Do NOT cache POST, PUT, PATCH, DELETE, OPTIONS
   if (req.method !== "GET") {
     return;
   }
@@ -85,33 +79,85 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// ⭐ Handle notification clicks (incoming call, etc.)
+/* -----------------------------------------------------------
+   ⭐ WEBPUSH HANDLER — EXACTLY MATCHES FIREBASE PAYLOAD SHAPE
+   ----------------------------------------------------------- */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data?.json() || {};
+  } catch (err) {
+    console.log("[SW] Push JSON parse error:", err);
+  }
+
+  /* ⭐ INCOMING CALL — replicate Firebase payload structure */
+  if (data.event === "incoming_call") {
+    const title =
+      data.title ||
+      data.caller_name ||
+      "Incoming Call";
+
+    const body =
+      data.body ||
+      `${data.caller_name || "Someone"} is calling you…`;
+
+    const roomId = data.room_id;
+
+    const notificationOptions = {
+      body,
+      icon: "/icons/call-large.png",
+      badge: "/icons/badge-72.png",
+      requireInteraction: true,
+      renotify: true,
+      tag: "incoming-call",
+      data: {
+        room_id: roomId,
+        caller_name: data.caller_name,
+        url: roomId ? `/call/${roomId}?role=callee` : "/",
+      },
+    };
+
+    event.waitUntil(self.registration.showNotification(title, notificationOptions));
+    return;
+  }
+
+  /* ⭐ DM Notification */
+  if (data.event === "dm") {
+    const notificationOptions = {
+      body: data.body,
+      icon: "/icons/badge-72.png",
+      data: {
+        url: `/messenger/${data.dm_room_id}`,
+      },
+    };
+
+    event.waitUntil(self.registration.showNotification(data.title, notificationOptions));
+    return;
+  }
+
+  /* ⭐ Default fallback */
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Notification", {
+      body: data.body || "",
+    })
+  );
+});
+
+/* -----------------------------------------------------------
+   ⭐ Notification Click → Navigate to correct screen
+   ----------------------------------------------------------- */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const data = event.notification.data || {};
-  const roomId = data.room_id;
-  const targetUrl =
-    roomId ? `/call/${roomId}?role=callee` : "/messenger";
+  const url = event.notification.data?.url || "/";
 
   event.waitUntil(
-    (async () => {
-      const allClients = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
-
-      // Try to focus an existing client first
-      for (const client of allClients) {
-        const url = new URL(client.url);
-        if (url.pathname === targetUrl) {
-          await client.focus();
-          return;
-        }
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        client.navigate(url);
+        return client.focus();
       }
-
-      // Otherwise open a new window
-      await self.clients.openWindow(targetUrl);
-    })()
+      return clients.openWindow(url);
+    })
   );
 });

@@ -57,6 +57,7 @@ export default function NotificationsPage() {
   async function disableNotifications() {
     if (!userId) return;
 
+    // ⭐ Remove WebPush subscription only
     await supabase.from("push_subscriptions").delete().eq("user_id", userId);
 
     localStorage.setItem("notifications_enabled", "false");

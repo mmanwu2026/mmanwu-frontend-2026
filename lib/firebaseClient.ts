@@ -11,8 +11,3 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-
-export async function getMessagingSafe() {
-  if (!(await isSupported())) return null;
-  return getMessaging(app);
-}
