@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSupabase } from "../app/context/SupabaseContext";
-import { registerPushToken } from "@/app/push/registerPushToken";
+import { registerWebPushFallback } from "@/app/push/registerWebPushFallback";
 
 export default function EnableNotifications() {
   const { supabase } = useSupabase();
@@ -29,11 +29,8 @@ export default function EnableNotifications() {
         return;
       }
 
-      // Register Firebase messaging service worker
-      await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-
-      // Generate and save FCM token
-      await registerPushToken(user.id, supabase);
+      // ⭐ Register WebPush fallback subscription (NOT Firebase)
+      await registerWebPushFallback(user.id, supabase);
 
       // Mark enabled
       localStorage.setItem("notifications_enabled", "true");
@@ -42,7 +39,7 @@ export default function EnableNotifications() {
       setLoading(false);
 
     } catch (err) {
-      console.error("FCM setup failed:", err);
+      console.error("WebPush setup failed:", err);
       alert("Could not enable notifications.");
       setLoading(false);
     }

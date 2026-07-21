@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from "react";
 import ProvidersWrapper from "./providers-wrapper";
 import CallListener from "@/components/CallListener";
