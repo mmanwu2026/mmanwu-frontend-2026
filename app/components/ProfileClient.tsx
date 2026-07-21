@@ -134,6 +134,10 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
+  const [headerSpirit, setHeaderSpirit] = useState(0);
+  const [headerPositivity, setHeaderPositivity] = useState(0.5);
+
+
   const [busy, setBusy] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -873,54 +877,43 @@ router.push(`/messenger/${roomId}`);
   /* --------------------------------------------- */
   /* RECOMPUTE PROFILE HEADER STATS                */
   /* --------------------------------------------- */
-  useEffect(() => {
-    if (!profile) return;
 
-    /* PLAZA SPIRIT */
-    const plazaSpirit = posts.reduce((sum: number, post: Post) => {
-      const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+useEffect(() => {
+  if (!profile) return;
 
-      return (
-        sum +
-        counts.mask1 * 1 +
-        counts.mask2 * 2 +
-        counts.mask3 * 3 +
-        counts.mask4 * 4 +
-        counts.mask5 * 5 +
-        counts.mask6 * 6
-      );
-    }, 0);
-
-    /* SOUND SPIRIT */
-    const soundSpirit = soundPosts.reduce(
-      (sum: number, post: CardSoundPost) => sum + (post.spirit_score ?? 0),
-      0
+  const plazaSpirit = posts.reduce((sum, post) => {
+    const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+    return (
+      sum +
+      counts.mask1 * 1 +
+      counts.mask2 * 2 +
+      counts.mask3 * 3 +
+      counts.mask4 * 4 +
+      counts.mask5 * 5 +
+      counts.mask6 * 6
     );
+  }, 0);
 
-    /* VISION SPIRIT */
-    const visionSpirit = visionPosts.reduce(
-      (sum: number, post: VisionPost) => sum + (post.spirit_score ?? 0),
-      0
-    );
+  const soundSpirit = soundPosts.reduce(
+    (sum, post) => sum + (post.spirit_score ?? 0),
+    0
+  );
 
-    const totalSpirit = plazaSpirit + soundSpirit + visionSpirit;
-    const totalPosts =
-      posts.length + soundPosts.length + visionPosts.length;
+  const visionSpirit = visionPosts.reduce(
+    (sum, post) => sum + (post.spirit_score ?? 0),
+    0
+  );
 
-    const totalPositivity =
-      totalPosts > 0 ? profile.positivity_ratio : 0.5;
+  const totalSpirit = plazaSpirit + soundSpirit + visionSpirit;
+  const totalPosts =
+    posts.length + soundPosts.length + visionPosts.length;
 
-    /* SAFE STATE UPDATE */
-    setProfile((prev) =>
-      prev
-        ? {
-            ...prev,
-            spirit_score: totalSpirit,
-            positivity_ratio: totalPositivity,
-          }
-        : prev
-    );
-  }, [posts, reactionCounts, soundPosts, visionPosts, profile]);
+  const totalPositivity =
+    totalPosts > 0 ? profile.positivity_ratio : 0.5;
+
+  setHeaderSpirit(totalSpirit);
+  setHeaderPositivity(totalPositivity);
+}, [posts, reactionCounts, soundPosts, visionPosts, profile?.positivity_ratio]);
 
     /* --------------------------------------------- */
   /* HEADER                                        */
@@ -1074,14 +1067,14 @@ router.push(`/messenger/${roomId}`);
 
                 <div>
                   <p className="text-lg font-semibold text-gray-900">
-                    {profile.spirit_score}
+                    {headerSpirit}
                   </p>
                   <p className="text-xs text-gray-500">Spirit</p>
                 </div>
 
                 <div>
                   <p className="text-lg font-semibold text-gray-900">
-                    {Math.round(profile.positivity_ratio * 100)}%
+                    {Math.round(headerPositivity * 100)}%
                   </p>
                   <p className="text-xs text-gray-500">Positivity</p>
                 </div>
