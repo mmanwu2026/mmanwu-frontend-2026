@@ -394,21 +394,21 @@ export default function UnifiedFeedPage() {
     /* ⭐⭐⭐ PRIVACY ENFORCEMENT ⭐⭐⭐ */
     const viewerId = user?.id ?? null;
 
-    const filtered = combined.filter((item) => {
-      const creator = item.creator;
+const filtered = combined.filter((item) => {
+  const creator = item.creator;
 
-      // Sound posts have no creator → handled inside SoundPostCard
-      if (!creator) return true;
+  // Sound posts → no creator → always allowed
+  if (!creator) return true;
 
-      const privacy = creator.privacy_type ?? "public";
-      const isOwner = viewerId === creator.id;
+  const privacy = creator.privacy_type ?? "public";
 
-      if (privacy === "private" && !isOwner) {
-        return false;
-      }
+  const isOwner =
+    viewerId != null &&
+    creator.id != null &&
+    viewerId === creator.id;
 
-      return true;
-    });
+  return !(privacy === "private" && !isOwner);
+});
 
     /* ---------------- SORT AFTER PRIVACY ---------------- */
     filtered.sort((a, b) => {
