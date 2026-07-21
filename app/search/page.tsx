@@ -111,45 +111,11 @@ export default function GlobalSearchPage() {
     const profiles = profilesRes.data ?? [];
     const messenger = messengerRes.data ?? [];
 
-    const filteredProfiles: ProfileResult[] = [];
-    const filteredMessenger: ProfileResult[] = [];
+    // ⭐ FIX: Private profiles MUST appear in search
+    const filteredProfiles: ProfileResult[] = [...profiles];
+    const filteredMessenger: ProfileResult[] = [...messenger];
 
-    for (const p of profiles) {
-      if (p.privacy_type !== "private") {
-        filteredProfiles.push(p);
-        continue;
-      }
-
-      if (!viewerId) continue;
-
-      const { data: followRows } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", viewerId)
-        .eq("following_id", p.id)
-        .limit(1);
-
-      if (followRows?.[0]) filteredProfiles.push(p);
-    }
-
-    for (const p of messenger) {
-      if (p.privacy_type !== "private") {
-        filteredMessenger.push(p);
-        continue;
-      }
-
-      if (!viewerId) continue;
-
-      const { data: followRows } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", viewerId)
-        .eq("following_id", p.id)
-        .limit(1);
-
-      if (followRows?.[0]) filteredMessenger.push(p);
-    }
-
+    // ⭐ Posts MUST respect privacy
     async function filterPosts<T extends { creator_id: string }>(posts: T[]): Promise<T[]> {
       const output: T[] = [];
 
