@@ -16,15 +16,23 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
   }, []);
 
   // ⭐ 2. Listen for SW → client navigation messages
-  useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", (event) => {
-        if (event.data?.type === "navigate" && event.data.url) {
-          window.location.href = event.data.url;
-        }
-      });
-    }
-  }, []);
+ useEffect(() => {
+  if (typeof window !== "undefined") {
+    // SW → client (direct)
+    navigator.serviceWorker?.addEventListener("message", (event) => {
+      if (event.data?.type === "navigate" && event.data.url) {
+        window.location.href = event.data.url;
+      }
+    });
+
+    // Window → client (fallback channel)
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "navigate" && event.data.url) {
+        window.location.href = event.data.url;
+      }
+    });
+  }
+}, []);
 
   return (
     <>
