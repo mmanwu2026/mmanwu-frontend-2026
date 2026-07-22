@@ -340,6 +340,7 @@ useEffect(() => {
             spirit_score: spirit,
             positivity_ratio: positivity,
             total_reactions: total,
+            reaction_count: total,
             automask,
             creator_id: p.creator_id,
             creator_privacy_type: visionPrivacyMap[p.creator_id] ?? "public",
