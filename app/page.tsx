@@ -495,7 +495,15 @@ export default function UnifiedFeedPage() {
 
           if (item.square_type === "vision-square") {
             if (!item.creator) return null;
-            return <VisionCard key={item.post.id} post={item.post} />;
+            return (
+  <VisionCard
+    key={item.post.id}
+    post={item.post}
+    authUserId={user?.id ?? null}
+    is_follower={item.post.is_follower ?? false}
+    onReactAction={async () => {}}
+  />
+);
           }
 
           if (item.square_type === "sound-square") {

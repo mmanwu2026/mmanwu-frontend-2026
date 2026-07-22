@@ -18,10 +18,22 @@ const FALLBACK_AVATAR =
 export default function VisionCard({
   post,
   smallAvatar,
+  authUserId,
+  is_follower,
+  onReactAction,
 }: {
   post: any;
   smallAvatar?: boolean;
+  authUserId?: string | null;
+  is_follower?: boolean;
+  onReactAction?: () => Promise<void>;
 }) {
+
+  function handleReact() {
+  if (onReactAction) return onReactAction();
+  return Promise.resolve();
+}
+
   const mainAvatarSize = smallAvatar ? "w-[24px] h-[24px]" : "w-[40px] h-[40px]";
   const commentAvatarSize = smallAvatar ? "w-[20px] h-[20px]" : "w-[24px] h-[24px]";
 
@@ -454,26 +466,32 @@ export default function VisionCard({
 
       {/* ⭐ REACTIONS */}
       {isAllowed && (
-        <ReactionBar
-          postType="vision"
-          postId={post.id}
-          creatorId={post.creator_id}
-          reactions={localReactions}
-          spiritScore={localSpirit}
-          positivityRatio={localPositivity}
-          onReactAction={refreshReactions}
-        />
+<ReactionBar
+  postType="vision"
+  postId={post.id}
+  creatorId={post.creator_id}
+  reactions={post.reactions}
+  spiritScore={post.spirit_score}
+  positivityRatio={post.positivity_ratio}
+  onReactAction={handleReact}
+  privacy_type={post.privacy_type ?? "public"}
+  is_follower={post.is_follower ?? false}
+/>
+
       )}
 
       {/* ⭐ SHARE */}
       {isAllowed && (
         <div className="mt-3">
-          <VisionShareButton
-            postId={post.id}
-            title={post.title}
-            imageUrl={post.media_url ?? ""}
-            creatorUsername={post.users?.username ?? "unknown"}
-          />
+<VisionShareButton
+  postId={post.id}
+  title={post.title}
+  imageUrl={post.media_url}
+  creatorUsername={post.users.username}
+  privacy_type={post.privacy_type ?? "public"}
+  is_follower={post.is_follower ?? false}
+  isCreator={authUserId === post.creator_id}
+/>
         </div>
       )}
 

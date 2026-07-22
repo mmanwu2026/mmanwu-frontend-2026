@@ -5,13 +5,11 @@ const isDev = process.env.NODE_ENV === "development";
 const nextConfig = {
   reactStrictMode: true,
 
+  // ⭐ Only keep serverActions — remove turbo entirely
   experimental: {
     serverActions: {
       allowedOrigins: ["*"],
     },
-
-    // ⭐ Critical fix: disable Turbopack to stop missing chunks
-    turbo: false,
   },
 
   async rewrites() {

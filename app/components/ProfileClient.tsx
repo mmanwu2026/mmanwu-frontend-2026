@@ -1216,7 +1216,7 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
             </button>
           </div>
         )}
-// ProfileClient Part 5/5
+
         {/* PLAZA POSTS */}
         {viewerAllowed && activeTab === "posts" && (
           <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
@@ -1315,10 +1315,16 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
               </p>
             )}
 
-            {visionPosts.map((post) => (
-              <VisionCard key={post.id} post={post} smallAvatar />
-            ))}
-
+ {visionPosts.map((post) => (
+  <VisionCard
+    key={post.id}
+    post={post}
+    smallAvatar
+    authUserId={authUserId}
+    is_follower={isFollowing}
+    onReactAction={async () => {}}
+  />
+))}
             {visionFetchingMore && (
               <p className="text-gray-500 text-center mt-4">
                 Loading more visions…
