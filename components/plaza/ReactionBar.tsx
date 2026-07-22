@@ -55,7 +55,7 @@ export default function ReactionBar({
     async function loadPrivacy() {
       const table =
         postType === "plaza"
-          ? "plaza_posts"
+          ? "posts"
           : postType === "sound"
           ? "sound_posts"
           : "vision_posts";

@@ -64,7 +64,7 @@ export default function PlazaComments({
   useEffect(() => {
     async function loadPrivacy() {
       const { data: rows } = await supabase
-        .from("plaza_posts")
+        .from("posts")
         .select("privacy_type")
         .eq("id", postId)
         .limit(1);
