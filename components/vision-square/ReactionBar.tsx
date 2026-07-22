@@ -18,7 +18,7 @@ interface VisionReactionBarProps {
   postType: "vision";
   postId: string;
   creatorId: string;
-  reactions: ReactionCounts;
+  reactions?: ReactionCounts;   // ⭐ reactions may be undefined
   spiritScore: number;
   positivityRatio: number;
   privacy_type: "public" | "private";
@@ -38,6 +38,16 @@ export default function ReactionBar({
 }: VisionReactionBarProps) {
   const { supabase } = useSupabase();
   const router = useRouter();
+
+  // ⭐ SAFE DEFAULTS — prevents crashes
+  const safe = reactions ?? {
+    mask1: 0,
+    mask2: 0,
+    mask3: 0,
+    mask4: 0,
+    mask5: 0,
+    mask6: 0,
+  };
 
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -61,7 +71,6 @@ export default function ReactionBar({
   const isAllowed =
     privacy_type === "public" || isCreator || is_follower;
 
-  // ⭐ Hide entire reaction bar if viewer is not allowed
   if (!isAllowed) {
     return null;
   }
@@ -71,7 +80,6 @@ export default function ReactionBar({
 
     setLoading(true);
 
-    // 1. Save reaction
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
       post_type: "vision",
@@ -86,12 +94,10 @@ export default function ReactionBar({
       return;
     }
 
-    // 2. Positive reaction triggers SpiritToast
     if (maskTier >= 3) {
       setToastMessage("Your reaction uplifts the spirits ✨");
     }
 
-    // ⭐ 3. Fetch YOUR OWN push subscription (SAFE)
     const { data: rows } = await supabase
       .from("push_subscriptions")
       .select("subscription")
@@ -100,7 +106,6 @@ export default function ReactionBar({
 
     const sub = rows?.[0] ?? null;
 
-    // ⭐ 4. Insert notification into database
     await fetch("/functions/v1/create-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -114,7 +119,6 @@ export default function ReactionBar({
       }),
     });
 
-    // ⭐ 5. Trigger push notification
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -134,10 +138,7 @@ export default function ReactionBar({
       );
     }
 
-    // 6. Refresh feed
     router.refresh();
-
-    // 7. Update UI
     onReactAction();
   }
 
@@ -159,7 +160,7 @@ export default function ReactionBar({
             className="text-3xl flex flex-col items-center disabled:opacity-40"
           >
             😶‍🌫️
-            <span className="text-xs text-gray-400">{reactions.mask1}</span>
+            <span className="text-xs text-gray-400">{safe.mask1}</span>
           </button>
 
           <button
@@ -168,19 +169,19 @@ export default function ReactionBar({
             className="text-3xl flex flex-col items-center disabled:opacity-40"
           >
             😈
-            <span className="text-xs text-gray-400">{reactions.mask2}</span>
+            <span className="text-xs text-gray-400">{safe.mask2}</span>
           </button>
         </>
       )}
 
-      {/* ⭐ Positive masks (everyone allowed) */}
+      {/* ⭐ Positive masks */}
       <button
         onClick={() => handleReact(3)}
         disabled={loading}
         className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         😊
-        <span className="text-xs text-gray-400">{reactions.mask3}</span>
+        <span className="text-xs text-gray-400">{safe.mask3}</span>
       </button>
 
       <button
@@ -189,7 +190,7 @@ export default function ReactionBar({
         className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         🤩
-        <span className="text-xs text-gray-400">{reactions.mask4}</span>
+        <span className="text-xs text-gray-400">{safe.mask4}</span>
       </button>
 
       <button
@@ -198,7 +199,7 @@ export default function ReactionBar({
         className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         😇
-        <span className="text-xs text-gray-400">{reactions.mask5}</span>
+        <span className="text-xs text-gray-400">{safe.mask5}</span>
       </button>
 
       <button
@@ -207,7 +208,7 @@ export default function ReactionBar({
         className="text-3xl flex flex-col items-center disabled:opacity-40"
       >
         👑
-        <span className="text-xs text-gray-400">{reactions.mask6}</span>
+        <span className="text-xs text-gray-400">{safe.mask6}</span>
       </button>
     </div>
   );

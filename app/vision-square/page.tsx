@@ -7,7 +7,7 @@ import TrendingHashtags from "./components/TrendingHashtags";
 import VisionCard from "@/app/vision-square/components/VisionCard";
 
 /* ---------------------------------------------------------
-   Move interface OUTSIDE the component
+   ⭐ Move interface OUTSIDE the component
 --------------------------------------------------------- */
 interface VisionIndexPost {
   id: string;
@@ -31,12 +31,13 @@ interface VisionIndexPost {
 
 export default function VisionSquareIndex() {
   const { supabase } = useSupabase();
+
   const [recentPosts, setRecentPosts] = useState<VisionIndexPost[]>([]);
   const [uid, setUid] = useState<string | null>(null);
 
-  /* --------------------------------------------- */
-  /* LOAD VIEWER                                    */
-  /* --------------------------------------------- */
+  /* ---------------------------------------------------------
+     LOAD VIEWER
+  --------------------------------------------------------- */
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -45,9 +46,9 @@ export default function VisionSquareIndex() {
     loadUser();
   }, [supabase]);
 
-  /* --------------------------------------------- */
-  /* LOAD RECENT POSTS (WITH PRIVACY)               */
-  /* --------------------------------------------- */
+  /* ---------------------------------------------------------
+     LOAD RECENT POSTS (WITH PRIVACY)
+  --------------------------------------------------------- */
   useEffect(() => {
     async function loadRecent() {
       const { data, error } = await supabase
@@ -112,61 +113,52 @@ export default function VisionSquareIndex() {
         }
       }
 
-      const normalized = await Promise.all(
-        filtered.map(async (post: any) => {
-          const creator =
-            Array.isArray(post.users) && post.users.length > 0
-              ? post.users[0]
-              : post.users;
+      const normalized = filtered.map((post: any) => {
+        const creator =
+          Array.isArray(post.users) && post.users.length > 0
+            ? post.users[0]
+            : post.users;
 
-          const comments =
-            post.comments?.map((c: any) => {
-              const profile =
-                Array.isArray(c.profiles) && c.profiles.length > 0
-                  ? c.profiles[0]
-                  : c.profiles;
+        const comments =
+          post.comments?.map((c: any) => {
+            const profile =
+              Array.isArray(c.profiles) && c.profiles.length > 0
+                ? c.profiles[0]
+                : c.profiles;
 
-              return {
-                id: c.id,
-                content: c.content,
-                raw_input: c.raw_input ?? null,
-                created_at: c.created_at,
-                automask: c.automask,
-                positivity_ratio: c.positivity_ratio ?? 0.5,
-                user_id: c.user_id,
-                profiles: {
-                  username: profile?.username ?? "unknown",
-                  avatar_url: profile?.avatar_url ?? null,
-                },
-              };
-            }) ?? [];
+            return {
+              id: c.id,
+              content: c.content,
+              raw_input: c.raw_input ?? null,
+              created_at: c.created_at,
+              automask: c.automask,
+              positivity_ratio: c.positivity_ratio ?? 0.5,
+              user_id: c.user_id,
+              profiles: {
+                username: profile?.username ?? "unknown",
+                avatar_url: profile?.avatar_url ?? null,
+              },
+            };
+          }) ?? [];
 
-          let isFollower = false;
+        let isFollower = false;
 
-          if (uid && post.creator_id !== uid) {
-            const { data: followRows } = await supabase
-              .from("follows")
-              .select("id")
-              .eq("follower_id", uid)
-              .eq("following_id", post.creator_id)
-              .limit(1);
+        if (uid && post.creator_id !== uid) {
+          isFollower = true;
+        }
 
-            isFollower = !!followRows?.[0];
-          }
-
-          return {
-            ...post,
-            tags: Array.isArray(post.tags) ? post.tags : [],
-            users: {
-              username: creator?.username ?? "unknown",
-              avatar_url: creator?.avatar_url ?? null,
-            },
-            comments,
-            comment_count: comments.length,
-            is_follower: isFollower,
-          };
-        })
-      );
+        return {
+          ...post,
+          tags: Array.isArray(post.tags) ? post.tags : [],
+          users: {
+            username: creator?.username ?? "unknown",
+            avatar_url: creator?.avatar_url ?? null,
+          },
+          comments,
+          comment_count: comments.length,
+          is_follower: isFollower,
+        };
+      });
 
       setRecentPosts(normalized);
     }
@@ -174,12 +166,11 @@ export default function VisionSquareIndex() {
     loadRecent();
   }, [supabase, uid]);
 
-  /* --------------------------------------------- */
-  /* JSX                                            */
-  /* --------------------------------------------- */
+  /* ---------------------------------------------------------
+     JSX
+  --------------------------------------------------------- */
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
-      {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
         <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
           ← Plaza
@@ -211,7 +202,6 @@ export default function VisionSquareIndex() {
         ))}
       </div>
 
-      {/* Main Links */}
       <div className="space-y-4 mt-10">
         <Link
           href="/vision-square/feed"

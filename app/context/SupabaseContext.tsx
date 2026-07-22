@@ -33,19 +33,22 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // ⭐ Correct session listener (no manual override)
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
+    // ⭐ Correct Supabase v2 listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
     // ⭐ Load initial session
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
     });
 
-    return () => listener.subscription.unsubscribe();
+    // ⭐ Correct cleanup (Supabase v2)
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   return (

@@ -7,15 +7,16 @@ import { registerWebPushFallback } from "@/app/push/registerWebPushFallback";
 export default function PushInitializer() {
   const { supabase } = useSupabase();
   const hasInitializedRef = useRef(false);
+  const authSubscriptionRef = useRef<any>(null);
 
   useEffect(() => {
-    let unsubscribe: any;
-
     async function init() {
       console.log("PushInitializer → loading Supabase session");
 
-      // 1. Wait for Supabase to attach the authenticated session to the client
-      unsubscribe = supabase.auth.onAuthStateChange(async (event, session) => {
+      // ⭐ Correct Supabase v2 API
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (!session) {
           console.log("PushInitializer → no authenticated session yet, waiting...");
           return;
@@ -24,14 +25,14 @@ export default function PushInitializer() {
         const user = session.user;
         console.log("PushInitializer → authenticated user:", user.id);
 
-        // 2. Strict Mode protection
+        // ⭐ Strict Mode protection
         if (hasInitializedRef.current) {
           console.log("PushInitializer → already initialized, skipping subscription");
           return;
         }
         hasInitializedRef.current = true;
 
-        // 3. Wait for SW to be ready AND controlling the page
+        // ⭐ Wait for SW to be ready
         const registration = await navigator.serviceWorker.ready;
 
         if (!navigator.serviceWorker.controller) {
@@ -41,16 +42,23 @@ export default function PushInitializer() {
 
         console.log("PushInitializer → SW ready & controlling page");
 
-        // 4. Register fallback (now safe: authenticated + SW ready + client JWT attached)
+        // ⭐ Register fallback safely
         console.log("PushInitializer → registering WebPush fallback for:", user.id);
         await registerWebPushFallback(user.id, supabase);
       });
+
+      // ⭐ Store subscription for cleanup
+      authSubscriptionRef.current = subscription;
     }
 
     init();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      // ⭐ Correct cleanup
+      if (authSubscriptionRef.current) {
+        console.log("PushInitializer → cleaning up auth subscription");
+        authSubscriptionRef.current.unsubscribe();
+      }
     };
   }, [supabase]);
 

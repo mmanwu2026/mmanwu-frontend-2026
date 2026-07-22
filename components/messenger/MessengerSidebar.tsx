@@ -52,14 +52,6 @@ export default function MessengerSidebar({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
 
-  if (!userId) {
-    return (
-      <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 text-white">
-        Loading…
-      </div>
-    );
-  }
-
   function getUserProfile(id: string | null) {
     if (!id) return null;
     return users.find((u: any) => u.id === id) || null;
@@ -189,9 +181,16 @@ export default function MessengerSidebar({
 
   /* ---------------- UI ---------------- */
 
+  if (!userId) {
+    return (
+      <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 text-white">
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
-
       <h2 className="text-white text-lg mb-4">Chats</h2>
 
       <button
@@ -222,7 +221,6 @@ export default function MessengerSidebar({
               className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-left"
             >
               <div className="flex items-center gap-3">
-
                 <img
                   src={avatar}
                   alt="avatar"

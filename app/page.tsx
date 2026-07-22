@@ -8,6 +8,9 @@ import VisionCard from "@/app/vision-square/components/VisionCard";
 import SoundPostCard from "@/components/sound-square/SoundPostCard";
 import EnableNotifications from "@/components/EnableNotifications";
 
+/* ---------------------------------------------------------
+   Shared Reaction Structure
+--------------------------------------------------------- */
 interface ReactionCounts {
   mask1: number;
   mask2: number;
@@ -15,13 +18,6 @@ interface ReactionCounts {
   mask4: number;
   mask5: number;
   mask6: number;
-}
-
-interface UnifiedFeedItem {
-  square_type: "plaza" | "vision-square" | "sound-square";
-  post: any;
-  creator: any | null;
-  trending_score: number;
 }
 
 const EMPTY_REACTIONS: ReactionCounts = {
@@ -32,6 +28,16 @@ const EMPTY_REACTIONS: ReactionCounts = {
   mask5: 0,
   mask6: 0,
 };
+
+/* ---------------------------------------------------------
+   Unified Feed Item
+--------------------------------------------------------- */
+interface UnifiedFeedItem {
+  square_type: "plaza" | "vision-square" | "sound-square";
+  post: any;
+  creator: any | null;
+  trending_score: number;
+}
 
 export default function UnifiedFeedPage() {
   const { supabase, user } = useSupabase();
@@ -44,7 +50,9 @@ export default function UnifiedFeedPage() {
   const [offset, setOffset] = useState(0);
   const LIMIT = 20;
 
-  /* ---------------- HYDRATION ---------------- */
+  /* ---------------------------------------------------------
+     Hydration
+  --------------------------------------------------------- */
   useEffect(() => {
     setHydrated(true);
     const flag =
@@ -54,14 +62,18 @@ export default function UnifiedFeedPage() {
     setNotificationsEnabled(flag);
   }, []);
 
-  /* ---------------- INITIAL LOAD ---------------- */
+  /* ---------------------------------------------------------
+     Initial Load
+  --------------------------------------------------------- */
   useEffect(() => {
     if (notificationsEnabled === "true" && items.length === 0) {
       loadMore();
     }
-  }, [notificationsEnabled]); // items length checked inside
+  }, [notificationsEnabled]);
 
-  /* ⭐⭐⭐ REALTIME REACTION UPDATES — PLAZA + SOUND + VISION ⭐⭐⭐ */
+  /* ---------------------------------------------------------
+     Realtime Reaction Updates
+  --------------------------------------------------------- */
   useEffect(() => {
     if (!supabase) return;
 
@@ -69,11 +81,7 @@ export default function UnifiedFeedPage() {
       .channel("realtime-reactions")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reactions",
-        },
+        { event: "*", schema: "public", table: "reactions" },
         (payload: any) => {
           const row = payload.new ?? payload.old;
           if (!row) return;
@@ -155,12 +163,16 @@ export default function UnifiedFeedPage() {
     return () => channel.unsubscribe();
   }, [supabase, items.length]);
 
-  /* ---------------- LOAD MORE ---------------- */
+  /* ---------------------------------------------------------
+     Load More
+  --------------------------------------------------------- */
   async function loadMore() {
     if (loading || !supabase) return;
     setLoading(true);
 
-    /* ---------------- PLAZA ---------------- */
+    /* ---------------------------------------------------------
+       PLAZA
+    --------------------------------------------------------- */
     const plaza = await supabase
       .from("posts")
       .select("*, profiles(*)")
@@ -233,13 +245,19 @@ export default function UnifiedFeedPage() {
             automask,
             creator_id: p.creator_id,
             creator_privacy_type: p.profiles?.privacy_type ?? "public",
+            users: {
+              username: p.profiles?.username ?? "unknown",
+              avatar_url: p.profiles?.avatar_url ?? null,
+            },
           },
           creator: p.profiles,
           trending_score: p.trending_score ?? 0,
         };
       }) ?? [];
 
-    /* ---------------- VISION ---------------- */
+    /* ---------------------------------------------------------
+       VISION
+    --------------------------------------------------------- */
     const vision = await supabase
       .from("vision_posts")
       .select("*, profiles(*)")
@@ -268,12 +286,23 @@ export default function UnifiedFeedPage() {
           ...p,
           creator_id: p.creator_id,
           creator_privacy_type: visionPrivacyMap[p.creator_id] ?? "public",
+          users: {
+            username: p.profiles?.username ?? "unknown",
+            avatar_url: p.profiles?.avatar_url ?? null,
+          },
+          reactions: { ...EMPTY_REACTIONS },
+          spirit_score: p.spirit_score ?? 0,
+          positivity_ratio: p.positivity_ratio ?? 0.5,
+          automask: p.automask ?? 2,
+          is_follower: false,
         },
         creator: p.profiles,
         trending_score: p.trending_score ?? 0,
       })) ?? [];
 
-    /* ---------------- SOUND ---------------- */
+    /* ---------------------------------------------------------
+       SOUND
+    --------------------------------------------------------- */
     const sound = await supabase
       .from("sound_posts")
       .select("*")
@@ -375,16 +404,24 @@ export default function UnifiedFeedPage() {
             comments: soundCommentMap[p.id] || [],
             creator_id: p.creator_id,
             creator_privacy_type: soundPrivacyMap[p.creator_id] ?? "public",
+            users: {
+              username: "unknown",
+              avatar_url: null,
+            },
           },
           creator: null,
           trending_score: p.trending_score ?? 0,
         };
       }) ?? [];
 
-    /* ---------------- COMBINE ---------------- */
+    /* ---------------------------------------------------------
+       Combine
+    --------------------------------------------------------- */
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
-    /* ⭐⭐⭐ PRIVACY ENFORCEMENT (profile + follow) ⭐⭐⭐ */
+    /* ---------------------------------------------------------
+       Privacy Enforcement
+    --------------------------------------------------------- */
     const viewerId = user?.id ?? null;
 
     let followMap: Record<string, boolean> = {};
@@ -430,7 +467,9 @@ export default function UnifiedFeedPage() {
       return true;
     });
 
-    /* ---------------- SORT AFTER PRIVACY ---------------- */
+    /* ---------------------------------------------------------
+       Sort
+    --------------------------------------------------------- */
     filtered.sort((a, b) => {
       const timeA = new Date(a.post.created_at).getTime();
       const timeB = new Date(b.post.created_at).getTime();
@@ -444,20 +483,25 @@ export default function UnifiedFeedPage() {
     setLoading(false);
   }
 
+  /* ---------------------------------------------------------
+     Delete Handler
+  --------------------------------------------------------- */
   function handleDelete(id: string) {
     setItems((prev) => prev.filter((item) => item.post.id !== id));
   }
 
-  function handleReact() {
-    // placeholder for future reaction handling
-  }
+  function handleReact() {}
 
+  /* ---------------------------------------------------------
+     Hydration Guard
+  --------------------------------------------------------- */
   if (!hydrated) {
-    return (
-      <div style={{ background: "black", height: "100vh", width: "100vw" }} />
-    );
+    return <div style={{ background: "black", height: "100vh", width: "100vw" }} />;
   }
 
+  /* ---------------------------------------------------------
+     Render
+  --------------------------------------------------------- */
   return (
     <div className="p-4 pb-24">
       {notificationsEnabled !== "true" && (
@@ -496,14 +540,14 @@ export default function UnifiedFeedPage() {
           if (item.square_type === "vision-square") {
             if (!item.creator) return null;
             return (
-  <VisionCard
-    key={item.post.id}
-    post={item.post}
-    authUserId={user?.id ?? null}
-    is_follower={item.post.is_follower ?? false}
-    onReactAction={async () => {}}
-  />
-);
+              <VisionCard
+                key={item.post.id}
+                post={item.post}
+                authUserId={user?.id ?? null}
+                is_follower={item.post.is_follower ?? false}
+                onReactAction={async () => {}}
+              />
+            );
           }
 
           if (item.square_type === "sound-square") {
