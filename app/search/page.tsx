@@ -88,9 +88,9 @@ export default function GlobalSearchPage() {
           .ilike("username", `%${q}%`),
 
         supabase
-          .from("plaza_posts")
-          .select("id, content, created_at, creator_id")
-          .ilike("content", `%${q}%`),
+  .from("posts")
+  .select("id, content, created_at, creator_id, privacy_type")
+  .ilike("content", `%${q}%`),
 
         supabase
           .from("vision_posts")

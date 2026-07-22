@@ -8,7 +8,7 @@ import React, {
 } from "react";
 
 import { useSupabase } from "@/app/context/SupabaseContext";
-import { useIdentity } from "@/app/context/IdentityContext";   // ⭐ NEW
+import { useIdentity } from "@/app/context/IdentityContext";
 import PlazaCard from "@/components/plaza/PlazaCard";
 import UnreadListener from "@/app/components/UnreadListener";
 
@@ -30,13 +30,14 @@ interface PlazaPostWithAggregates {
   positivity_ratio: number;
   autoMask: number;
   reactions: ReactionCounts;
+  privacy_type: "public" | "private";   // ⭐ NEW
 }
 
 const PAGE_SIZE = 20;
 
 export default function PlazaPage() {
   const { supabase } = useSupabase();
-  const { fetchCreator, creators, authReady } = useIdentity();   // ⭐ NEW
+  const { fetchCreator, creators, authReady } = useIdentity();
 
   const [uid, setUid] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -71,7 +72,7 @@ export default function PlazaPage() {
   // -----------------------------------------------------
   const fetchPosts = useCallback(
     async (pageToLoad: number = 0, append = false) => {
-      if (!sessionReady || !authReady) return;   // ⭐ NEW
+      if (!sessionReady || !authReady) return;
 
       if (!append) setLoading(true);
 
@@ -87,7 +88,8 @@ export default function PlazaPage() {
           created_at,
           spirit_score,
           positivity_ratio,
-          automask
+          automask,
+          privacy_type        -- ⭐ NEW
         `)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -217,6 +219,7 @@ export default function PlazaPage() {
             mask5: entry?.mask5 ?? 0,
             mask6: entry?.mask6 ?? 0,
           },
+          privacy_type: post.privacy_type,   // ⭐ NEW
         });
       }
 
@@ -255,11 +258,10 @@ export default function PlazaPage() {
 
     (async () => {
       for (const id of missingCreatorIds) {
-        await fetchCreator(id);   // ⭐ GLOBAL identity loader
+        await fetchCreator(id);
       }
     })();
   }, [sessionReady, authReady, posts, creators, fetchCreator]);
-
 
   // -----------------------------------------------------
   // DELETE POST

@@ -31,6 +31,7 @@ interface PlazaPost {
   positivity_ratio: number;
   autoMask: number;
   reactions: ReactionCounts;
+  privacy_type: "public" | "private";   // ⭐ REQUIRED
 }
 
 export default function PlazaCard({
@@ -48,7 +49,6 @@ export default function PlazaCard({
 }) {
   const { supabase } = useSupabase();
 
-  // ⭐ Safe creator fallback so we never crash
   const safeCreator: CreatorProfile = creator ?? {
     id: "",
     username: "unknown",
@@ -58,45 +58,55 @@ export default function PlazaCard({
 
   const isCreator = userId === post.creator_id;
 
-  const privacy = safeCreator.privacy_type ?? "public";
-  const isAllowed = privacy === "public" || isCreator;
-
   const FALLBACK_AVATAR =
     "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // -----------------------------------------------------
+  // LOAD FOLLOW STATE
+  // -----------------------------------------------------
   useEffect(() => {
     let active = true;
 
     async function loadFollowState() {
-      // if no viewer, or viewer is creator, or post not allowed, or creator missing → no follow state
-      if (!userId || isCreator || !isAllowed || !safeCreator.id) {
+      if (!userId || isCreator || !safeCreator.id) {
         if (active) setIsFollowing(null);
         return;
       }
 
-const { data: rows } = await supabase
-  .from("follows")
-  .select("id")
-  .eq("follower_id", userId)
-  .eq("following_id", post.creator_id)
-  .limit(1);
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", userId)
+        .eq("following_id", post.creator_id)
+        .limit(1);
 
-const followRow = rows?.[0] ?? null;
+      const followRow = rows?.[0] ?? null;
 
-if (active) setIsFollowing(!!followRow);
+      if (active) setIsFollowing(!!followRow);
     }
 
     loadFollowState();
     return () => {
       active = false;
     };
-  }, [userId, post.creator_id, isCreator, supabase, isAllowed, safeCreator.id]);
+  }, [userId, post.creator_id, isCreator, supabase, safeCreator.id]);
 
+  // -----------------------------------------------------
+  // PRIVACY LOGIC (Instagram-correct)
+  // -----------------------------------------------------
+  const isAllowed =
+    post.privacy_type === "public" ||
+    isCreator ||
+    isFollowing === true;
+
+  // -----------------------------------------------------
+  // FOLLOW TOGGLE
+  // -----------------------------------------------------
   async function toggleFollow() {
-    if (!userId || isCreator || busy || !isAllowed || !safeCreator.id) return;
+    if (!userId || isCreator || busy || !safeCreator.id) return;
 
     setBusy(true);
 
@@ -161,11 +171,9 @@ if (active) setIsFollowing(!!followRow);
 
   return (
     <div className="relative isolate z-0 transition-all duration-500 w-full">
-      <div
-        className={`aura-mask-${post.autoMask} aura-intensity-${intensity} rounded-2xl`}
-      >
+      <div className={`aura-mask-${post.autoMask} aura-intensity-${intensity} rounded-2xl`}>
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm w-full flex flex-col p-6">
-          
+
           {/* IDENTITY HEADER */}
           <div className="flex items-center justify-between mb-3">
             <Link
@@ -186,7 +194,7 @@ if (active) setIsFollowing(!!followRow);
               </div>
             </Link>
 
-            {isAllowed && !isCreator && isFollowing !== null && safeCreator.id && (
+            {!isCreator && safeCreator.id && (
               <button
                 onClick={toggleFollow}
                 disabled={busy}

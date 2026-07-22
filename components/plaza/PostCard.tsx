@@ -12,6 +12,7 @@ interface PostCardProps {
     created_at: string;
     spirit_score: number;
     autoMask: number;
+    privacy_type: "public" | "private";   // ⭐ REQUIRED
   };
   reactions: {
     mask1: number;
@@ -54,6 +55,9 @@ export default function PostCard({
 
   const isOwnPost = uid === post.creator_id;
 
+  // -----------------------------------------------------
+  // LOAD FOLLOW STATE
+  // -----------------------------------------------------
   useEffect(() => {
     async function loadFollowState() {
       if (!uid || isOwnPost) {
@@ -61,21 +65,32 @@ export default function PostCard({
         return;
       }
 
-const { data: rows } = await supabase
-  .from("follows")
-  .select("id")
-  .eq("follower_id", uid)
-  .eq("following_id", post.creator_id)
-  .limit(1);
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", uid)
+        .eq("following_id", post.creator_id)
+        .limit(1);
 
-const followRow = rows?.[0] ?? null;
+      const followRow = rows?.[0] ?? null;
 
-setIsFollowing(!!followRow);
+      setIsFollowing(!!followRow);
     }
 
     loadFollowState();
   }, [uid, post.creator_id, supabase, isOwnPost]);
 
+  // -----------------------------------------------------
+  // PRIVACY LOGIC (Instagram-correct)
+  // -----------------------------------------------------
+  const isAllowed =
+    post.privacy_type === "public" ||
+    isOwnPost ||
+    isFollowing === true;
+
+  // -----------------------------------------------------
+  // FOLLOW TOGGLE
+  // -----------------------------------------------------
   async function toggleFollow() {
     if (!uid || isOwnPost || busy) return;
 
@@ -158,20 +173,28 @@ setIsFollowing(!!followRow);
         </div>
 
         {/* CONTENT */}
-        <p className="text-gray-900 whitespace-pre-wrap mb-4">
-          {post.content}
-        </p>
+        {isAllowed ? (
+          <p className="text-gray-900 whitespace-pre-wrap mb-4">
+            {post.content}
+          </p>
+        ) : (
+          <p className="text-gray-500 text-center mb-4">
+            This post is private.
+          </p>
+        )}
 
         {/* REACTIONS */}
-        <ReactionBar
-          postType="plaza"
-          postId={post.id}
-          creatorId={post.creator_id}
-          reactions={reactions}
-          spiritScore={spiritScore}
-          positivityRatio={positivityRatio}
-          onReactAction={onReactAction}
-        />
+        {isAllowed && (
+          <ReactionBar
+            postType="plaza"
+            postId={post.id}
+            creatorId={post.creator_id}
+            reactions={reactions}
+            spiritScore={spiritScore}
+            positivityRatio={positivityRatio}
+            onReactAction={onReactAction}
+          />
+        )}
 
         {/* DELETE BUTTON */}
         {showDelete && (

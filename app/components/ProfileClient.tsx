@@ -62,6 +62,7 @@ type Post = {
   spirit_score: number;
   automask: number | null;
   positivity_ratio: number;
+  privacy_type: "public" | "private";
 };
 
 type ReactionCountsMap = Record<string, ReactionCounts>;
@@ -205,11 +206,20 @@ const viewerAllowed =
   setProfile(p);
 
   if (p) {
-    const { data: postRows } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("creator_id", profileId)
-      .order("created_at", { ascending: false });
+const { data: postRows } = await supabase
+  .from("posts")
+  .select(`
+    id,
+    creator_id,
+    content,
+    created_at,
+    spirit_score,
+    automask,
+    positivity_ratio,
+    privacy_type
+  `)
+  .eq("creator_id", profileId)
+  .order("created_at", { ascending: false });
 
     setPosts(postRows ?? []);
     setFollowersCount(p.followers_count);
@@ -1266,6 +1276,7 @@ useEffect(() => {
                         created_at: post.created_at,
                         spirit_score,
                         autoMask,
+                        privacy_type: post.privacy_type,
                       }}
                       reactions={counts}
                       positivityRatio={positivity_ratio}
