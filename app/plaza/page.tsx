@@ -89,7 +89,7 @@ export default function PlazaPage() {
           spirit_score,
           positivity_ratio,
           automask,
-          privacy_type        -- ⭐ NEW
+          privacy_type
         `)
         .order("created_at", { ascending: false })
         .range(from, to);
