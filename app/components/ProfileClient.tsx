@@ -106,6 +106,7 @@ interface VisionPost {
   total_reactions: number;
   comments: VisionComment[];
   comment_count: number;
+  privacy_type: "public" | "private";
 }
 
 export default function ProfileClient({ profileId }: { profileId: string }) {
@@ -138,7 +139,6 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   const [headerSpirit, setHeaderSpirit] = useState(0);
   const [headerPositivity, setHeaderPositivity] = useState(0.5);
 
-
   const [busy, setBusy] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -160,17 +160,15 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   const isOwnProfile = hydrated && authUserId === profile?.id;
   const bannerColor = MASK_TIER_COLORS[profile?.mask_tier ?? 1];
 
-  // Derived values
-const viewerIsOwner = authUserId === profile?.id;
-const isPrivate = profile?.privacy_type === "private";
+  const viewerIsOwner = authUserId === profile?.id;
+  const isPrivate = profile?.privacy_type === "private";
 
-// ⭐ Only compute viewerAllowed AFTER follow-state loads
-const viewerAllowed =
-  profile && authUserId !== null
-    ? (!isPrivate || viewerIsOwner || isFollowing)
-    : false;
+  const viewerAllowed =
+    profile && authUserId !== null
+      ? !isPrivate || viewerIsOwner || isFollowing
+      : false;
 
-    /* --------------------------------------------- */
+  /* --------------------------------------------- */
   /* AUTH SESSION (Supabase)                       */
   /* --------------------------------------------- */
   useEffect(() => {
@@ -191,41 +189,41 @@ const viewerAllowed =
   /* --------------------------------------------- */
   useEffect(() => {
     async function loadProfile() {
-  const { data: rows, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", profileId)
-    .limit(1);
+      const { data: rows, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", profileId)
+        .limit(1);
 
-  if (error) {
-    setProfile(null);
-    return;
-  }
+      if (error) {
+        setProfile(null);
+        return;
+      }
 
-  const p = rows?.[0] ?? null;
-  setProfile(p);
+      const p = rows?.[0] ?? null;
+      setProfile(p);
 
-  if (p) {
-const { data: postRows } = await supabase
-  .from("posts")
-  .select(`
-    id,
-    creator_id,
-    content,
-    created_at,
-    spirit_score,
-    automask,
-    positivity_ratio,
-    privacy_type
-  `)
-  .eq("creator_id", profileId)
-  .order("created_at", { ascending: false });
+      if (p) {
+        const { data: postRows } = await supabase
+          .from("posts")
+          .select(`
+            id,
+            creator_id,
+            content,
+            created_at,
+            spirit_score,
+            automask,
+            positivity_ratio,
+            privacy_type
+          `)
+          .eq("creator_id", profileId)
+          .order("created_at", { ascending: false });
 
-    setPosts(postRows ?? []);
-    setFollowersCount(p.followers_count);
-    setFollowingCount(p.following_count);
-  }
-}
+        setPosts(postRows ?? []);
+        setFollowersCount(p.followers_count);
+        setFollowingCount(p.following_count);
+      }
+    }
 
     loadProfile();
   }, [profileId, supabase]);
@@ -237,192 +235,187 @@ const { data: postRows } = await supabase
     setHydrated(true);
   }, []);
 
- /* --------------------------------------------- */
-/* LOAD SOUND POSTS (with privacy enforcement)   */
-/* --------------------------------------------- */
-useEffect(() => {
-  async function loadSoundPosts() {
-    if (!profile || !authUserId) return;
+  /* --------------------------------------------- */
+  /* LOAD SOUND POSTS (with privacy enforcement)   */
+  /* --------------------------------------------- */
+  useEffect(() => {
+    async function loadSoundPosts() {
+      if (!profile || !authUserId) return;
 
-    // 1. Load follow-state
-    const { data: followRows } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", authUserId)
-      .eq("following_id", profile.id)
-      .limit(1);
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", authUserId)
+        .eq("following_id", profile.id)
+        .limit(1);
 
-    const isFollowing = !!followRows?.[0];
-    const isCreator = authUserId === profile.id;
+      const isFollowingLocal = !!followRows?.[0];
+      const isCreatorLocal = authUserId === profile.id;
 
-    // 2. Load sound posts WITH privacy_type
-    const { data, error } = await supabase
-      .from("sound_posts")
-      .select(`
-        id,
-        title,
-        audio_url,
-        creator_id,
-        created_at,
-        privacy_type,
-
-        profiles:creator_id (
-          username,
-          avatar_url
-        ),
-
-        comments:sound_post_comments (
+      const { data, error } = await supabase
+        .from("sound_posts")
+        .select(`
           id,
-          content,
-          raw_input,
+          title,
+          audio_url,
+          creator_id,
           created_at,
-          automask,
-          positivity_ratio,
-          user_id,
-          profiles:user_id (
+          privacy_type,
+
+          profiles:creator_id (
             username,
             avatar_url
+          ),
+
+          comments:sound_post_comments (
+            id,
+            content,
+            raw_input,
+            created_at,
+            automask,
+            positivity_ratio,
+            user_id,
+            profiles:user_id (
+              username,
+              avatar_url
+            )
           )
-        )
-      `)
-      .eq("creator_id", profile.id)
-      .order("created_at", { ascending: false });
+        `)
+        .eq("creator_id", profile.id)
+        .order("created_at", { ascending: false });
 
-    if (error) return;
+      if (error) return;
 
-    // 3. Apply privacy filtering
-    const filtered = (data || []).filter((post: any) => {
-      if (post.privacy_type === "public") return true;
-      if (isCreator) return true;
-      if (isFollowing) return true;
-      return false;
-    });
+      const filtered = (data || []).filter((post: any) => {
+        if (post.privacy_type === "public") return true;
+        if (isCreatorLocal) return true;
+        if (isFollowingLocal) return true;
+        return false;
+      });
 
-    const ids = filtered.map((p: any) => p.id);
+      const ids = filtered.map((p: any) => p.id);
 
-    // 4. Load reactions
-    const { data: reactionsRows } = await supabase
-      .from("reactions")
-      .select('post_id, "maskTier"')
-      .in("post_id", ids)
-      .eq("post_type", "sound");
+      const { data: reactionsRows } = await supabase
+        .from("reactions")
+        .select('post_id, "maskTier"')
+        .in("post_id", ids)
+        .eq("post_type", "sound");
 
-    type ReactionRow = { post_id: string; maskTier: number };
+      type ReactionRow = { post_id: string; maskTier: number };
 
-    // 5. Build enriched cards
-    const mapped: CardSoundPost[] = filtered.map((p: any) => {
-      const postReactions: ReactionRow[] =
-        (reactionsRows ?? []).filter((r) => r.post_id === p.id);
+      const mapped: CardSoundPost[] = filtered.map((p: any) => {
+        const postReactions: ReactionRow[] =
+          (reactionsRows ?? []).filter((r) => r.post_id === p.id);
 
-      const counts: ReactionCounts = {
-        mask1: postReactions.filter((r) => r.maskTier === 1).length,
-        mask2: postReactions.filter((r) => r.maskTier === 2).length,
-        mask3: postReactions.filter((r) => r.maskTier === 3).length,
-        mask4: postReactions.filter((r) => r.maskTier === 4).length,
-        mask5: postReactions.filter((r) => r.maskTier === 5).length,
-        mask6: postReactions.filter((r) => r.maskTier === 6).length,
-      };
+        const counts: ReactionCounts = {
+          mask1: postReactions.filter((r) => r.maskTier === 1).length,
+          mask2: postReactions.filter((r) => r.maskTier === 2).length,
+          mask3: postReactions.filter((r) => r.maskTier === 3).length,
+          mask4: postReactions.filter((r) => r.maskTier === 4).length,
+          mask5: postReactions.filter((r) => r.maskTier === 5).length,
+          mask6: postReactions.filter((r) => r.maskTier === 6).length,
+        };
 
-      const spirit_score = postReactions.reduce(
-        (sum, r) => sum + r.maskTier,
-        0
-      );
+        const spirit_score = postReactions.reduce(
+          (sum, r) => sum + r.maskTier,
+          0
+        );
 
-      const total = postReactions.length;
-      const positive = postReactions.filter((r) => r.maskTier >= 3).length;
-      const positivity_ratio = total > 0 ? positive / total : 0.5;
+        const total = postReactions.length;
+        const positive = postReactions.filter((r) => r.maskTier >= 3).length;
+        const positivity_ratio = total > 0 ? positive / total : 0.5;
 
-      let automask = 2;
-      if (spirit_score > 20) automask = 3;
-      if (spirit_score > 100) automask = 4;
-      if (spirit_score > 300) automask = 5;
-      if (spirit_score > 500) automask = 6;
+        let automask = 2;
+        if (spirit_score > 20) automask = 3;
+        if (spirit_score > 100) automask = 4;
+        if (spirit_score > 300) automask = 5;
+        if (spirit_score > 500) automask = 6;
 
-      const commentList =
-        p.comments?.map((c: any) => ({
-          id: c.id,
-          content: c.content,
-          raw_input: c.raw_input ?? null,
-          created_at: c.created_at,
-          automask: c.automask,
-          positivity_ratio: c.positivity_ratio ?? 0.5,
-          user_id: c.user_id,
-          profiles: {
-            username: c.profiles?.username ?? "unknown",
-            avatar_url: c.profiles?.avatar_url ?? null,
+        const commentList =
+          p.comments?.map((c: any) => ({
+            id: c.id,
+            content: c.content,
+            raw_input: c.raw_input ?? null,
+            created_at: c.created_at,
+            automask: c.automask,
+            positivity_ratio: c.positivity_ratio ?? 0.5,
+            user_id: c.user_id,
+            profiles: {
+              username: c.profiles?.username ?? "unknown",
+              avatar_url: c.profiles?.avatar_url ?? null,
+            },
+          })) ?? [];
+
+        return {
+          id: p.id,
+          title: p.title ?? "",
+          audio_url: p.audio_url ?? "",
+          creator_id: p.creator_id ?? "",
+          creator_name: null,
+          created_at: p.created_at ?? "",
+          spirit_score,
+          positivity_ratio,
+          automask,
+          reactions: counts,
+          users: {
+            username: p.profiles?.username ?? "Unknown",
+            avatar_url: p.profiles?.avatar_url ?? null,
           },
-        })) ?? [];
+          comments: commentList,
+          privacy_type: p.privacy_type,
+        };
+      });
 
-      return {
-        id: p.id,
-        title: p.title ?? "",
-        audio_url: p.audio_url ?? "",
-        creator_id: p.creator_id ?? "",
-        creator_name: null,
-        created_at: p.created_at ?? "",
-        spirit_score,
-        positivity_ratio,
-        automask,
-        reactions: counts,
-        users: {
-          username: p.profiles?.username ?? "Unknown",
-          avatar_url: p.profiles?.avatar_url ?? null,
-        },
-        comments: commentList,
-        privacy_type: p.privacy_type, // ⭐ optional UI use
-      };
-    });
+      setSoundPosts(mapped);
+    }
 
-    setSoundPosts(mapped);
-  }
-
-  loadSoundPosts();
-}, [profile, authUserId, supabase]);
+    loadSoundPosts();
+  }, [profile, authUserId, supabase]);
 
   /* --------------------------------------------- */
-/* LOAD FOLLOW STATE                             */
-/* --------------------------------------------- */
-useEffect(() => {
-  async function loadFollowState() {
-    if (!authUserId || !profile) {
+  /* LOAD FOLLOW STATE                             */
+  /* --------------------------------------------- */
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!authUserId || !profile) {
+        setIsFollowing(false);
+        setHasRequested(false);
+        return;
+      }
+
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", authUserId)
+        .eq("following_id", profile.id)
+        .limit(1);
+
+      const followData = followRows?.[0] ?? null;
+
+      if (followData) {
+        setIsFollowing(true);
+        setHasRequested(false);
+        return;
+      }
+
+      const { data: requestRows } = await supabase
+        .from("follow_requests")
+        .select("id")
+        .eq("requester_id", authUserId)
+        .eq("target_id", profile.id)
+        .limit(1);
+
       setIsFollowing(false);
-      setHasRequested(false);
-      return;
+      setHasRequested(!!requestRows?.[0]);
     }
-
-    const { data: followRows } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", authUserId)
-      .eq("following_id", profile.id)
-      .limit(1);
-
-    const followData = followRows?.[0] ?? null;
-
-    if (followData) {
-      setIsFollowing(true);
-      setHasRequested(false);
-      return;
-    }
-
-    const { data: requestRows } = await supabase
-      .from("follow_requests")
-      .select("id")
-      .eq("requester_id", authUserId)
-      .eq("target_id", profile.id)
-      .limit(1);
-
-    setIsFollowing(false);
-    setHasRequested(!!requestRows?.[0]);
-  }
 
     if (profile) {
-    setFollowersCount(profile.followers_count);
-    setFollowingCount(profile.following_count);
-  }
+      setFollowersCount(profile.followers_count);
+      setFollowingCount(profile.following_count);
+    }
 
-  loadFollowState();
-}, [authUserId, profile, supabase]);
+    loadFollowState();
+  }, [authUserId, profile, supabase]);
 
   /* --------------------------------------------- */
   /* FOLLOW TOGGLE                                  */
@@ -432,7 +425,6 @@ useEffect(() => {
     setBusy(true);
 
     try {
-      // CASE 1 — Unfollow
       if (isFollowing) {
         await supabase
           .from("follows")
@@ -446,7 +438,6 @@ useEffect(() => {
         return;
       }
 
-      // CASE 2 — Private profile → follow request
       if (profile.privacy_type === "private") {
         await supabase.from("follow_requests").insert({
           requester_id: authUserId,
@@ -466,7 +457,6 @@ useEffect(() => {
         return;
       }
 
-      // CASE 3 — Public profile → follow instantly
       await supabase.from("follows").insert({
         follower_id: authUserId,
         following_id: profile.id,
@@ -516,29 +506,29 @@ useEffect(() => {
     }
 
     if (!roomId) {
-  const { data: rows, error } = await supabase
-    .from("rooms")
-    .insert({
-      created_by: authUserId,
-      is_group: false,
-    })
-    .select("id")
-    .limit(1);
+      const { data: rows, error } = await supabase
+        .from("rooms")
+        .insert({
+          created_by: authUserId,
+          is_group: false,
+        })
+        .select("id")
+        .limit(1);
 
-  if (error) return;
+      if (error) return;
 
-  const newRoom = rows?.[0] ?? null;
-  if (!newRoom) return;
+      const newRoom = rows?.[0] ?? null;
+      if (!newRoom) return;
 
-  roomId = newRoom.id;
+      roomId = newRoom.id;
 
-  await supabase.from("room_participants").insert([
-    { room_id: roomId, user_id: authUserId },
-    { room_id: roomId, user_id: otherUserId },
-  ]);
-}
+      await supabase.from("room_participants").insert([
+        { room_id: roomId, user_id: authUserId },
+        { room_id: roomId, user_id: otherUserId },
+      ]);
+    }
 
-router.push(`/messenger/${roomId}`);
+    router.push(`/messenger/${roomId}`);
   }
 
   /* --------------------------------------------- */
@@ -593,7 +583,7 @@ router.push(`/messenger/${roomId}`);
     loadGivenReactions();
   }, [profile, supabase, viewerAllowed]);
 
-    /* --------------------------------------------- */
+  /* --------------------------------------------- */
   /* LOAD VISION POSTS (WITH PRIVACY PATCH)        */
   /* --------------------------------------------- */
   async function fetchVisionPosts(initial = false) {
@@ -624,6 +614,7 @@ router.push(`/messenger/${roomId}`);
         positivity_ratio,
         automask,
         tags,
+        privacy_type,
 
         users:creator_id (
           username,
@@ -750,6 +741,7 @@ router.push(`/messenger/${roomId}`);
         positivity_ratio: positivity,
         automask: autoMask,
         total_reactions: total,
+        privacy_type: post.privacy_type,
       });
     }
 
@@ -808,7 +800,7 @@ router.push(`/messenger/${roomId}`);
     viewerAllowed,
   ]);
 
-    /* --------------------------------------------- */
+  /* --------------------------------------------- */
   /* BUILD REACTION → POST MAP                     */
   /* --------------------------------------------- */
   useEffect(() => {
@@ -837,7 +829,6 @@ router.push(`/messenger/${roomId}`);
 
       const map: Record<string, { username: string; content: string }> = {};
 
-      /* PLAZA */
       if (plazaIds.length > 0) {
         const { data } = await supabase
           .from("posts")
@@ -857,7 +848,6 @@ router.push(`/messenger/${roomId}`);
         });
       }
 
-      /* SOUND */
       if (soundIds.length > 0) {
         const { data } = await supabase
           .from("sound_posts")
@@ -877,7 +867,6 @@ router.push(`/messenger/${roomId}`);
         });
       }
 
-      /* VISION */
       if (visionIds.length > 0) {
         const { data } = await supabase
           .from("vision_posts")
@@ -906,45 +895,44 @@ router.push(`/messenger/${roomId}`);
   /* --------------------------------------------- */
   /* RECOMPUTE PROFILE HEADER STATS                */
   /* --------------------------------------------- */
+  useEffect(() => {
+    if (!profile) return;
 
-useEffect(() => {
-  if (!profile) return;
+    const plazaSpirit = posts.reduce((sum, post) => {
+      const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
+      return (
+        sum +
+        counts.mask1 * 1 +
+        counts.mask2 * 2 +
+        counts.mask3 * 3 +
+        counts.mask4 * 4 +
+        counts.mask5 * 5 +
+        counts.mask6 * 6
+      );
+    }, 0);
 
-  const plazaSpirit = posts.reduce((sum, post) => {
-    const counts = reactionCounts[post.id] ?? EMPTY_REACTIONS;
-    return (
-      sum +
-      counts.mask1 * 1 +
-      counts.mask2 * 2 +
-      counts.mask3 * 3 +
-      counts.mask4 * 4 +
-      counts.mask5 * 5 +
-      counts.mask6 * 6
+    const soundSpirit = soundPosts.reduce(
+      (sum, post) => sum + (post.spirit_score ?? 0),
+      0
     );
-  }, 0);
 
-  const soundSpirit = soundPosts.reduce(
-    (sum, post) => sum + (post.spirit_score ?? 0),
-    0
-  );
+    const visionSpirit = visionPosts.reduce(
+      (sum, post) => sum + (post.spirit_score ?? 0),
+      0
+    );
 
-  const visionSpirit = visionPosts.reduce(
-    (sum, post) => sum + (post.spirit_score ?? 0),
-    0
-  );
+    const totalSpirit = plazaSpirit + soundSpirit + visionSpirit;
+    const totalPosts =
+      posts.length + soundPosts.length + visionPosts.length;
 
-  const totalSpirit = plazaSpirit + soundSpirit + visionSpirit;
-  const totalPosts =
-    posts.length + soundPosts.length + visionPosts.length;
+    const totalPositivity =
+      totalPosts > 0 ? profile.positivity_ratio : 0.5;
 
-  const totalPositivity =
-    totalPosts > 0 ? profile.positivity_ratio : 0.5;
+    setHeaderSpirit(totalSpirit);
+    setHeaderPositivity(totalPositivity);
+  }, [posts, reactionCounts, soundPosts, visionPosts, profile?.positivity_ratio]);
 
-  setHeaderSpirit(totalSpirit);
-  setHeaderPositivity(totalPositivity);
-}, [posts, reactionCounts, soundPosts, visionPosts, profile?.positivity_ratio]);
-
-    /* --------------------------------------------- */
+  /* --------------------------------------------- */
   /* HEADER                                        */
   /* --------------------------------------------- */
   if (!hydrated) {
@@ -1010,7 +998,6 @@ useEffect(() => {
               )}
             </div>
 
-            {/* Upload Avatar */}
             {isOwnProfile && (
               <button
                 onClick={() =>
@@ -1022,7 +1009,6 @@ useEffect(() => {
               </button>
             )}
 
-            {/* Edit Profile */}
             {isOwnProfile && (
               <button
                 onClick={() => setShowEditModal(true)}
@@ -1035,7 +1021,6 @@ useEffect(() => {
 
           {/* RIGHT — Info */}
           <div className="flex flex-col flex-1">
-            {/* Name + Badges */}
             <div className="flex items-center gap-2">
               <h1 className="mman-username-display">
                 {profile.display_name}
@@ -1059,12 +1044,10 @@ useEffect(() => {
               </span>
             </div>
 
-            {/* Handle */}
             <p className="text-gray-600 mt-2 leading-snug mman-username-handle">
               @{profile.username}
             </p>
 
-            {/* BIO */}
             {viewerAllowed && profile.bio && (
               <p className="mt-2 text-gray-700 max-w-xl leading-relaxed">
                 {profile.bio}
@@ -1077,7 +1060,6 @@ useEffect(() => {
               </p>
             )}
 
-            {/* Stats */}
             {viewerAllowed && (
               <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
                 <div>
@@ -1117,9 +1099,7 @@ useEffect(() => {
               </div>
             )}
 
-            {/* FOLLOW + MESSAGE */}
             <div className="mt-4 flex flex-row gap-3 items-center">
-              {/* Follow Logic */}
               {!isOwnProfile && authUserId && (
                 <>
                   {isFollowing && (
@@ -1153,7 +1133,6 @@ useEffect(() => {
                 </>
               )}
 
-              {/* Message */}
               {!isOwnProfile && authUserId && viewerAllowed && (
                 <button
                   disabled={!viewerAllowed || authLoading || !authUserId}
@@ -1170,12 +1149,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* --------------------------------------------- */}
-      {/* CONTENT BELOW                                 */}
-      {/* --------------------------------------------- */}
       <div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
-
-        {/* Tabs — privacy patched */}
         <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
           {!viewerAllowed && (
             <p className="text-gray-500 text-center mt-2">
@@ -1232,7 +1206,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Grid toggle */}
         {activeTab === "posts" && viewerAllowed && (
           <div className="flex justify-end mt-2">
             <button
@@ -1243,10 +1216,8 @@ useEffect(() => {
             </button>
           </div>
         )}
-
-        {/* --------------------------------------------- */}
-        {/* PLAZA POSTS                                   */}
-        {/* --------------------------------------------- */}
+// ProfileClient Part 5/5
+        {/* PLAZA POSTS */}
         {viewerAllowed && activeTab === "posts" && (
           <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
             {posts && posts.length > 0 ? (
@@ -1329,9 +1300,7 @@ useEffect(() => {
           </p>
         )}
 
-        {/* --------------------------------------------- */}
-        {/* VISION POSTS                                   */}
-        {/* --------------------------------------------- */}
+        {/* VISION POSTS */}
         {viewerAllowed && activeTab === "visionposts" && (
           <div className="space-y-6">
             {visionLoading && visionPosts.length === 0 && (
@@ -1370,9 +1339,7 @@ useEffect(() => {
           </p>
         )}
 
-        {/* --------------------------------------------- */}
-        {/* SOUND POSTS                                    */}
-        {/* --------------------------------------------- */}
+        {/* SOUND POSTS */}
         {viewerAllowed && activeTab === "soundposts" && (
           <div className="space-y-6">
             {soundPosts && soundPosts.length > 0 ? (
@@ -1393,9 +1360,7 @@ useEffect(() => {
           </p>
         )}
 
-        {/* --------------------------------------------- */}
-        {/* REACTIONS                                      */}
-        {/* --------------------------------------------- */}
+        {/* REACTIONS */}
         {viewerAllowed && activeTab === "reactions" && (
           <div className="space-y-4">
             {Object.keys(reactionPostMap).length === 0 && (
@@ -1453,9 +1418,6 @@ useEffect(() => {
         )}
       </div>
 
-      {/* --------------------------------------------- */}
-      {/* EDIT PROFILE MODAL                            */}
-      {/* --------------------------------------------- */}
       {showEditModal && (
         <Modal onClose={() => setShowEditModal(false)}>
           <EditProfileForm

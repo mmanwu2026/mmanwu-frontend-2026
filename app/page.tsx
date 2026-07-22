@@ -47,16 +47,16 @@ export default function UnifiedFeedPage() {
   /* ---------------- HYDRATION ---------------- */
   useEffect(() => {
     setHydrated(true);
-    const flag = typeof window !== "undefined"
-      ? localStorage.getItem("notifications_enabled")
-      : null;
+    const flag =
+      typeof window !== "undefined"
+        ? localStorage.getItem("notifications_enabled")
+        : null;
     setNotificationsEnabled(flag);
   }, []);
 
   /* ---------------- INITIAL LOAD ---------------- */
   useEffect(() => {
     if (notificationsEnabled === "true" && items.length === 0) {
-      // only run once, no infinite loop
       loadMore();
     }
   }, [notificationsEnabled]); // items length checked inside
@@ -81,7 +81,6 @@ export default function UnifiedFeedPage() {
           const { post_id, post_type, maskTier } = row;
           if (!post_id || !post_type || !maskTier) return;
 
-          // avoid doing work before we have any items
           if (!items.length) return;
 
           setItems((prev) =>
@@ -158,7 +157,7 @@ export default function UnifiedFeedPage() {
 
   /* ---------------- LOAD MORE ---------------- */
   async function loadMore() {
-    if (loading) return;
+    if (loading || !supabase) return;
     setLoading(true);
 
     /* ---------------- PLAZA ---------------- */
@@ -232,6 +231,8 @@ export default function UnifiedFeedPage() {
             positivity_ratio: positivity,
             total_reactions: total,
             automask,
+            creator_id: p.creator_id,
+            creator_privacy_type: p.profiles?.privacy_type ?? "public",
           },
           creator: p.profiles,
           trending_score: p.trending_score ?? 0,
@@ -265,6 +266,7 @@ export default function UnifiedFeedPage() {
         square_type: "vision-square",
         post: {
           ...p,
+          creator_id: p.creator_id,
           creator_privacy_type: visionPrivacyMap[p.creator_id] ?? "public",
         },
         creator: p.profiles,
@@ -371,9 +373,10 @@ export default function UnifiedFeedPage() {
             total_reactions: total,
             automask,
             comments: soundCommentMap[p.id] || [],
+            creator_id: p.creator_id,
             creator_privacy_type: soundPrivacyMap[p.creator_id] ?? "public",
           },
-          creator: null, // sound posts handled in SoundPostCard
+          creator: null,
           trending_score: p.trending_score ?? 0,
         };
       }) ?? [];
@@ -381,22 +384,46 @@ export default function UnifiedFeedPage() {
     /* ---------------- COMBINE ---------------- */
     const combined = [...items, ...plazaMapped, ...visionMapped, ...soundMapped];
 
-    /* ⭐⭐⭐ PRIVACY ENFORCEMENT ⭐⭐⭐ */
+    /* ⭐⭐⭐ PRIVACY ENFORCEMENT (profile + follow) ⭐⭐⭐ */
     const viewerId = user?.id ?? null;
 
+    let followMap: Record<string, boolean> = {};
+
+    if (viewerId) {
+      const creatorIds = Array.from(
+        new Set(
+          combined
+            .map((item) => item.post.creator_id)
+            .filter((id: string | undefined) => !!id)
+        )
+      ) as string[];
+
+      if (creatorIds.length > 0) {
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", viewerId)
+          .in("following_id", creatorIds);
+
+        followRows?.forEach((f) => {
+          followMap[f.following_id] = true;
+        });
+      }
+    }
+
     const filtered = combined.filter((item) => {
-      const creator = item.creator;
+      const creatorId = item.post.creator_id;
+      const privacy =
+        item.post.creator_privacy_type ??
+        item.creator?.privacy_type ??
+        "public";
 
-      // Sound posts → no creator → always allowed
-      if (!creator) return true;
+      if (!creatorId) return true;
 
-      const privacy = creator.privacy_type ?? "public";
-      const isOwner =
-        viewerId != null &&
-        creator.id != null &&
-        viewerId === creator.id;
+      const isOwner = viewerId != null && viewerId === creatorId;
+      const isFollowing = viewerId != null && !!followMap[creatorId];
 
-      if (privacy === "private" && !isOwner) {
+      if (privacy === "private" && !isOwner && !isFollowing) {
         return false;
       }
 
@@ -451,39 +478,38 @@ export default function UnifiedFeedPage() {
       </h1>
 
       <div className="space-y-6">
-{items.map((item) => {
-  if (item.square_type === "plaza") {
-    if (!item.creator) return null; // ⭐ Prevent crash
-    return (
-      <PlazaCard
-        key={item.post.id}
-        post={item.post}
-        creator={item.creator}
-        userId={user?.id ?? ""}
-        onDeleteAction={handleDelete}
-        onReactAction={handleReact}
-      />
-    );
-  }
+        {items.map((item) => {
+          if (item.square_type === "plaza") {
+            if (!item.creator) return null;
+            return (
+              <PlazaCard
+                key={item.post.id}
+                post={item.post}
+                creator={item.creator}
+                userId={user?.id ?? ""}
+                onDeleteAction={handleDelete}
+                onReactAction={handleReact}
+              />
+            );
+          }
 
-  if (item.square_type === "vision-square") {
-    if (!item.creator) return null; // ⭐ Prevent crash
-    return <VisionCard key={item.post.id} post={item.post} />;
-  }
+          if (item.square_type === "vision-square") {
+            if (!item.creator) return null;
+            return <VisionCard key={item.post.id} post={item.post} />;
+          }
 
-  if (item.square_type === "sound-square") {
-    return (
-      <SoundPostCard
-        key={item.post.id}
-        post={{ ...item.post, onDeleted: handleDelete }}
-        isTrending={item.trending_score > 5}
-      />
-    );
-  }
+          if (item.square_type === "sound-square") {
+            return (
+              <SoundPostCard
+                key={item.post.id}
+                post={{ ...item.post, onDeleted: handleDelete }}
+                isTrending={item.trending_score > 5}
+              />
+            );
+          }
 
-  return null;
-})}
-
+          return null;
+        })}
       </div>
 
       <div className="flex justify-center mt-6">

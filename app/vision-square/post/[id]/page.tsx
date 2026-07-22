@@ -37,6 +37,8 @@ interface VisionPost {
   positivity_ratio: number;
   automask: number;
   tags: string[];
+  privacy_type: "public" | "private";
+  is_follower: boolean;
   users: {
     username: string;
     avatar_url: string | null;
@@ -91,6 +93,7 @@ export default function VisionPostPage() {
           positivity_ratio,
           automask,
           tags,
+          privacy_type,
 
           users:creator_id (
             username,
@@ -122,9 +125,15 @@ export default function VisionPostPage() {
         return;
       }
 
+      /* --------------------------------------------- */
+      /* NORMALIZE USER                                 */
+      /* --------------------------------------------- */
       const normalizedUser =
         Array.isArray(data.users) ? data.users[0] : data.users;
 
+      /* --------------------------------------------- */
+      /* NORMALIZE COMMENTS                             */
+      /* --------------------------------------------- */
       const normalizedComments =
         data.comments?.map((c: any) => {
           const profile =
@@ -147,6 +156,9 @@ export default function VisionPostPage() {
           };
         }) ?? [];
 
+      /* --------------------------------------------- */
+      /* LOAD REACTIONS                                 */
+      /* --------------------------------------------- */
       const { data: reactionRows } = await supabase
         .from("reactions")
         .select('post_id, "maskTier"')
@@ -176,6 +188,25 @@ export default function VisionPostPage() {
       if (spirit > 300) autoMask = 5;
       if (spirit > 500) autoMask = 6;
 
+      /* --------------------------------------------- */
+      /* FOLLOW STATE                                   */
+      /* --------------------------------------------- */
+      let isFollower = false;
+
+      if (uid && data.creator_id !== uid) {
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", uid)
+          .eq("following_id", data.creator_id)
+          .limit(1);
+
+        isFollower = !!followRows?.[0];
+      }
+
+      /* --------------------------------------------- */
+      /* FINAL POST OBJECT                              */
+      /* --------------------------------------------- */
       const finalPost: VisionPost = {
         ...data,
         users: {
@@ -188,8 +219,12 @@ export default function VisionPostPage() {
         spirit_score: spirit,
         positivity_ratio: positivity,
         automask: autoMask,
+        is_follower: isFollower,
       };
 
+      /* --------------------------------------------- */
+      /* TOAST FOR POSITIVE POSTS                       */
+      /* --------------------------------------------- */
       if (finalPost.positivity_ratio >= 0.6) {
         setToastMessage("The spirits approve this vision ✨");
       }
@@ -199,8 +234,11 @@ export default function VisionPostPage() {
     }
 
     if (id) fetchPost();
-  }, [id, supabase]);
+  }, [id, supabase, uid]);
 
+  /* --------------------------------------------- */
+  /* LOADING / NOT FOUND                            */
+  /* --------------------------------------------- */
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
@@ -217,6 +255,9 @@ export default function VisionPostPage() {
     );
   }
 
+  /* --------------------------------------------- */
+  /* JSX                                            */
+  /* --------------------------------------------- */
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
 
@@ -256,15 +297,26 @@ export default function VisionPostPage() {
         </h1>
       )}
 
-      <VisionCard post={post} />
+      {/* ⭐ PASS PRIVACY FIELDS INTO VISIONCARD */}
+      <VisionCard
+        post={{
+          ...post,
+          privacy_type: post.privacy_type,
+          is_follower: post.is_follower,
+        }}
+      />
 
       <div className="mt-6">
         <VisionShareButton
-          postId={post.id}
-          title={post.title}
-          imageUrl={post.media_url ?? ""}
-          creatorUsername={post.users.username}
-        />
+  postId={post.id}
+  title={post.title}
+  imageUrl={post.media_url ?? ""}
+  creatorUsername={post.users.username}
+  privacy_type={post.privacy_type}
+  is_follower={post.is_follower}
+  isCreator={uid === post.creator_id}
+/>
+
       </div>
     </div>
   );

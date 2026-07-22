@@ -17,6 +17,9 @@ export default function FloatingComposerVision() {
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // ⭐ NEW — Vision privacy selector
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+
   const MAX_FILE_SIZE_MB = 50;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -151,7 +154,6 @@ export default function FloatingComposerVision() {
     const finalTitle = gate.finalText;
     const automask = gate.automask;
     const positivity = gate.positivityRatio;
-
     const spirit = automask;
 
     const fileExt = file.name?.split(".").pop() || "bin";
@@ -168,6 +170,7 @@ export default function FloatingComposerVision() {
       return;
     }
 
+    // ⭐ NEW — Insert privacy_type
     const { error: dbError } = await supabase.from("vision_posts").insert({
       title: finalTitle,
       media_url: publicUrl,
@@ -176,6 +179,7 @@ export default function FloatingComposerVision() {
       positivity_ratio: positivity,
       automask,
       tags,
+      privacy_type: privacyType, // ⭐ NEW
     });
 
     if (dbError) {
@@ -195,7 +199,7 @@ export default function FloatingComposerVision() {
   return (
     <div
       className={`fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 transition-all ${
-        open ? "h-48" : "h-12"
+        open ? "h-64" : "h-12"
       }`}
     >
       {toastMessage && (
@@ -219,6 +223,16 @@ export default function FloatingComposerVision() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+
+          {/* ⭐ NEW — Privacy Selector */}
+          <select
+            value={privacyType}
+            onChange={(e) => setPrivacyType(e.target.value as "public" | "private")}
+            className="w-full p-2 rounded bg-gray-700 mb-3 text-white"
+          >
+            <option value="public">Public</option>
+            <option value="private">Private (Followers Only)</option>
+          </select>
 
           <input
             type="file"

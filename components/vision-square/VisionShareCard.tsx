@@ -3,19 +3,36 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+interface VisionShareCardProps {
+  postId: string;
+  title: string;
+  imageUrl: string;
+  creatorUsername: string;
+  privacy_type: "public" | "private";
+  is_follower: boolean;
+  isCreator: boolean;
+}
+
 export default function VisionShareCard({
   postId,
   title,
   imageUrl,
   creatorUsername,
-}: {
-  postId: string;
-  title: string;
-  imageUrl: string;
-  creatorUsername: string;
-}) {
+  privacy_type,
+  is_follower,
+  isCreator,
+}: VisionShareCardProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+
+  // ⭐ PRIVACY ENFORCEMENT
+  const isAllowed =
+    privacy_type === "public" || isCreator || is_follower;
+
+  // ⭐ Hide entire share card if viewer is not allowed
+  if (!isAllowed) {
+    return null;
+  }
 
   const shareUrl =
     typeof window !== "undefined"
@@ -23,6 +40,8 @@ export default function VisionShareCard({
       : "";
 
   async function logShare(maskTier = 4) {
+    if (!isAllowed) return;
+
     await fetch("/api/vision-share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -41,6 +60,8 @@ export default function VisionShareCard({
   }
 
   async function handleCopyLink() {
+    if (!isAllowed) return;
+
     try {
       await navigator.clipboard.writeText(shareUrl);
       await logShare(4);
@@ -53,6 +74,8 @@ export default function VisionShareCard({
   }
 
   async function handleCopyImage() {
+    if (!isAllowed) return;
+
     try {
       const img = await fetch(imageUrl);
       const blob = await img.blob();
@@ -69,6 +92,8 @@ export default function VisionShareCard({
   }
 
   function downloadShareCard() {
+    if (!isAllowed) return;
+
     const link = document.createElement("a");
     link.href = imageUrl;
     link.download = `${title.replace(/\s+/g, "_")}.jpg`;
@@ -77,29 +102,47 @@ export default function VisionShareCard({
   }
 
   function shareToWhatsApp() {
+    if (!isAllowed) return;
+
     const text = encodeURIComponent(`${title}\n${shareUrl}`);
     window.open(`https://wa.me/?text=${text}`, "_blank");
     logShare(4);
   }
 
   function shareToTwitter() {
-    const text = encodeURIComponent(`${title} — by @${creatorUsername}\n${shareUrl}`);
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+    if (!isAllowed) return;
+
+    const text = encodeURIComponent(
+      `${title} — by @${creatorUsername}\n${shareUrl}`
+    );
+    window.open(
+      `https://twitter.com/intent/tweet?text=${text}`,
+      "_blank"
+    );
     logShare(4);
   }
 
   function shareToThreads() {
+    if (!isAllowed) return;
+
     const text = encodeURIComponent(`${title}\n${shareUrl}`);
-    window.open(`https://www.threads.net/intent/post?text=${text}`, "_blank");
+    window.open(
+      `https://www.threads.net/intent/post?text=${text}`,
+      "_blank"
+    );
     logShare(4);
   }
 
   function shareToInstagramStories() {
+    if (!isAllowed) return;
+
     window.open(`instagram://story-camera`, "_blank");
     logShare(4);
   }
 
   function shareToTikTok() {
+    if (!isAllowed) return;
+
     window.open(`https://www.tiktok.com/upload?lang=en`, "_blank");
     logShare(4);
   }

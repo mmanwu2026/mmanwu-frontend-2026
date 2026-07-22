@@ -38,10 +38,11 @@ export default function VisionCard({
     loadUser();
   }, [supabase]);
 
-  /* ⭐ PRIVACY ENFORCEMENT */
-  const privacy = post.creator_privacy_type ?? "public";
+  /* ⭐ PRIVACY ENFORCEMENT — FIXED */
+  const privacy = post.privacy_type ?? "public";
   const isCreator = uid === post.creator_id;
-  const isAllowed = privacy === "public" || isCreator;
+  const isFollower = post.is_follower === true;
+  const isAllowed = privacy === "public" || isCreator || isFollower;
 
   const safeReactions = post.reactions ?? {
     mask1: 0,
@@ -57,12 +58,14 @@ export default function VisionCard({
   const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
   const isVideo = !!post.media_url?.match(/\.(mp4|mov|m4v)$/i);
 
-  const safeMedia = post.media_url
-    ? isVideo
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
-          post.media_url.replace(/^.*vision_files\//, "")
-        )}`
-      : post.media_url
+  const safeMedia = isAllowed
+    ? (
+        isVideo
+          ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stream-video?path=${encodeURIComponent(
+              post.media_url.replace(/^.*vision_files\//, "")
+            )}`
+          : post.media_url
+      )
     : null;
 
   const [localMask, setLocalMask] = useState(post.automask ?? 2);
@@ -83,8 +86,8 @@ export default function VisionCard({
     setLocalTotalReactions(post.total_reactions ?? 0);
   }, [post]);
 
+  /* ⭐ SAFARI VIDEO AUTOPLAY SUPPORT — PRESERVED */
   const [muted, setMuted] = useState(true);
-
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -94,9 +97,10 @@ export default function VisionCard({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            videoRef.current?.play().catch(() => {});
+            videoRef.current!.muted = true;
+            videoRef.current!.play().catch(() => {});
           } else {
-            videoRef.current?.pause();
+            videoRef.current!.pause();
           }
         });
       },
@@ -448,7 +452,7 @@ export default function VisionCard({
         </div>
       )}
 
-       {/* ⭐ REACTIONS */}
+      {/* ⭐ REACTIONS */}
       {isAllowed && (
         <ReactionBar
           postType="vision"

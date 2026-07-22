@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import SpiritToast from "@/app/components/SpiritToast";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,9 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ FIXED — authenticated user
+  /* --------------------------------------------- */
+  /* LOAD AUTH USER                                */
+  /* --------------------------------------------- */
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -27,6 +29,52 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
     loadUser();
   }, [supabase]);
 
+  /* --------------------------------------------- */
+  /* LOAD PRIVACY + FOLLOW STATE                   */
+  /* --------------------------------------------- */
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+  const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [isFollower, setIsFollower] = useState(false);
+
+  useEffect(() => {
+    async function loadPrivacyAndCreator() {
+      const { data: rows } = await supabase
+        .from("vision_posts")
+        .select("creator_id, privacy_type")
+        .eq("id", postId)
+        .limit(1);
+
+      const row = rows?.[0] ?? null;
+
+      if (row) {
+        setCreatorId(row.creator_id);
+        setPrivacyType(row.privacy_type ?? "public");
+      }
+
+      if (uid && row?.creator_id) {
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", uid)
+          .eq("following_id", row.creator_id)
+          .limit(1);
+
+        setIsFollower(!!followRows?.[0]);
+      }
+    }
+
+    loadPrivacyAndCreator();
+  }, [postId, supabase, uid]);
+
+  const isCreator = uid === creatorId;
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollower;
+
+  /* --------------------------------------------- */
+  /* COMMENT STATE                                 */
+  /* --------------------------------------------- */
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,28 +83,21 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
   const [showGateModal, setShowGateModal] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [creatorId, setCreatorId] = useState<string | null>(null);
 
-/* ---------------- LOAD CREATOR ID (SAFE) ---------------- */
-useEffect(() => {
-  async function loadCreator() {
-    const { data: rows } = await supabase
-      .from("vision_posts")
-      .select("creator_id")
-      .eq("id", postId)
-      .limit(1);
-
-    const row = rows?.[0] ?? null;
-
-    if (row?.creator_id) {
-      setCreatorId(row.creator_id);
-    }
-  }
-
-  loadCreator();
-}, [postId, supabase]);
-
+  /* --------------------------------------------- */
+  /* GATEKEEPER                                    */
+  /* --------------------------------------------- */
   async function runGatekeeper(rawText: string) {
+    if (!isAllowed) {
+      return {
+        rewriteNeeded: false,
+        autoApprove: false,
+        finalText: "",
+        automask: 2,
+        positivityRatio: 0.5,
+      };
+    }
+
     try {
       const res = await fetch("/api/gatekeeper", {
         method: "POST",
@@ -79,59 +120,68 @@ useEffect(() => {
     }
   }
 
- /* ---------------- INSERT COMMENT ---------------- */
-async function insertComment(
-  finalText: string,
-  automask: number,
-  positivity: number
-) {
-  if (!uid) {
-    setError("You must be logged in.");
-    return false;
-  }
+  /* --------------------------------------------- */
+  /* INSERT COMMENT (WITH PRIVACY ENFORCEMENT)     */
+  /* --------------------------------------------- */
+  async function insertComment(
+    finalText: string,
+    automask: number,
+    positivity: number
+  ) {
+    if (!uid) {
+      setError("You must be logged in.");
+      return false;
+    }
 
-  // 1. Save comment
-  const { error: dbError } = await supabase
-    .from("vision_post_comments")
-    .insert({
-      post_id: postId,
-      user_id: uid,
-      content: finalText,
-      raw_input: content,
-      automask,
-      positivity_ratio: positivity,
+    if (!isAllowed) {
+      setError("This vision is private.");
+      return false;
+    }
+
+    const { error: dbError } = await supabase
+      .from("vision_post_comments")
+      .insert({
+        post_id: postId,
+        user_id: uid,
+        content: finalText,
+        raw_input: content,
+        automask,
+        positivity_ratio: positivity,
+      });
+
+    if (dbError) {
+      console.error(dbError);
+      setError("Failed to post comment.");
+      return false;
+    }
+
+    /* --------------------------------------------- */
+    /* NOTIFICATIONS                                 */
+    /* --------------------------------------------- */
+    await fetch("/functions/v1/create-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType: "vision",
+        message: `${email || "Someone"} commented on your vision`,
+        eventType: "comment",
+      }),
     });
 
-  if (dbError) {
-    console.error(dbError);
-    setError("Failed to post comment.");
-    return false;
-  }
+    /* --------------------------------------------- */
+    /* PUSH NOTIFICATIONS                            */
+    /* --------------------------------------------- */
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
 
-  // 2. Fetch creator's push subscription (SAFE)
-  const { data: rows } = await supabase
-    .from("push_subscriptions")
-    .select("subscription")
-    .eq("user_id", uid)
-    .limit(1);
+    const sub = rows?.[0] ?? null;
 
-  const sub = rows?.[0] ?? null;
-
-    // ⭐ Insert notification into database (vision comment)
-    await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType: "vision",
-    message: `${email || "Someone"} commented on your vision`,
-    eventType: "comment",
-  }),
-});
-
-    // 3. Trigger push notification
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -155,11 +205,19 @@ async function insertComment(
     return true;
   }
 
+  /* --------------------------------------------- */
+  /* SUBMIT COMMENT                                 */
+  /* --------------------------------------------- */
   async function handleSubmit() {
     setError("");
 
     if (!uid) {
       setError("You must be logged in to comment.");
+      return;
+    }
+
+    if (!isAllowed) {
+      setError("This vision is private.");
       return;
     }
 
@@ -228,6 +286,19 @@ async function insertComment(
     }
 
     setLoading(false);
+  }
+
+  /* --------------------------------------------- */
+  /* JSX                                            */
+  /* --------------------------------------------- */
+  if (!isAllowed) {
+    return (
+      <div className="bg-gray-900 rounded-lg p-4">
+        <p className="text-gray-500 text-sm italic">
+          Comments are private.
+        </p>
+      </div>
+    );
   }
 
   return (

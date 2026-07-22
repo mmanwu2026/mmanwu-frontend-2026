@@ -21,6 +21,8 @@ interface VisionReactionBarProps {
   reactions: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
+  privacy_type: "public" | "private";
+  is_follower: boolean;
   onReactAction: () => void;
 }
 
@@ -30,12 +32,13 @@ export default function ReactionBar({
   reactions,
   spiritScore,
   positivityRatio,
+  privacy_type,
+  is_follower,
   onReactAction,
 }: VisionReactionBarProps) {
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ Authenticated user
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -54,8 +57,18 @@ export default function ReactionBar({
 
   const isCreator = uid === creatorId;
 
+  // ⭐ PRIVACY ENFORCEMENT
+  const isAllowed =
+    privacy_type === "public" || isCreator || is_follower;
+
+  // ⭐ Hide entire reaction bar if viewer is not allowed
+  if (!isAllowed) {
+    return null;
+  }
+
   async function handleReact(maskTier: number) {
-    if (!uid || loading) return;
+    if (!uid || loading || !isAllowed) return;
+
     setLoading(true);
 
     // 1. Save reaction
@@ -78,28 +91,28 @@ export default function ReactionBar({
       setToastMessage("Your reaction uplifts the spirits ✨");
     }
 
- // ⭐ 3. Fetch YOUR OWN push subscription (SAFE)
-const { data: rows } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid) // logged-in user ONLY
-  .limit(1);
+    // ⭐ 3. Fetch YOUR OWN push subscription (SAFE)
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
 
-const sub = rows?.[0] ?? null;
+    const sub = rows?.[0] ?? null;
 
-// ⭐ 4. Insert notification into database
-await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType: "vision",
-    message: `${email || "Someone"} reacted to your vision`,
-    eventType: "reaction",
-  }),
-});
+    // ⭐ 4. Insert notification into database
+    await fetch("/functions/v1/create-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType: "vision",
+        message: `${email || "Someone"} reacted to your vision`,
+        eventType: "reaction",
+      }),
+    });
 
     // ⭐ 5. Trigger push notification
     if (sub?.subscription) {
@@ -130,11 +143,14 @@ await fetch("/functions/v1/create-notification", {
 
   return (
     <div className="flex gap-6 mt-4 items-center">
-
       {toastMessage && (
-        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+        <SpiritToast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
       )}
 
+      {/* ⭐ Creator-only negative masks */}
       {isCreator && (
         <>
           <button
@@ -157,6 +173,7 @@ await fetch("/functions/v1/create-notification", {
         </>
       )}
 
+      {/* ⭐ Positive masks (everyone allowed) */}
       <button
         onClick={() => handleReact(3)}
         disabled={loading}

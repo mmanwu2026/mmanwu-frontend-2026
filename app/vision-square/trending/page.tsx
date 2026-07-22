@@ -12,13 +12,15 @@ interface ReactionRow {
 interface EnrichedPost {
   id: string;
   title: string;
-  media_url: string;
+  media_url: string | null;
   creator_id: string;
   created_at: string;
   spirit_score: number;
   positivity_ratio: number;
-  automask: number | null;
+  automask: number;
   tags: string[];
+  privacy_type: "public" | "private";
+  is_follower: boolean;
   users: {
     username: string;
     avatar_url: string | null;
@@ -46,6 +48,10 @@ export default function VisionSquareTrending() {
     async function fetchTrending() {
       setLoading(true);
 
+      // Load viewer ID for privacy filtering
+      const session = await supabase.auth.getSession();
+      const viewerId = session.data.session?.user?.id ?? null;
+
       const { data, error } = await supabase
         .from("vision_posts")
         .select(`
@@ -58,6 +64,7 @@ export default function VisionSquareTrending() {
           positivity_ratio,
           automask,
           tags,
+          privacy_type,
 
           users:creator_id (
             username,
@@ -87,54 +94,98 @@ export default function VisionSquareTrending() {
         return;
       }
 
-      const normalized: EnrichedPost[] = (data || []).map((post: any) => {
-        const creator =
-          Array.isArray(post.users) && post.users.length > 0
-            ? post.users[0]
-            : post.users;
+      // Privacy filter: show public, or private only if viewer follows creator
+      const privacyFiltered: any[] = [];
 
-        const comments =
-          post.comments?.map((c: any) => {
-            const profile =
-              Array.isArray(c.profiles) && c.profiles.length > 0
-                ? c.profiles[0]
-                : c.profiles;
+      for (const post of data || []) {
+        const privacy = post.privacy_type ?? "public";
 
-            return {
-              id: c.id,
-              content: c.content,
-              raw_input: c.raw_input ?? null,
-              created_at: c.created_at,
-              automask: c.automask,
-              positivity_ratio: c.positivity_ratio ?? 0.5,
-              user_id: c.user_id,
-              profiles: {
-                username: profile?.username ?? "unknown",
-                avatar_url: profile?.avatar_url ?? null,
-              },
-            };
-          }) ?? [];
+        if (privacy === "public") {
+          privacyFiltered.push(post);
+          continue;
+        }
 
-        return {
-          ...post,
-          tags: Array.isArray(post.tags) ? post.tags : [],
-          users: {
-            username: creator?.username ?? "unknown",
-            avatar_url: creator?.avatar_url ?? null,
-          },
-          comments,
-          comment_count: comments.length,
-          reactions: {
-            mask1: 0,
-            mask2: 0,
-            mask3: 0,
-            mask4: 0,
-            mask5: 0,
-            mask6: 0,
-          },
-          total_reactions: 0,
-        };
-      });
+        if (!viewerId) continue;
+
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", viewerId)
+          .eq("following_id", post.creator_id)
+          .limit(1);
+
+        if (followRows?.[0]) {
+          privacyFiltered.push(post);
+        }
+      }
+
+      const normalized: EnrichedPost[] = await Promise.all(
+        (privacyFiltered || []).map(async (post: any) => {
+          const creator =
+            Array.isArray(post.users) && post.users.length > 0
+              ? post.users[0]
+              : post.users;
+
+          const comments =
+            post.comments?.map((c: any) => {
+              const profile =
+                Array.isArray(c.profiles) && c.profiles.length > 0
+                  ? c.profiles[0]
+                  : c.profiles;
+
+              return {
+                id: c.id,
+                content: c.content,
+                raw_input: c.raw_input ?? null,
+                created_at: c.created_at,
+                automask: c.automask,
+                positivity_ratio: c.positivity_ratio ?? 0.5,
+                user_id: c.user_id,
+                profiles: {
+                  username: profile?.username ?? "unknown",
+                  avatar_url: profile?.avatar_url ?? null,
+                },
+              };
+            }) ?? [];
+
+          let isFollower = false;
+
+          if (viewerId && post.creator_id !== viewerId) {
+            const { data: followRows } = await supabase
+              .from("follows")
+              .select("id")
+              .eq("follower_id", viewerId)
+              .eq("following_id", post.creator_id)
+              .limit(1);
+
+            isFollower = !!followRows?.[0];
+          }
+
+          return {
+            ...post,
+            media_url: post.media_url || null,
+            tags: Array.isArray(post.tags) ? post.tags : [],
+            users: {
+              username: creator?.username ?? "unknown",
+              avatar_url: creator?.avatar_url ?? null,
+            },
+            comments,
+            comment_count: comments.length,
+            reactions: {
+              mask1: 0,
+              mask2: 0,
+              mask3: 0,
+              mask4: 0,
+              mask5: 0,
+              mask6: 0,
+            },
+            total_reactions: 0,
+            privacy_type: post.privacy_type ?? "public",
+            is_follower: isFollower,
+            automask: post.automask ?? 2,
+          };
+        })
+      );
 
       const enriched: EnrichedPost[] = [];
 

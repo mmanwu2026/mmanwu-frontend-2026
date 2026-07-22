@@ -4,20 +4,37 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import VisionShareCard from "./VisionShareCard";
 
+interface VisionShareButtonProps {
+  postId: string;
+  title: string;
+  imageUrl: string;
+  creatorUsername: string;
+  privacy_type: "public" | "private";
+  is_follower: boolean;
+  isCreator: boolean;
+}
+
 export default function VisionShareButton({
   postId,
   title,
   imageUrl,
   creatorUsername,
-}: {
-  postId: string;
-  title: string;
-  imageUrl: string;
-  creatorUsername: string;
-}) {
+  privacy_type,
+  is_follower,
+  isCreator,
+}: VisionShareButtonProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // ⭐ PRIVACY ENFORCEMENT
+  const isAllowed =
+    privacy_type === "public" || isCreator || is_follower;
+
+  // ⭐ Hide share button entirely if viewer is not allowed
+  if (!isAllowed) {
+    return null;
+  }
 
   const shareUrl =
     typeof window !== "undefined"
@@ -25,6 +42,8 @@ export default function VisionShareButton({
       : "";
 
   async function logShare(maskTier = 4) {
+    if (!isAllowed) return;
+
     await fetch("/api/vision-share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -43,6 +62,8 @@ export default function VisionShareButton({
   }
 
   async function handleCopyLink() {
+    if (!isAllowed) return;
+
     try {
       await navigator.clipboard.writeText(shareUrl);
       await logShare(4);
@@ -55,6 +76,8 @@ export default function VisionShareButton({
   }
 
   async function handleCopyImage() {
+    if (!isAllowed) return;
+
     try {
       const img = await fetch(imageUrl);
       const blob = await img.blob();
@@ -71,6 +94,8 @@ export default function VisionShareButton({
   }
 
   function downloadShareCard() {
+    if (!isAllowed) return;
+
     const link = document.createElement("a");
     link.href = imageUrl;
     link.download = `${title.replace(/\s+/g, "_")}.jpg`;
@@ -79,29 +104,47 @@ export default function VisionShareButton({
   }
 
   function shareToWhatsApp() {
+    if (!isAllowed) return;
+
     const text = encodeURIComponent(`${title}\n${shareUrl}`);
     window.open(`https://wa.me/?text=${text}`, "_blank");
     logShare(4);
   }
 
   function shareToTwitter() {
-    const text = encodeURIComponent(`${title} — by @${creatorUsername}\n${shareUrl}`);
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+    if (!isAllowed) return;
+
+    const text = encodeURIComponent(
+      `${title} — by @${creatorUsername}\n${shareUrl}`
+    );
+    window.open(
+      `https://twitter.com/intent/tweet?text=${text}`,
+      "_blank"
+    );
     logShare(4);
   }
 
   function shareToThreads() {
+    if (!isAllowed) return;
+
     const text = encodeURIComponent(`${title}\n${shareUrl}`);
-    window.open(`https://www.threads.net/intent/post?text=${text}`, "_blank");
+    window.open(
+      `https://www.threads.net/intent/post?text=${text}`,
+      "_blank"
+    );
     logShare(4);
   }
 
   function shareToInstagramStories() {
+    if (!isAllowed) return;
+
     window.open(`instagram://story-camera`, "_blank");
     logShare(4);
   }
 
   function shareToTikTok() {
+    if (!isAllowed) return;
+
     window.open(`https://www.tiktok.com/upload?lang=en`, "_blank");
     logShare(4);
   }
@@ -134,12 +177,15 @@ export default function VisionShareButton({
             "
             onClick={(e) => e.stopPropagation()}
           >
-            <VisionShareCard
-              postId={postId}
-              title={title}
-              imageUrl={imageUrl || ""}
-              creatorUsername={creatorUsername}
-            />
+<VisionShareCard
+  postId={postId}
+  title={title}
+  imageUrl={imageUrl || ""}
+  creatorUsername={creatorUsername}
+  privacy_type={privacy_type}
+  is_follower={is_follower}
+  isCreator={isCreator}
+/>
 
             <div className="grid grid-cols-2 gap-3 mt-6">
               <button

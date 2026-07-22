@@ -12,6 +12,7 @@ export default function VisionSquareUpload() {
 
   const [uid, setUid] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
   const [title, setTitle] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -214,6 +215,7 @@ export default function VisionSquareUpload() {
       positivity_ratio: positivity,
       automask,
       tags: allTags,
+      privacy_type: privacyType,
     });
 
     if (dbError) {
@@ -235,128 +237,169 @@ export default function VisionSquareUpload() {
     router.push("/vision-square/feed");
   }
 
-  return (
-    <div className="max-w-xl mx-auto p-6 text-white">
-      {toastMessage && (
-        <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
-      )}
+ return (
+  <div className="max-w-xl mx-auto p-6 text-white">
+    {toastMessage && (
+      <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
+    )}
 
-      {showRewriteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Rewrite Suggested</h2>
-            <p className="text-gray-300 mb-4">
-              The spirits suggest a more uplifting version of your title:
-            </p>
-
-            {rewriteOptions.map((opt, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setShowRewriteModal(false);
-                  finalizeUpload(opt, 4, 0.8);
-                }}
-                className="block w-full text-left bg-gray-700 hover:bg-gray-600 p-3 rounded mb-2"
-              >
-                {opt}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setShowRewriteModal(false)}
-              className="mt-4 text-gray-400 hover:text-gray-200"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="mb-6 flex justify-between items-center">
-        <Link
-          href="/vision-square/feed"
-          className="text-gray-300 hover:text-purple-300 transition font-medium"
-        >
-          ← Back to VisionSquare
-        </Link>
-
-        <Link
-          href="/plaza"
-          className="text-gray-300 hover:text-purple-300 transition font-medium"
-        >
-          Plaza →
-        </Link>
-
-        {uid && (
-          <Link
-            href={`/profile/${uid}`}
-            className="text-gray-300 hover:text-purple-300 transition font-medium"
-          >
-            Profile →
-          </Link>
-        )}
-      </div>
-
-      <h1 className="text-3xl font-bold mb-6">Upload to VisionSquare</h1>
-
-      <input
-        type="text"
-        placeholder="Title"
-        className="w-full p-2 rounded bg-gray-700 mb-4"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-
-      <input
-        type="text"
-        placeholder="#lagos #dance #fashion"
-        className="w-full p-2 rounded bg-gray-700 mb-4"
-        value={hashtags}
-        onChange={(e) => setHashtags(e.target.value)}
-      />
-
-      <div
-        ref={dropRef}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        className="w-full h-32 border-2 border-dashed border-gray-500 rounded flex items-center justify-center mb-4 cursor-pointer"
-        onClick={() => document.getElementById("visionFileInput")?.click()}
-      >
-        {file ? (
-          <p>{file.name}</p>
-        ) : (
-          <p className="text-gray-400">
-            Drag & drop image/video here or click to select
+    {showRewriteModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+        <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+          <h2 className="text-xl font-bold mb-4">Rewrite Suggested</h2>
+          <p className="text-gray-300 mb-4">
+            The spirits suggest a more uplifting version of your title:
           </p>
-        )}
+
+          {rewriteOptions.map((opt, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                setShowRewriteModal(false);
+                finalizeUpload(opt, 4, 0.8);
+              }}
+              className="block w-full text-left bg-gray-700 hover:bg-gray-600 p-3 rounded mb-2"
+            >
+              {opt}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setShowRewriteModal(false)}
+            className="mt-4 text-gray-400 hover:text-gray-200"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+
+    <div className="mb-6 flex justify-between items-center">
+      <Link
+        href="/vision-square/feed"
+        className="text-gray-300 hover:text-purple-300 transition font-medium"
+      >
+        ← Back to VisionSquare
+      </Link>
+
+      <Link
+        href="/plaza"
+        className="text-gray-300 hover:text-purple-300 transition font-medium"
+      >
+        Plaza →
+      </Link>
+
+      {uid && (
+        <Link
+          href={`/profile/${uid}`}
+          className="text-gray-300 hover:text-purple-300 transition font-medium"
+        >
+          Profile →
+        </Link>
+      )}
+    </div>
+
+    <h1 className="text-3xl font-bold mb-6">Upload to VisionSquare</h1>
+
+    {/* ⭐ PRIVACY TOGGLE */}
+    <div className="mb-4">
+      <label className="block text-gray-300 mb-2 font-medium">
+        Privacy
+      </label>
+
+      <div className="flex gap-4">
+        <button
+          type="button"
+          onClick={() => setPrivacyType("public")}
+          className={`
+            px-4 py-2 rounded 
+            ${privacyType === "public"
+              ? "bg-green-600 text-white"
+              : "bg-gray-700 text-gray-300"}
+          `}
+        >
+          Public
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPrivacyType("private")}
+          className={`
+            px-4 py-2 rounded 
+            ${privacyType === "private"
+              ? "bg-purple-600 text-white"
+              : "bg-gray-700 text-gray-300"}
+          `}
+        >
+          Private
+        </button>
       </div>
 
-      <input
-        id="visionFileInput"
-        type="file"
-        accept="image/*,video/*"
-        className="hidden"
-        onChange={(e) => validateFile(e.target.files?.[0] || null)}
-      />
-
-      {error && <p className="text-red-400 mb-2">{error}</p>}
-
-      {uploading && (
-        <div className="w-full bg-gray-700 rounded h-3 mb-4">
-          <div
-            className="bg-purple-500 h-3 rounded"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
-      <button
-        onClick={handleUpload}
-        disabled={uploading}
-        className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 disabled:opacity-50"
-      >
-        {uploading ? "Uploading..." : "Upload"}
-      </button>
+      <p className="text-gray-400 text-sm mt-2">
+        {privacyType === "public"
+          ? "Everyone can see this Vision."
+          : "Only your followers can see this Vision."}
+      </p>
     </div>
-  );
+
+    <input
+      type="text"
+      placeholder="Title"
+      className="w-full p-2 rounded bg-gray-700 mb-4"
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+    />
+
+    <input
+      type="text"
+      placeholder="#lagos #dance #fashion"
+      className="w-full p-2 rounded bg-gray-700 mb-4"
+      value={hashtags}
+      onChange={(e) => setHashtags(e.target.value)}
+    />
+
+    <div
+      ref={dropRef}
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      className="w-full h-32 border-2 border-dashed border-gray-500 rounded flex items-center justify-center mb-4 cursor-pointer"
+      onClick={() => document.getElementById("visionFileInput")?.click()}
+    >
+      {file ? (
+        <p>{file.name}</p>
+      ) : (
+        <p className="text-gray-400">
+          Drag & drop image/video here or click to select
+        </p>
+      )}
+    </div>
+
+    <input
+      id="visionFileInput"
+      type="file"
+      accept="image/*,video/*"
+      className="hidden"
+      onChange={(e) => validateFile(e.target.files?.[0] || null)}
+    />
+
+    {error && <p className="text-red-400 mb-2">{error}</p>}
+
+    {uploading && (
+      <div className="w-full bg-gray-700 rounded h-3 mb-4">
+        <div
+          className="bg-purple-500 h-3 rounded"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    )}
+
+    <button
+      onClick={handleUpload}
+      disabled={uploading}
+      className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 disabled:opacity-50"
+    >
+      {uploading ? "Uploading..." : "Upload"}
+    </button>
+  </div>
+);
 }

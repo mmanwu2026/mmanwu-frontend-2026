@@ -3,12 +3,42 @@
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 
-export default function VisionCommentList({ postId }: { postId: string }) {
-  const { supabase } = useSupabase();;
+/*
+  ⭐ This component now enforces privacy correctly.
+  It requires the parent to pass:
+    - privacy_type
+    - isCreator
+    - isFollower
+*/
+
+export default function VisionCommentList({
+  postId,
+  privacyType,
+  isCreator,
+  isFollower,
+}: {
+  postId: string;
+  privacyType: "public" | "private";
+  isCreator: boolean;
+  isFollower: boolean;
+}) {
+  const { supabase } = useSupabase();
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* ⭐ PRIVACY ENFORCEMENT */
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollower;
+
   async function fetchComments() {
+    if (!isAllowed) {
+      setComments([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase
@@ -57,7 +87,9 @@ export default function VisionCommentList({ postId }: { postId: string }) {
   useEffect(() => {
     fetchComments();
 
-    // ⭐ REALTIME SUBSCRIPTION — Feed updates instantly
+    if (!isAllowed) return;
+
+    // ⭐ REALTIME SUBSCRIPTION — only if allowed
     const channel = supabase
       .channel(`vision-comments-${postId}`)
       .on(
@@ -69,7 +101,7 @@ export default function VisionCommentList({ postId }: { postId: string }) {
           filter: `post_id=eq.${postId}`,
         },
         () => {
-          fetchComments(); // ⭐ Refresh comments in Feed
+          fetchComments();
         }
       )
       .subscribe();
@@ -77,7 +109,15 @@ export default function VisionCommentList({ postId }: { postId: string }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [postId, supabase]);
+  }, [postId, supabase, isAllowed]);
+
+  if (!isAllowed) {
+    return (
+      <p className="text-gray-500 text-sm italic">
+        Comments are private.
+      </p>
+    );
+  }
 
   if (loading) {
     return <p className="text-gray-400">Loading comments…</p>;
@@ -103,7 +143,6 @@ export default function VisionCommentList({ postId }: { postId: string }) {
                 {c.profiles.username}
               </span>
 
-              {/* ⭐ Positive Mask Badge */}
               {isPositive && (
                 <span className="text-xs bg-green-700 px-2 py-1 rounded text-white">
                   ✨ Uplifting
@@ -111,7 +150,6 @@ export default function VisionCommentList({ postId }: { postId: string }) {
               )}
             </div>
 
-            {/* ⭐ FIXED — correct field */}
             <p className="text-gray-300">{c.content}</p>
 
             <p className="text-gray-500 text-xs mt-2">

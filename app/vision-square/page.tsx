@@ -8,8 +8,43 @@ import VisionCard from "@/app/vision-square/components/VisionCard";
 
 export default function VisionSquareIndex() {
   const { supabase } = useSupabase();
-  const [recentPosts, setRecentPosts] = useState([]);
+  const [recentPosts, setRecentPosts] = useState<VisionIndexPost[]>([]);
+  const [uid, setUid] = useState<string | null>(null);
 
+  interface VisionIndexPost {
+  id: string;
+  title: string;
+  media_url: string | null;
+  creator_id: string;
+  created_at: string;
+  spirit_score: number;
+  positivity_ratio: number;
+  automask: number;
+  tags: string[];
+  privacy_type: "public" | "private";
+  is_follower: boolean;
+  users: {
+    username: string;
+    avatar_url: string | null;
+  };
+  comments: any[];
+  comment_count: number;
+}
+
+  /* --------------------------------------------- */
+  /* LOAD VIEWER                                    */
+  /* --------------------------------------------- */
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      setUid(session.data.session?.user?.id || null);
+    }
+    loadUser();
+  }, [supabase]);
+
+  /* --------------------------------------------- */
+  /* LOAD RECENT POSTS (WITH PRIVACY)               */
+  /* --------------------------------------------- */
   useEffect(() => {
     async function loadRecent() {
       const { data, error } = await supabase
@@ -24,7 +59,13 @@ export default function VisionSquareIndex() {
           positivity_ratio,
           automask,
           tags,
-          users:creator_id ( username, avatar_url ),
+          privacy_type,
+
+          users:creator_id (
+            username,
+            avatar_url
+          ),
+
           comments:vision_post_comments (
             id,
             content,
@@ -33,14 +74,43 @@ export default function VisionSquareIndex() {
             automask,
             positivity_ratio,
             user_id,
-            profiles:user_id ( username, avatar_url )
+            profiles:user_id (
+              username,
+              avatar_url
+            )
           )
         `)
         .order("created_at", { ascending: false })
         .limit(6);
 
-      if (!error && data) {
-        const normalized = data.map((post: any) => {
+      if (error || !data) return;
+
+      const filtered: any[] = [];
+
+      for (const post of data) {
+        const privacy = post.privacy_type ?? "public";
+
+        if (privacy === "public") {
+          filtered.push(post);
+          continue;
+        }
+
+        if (!uid) continue;
+
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", uid)
+          .eq("following_id", post.creator_id)
+          .limit(1);
+
+        if (followRows?.[0]) {
+          filtered.push(post);
+        }
+      }
+
+      const normalized = await Promise.all(
+        filtered.map(async (post: any) => {
           const creator =
             Array.isArray(post.users) && post.users.length > 0
               ? post.users[0]
@@ -68,6 +138,20 @@ export default function VisionSquareIndex() {
               };
             }) ?? [];
 
+          /* FOLLOW STATE */
+          let isFollower = false;
+
+          if (uid && post.creator_id !== uid) {
+            const { data: followRows } = await supabase
+              .from("follows")
+              .select("id")
+              .eq("follower_id", uid)
+              .eq("following_id", post.creator_id)
+              .limit(1);
+
+            isFollower = !!followRows?.[0];
+          }
+
           return {
             ...post,
             tags: Array.isArray(post.tags) ? post.tags : [],
@@ -77,16 +161,20 @@ export default function VisionSquareIndex() {
             },
             comments,
             comment_count: comments.length,
+            is_follower: isFollower,
           };
-        });
+        })
+      );
 
-        setRecentPosts(normalized);
-      }
+      setRecentPosts(normalized);
     }
 
     loadRecent();
-  }, [supabase]);
+  }, [supabase, uid]);
 
+  /* --------------------------------------------- */
+  /* JSX                                            */
+  /* --------------------------------------------- */
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
 
