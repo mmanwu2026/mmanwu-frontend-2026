@@ -20,6 +20,7 @@ type SoundPostDetailCard = {
   automask: number;
   share_count: number;
   share_score: number;
+  privacy_type: "public" | "private";
   users: {
     username: string;
     avatar_url: string | null;
@@ -39,37 +40,102 @@ export default function SoundSquarePostDetail({ params }: { params: { id: string
   const [post, setPost] = useState<SoundPostDetailCard | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [uid, setUid] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-useEffect(() => {
-  (async () => {
-    setLoading(true);
-
-    const { data: rows, error } = await supabase
-      .from("sound_posts")
-      .select(`
-        id,
-        title,
-        audio_url,
-        creator_id,
-        created_at,
-        spirit_score,
-        positivity_ratio,
-        automask,
-        users:creator_id ( username, avatar_url )
-      `)
-      .eq("id", params.id)
-      .limit(1);
-
-    if (error) {
-      console.error(error);
-      setLoading(false);
-      return;
+  // Load auth user
+  useEffect(() => {
+    async function loadUser() {
+      const session = await supabase.auth.getSession();
+      const user = session.data.session?.user;
+      setUid(user?.id || null);
     }
+    loadUser();
+  }, [supabase]);
 
-    const raw = rows?.[0] ?? null;
-    
-      // ⭐ Load shares
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+
+      const { data: rows, error } = await supabase
+        .from("sound_posts")
+        .select(`
+          id,
+          title,
+          audio_url,
+          creator_id,
+          created_at,
+          spirit_score,
+          positivity_ratio,
+          automask,
+          privacy_type,
+          users:creator_id ( username, avatar_url )
+        `)
+        .eq("id", params.id)
+        .limit(1);
+
+      if (error) {
+        console.error(error);
+        setLoading(false);
+        return;
+      }
+
+      const raw = rows?.[0] ?? null;
+      if (!raw) {
+        setPost(null);
+        setLoading(false);
+        return;
+      }
+
+      // Load follow state
+      if (uid && uid !== raw.creator_id) {
+        const { data: followRows } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", uid)
+          .eq("following_id", raw.creator_id)
+          .limit(1);
+
+        setIsFollowing(!!followRows?.[0]);
+      }
+
+      // Privacy enforcement
+      const isCreator = uid === raw.creator_id;
+      const isAllowed =
+        raw.privacy_type === "public" ||
+        isCreator ||
+        isFollowing === true;
+
+      if (!isAllowed) {
+        setPost({
+          id: raw.id,
+          title: raw.title,
+          audio_url: "",
+          creator_id: raw.creator_id,
+          created_at: raw.created_at,
+          spirit_score: 0,
+          positivity_ratio: 0.5,
+          automask: 2,
+          share_count: 0,
+          share_score: 0,
+          privacy_type: raw.privacy_type,
+          users: raw.users,
+          reactions: {
+            mask1: 0,
+            mask2: 0,
+            mask3: 0,
+            mask4: 0,
+            mask5: 0,
+            mask6: 0,
+          },
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Load shares
       const { data: shareRows } = await supabase
         .from("sound_post_shares")
         .select("post_id")
@@ -78,7 +144,7 @@ useEffect(() => {
       const share_count = shareRows?.length ?? 0;
       const share_score = share_count * 5;
 
-      // ⭐ Load reactions (weighted)
+      // Load reactions
       const { data: reactionRows } = await supabase
         .from("reactions")
         .select("maskTier, value")
@@ -98,7 +164,7 @@ useEffect(() => {
       let weightedPositive = 0;
       let weightedTotal = 0;
 
-      (reactionRows || []).forEach((r: { maskTier: number; value: number }) => {
+      (reactionRows || []).forEach((r) => {
         const key = `mask${r.maskTier}` as keyof typeof counts;
         counts[key] += 1;
 
@@ -110,7 +176,6 @@ useEffect(() => {
 
       const positivity = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-      // ⭐ Unified automask logic (matches feed)
       let automask = 2;
       if (spirit <= 20) automask = 2;
       else if (spirit <= 100) automask = 3;
@@ -129,17 +194,15 @@ useEffect(() => {
         automask,
         share_count,
         share_score,
-        users: {
-          username: raw.users?.username ?? "Unknown",
-          avatar_url: raw.users?.avatar_url ?? null,
-        },
+        privacy_type: raw.privacy_type,
+        users: raw.users,
         reactions: counts,
       };
 
       setPost(card);
       setLoading(false);
     })();
-  }, [params.id, supabase]);
+  }, [params.id, supabase, uid, isFollowing]);
 
   if (loading) {
     return (
@@ -155,6 +218,18 @@ useEffect(() => {
       <div className="min-h-screen bg-white text-gray-900 p-6">
         <TopBar />
         <p>Post not found.</p>
+      </div>
+    );
+  }
+
+  // Block private content
+  if (post.privacy_type === "private" && !isFollowing && uid !== post.creator_id) {
+    return (
+      <div className="min-h-screen bg-white text-gray-900 p-6">
+        <TopBar />
+        <p className="text-gray-500 text-center mt-10">
+          This sound post is private.
+        </p>
       </div>
     );
   }
@@ -184,17 +259,16 @@ useEffect(() => {
       />
 
       <SoundReactionBar
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={post.reactions}
-  onReactAction={async () => {
-    // ⭐ Refresh reactions after reacting
-    const { data: reactionRows } = await supabase
-      .from("reactions")
-      .select("maskTier, value")
-      .eq("post_id", post.id)
-      .eq("post_type", "sound");
-      
+        postId={post.id}
+        creatorId={post.creator_id}
+        reactions={post.reactions}
+        onReactAction={async () => {
+          const { data: reactionRows } = await supabase
+            .from("reactions")
+            .select("maskTier, value")
+            .eq("post_id", post.id)
+            .eq("post_type", "sound");
+
           const counts = {
             mask1: 0,
             mask2: 0,
@@ -208,7 +282,7 @@ useEffect(() => {
           let weightedPositive = 0;
           let weightedTotal = 0;
 
-          (reactionRows || []).forEach((r: { maskTier: number; value: number }) => {
+          (reactionRows || []).forEach((r) => {
             const key = `mask${r.maskTier}` as keyof typeof counts;
             counts[key] += 1;
 

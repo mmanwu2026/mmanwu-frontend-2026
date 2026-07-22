@@ -33,7 +33,7 @@ export default function SoundSquareIndex() {
   async function loadRecent() {
     setLoading(true);
 
-    // ⭐ Load posts (flat, no nested selects)
+    // Load posts (flat, with privacy_type)
     const { data: rawPosts, error } = await supabase
       .from("sound_posts")
       .select(`
@@ -45,6 +45,7 @@ export default function SoundSquareIndex() {
         spirit_score,
         positivity_ratio,
         automask,
+        privacy_type,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
@@ -58,7 +59,7 @@ export default function SoundSquareIndex() {
 
     const postIds = rawPosts.map((p) => p.id);
 
-    // ⭐ Load reactions
+    // Load reactions
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
@@ -67,7 +68,7 @@ export default function SoundSquareIndex() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    // ⭐ Load shares
+    // Load shares
     const { data: shareRows } = await supabase
       .from("sound_post_shares")
       .select("post_id")
@@ -75,7 +76,7 @@ export default function SoundSquareIndex() {
 
     const safeShareRows = shareRows ?? [];
 
-    // ⭐ Load comments
+    // Load comments
     const { data: commentRows } = await supabase
       .from("sound_post_comments")
       .select(`
@@ -92,7 +93,7 @@ export default function SoundSquareIndex() {
       .in("post_id", postIds)
       .order("created_at", { ascending: true });
 
-    // ⭐ Merge everything
+    // Merge everything
     const enriched = rawPosts.map((post: any) => {
       const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
@@ -106,16 +107,17 @@ export default function SoundSquareIndex() {
       };
 
       const spiritScore = postReactions.reduce(
-  (sum, r) => sum + (r.maskTier ?? 0),
-  0
-);
+        (sum, r) => sum + (r.maskTier ?? 0),
+        0
+      );
 
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)
         .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
       const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const positivityRatio =
+        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
@@ -159,6 +161,8 @@ export default function SoundSquareIndex() {
         positivity_ratio: positivityRatio,
         automask: autoMask,
 
+        privacy_type: post.privacy_type,
+
         users: {
           username: post.users?.username ?? "Unknown",
           avatar_url: post.users?.avatar_url ?? null,
@@ -178,71 +182,73 @@ export default function SoundSquareIndex() {
     setLoading(false);
   }
 
-return (
-  <div className="min-h-screen bg-white text-gray-900 p-6">
-    {/* TopBar removed */}
+  return (
+    <div className="min-h-screen bg-white text-gray-900 p-6">
+      {/* Navigation */}
+      <div className="mb-6 flex justify-between items-center">
+        <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
+          ← Plaza
+        </Link>
 
-    {/* Navigation */}
-    <div className="mb-6 flex justify-between items-center">
-      <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
-        ← Plaza
-      </Link>
+        <Link
+          href="/sound-square/create"
+          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
+        >
+          + Upload Sound
+        </Link>
+      </div>
 
-      <Link
-        href="/sound-square/create"
-        className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500 text-white"
-      >
-        + Upload Sound
-      </Link>
+      <h1 className="text-3xl font-bold mb-2">Sound Square</h1>
+      <p className="text-gray-600 mb-8">
+        Explore beats, reactions, and trending audio moments shared by the community.
+      </p>
+
+      {/* Toggle */}
+      <div className="flex gap-4 mb-6">
+        <Link href="/sound-square/feed" className="font-semibold text-purple-700">
+          Recent
+        </Link>
+
+        <Link href="/sound-square/trending" className="text-gray-600 hover:text-purple-700">
+          Trending
+        </Link>
+      </div>
+
+      {/* Recent Posts Preview */}
+      <h2 className="text-xl font-semibold mb-4 text-purple-700">Recent Posts</h2>
+
+      <div className="space-y-6">
+        {loading ? (
+          <p className="text-gray-500 text-sm">Loading sounds…</p>
+        ) : recentPosts.length > 0 ? (
+          recentPosts.map((post) => <SoundPostCard key={post.id} post={post} />)
+        ) : (
+          <p className="text-gray-500 text-sm">No sound posts yet…</p>
+        )}
+      </div>
+
+      {/* Main Links */}
+      <div className="space-y-4 mt-10">
+        <Link
+          href="/sound-square/feed"
+          className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
+        >
+          <h2 className="text-xl font-semibold text-purple-700 mb-1">Sound Feed</h2>
+          <p className="text-gray-600 text-sm">
+            See the latest uploads from creators across Sound Square.
+          </p>
+        </Link>
+
+        <Link
+          href="/sound-square/trending"
+          className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
+        >
+          <h2 className="text-xl font-semibold text-purple-700 mb-1">Trending</h2>
+          <p className="text-gray-600 text-sm">
+            Discover the highest‑spirit and most reacted sound posts.
+          </p>
+        </Link>
+      </div>
     </div>
-
-    <h1 className="text-3xl font-bold mb-2">Sound Square</h1>
-    <p className="text-gray-600 mb-8">
-      Explore beats, reactions, and trending audio moments shared by the community.
-    </p>
-
-    {/* ⭐ Toggle */}
-    <div className="flex gap-4 mb-6">
-      <Link href="/sound-square/feed" className="font-semibold text-purple-700">
-        Recent
-      </Link>
-
-      <Link href="/sound-square/trending" className="text-gray-600 hover:text-purple-700">
-        Trending
-      </Link>
-    </div>
-
-    {/* ⭐ Recent Posts Preview */}
-    <h2 className="text-xl font-semibold mb-4 text-purple-700">Recent Posts</h2>
-
-    <div className="space-y-6">
-      {recentPosts.map((post) => (
-        <SoundPostCard key={post.id} post={post} />
-      ))}
-    </div>
-
-    {/* Main Links */}
-    <div className="space-y-4 mt-10">
-      <Link
-        href="/sound-square/feed"
-        className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
-      >
-        <h2 className="text-xl font-semibold text-purple-700 mb-1">Sound Feed</h2>
-        <p className="text-gray-600 text-sm">
-          See the latest uploads from creators across Sound Square.
-        </p>
-      </Link>
-
-      <Link
-        href="/sound-square/trending"
-        className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
-      >
-        <h2 className="text-xl font-semibold text-purple-700 mb-1">Trending</h2>
-        <p className="text-gray-600 text-sm">
-          Discover the highest‑spirit and most reacted sound posts.
-        </p>
-      </Link>
-    </div>
-  </div>
-);
+  );
 }

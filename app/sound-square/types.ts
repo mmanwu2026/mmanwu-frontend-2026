@@ -38,6 +38,8 @@ export type CardSoundPost = {
   positivity_ratio: number;
   automask: number;
 
+  privacy_type: "public" | "private";
+
   reactions: ReactionCounts;
 
   share_count: number;

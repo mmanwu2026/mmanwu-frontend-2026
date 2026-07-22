@@ -50,11 +50,59 @@ export default function PlazaComments({
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
+  // ⭐ NEW — privacy + follow-state
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+
+  // Load user
   async function loadUser() {
     const session = await supabase.auth.getSession();
     setUserId(session.data.session?.user?.id || null);
   }
 
+  // Load privacy_type
+  useEffect(() => {
+    async function loadPrivacy() {
+      const { data: rows } = await supabase
+        .from("plaza_posts")
+        .select("privacy_type")
+        .eq("id", postId)
+        .limit(1);
+
+      const row = rows?.[0] ?? null;
+      if (row?.privacy_type) setPrivacyType(row.privacy_type);
+    }
+
+    loadPrivacy();
+  }, [postId, supabase]);
+
+  // Load follow-state
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!userId || !postCreatorId) return;
+
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", userId)
+        .eq("following_id", postCreatorId)
+        .limit(1);
+
+      setIsFollowing(!!rows?.[0]);
+    }
+
+    loadFollowState();
+  }, [userId, postCreatorId, supabase]);
+
+  // Privacy enforcement
+  const isCreator = userId === postCreatorId;
+
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollowing === true;
+
+  // Load comments
   async function loadComments() {
     setLoading(true);
 
@@ -86,8 +134,18 @@ export default function PlazaComments({
     setLoading(false);
   }
 
+  // Block comment list entirely
+  if (!isAllowed) {
+    return (
+      <p className="text-white/40 mt-6">
+        Comments are private for this post.
+      </p>
+    );
+  }
+
   async function submitComment() {
     if (!text.trim()) return;
+    if (!isAllowed) return;
 
     const session = await supabase.auth.getSession();
     const uid = session.data.session?.user?.id;
@@ -105,137 +163,143 @@ export default function PlazaComments({
       }),
     });
 
-const result = await response.json();
+    const result = await response.json();
 
-if (!result.approved) {
-  setRewriteMode(true);
-  setRewriteMessage(result.toast);
-  return;
-}
+    if (!result.approved) {
+      setRewriteMode(true);
+      setRewriteMessage(result.toast);
+      return;
+    }
 
-// ⭐ SAFE: no `.single()`
-const { data: rows } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid)
-  .limit(1);
+    // Push subscription
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
 
-const sub = rows?.[0] ?? null;
+    const sub = rows?.[0] ?? null;
 
-await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: postCreatorId,
-    actorId: uid,
-    postId,
-    postType: "plaza",
-    message: `${email} commented on your post`,
-    eventType: "comment",
-  }),
-});
-
-if (sub?.subscription) {
-  await fetch(
-    "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-    {
+    // Notification
+    await fetch("/functions/v1/create-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        subscription: sub.subscription,
-        payload: {
-          title: "New Comment 💬",
-          body: `${email} commented on your post`,
-          icon: "/icons/mman-192.png",
-          url: `/post/${postId}`,
-        },
+        recipientId: postCreatorId,
+        actorId: uid,
+        postId,
+        postType: "plaza",
+        message: `${email} commented on your post`,
+        eventType: "comment",
       }),
+    });
+
+    // Push
+    if (sub?.subscription) {
+      await fetch(
+        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub.subscription,
+            payload: {
+              title: "New Comment 💬",
+              body: `${email} commented on your post`,
+              icon: "/icons/mman-192.png",
+              url: `/post/${postId}`,
+            },
+          }),
+        }
+      );
     }
-  );
-}
 
-setText("");
-setRewriteMode(false);
-setToast(result.toast);
-loadComments();
+    setText("");
+    setRewriteMode(false);
+    setToast(result.toast);
+    loadComments();
   }
 
-async function submitReply(parentId: string) {
-  if (!replyText.trim()) return;
+  async function submitReply(parentId: string) {
+    if (!replyText.trim()) return;
+    if (!isAllowed) return;
 
-  const session = await supabase.auth.getSession();
-  const uid = session.data.session?.user?.id;
-  const email = session.data.session?.user?.email || "Someone";
-  if (!uid) return;
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session?.user?.id;
+    const email = session.data.session?.user?.email || "Someone";
+    if (!uid) return;
 
-  const response = await fetch("/api/plaza/comment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      postId,
-      content: replyText.trim(),
-      userId: uid,
-      parentCommentId: parentId,
-    }),
-  });
+    const response = await fetch("/api/plaza/comment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        postId,
+        content: replyText.trim(),
+        userId: uid,
+        parentCommentId: parentId,
+      }),
+    });
 
-  const result = await response.json();
+    const result = await response.json();
 
-  if (!result.approved) {
-    setRewriteMode(true);
-    setRewriteMessage(result.toast);
-    return;
+    if (!result.approved) {
+      setRewriteMode(true);
+      setRewriteMessage(result.toast);
+      return;
+    }
+
+    // Push subscription
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
+
+    const sub = rows?.[0] ?? null;
+
+    // Notification
+    await fetch("/functions/v1/create-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: postCreatorId,
+        actorId: uid,
+        postId,
+        postType: "plaza",
+        commentId: parentId,
+        message: `${email} replied to a comment on your post`,
+        eventType: "reply",
+      }),
+    });
+
+    // Push
+    if (sub?.subscription) {
+      await fetch(
+        "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub.subscription,
+            payload: {
+              title: "New Reply 💬",
+              body: `${email} replied to a comment on your post`,
+              icon: "/icons/mman-192.png",
+              url: `/post/${postId}`,
+            },
+          }),
+        }
+      );
+    }
+
+    setReplyText("");
+    setRewriteMode(false);
+    setToast(result.toast);
+    loadComments();
   }
-
-  // ⭐ SAFE: no `.single()`
-  const { data: rows } = await supabase
-    .from("push_subscriptions")
-    .select("subscription")
-    .eq("user_id", uid)
-    .limit(1);
-
-  const sub = rows?.[0] ?? null;
-
-  await fetch("/functions/v1/create-notification", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      recipientId: postCreatorId,
-      actorId: uid,
-      postId,
-      postType: "plaza",
-      commentId: parentId,
-      message: `${email} replied to a comment on your post`,
-      eventType: "reply",
-    }),
-  });
-
-  if (sub?.subscription) {
-    await fetch(
-      "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscription: sub.subscription,
-          payload: {
-            title: "New Reply 💬",
-            body: `${email} replied to a comment on your post`,
-            icon: "/icons/mman-192.png",
-            url: `/post/${postId}`,
-          },
-        }),
-      }
-    );
-  }
-
-  setReplyText("");
-  setRewriteMode(false);
-  setToast(result.toast);
-  loadComments();
-}
 
   async function deleteComment(id: string) {
+    if (!isAllowed) return;
     await supabase.from("plaza_post_comments").delete().eq("id", id);
     loadComments();
   }

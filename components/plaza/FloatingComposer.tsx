@@ -29,6 +29,8 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
 
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public"); // ⭐ NEW
+
   const [gatekeeperOptions, setGatekeeperOptions] = useState<RewriteOption[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
 
@@ -60,27 +62,28 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     }
   }
 
-async function publishToSupabase(finalText: string): Promise<void> {
-  if (!uid) return;
+  async function publishToSupabase(finalText: string): Promise<void> {
+    if (!uid) return;
 
-  const { data: rows, error } = await supabase
-    .from("posts")
-    .insert({
-      content: finalText,
-      creator_id: uid,
-      mask: 0,
-    })
-    .select()
-    .limit(1);
+    const { data: rows, error } = await supabase
+      .from("posts")
+      .insert({
+        content: finalText,
+        creator_id: uid,
+        mask: 0,
+        privacy_type: privacyType, // ⭐ NEW
+      })
+      .select()
+      .limit(1);
 
-  if (error) {
-    console.error("Post insert error:", error);
-    return;
+    if (error) {
+      console.error("Post insert error:", error);
+      return;
+    }
+
+    const data = rows?.[0] ?? null;
+    if (data) onPost(data);
   }
-
-  const data = rows?.[0] ?? null;
-  if (data) onPost(data);
-}
 
   async function handleSubmit(): Promise<void> {
     if (!content.trim() || loadingUser || !uid) return;
@@ -156,6 +159,16 @@ async function publishToSupabase(finalText: string): Promise<void> {
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
+
+          {/* ⭐ NEW — Privacy Selector */}
+          <select
+            value={privacyType}
+            onChange={(e) => setPrivacyType(e.target.value as "public" | "private")}
+            className="w-full mt-3 p-2 rounded-xl bg-purple-950/40 text-gray-300"
+          >
+            <option value="public">Public</option>
+            <option value="private">Private (Followers Only)</option>
+          </select>
 
           <button
             onClick={handleSubmit}

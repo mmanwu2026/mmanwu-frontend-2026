@@ -237,123 +237,147 @@ const { data: postRows } = await supabase
     setHydrated(true);
   }, []);
 
-      /* --------------------------------------------- */
-  /* LOAD SOUND POSTS                              */
-  /* --------------------------------------------- */
-  useEffect(() => {
-    async function loadSoundPosts() {
-      if (!viewerAllowed || !profile) return;
+ /* --------------------------------------------- */
+/* LOAD SOUND POSTS (with privacy enforcement)   */
+/* --------------------------------------------- */
+useEffect(() => {
+  async function loadSoundPosts() {
+    if (!profile || !authUserId) return;
 
-      const { data, error } = await supabase
-        .from("sound_posts")
-        .select(`
+    // 1. Load follow-state
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", authUserId)
+      .eq("following_id", profile.id)
+      .limit(1);
+
+    const isFollowing = !!followRows?.[0];
+    const isCreator = authUserId === profile.id;
+
+    // 2. Load sound posts WITH privacy_type
+    const { data, error } = await supabase
+      .from("sound_posts")
+      .select(`
+        id,
+        title,
+        audio_url,
+        creator_id,
+        created_at,
+        privacy_type,
+
+        profiles:creator_id (
+          username,
+          avatar_url
+        ),
+
+        comments:sound_post_comments (
           id,
-          title,
-          audio_url,
-          creator_id,
+          content,
+          raw_input,
           created_at,
-
-          profiles:creator_id (
+          automask,
+          positivity_ratio,
+          user_id,
+          profiles:user_id (
             username,
             avatar_url
-          ),
-
-          comments:sound_post_comments (
-            id,
-            content,
-            raw_input,
-            created_at,
-            automask,
-            positivity_ratio,
-            user_id,
-            profiles:user_id (
-              username,
-              avatar_url
-            )
           )
-        `)
-        .eq("creator_id", profile.id)
-        .order("created_at", { ascending: false });
+        )
+      `)
+      .eq("creator_id", profile.id)
+      .order("created_at", { ascending: false });
 
-      if (error) return;
+    if (error) return;
 
-      const ids = (data || []).map((p: any) => p.id);
+    // 3. Apply privacy filtering
+    const filtered = (data || []).filter((post: any) => {
+      if (post.privacy_type === "public") return true;
+      if (isCreator) return true;
+      if (isFollowing) return true;
+      return false;
+    });
 
-      const { data: reactionsRows } = await supabase
-        .from("reactions")
-        .select('post_id, "maskTier"')
-        .in("post_id", ids)
-        .eq("post_type", "sound");
+    const ids = filtered.map((p: any) => p.id);
 
-      type ReactionRow = { post_id: string; maskTier: number };
+    // 4. Load reactions
+    const { data: reactionsRows } = await supabase
+      .from("reactions")
+      .select('post_id, "maskTier"')
+      .in("post_id", ids)
+      .eq("post_type", "sound");
 
-      const mapped: CardSoundPost[] = (data || []).map((p: any) => {
-        const postReactions: ReactionRow[] =
-          (reactionsRows ?? []).filter((r) => r.post_id === p.id);
+    type ReactionRow = { post_id: string; maskTier: number };
 
-        const counts: ReactionCounts = {
-          mask1: postReactions.filter((r) => r.maskTier === 1).length,
-          mask2: postReactions.filter((r) => r.maskTier === 2).length,
-          mask3: postReactions.filter((r) => r.maskTier === 3).length,
-          mask4: postReactions.filter((r) => r.maskTier === 4).length,
-          mask5: postReactions.filter((r) => r.maskTier === 5).length,
-          mask6: postReactions.filter((r) => r.maskTier === 6).length,
-        };
+    // 5. Build enriched cards
+    const mapped: CardSoundPost[] = filtered.map((p: any) => {
+      const postReactions: ReactionRow[] =
+        (reactionsRows ?? []).filter((r) => r.post_id === p.id);
 
-        const spirit_score = postReactions.reduce(
-          (sum, r) => sum + r.maskTier,
-          0
-        );
+      const counts: ReactionCounts = {
+        mask1: postReactions.filter((r) => r.maskTier === 1).length,
+        mask2: postReactions.filter((r) => r.maskTier === 2).length,
+        mask3: postReactions.filter((r) => r.maskTier === 3).length,
+        mask4: postReactions.filter((r) => r.maskTier === 4).length,
+        mask5: postReactions.filter((r) => r.maskTier === 5).length,
+        mask6: postReactions.filter((r) => r.maskTier === 6).length,
+      };
 
-        const total = postReactions.length;
-        const positive = postReactions.filter((r) => r.maskTier >= 3).length;
-        const positivity_ratio = total > 0 ? positive / total : 0.5;
+      const spirit_score = postReactions.reduce(
+        (sum, r) => sum + r.maskTier,
+        0
+      );
 
-        let automask = 2;
-        if (spirit_score > 20) automask = 3;
-        if (spirit_score > 100) automask = 4;
-        if (spirit_score > 300) automask = 5;
-        if (spirit_score > 500) automask = 6;
+      const total = postReactions.length;
+      const positive = postReactions.filter((r) => r.maskTier >= 3).length;
+      const positivity_ratio = total > 0 ? positive / total : 0.5;
 
-        const commentList =
-          p.comments?.map((c: any) => ({
-            id: c.id,
-            content: c.content,
-            raw_input: c.raw_input ?? null,
-            created_at: c.created_at,
-            automask: c.automask,
-            positivity_ratio: c.positivity_ratio ?? 0.5,
-            user_id: c.user_id,
-            profiles: {
-              username: c.profiles?.username ?? "unknown",
-              avatar_url: c.profiles?.avatar_url ?? null,
-            },
-          })) ?? [];
+      let automask = 2;
+      if (spirit_score > 20) automask = 3;
+      if (spirit_score > 100) automask = 4;
+      if (spirit_score > 300) automask = 5;
+      if (spirit_score > 500) automask = 6;
 
-        return {
-          id: p.id,
-          title: p.title ?? "",
-          audio_url: p.audio_url ?? "",
-          creator_id: p.creator_id ?? "",
-          creator_name: null,
-          created_at: p.created_at ?? "",
-          spirit_score,
-          positivity_ratio,
-          automask,
-          reactions: counts,
-          users: {
-            username: p.profiles?.username ?? "Unknown",
-            avatar_url: p.profiles?.avatar_url ?? null,
+      const commentList =
+        p.comments?.map((c: any) => ({
+          id: c.id,
+          content: c.content,
+          raw_input: c.raw_input ?? null,
+          created_at: c.created_at,
+          automask: c.automask,
+          positivity_ratio: c.positivity_ratio ?? 0.5,
+          user_id: c.user_id,
+          profiles: {
+            username: c.profiles?.username ?? "unknown",
+            avatar_url: c.profiles?.avatar_url ?? null,
           },
-          comments: commentList,
-        };
-      });
+        })) ?? [];
 
-      setSoundPosts(mapped);
-    }
+      return {
+        id: p.id,
+        title: p.title ?? "",
+        audio_url: p.audio_url ?? "",
+        creator_id: p.creator_id ?? "",
+        creator_name: null,
+        created_at: p.created_at ?? "",
+        spirit_score,
+        positivity_ratio,
+        automask,
+        reactions: counts,
+        users: {
+          username: p.profiles?.username ?? "Unknown",
+          avatar_url: p.profiles?.avatar_url ?? null,
+        },
+        comments: commentList,
+        privacy_type: p.privacy_type, // ⭐ optional UI use
+      };
+    });
 
-    loadSoundPosts();
-  }, [profile, supabase, viewerAllowed]);
+    setSoundPosts(mapped);
+  }
+
+  loadSoundPosts();
+}, [profile, authUserId, supabase]);
 
   /* --------------------------------------------- */
 /* LOAD FOLLOW STATE                             */

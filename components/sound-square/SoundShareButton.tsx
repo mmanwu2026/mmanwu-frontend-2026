@@ -10,7 +10,7 @@ export default function SoundShareButton({ postId }: { postId: string }) {
   const router = useRouter();
   const { supabase } = useSupabase();
 
-  // ⭐ FIXED — authenticated user
+  // Authenticated user
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,6 +22,63 @@ export default function SoundShareButton({ postId }: { postId: string }) {
     loadUser();
   }, [supabase]);
 
+  // Load privacy + creator
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+  const [creatorId, setCreatorId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadMeta() {
+      const { data: rows } = await supabase
+        .from("sound_posts")
+        .select("creator_id, privacy_type")
+        .eq("id", postId)
+        .limit(1);
+
+      const row = rows?.[0] ?? null;
+
+      if (row?.creator_id) setCreatorId(row.creator_id);
+      if (row?.privacy_type) setPrivacyType(row.privacy_type);
+    }
+
+    loadMeta();
+  }, [postId, supabase]);
+
+  // Load follow-state
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!uid || !creatorId) return;
+
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", uid)
+        .eq("following_id", creatorId)
+        .limit(1);
+
+      setIsFollowing(!!rows?.[0]);
+    }
+
+    loadFollowState();
+  }, [uid, creatorId, supabase]);
+
+  // Privacy enforcement
+  const isCreator = uid === creatorId;
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollowing === true;
+
+  // Block sharing entirely
+  if (!isAllowed) {
+    return (
+      <div className="mt-6 text-white/40 text-sm">
+        Sharing is private for this sound.
+      </div>
+    );
+  }
+
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/sound-square/post/${postId}`
@@ -31,13 +88,13 @@ export default function SoundShareButton({ postId }: { postId: string }) {
     try {
       await navigator.clipboard.writeText(shareUrl);
 
-      // ⭐ Prevent duplicate shares
+      // Prevent duplicate shares
       await fetch("/api/sound-share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           post_id: postId,
-          user_id: uid,        // ⭐ FIXED
+          user_id: uid,
           post_type: "sound",
         }),
       });

@@ -26,28 +26,50 @@ export default function SoundPostCard({
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ Authenticated user
+  // Auth
   const [uid, setUid] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
       const user = session.data.session?.user;
       setUid(user?.id || null);
-      setEmail(user?.email || null);
     }
     loadUser();
   }, [supabase]);
 
   /* ---------------------------------------------------------
-     ⭐ PRIVACY ENFORCEMENT
-     Sound posts do NOT include creator profiles in your schema.
-     But UnifiedFeedPage injects creator_privacy_type into post.
+     ⭐ PRIVACY ENFORCEMENT (Corrected)
      --------------------------------------------------------- */
-  const privacy = post.creator_privacy_type ?? "public";
+
   const isCreator = uid === post.creator_id;
-  const isAllowed = privacy === "public" || isCreator;
+
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!uid || isCreator) {
+        setIsFollowing(null);
+        return;
+      }
+
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", uid)
+        .eq("following_id", post.creator_id)
+        .limit(1);
+
+      setIsFollowing(!!rows?.[0]);
+    }
+
+    loadFollowState();
+  }, [uid, post.creator_id, isCreator, supabase]);
+
+  const isAllowed =
+    post.privacy_type === "public" ||
+    isCreator ||
+    isFollowing === true;
 
   /* ---------------------------------------------------------
      ⭐ Audio + Visualizer Refs
@@ -79,130 +101,25 @@ export default function SoundPostCard({
   const [renderTick, setRenderTick] = useState(0);
 
   /* ---------------------------------------------------------
-     ⭐ Intensity Analyzer Loop
+     ⭐ BLOCK ALL PRIVATE CONTENT
      --------------------------------------------------------- */
-  useEffect(() => {
-    const analyser = intensityAnalyser;
-    if (!analyser) return;
 
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    let frame: number;
-
-    const tick = () => {
-      analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((s, v) => s + v, 0) / bufferLength;
-      const normalized = Math.min(avg / 180, 1);
-      setIntensity(normalized);
-
-      if (normalized > 0.65) {
-        setIsBeat(true);
-        setTimeout(() => setIsBeat(false), 100);
-      }
-
-      setRenderTick((t) => t + 1);
-
-      if (normalized > 0.75 && autoMask < 6) {
-        setAutoMask((prev) => Math.min(prev + 1, 6));
-      }
-
-      frame = requestAnimationFrame(tick);
-    };
-
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [intensityAnalyser, autoMask]);
-
-  /* ---------------------------------------------------------
-     ⭐ Waveform Visualizer Loop
-     --------------------------------------------------------- */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const analyser = waveformAnalyser;
-    if (!canvas || !analyser) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const bufferLength = analyser.fftSize;
-    const dataArray = new Uint8Array(bufferLength);
-
-    let frame: number;
-
-    const draw = () => {
-      frame = requestAnimationFrame(draw);
-
-      analyser.getByteTimeDomainData(dataArray);
-
-      const width = canvas.width;
-      const height = canvas.height;
-
-      ctx.clearRect(0, 0, width, height);
-      ctx.lineWidth = isBeat ? 3 : 2;
-      ctx.strokeStyle = isBeat ? "#d8b4fe" : "#9b5cf6";
-      ctx.beginPath();
-
-      const sliceWidth = width / bufferLength;
-      let x = 0;
-
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * height) / 2;
-
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-
-        x += sliceWidth;
-      }
-
-      ctx.lineTo(width, height / 2);
-      ctx.stroke();
-    };
-
-    const resize = () => {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-    };
-
-    resize();
-    window.addEventListener("resize", resize);
-    draw();
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", resize);
-    };
-  }, [waveformAnalyser, isBeat]);
-
-  /* ---------------------------------------------------------
-     ⭐ Playback Progress Loop
-     --------------------------------------------------------- */
-  useEffect(() => {
-    let frame: number;
-
-    const tick = () => {
-      if (audioCtxRef.current && isPlaying) {
-        const ctx = audioCtxRef.current;
-        const elapsed = ctx.currentTime;
-        setProgress(Math.min(elapsed, duration));
-      }
-      frame = requestAnimationFrame(tick);
-    };
-
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [duration, isPlaying]);
+  if (!isAllowed) {
+    return (
+      <div className="border border-gray-200 rounded-xl p-6 bg-white">
+        <p className="text-gray-500 text-center">
+          This sound post is private.
+        </p>
+      </div>
+    );
+  }
 
   /* ---------------------------------------------------------
      ⭐ Playback
      --------------------------------------------------------- */
   async function handlePlay() {
     try {
-      if (!post.audio_url) {
-        console.error("No audio file available for this post.");
-        return;
-      }
+      if (!post.audio_url) return;
 
       const path = post.audio_url.replace(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
@@ -266,11 +183,10 @@ export default function SoundPostCard({
   }
 
   /* ---------------------------------------------------------
-     ⭐ Delete Post (blocked if private)
+     ⭐ Delete Post (Corrected)
      --------------------------------------------------------- */
   async function handleDelete() {
     if (!uid || uid !== post.creator_id) return;
-    if (!isAllowed) return; // ⭐ NEW PRIVACY BLOCK
 
     const { error: dbError } = await supabase
       .from("sound_posts")
@@ -292,19 +208,14 @@ export default function SoundPostCard({
       await supabase.storage.from("sound_files").remove([audioPath]);
     }
 
-    if (typeof post.onDeleted === "function") {
-      post.onDeleted(post.id);
-    }
-
+    post.onDeleted?.(post.id);
     router.refresh();
   }
 
   /* ---------------------------------------------------------
-     ⭐ Refresh Reactions (blocked if private)
+     ⭐ Refresh Reactions (Corrected)
      --------------------------------------------------------- */
   const refreshReactions = async () => {
-    if (!isAllowed) return; // ⭐ NEW PRIVACY BLOCK
-
     const { data: reactionRows } = await supabase
       .from("reactions")
       .select("maskTier")
@@ -341,10 +252,6 @@ export default function SoundPostCard({
     if (newSpirit > 100) newAutoMask = 4;
     if (newSpirit > 300) newAutoMask = 5;
     if (newSpirit > 500) newAutoMask = 6;
-
-    if (intensity > 0.75 && newAutoMask < 6) {
-      newAutoMask += 1;
-    }
 
     setReactions(newCounts);
     setSpiritScore(newSpirit);

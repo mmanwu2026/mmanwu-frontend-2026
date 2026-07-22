@@ -22,7 +22,7 @@ export default function ComposerPage() {
   const pathname = usePathname();
   const { supabase } = useSupabase();
 
-  // ⭐ Composer should ONLY render on /compose
+  // Only render on /compose
   if (!pathname || !pathname.startsWith("/compose")) {
     return null;
   }
@@ -31,6 +31,8 @@ export default function ComposerPage() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   const [content, setContent] = useState("");
+
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public"); // ⭐ NEW
 
   const [gatekeeperOptions, setGatekeeperOptions] = useState<RewriteOption[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
@@ -71,6 +73,7 @@ export default function ComposerPage() {
         content: finalText,
         creator_id: uid,
         mask: 0,
+        privacy_type: privacyType, // ⭐ NEW
       });
 
     if (error) {
@@ -150,6 +153,18 @@ export default function ComposerPage() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
+        </div>
+
+        {/* ⭐ NEW — Privacy Selector */}
+        <div className="px-4 pb-2">
+          <select
+            value={privacyType}
+            onChange={(e) => setPrivacyType(e.target.value as "public" | "private")}
+            className="w-full p-3 rounded-xl bg-gray-100 text-gray-900 border border-gray-300"
+          >
+            <option value="public">Public</option>
+            <option value="private">Private (Followers Only)</option>
+          </select>
         </div>
 
         <div className="p-4 border-t border-gray-200">

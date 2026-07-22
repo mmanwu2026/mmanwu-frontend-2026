@@ -17,17 +17,17 @@ export default function SoundReactionBar({
   postId,
   creatorId,
   reactions,
-   onReactAction,
+  onReactAction,
 }: {
   postId: string;
   creatorId: string;
   reactions: ReactionCounts;
-   onReactAction: () => void;
+  onReactAction: () => void;
 }) {
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ Authenticated user
+  // Auth
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -43,14 +43,67 @@ export default function SoundReactionBar({
 
   const [loading, setLoading] = useState(false);
 
+  // Load privacy_type
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+
+  useEffect(() => {
+    async function loadPrivacy() {
+      const { data: rows } = await supabase
+        .from("sound_posts")
+        .select("privacy_type")
+        .eq("id", postId)
+        .limit(1);
+
+      const row = rows?.[0] ?? null;
+      if (row?.privacy_type) setPrivacyType(row.privacy_type);
+    }
+
+    loadPrivacy();
+  }, [postId, supabase]);
+
+  // Load follow-state
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!uid || !creatorId) return;
+
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", uid)
+        .eq("following_id", creatorId)
+        .limit(1);
+
+      setIsFollowing(!!rows?.[0]);
+    }
+
+    loadFollowState();
+  }, [uid, creatorId, supabase]);
+
+  // Privacy enforcement
   const isCreator = uid === creatorId;
+
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollowing === true;
+
+  // Block reaction UI entirely
+  if (!isAllowed) {
+    return (
+      <div className="mt-4 text-gray-500 text-sm">
+        Reactions are private for this sound.
+      </div>
+    );
+  }
 
   async function handleReact(maskTier: number) {
     if (!uid || loading) return;
 
     setLoading(true);
 
-    // 1. Save reaction
+    // Save reaction
     const { error } = await supabase.from("reactions").insert({
       post_id: postId,
       post_type: "sound",
@@ -66,30 +119,30 @@ export default function SoundReactionBar({
       return;
     }
 
- // ⭐ 2. Fetch YOUR OWN push subscription (SAFE)
-const { data: rows } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid) // logged-in user ONLY
-  .limit(1);
+    // Fetch push subscription
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
 
-const sub = rows?.[0] ?? null;
+    const sub = rows?.[0] ?? null;
 
-// ⭐ 3. Insert notification into database
-await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType: "sound",   // ⭐ FIXED
-    message: `${email || "Someone"} reacted to your post`,
-    eventType: "reaction",
-  }),
-});
+    // Insert notification
+    await fetch("/functions/v1/create-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType: "sound",
+        message: `${email || "Someone"} reacted to your sound`,
+        eventType: "reaction",
+      }),
+    });
 
-    // ⭐ 4. Trigger push notification
+    // Push notification
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -109,7 +162,6 @@ await fetch("/functions/v1/create-notification", {
       );
     }
 
-    // 5. Refresh UI
     router.refresh();
     onReactAction();
   }

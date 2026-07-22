@@ -17,7 +17,7 @@ export default function SoundComments({
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ Authenticated user
+  // Auth
   const [uid, setUid] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
 
@@ -35,26 +35,64 @@ export default function SoundComments({
   const [gateData, setGateData] = useState<any>(null);
   const [showGateModal, setShowGateModal] = useState(false);
   const [busy, setBusy] = useState(false);
-
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
 
- // ⭐ Load creator ID (SAFE)
-useEffect(() => {
-  async function loadCreator() {
-    const { data: rows } = await supabase
-      .from("sound_posts")
-      .select("creator_id")
-      .eq("id", postId)
-      .limit(1);
+  // Load creator + privacy_type
+  useEffect(() => {
+    async function loadCreator() {
+      const { data: rows } = await supabase
+        .from("sound_posts")
+        .select("creator_id, privacy_type")
+        .eq("id", postId)
+        .limit(1);
 
-    const row = rows?.[0] ?? null;
+      const row = rows?.[0] ?? null;
 
-    if (row?.creator_id) setCreatorId(row.creator_id);
+      if (row?.creator_id) setCreatorId(row.creator_id);
+      if (row?.privacy_type) setPrivacyType(row.privacy_type);
+    }
+
+    loadCreator();
+  }, [postId, supabase]);
+
+  // Load follow-state
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!uid || !creatorId) return;
+
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", uid)
+        .eq("following_id", creatorId)
+        .limit(1);
+
+      setIsFollowing(!!rows?.[0]);
+    }
+
+    loadFollowState();
+  }, [uid, creatorId, supabase]);
+
+  // Privacy enforcement
+  const isCreator = uid === creatorId;
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollowing === true;
+
+  if (!isAllowed) {
+    return (
+      <div className="mt-10 bg-neutral-900/40 p-4 rounded-lg border border-white/10">
+        <p className="text-gray-500 text-sm">
+          Comments are private for this sound.
+        </p>
+      </div>
+    );
   }
-
-  loadCreator();
-}, [postId, supabase]);
 
   async function handleSubmit() {
     if (!text.trim()) return;
@@ -91,7 +129,7 @@ useEffect(() => {
   ) {
     if (!uid) return;
 
-    // 1. Save comment
+    // Save comment
     await fetch("/api/sound-comments", {
       method: "POST",
       body: JSON.stringify({
@@ -103,30 +141,30 @@ useEffect(() => {
       }),
     });
 
-// ⭐ 2. Fetch YOUR OWN push subscription (SAFE)
-const { data: rows } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid)
-  .limit(1);
+    // Fetch push subscription
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
 
-const sub = rows?.[0] ?? null;
+    const sub = rows?.[0] ?? null;
 
-// ⭐ 3. Insert notification via Edge Function
-await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType: "sound",
-    message: `${email || "Someone"} commented on your sound`,
-    eventType: "comment",
-  }),
-});
+    // Insert notification
+    await fetch("/functions/v1/create-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType: "sound",
+        message: `${email || "Someone"} commented on your sound`,
+        eventType: "comment",
+      }),
+    });
 
-    // ⭐ 4. Trigger push notification
+    // Push notification
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -146,7 +184,7 @@ await fetch("/functions/v1/create-notification", {
       );
     }
 
-    // 5. Reset UI
+    // Reset UI
     setText("");
     setShowGateModal(false);
     setGateData(null);
@@ -157,7 +195,7 @@ await fetch("/functions/v1/create-notification", {
   }
 
   return (
-    <div className="mt-10 bg-neutral-900/40 p-4 rounded-lg border border-white/10 animate-[fadeIn_0.4s_ease-out_forwards] opacity-0">
+    <div className="mt-10 bg-neutral-900/40 p-4 rounded-lg border border-white/10">
 
       {toastMessage && (
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />

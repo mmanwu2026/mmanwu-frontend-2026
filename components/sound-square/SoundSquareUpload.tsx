@@ -10,7 +10,7 @@ export default function SoundSquareUpload() {
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ FIXED — authenticated user
+  // Authenticated user
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +24,7 @@ export default function SoundSquareUpload() {
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public"); // ⭐ NEW
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
@@ -69,7 +70,6 @@ export default function SoundSquareUpload() {
     setFile(f);
   }
 
-  // ⭐ Correct Supabase upload API
   async function uploadSound(file: File, path: string) {
     const mime =
       file.type ||
@@ -160,6 +160,7 @@ export default function SoundSquareUpload() {
       return;
     }
 
+    // ⭐ INSERT WITH PRIVACY TYPE
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title: finalTitle,
       audio_url: publicUrl,
@@ -168,6 +169,7 @@ export default function SoundSquareUpload() {
       spirit_score: 0,
       positivity_ratio: positivity,
       automask,
+      privacy_type: privacyType, // ⭐ NEW
     });
 
     if (dbError) {
@@ -237,6 +239,7 @@ export default function SoundSquareUpload() {
 
       <h1 className="text-3xl font-bold mb-6">Upload to SoundSquare</h1>
 
+      {/* Title */}
       <input
         type="text"
         placeholder="Title"
@@ -245,6 +248,17 @@ export default function SoundSquareUpload() {
         onChange={(e) => setTitle(e.target.value)}
       />
 
+      {/* ⭐ Privacy Selector */}
+      <select
+        value={privacyType}
+        onChange={(e) => setPrivacyType(e.target.value as "public" | "private")}
+        className="w-full p-2 rounded bg-gray-700 mb-4"
+      >
+        <option value="public">Public</option>
+        <option value="private">Private (Followers Only)</option>
+      </select>
+
+      {/* File Drop Zone */}
       <div
         ref={dropRef}
         onDrop={handleDrop}

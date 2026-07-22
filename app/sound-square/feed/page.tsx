@@ -33,6 +33,7 @@ type RawSoundPost = {
   spirit_score: number;
   positivity_ratio: number;
   automask: number;
+  privacy_type: "public" | "private";
   users?: { username: string | null; avatar_url?: string | null } | null;
 };
 
@@ -49,7 +50,7 @@ export default function SoundSquareFeed() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // ⭐ REALTIME — new uploads appear instantly
+  // Realtime — new uploads appear instantly
   useEffect(() => {
     const channel = supabase
       .channel("sound-posts-realtime")
@@ -61,7 +62,7 @@ export default function SoundSquareFeed() {
           table: "sound_posts",
         },
         () => {
-          loadInitial(); // refresh feed when new sound is uploaded
+          loadInitial();
         }
       )
       .subscribe();
@@ -87,6 +88,7 @@ export default function SoundSquareFeed() {
         spirit_score,
         positivity_ratio,
         automask,
+        privacy_type,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
@@ -124,6 +126,7 @@ export default function SoundSquareFeed() {
         spirit_score,
         positivity_ratio,
         automask,
+        privacy_type,
         users:creator_id ( username, avatar_url )
       `)
       .lt("created_at", cursor)
@@ -167,7 +170,9 @@ export default function SoundSquareFeed() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  async function mergeWithReactionsAndComments(rawPosts: RawSoundPost[]): Promise<CardSoundPost[]> {
+  async function mergeWithReactionsAndComments(
+    rawPosts: RawSoundPost[]
+  ): Promise<CardSoundPost[]> {
     const postIds = rawPosts.map((p) => p.id);
 
     const { data: reactionsData } = await supabase
@@ -214,17 +219,17 @@ export default function SoundSquareFeed() {
       };
 
       const spiritScore = postReactions.reduce(
-  (sum, r) => sum + (r.maskTier ?? 0),
-  0
-);
-
+        (sum, r) => sum + (r.maskTier ?? 0),
+        0
+      );
 
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)
         .reduce((sum, r) => sum + (r.value ?? 0), 0);
 
       const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio = weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
+      const positivityRatio =
+        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
       let autoMask = 2;
       if (spiritScore <= 20) autoMask = 2;
@@ -261,12 +266,14 @@ export default function SoundSquareFeed() {
         title: post.title,
         audio_url: post.audio_url,
         creator_id: post.creator_id,
-        creator_name: null, // ⭐ REQUIRED BY TYPE
+        creator_name: post.users?.username ?? null,
         created_at: post.created_at,
 
         spirit_score: spiritScore,
         positivity_ratio: positivityRatio,
         automask: autoMask,
+
+        privacy_type: post.privacy_type,
 
         users: {
           username: post.users?.username ?? "Unknown",
@@ -288,37 +295,37 @@ export default function SoundSquareFeed() {
     setPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
-return (
-  <div className="min-h-screen bg-white text-gray-900 p-6">
-    <TopBar />
-    <FeedToggle />
+  return (
+    <div className="min-h-screen bg-white text-gray-900 p-6">
+      <TopBar />
+      <FeedToggle />
+      <FloatingComposer />
 
-    <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
+      <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
 
-    {loading && <p>Loading sounds...</p>}
+      {loading && <p>Loading sounds...</p>}
 
-    <div className="flex flex-col gap-6 mb-6">
-      {posts.map((post) => (
-        <SoundPostCard
-          key={post.id}
-          post={{ ...post, onDeleted: handleDeleted }}
-          isTrending={false}
-        />
-      ))}
+<div className="flex flex-col gap-6 mb-6">
+  {posts.map((post) => (
+    <SoundPostCard
+      key={post.id}
+      post={{ ...post, onDeleted: handleDeleted }}
+      isTrending={false}
+    />
+  ))}
+</div>
+
+      {hasMore && (
+        <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
+          {loadingMore && <p className="text-gray-400">Loading more...</p>}
+        </div>
+      )}
+
+      {!hasMore && (
+        <p className="text-gray-500 text-sm mt-4 text-center">
+          You’ve reached the end of the feed.
+        </p>
+      )}
     </div>
-
-    {hasMore && (
-      <div ref={loadMoreRef} className="h-10 flex justify-center items-center">
-        {loadingMore && <p className="text-gray-400">Loading more...</p>}
-      </div>
-    )}
-
-    {!hasMore && (
-      <p className="text-gray-500 text-sm mt-4 text-center">
-        You’ve reached the end of the feed.
-      </p>
-    )}
-
-  </div>
-);
+  );
 }

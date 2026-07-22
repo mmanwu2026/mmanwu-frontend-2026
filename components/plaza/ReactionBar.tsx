@@ -48,11 +48,70 @@ export default function ReactionBar({
 
   const [loading, setLoading] = useState(false);
 
-  const loggedOut = !uid;
+  // ⭐ Load privacy_type depending on postType
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
+
+  useEffect(() => {
+    async function loadPrivacy() {
+      const table =
+        postType === "plaza"
+          ? "plaza_posts"
+          : postType === "sound"
+          ? "sound_posts"
+          : "vision_posts";
+
+      const { data: rows } = await supabase
+        .from(table)
+        .select("privacy_type")
+        .eq("id", postId)
+        .limit(1);
+
+      const row = rows?.[0] ?? null;
+      if (row?.privacy_type) setPrivacyType(row.privacy_type);
+    }
+
+    loadPrivacy();
+  }, [postId, postType, supabase]);
+
+  // ⭐ Load follow-state
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function loadFollowState() {
+      if (!uid || !creatorId) return;
+
+      const { data: rows } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", uid)
+        .eq("following_id", creatorId)
+        .limit(1);
+
+      setIsFollowing(!!rows?.[0]);
+    }
+
+    loadFollowState();
+  }, [uid, creatorId, supabase]);
+
+  // ⭐ Privacy enforcement
   const isCreator = uid === creatorId;
 
-  const handleReact = async (maskTier: number): Promise<void> => {
-    if (loading || loggedOut || !uid) return;
+  const isAllowed =
+    privacyType === "public" ||
+    isCreator ||
+    isFollowing === true;
+
+  // ⭐ Block reaction UI entirely
+  if (!isAllowed) {
+    return (
+      <div className="mt-2 text-gray-500 text-sm">
+        Reactions are private for this post.
+      </div>
+    );
+  }
+
+  async function handleReact(maskTier: number): Promise<void> {
+    if (loading || !uid) return;
 
     setLoading(true);
 
@@ -61,6 +120,7 @@ export default function ReactionBar({
       post_type: postType,
       user_id: uid,
       maskTier,
+      value: maskTier,
     });
 
     setLoading(false);
@@ -70,28 +130,30 @@ export default function ReactionBar({
       return;
     }
 
-// ⭐ SAFE: no `.single()`
-const { data: rows } = await supabase
-  .from("push_subscriptions")
-  .select("subscription")
-  .eq("user_id", uid)
-  .limit(1);
+    // Push subscription
+    const { data: rows } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", uid)
+      .limit(1);
 
-const sub = rows?.[0] ?? null;
+    const sub = rows?.[0] ?? null;
 
-await fetch("/functions/v1/create-notification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    recipientId: creatorId,
-    actorId: uid,
-    postId,
-    postType,
-    message: `${email || "Someone"} reacted to your post`,
-    eventType: "reaction",
-  }),
-});
+    // Notification
+    await fetch("/functions/v1/create-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientId: creatorId,
+        actorId: uid,
+        postId,
+        postType,
+        message: `${email || "Someone"} reacted to your post`,
+        eventType: "reaction",
+      }),
+    });
 
+    // Push
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -112,40 +174,39 @@ await fetch("/functions/v1/create-notification", {
     }
 
     onReactAction();
-  };
+  }
 
   const baseBtn =
     "reaction-mask text-2xl flex flex-col items-center disabled:opacity-40";
-
   const countClass = "text-[11px] text-gray-600 mt-0.5";
 
   return (
     <div className="flex items-center justify-center gap-4 mt-2">
       {isCreator && (
-        <button
-          onClick={() => handleReact(1)}
-          disabled={loggedOut || loading}
-          className={baseBtn}
-        >
-          😶‍🌫️
-          <span className={countClass}>{reactions.mask1}</span>
-        </button>
-      )}
+        <>
+          <button
+            onClick={() => handleReact(1)}
+            disabled={loading}
+            className={baseBtn}
+          >
+            😶‍🌫️
+            <span className={countClass}>{reactions.mask1}</span>
+          </button>
 
-      {isCreator && (
-        <button
-          onClick={() => handleReact(2)}
-          disabled={loggedOut || loading}
-          className={baseBtn}
-        >
-          😤
-          <span className={countClass}>{reactions.mask2}</span>
-        </button>
+          <button
+            onClick={() => handleReact(2)}
+            disabled={loading}
+            className={baseBtn}
+          >
+            😤
+            <span className={countClass}>{reactions.mask2}</span>
+          </button>
+        </>
       )}
 
       <button
         onClick={() => handleReact(3)}
-        disabled={loggedOut || loading}
+        disabled={loading}
         className={baseBtn}
       >
         😊
@@ -154,7 +215,7 @@ await fetch("/functions/v1/create-notification", {
 
       <button
         onClick={() => handleReact(4)}
-        disabled={loggedOut || loading}
+        disabled={loading}
         className={baseBtn}
       >
         🤩
@@ -163,7 +224,7 @@ await fetch("/functions/v1/create-notification", {
 
       <button
         onClick={() => handleReact(5)}
-        disabled={loggedOut || loading}
+        disabled={loading}
         className={baseBtn}
       >
         😇
