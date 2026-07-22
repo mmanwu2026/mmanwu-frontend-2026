@@ -65,11 +65,11 @@ export default function UnifiedFeedPage() {
   /* ---------------------------------------------------------
      Initial Load
   --------------------------------------------------------- */
-  useEffect(() => {
-    if (notificationsEnabled === "true" && items.length === 0) {
-      loadMore();
-    }
-  }, [notificationsEnabled]);
+useEffect(() => {
+  if (items.length === 0 && !loading) {
+    loadMore();
+  }
+}, []);
 
   /* ---------------------------------------------------------
      Realtime Reaction Updates
@@ -256,7 +256,7 @@ export default function UnifiedFeedPage() {
       }) ?? [];
 
     /* ---------------------------------------------------------
-       VISION
+       VISION — ⭐ FIXED VERSION
     --------------------------------------------------------- */
     const vision = await supabase
       .from("vision_posts")
@@ -264,8 +264,10 @@ export default function UnifiedFeedPage() {
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
 
+    const visionIds = (vision.data ?? []).map((p: any) => p.id);
     const visionCreatorIds = (vision.data ?? []).map((p: any) => p.creator_id);
 
+    let visionReactionMap: Record<string, ReactionCounts> = {};
     let visionPrivacyMap: Record<string, string> = {};
 
     if (visionCreatorIds.length > 0) {
@@ -279,26 +281,78 @@ export default function UnifiedFeedPage() {
       });
     }
 
+    if (visionIds.length > 0) {
+      const { data: visionReactionRows } = await supabase
+        .from("reactions")
+        .select("post_id, maskTier")
+        .in("post_id", visionIds)
+        .eq("post_type", "vision");
+
+      visionIds.forEach((id) => {
+        visionReactionMap[id] = { ...EMPTY_REACTIONS };
+      });
+
+      visionReactionRows?.forEach((r) => {
+        const key = `mask${r.maskTier}` as keyof ReactionCounts;
+        visionReactionMap[r.post_id][key] += 1;
+      });
+    }
+
     const visionMapped: UnifiedFeedItem[] =
-      vision.data?.map((p: any) => ({
-        square_type: "vision-square",
-        post: {
-          ...p,
-          creator_id: p.creator_id,
-          creator_privacy_type: visionPrivacyMap[p.creator_id] ?? "public",
-          users: {
-            username: p.profiles?.username ?? "unknown",
-            avatar_url: p.profiles?.avatar_url ?? null,
+      vision.data?.map((p: any) => {
+        const reactions = visionReactionMap[p.id] ?? { ...EMPTY_REACTIONS };
+
+        const total =
+          reactions.mask1 +
+          reactions.mask2 +
+          reactions.mask3 +
+          reactions.mask4 +
+          reactions.mask5 +
+          reactions.mask6;
+
+        const spirit =
+          reactions.mask1 * 1 +
+          reactions.mask2 * 2 +
+          reactions.mask3 * 3 +
+          reactions.mask4 * 4 +
+          reactions.mask5 * 5 +
+          reactions.mask6 * 6;
+
+        const positiveCount =
+          reactions.mask3 +
+          reactions.mask4 +
+          reactions.mask5 +
+          reactions.mask6;
+
+        const positivity = total > 0 ? positiveCount / total : 0.5;
+
+        let automask = 2;
+        if (spirit > 500) automask = 6;
+        else if (spirit > 300) automask = 5;
+        else if (spirit > 100) automask = 4;
+        else if (spirit > 20) automask = 3;
+
+        return {
+          square_type: "vision-square",
+          post: {
+            ...p,
+            reactions,
+            spirit_score: spirit,
+            positivity_ratio: positivity,
+            total_reactions: total,
+            automask,
+            creator_id: p.creator_id,
+            creator_privacy_type: visionPrivacyMap[p.creator_id] ?? "public",
+            users: {
+              username: p.profiles?.username ?? "unknown",
+              avatar_url: p.profiles?.avatar_url ?? null,
+            },
+            is_follower: false,
           },
-          reactions: { ...EMPTY_REACTIONS },
-          spirit_score: p.spirit_score ?? 0,
-          positivity_ratio: p.positivity_ratio ?? 0.5,
-          automask: p.automask ?? 2,
-          is_follower: false,
-        },
-        creator: p.profiles,
-        trending_score: p.trending_score ?? 0,
-      })) ?? [];
+          creator: p.profiles,
+          trending_score: p.trending_score ?? 0,
+        };
+      }) ?? [];
 
     /* ---------------------------------------------------------
        SOUND
@@ -490,7 +544,21 @@ export default function UnifiedFeedPage() {
     setItems((prev) => prev.filter((item) => item.post.id !== id));
   }
 
-  function handleReact() {}
+  /* ---------------------------------------------------------
+     ⭐ Unified Vision Reaction Handler
+  --------------------------------------------------------- */
+  async function handleUnifiedVisionReaction(postId: string, maskTier: number) {
+    if (!user?.id) return;
+
+    await supabase.from("reactions").insert({
+      post_id: postId,
+      post_type: "vision",
+      user_id: user.id,
+      maskTier,
+    });
+
+    await loadMore(); // refresh unified feed
+  }
 
   /* ---------------------------------------------------------
      Hydration Guard
@@ -499,7 +567,7 @@ export default function UnifiedFeedPage() {
     return <div style={{ background: "black", height: "100vh", width: "100vw" }} />;
   }
 
-  /* ---------------------------------------------------------
+   /* ---------------------------------------------------------
      Render
   --------------------------------------------------------- */
   return (
@@ -532,7 +600,7 @@ export default function UnifiedFeedPage() {
                 creator={item.creator}
                 userId={user?.id ?? ""}
                 onDeleteAction={handleDelete}
-                onReactAction={handleReact}
+                onReactAction={() => {}}
               />
             );
           }
@@ -545,7 +613,9 @@ export default function UnifiedFeedPage() {
                 post={item.post}
                 authUserId={user?.id ?? null}
                 is_follower={item.post.is_follower ?? false}
-                onReactAction={async () => {}}
+                onReactAction={(maskTier) =>
+                  handleUnifiedVisionReaction(item.post.id, maskTier)
+                }
               />
             );
           }

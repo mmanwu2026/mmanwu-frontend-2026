@@ -18,12 +18,14 @@ interface VisionReactionBarProps {
   postType: "vision";
   postId: string;
   creatorId: string;
-  reactions?: ReactionCounts;   // ⭐ reactions may be undefined
+  reactions?: ReactionCounts;
   spiritScore: number;
   positivityRatio: number;
   privacy_type: "public" | "private";
   is_follower: boolean;
-  onReactAction: () => void;
+
+  // ⭐ FIXED TYPE — MUST ACCEPT maskTier
+  onReactAction: (maskTier: number) => void;
 }
 
 export default function ReactionBar({
@@ -39,7 +41,6 @@ export default function ReactionBar({
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // ⭐ SAFE DEFAULTS — prevents crashes
   const safe = reactions ?? {
     mask1: 0,
     mask2: 0,
@@ -66,14 +67,10 @@ export default function ReactionBar({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const isCreator = uid === creatorId;
-
-  // ⭐ PRIVACY ENFORCEMENT
   const isAllowed =
     privacy_type === "public" || isCreator || is_follower;
 
-  if (!isAllowed) {
-    return null;
-  }
+  if (!isAllowed) return null;
 
   async function handleReact(maskTier: number) {
     if (!uid || loading || !isAllowed) return;
@@ -98,6 +95,7 @@ export default function ReactionBar({
       setToastMessage("Your reaction uplifts the spirits ✨");
     }
 
+    // Notifications preserved
     const { data: rows } = await supabase
       .from("push_subscriptions")
       .select("subscription")
@@ -139,7 +137,9 @@ export default function ReactionBar({
     }
 
     router.refresh();
-    onReactAction();
+
+    // ⭐ CRITICAL — pass maskTier back to VisionCard
+    onReactAction(maskTier);
   }
 
   return (
@@ -151,7 +151,6 @@ export default function ReactionBar({
         />
       )}
 
-      {/* ⭐ Creator-only negative masks */}
       {isCreator && (
         <>
           <button
@@ -174,7 +173,6 @@ export default function ReactionBar({
         </>
       )}
 
-      {/* ⭐ Positive masks */}
       <button
         onClick={() => handleReact(3)}
         disabled={loading}

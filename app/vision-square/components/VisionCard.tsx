@@ -26,13 +26,14 @@ export default function VisionCard({
   smallAvatar?: boolean;
   authUserId?: string | null;
   is_follower?: boolean;
-  onReactAction?: () => Promise<void>;
+  onReactAction?: (maskTier: number) => Promise<void>;
 }) {
 
-  function handleReact() {
-  if (onReactAction) return onReactAction();
-  return Promise.resolve();
-}
+  /* ⭐ REAL REACTION HANDLER — DO NOT CHANGE */
+  function handleReact(maskTier: number) {
+    if (onReactAction) return onReactAction(maskTier);
+    return Promise.resolve();
+  }
 
   const mainAvatarSize = smallAvatar ? "w-[24px] h-[24px]" : "w-[40px] h-[40px]";
   const commentAvatarSize = smallAvatar ? "w-[20px] h-[20px]" : "w-[24px] h-[24px]";
@@ -50,25 +51,32 @@ export default function VisionCard({
     loadUser();
   }, [supabase]);
 
-  /* ⭐ PRIVACY ENFORCEMENT — FIXED */
+  /* ⭐ PRIVACY */
   const privacy = post.privacy_type ?? "public";
   const isCreator = uid === post.creator_id;
   const isFollower = post.is_follower === true;
   const isAllowed = privacy === "public" || isCreator || isFollower;
 
-  const safeReactions = post.reactions ?? {
-    mask1: 0,
-    mask2: 0,
-    mask3: 0,
-    mask4: 0,
-    mask5: 0,
-    mask6: 0,
-  };
-
+  /* ⭐ LOCAL STATE MIRROR OF COMPUTED VALUES */
+  const [localMask, setLocalMask] = useState(post.automask ?? 2);
+  const [localSpirit, setLocalSpirit] = useState(post.spirit_score ?? 0);
+  const [localPositivity, setLocalPositivity] = useState(post.positivity_ratio ?? 0.5);
+  const [localTotalReactions, setLocalTotalReactions] = useState(post.reaction_count ?? 0);
   const [showAllComments, setShowAllComments] = useState(false);
 
-  const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
+  useEffect(() => {
+    setLocalMask(post.automask ?? 2);
+    setLocalSpirit(post.spirit_score ?? 0);
+    setLocalPositivity(post.positivity_ratio ?? 0.5);
+    setLocalTotalReactions(post.reaction_count ?? 0);
+  }, [post]);
+
+  /* ⭐ VIDEO AUTOPLAY */
+  const [muted, setMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
   const isVideo = !!post.media_url?.match(/\.(mp4|mov|m4v)$/i);
+  const safeAvatar = post.users?.avatar_url || FALLBACK_AVATAR;
 
   const safeMedia = isAllowed
     ? (
@@ -79,28 +87,6 @@ export default function VisionCard({
           : post.media_url
       )
     : null;
-
-  const [localMask, setLocalMask] = useState(post.automask ?? 2);
-  const [localSpirit, setLocalSpirit] = useState(post.spirit_score ?? 0);
-  const [localPositivity, setLocalPositivity] = useState(
-    post.positivity_ratio ?? 0.5
-  );
-  const [localReactions, setLocalReactions] = useState(safeReactions);
-  const [localTotalReactions, setLocalTotalReactions] = useState(
-    post.total_reactions ?? 0
-  );
-
-  useEffect(() => {
-    setLocalMask(post.automask ?? 2);
-    setLocalSpirit(post.spirit_score ?? 0);
-    setLocalPositivity(post.positivity_ratio ?? 0.5);
-    setLocalReactions(safeReactions);
-    setLocalTotalReactions(post.total_reactions ?? 0);
-  }, [post]);
-
-  /* ⭐ SAFARI VIDEO AUTOPLAY SUPPORT — PRESERVED */
-  const [muted, setMuted] = useState(true);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (!isVideo || !videoRef.current) return;
@@ -123,50 +109,7 @@ export default function VisionCard({
     return () => observer.disconnect();
   }, [isVideo]);
 
-  async function refreshReactions() {
-    if (!isAllowed) return;
-
-    const { data: reactionRows } = await supabase
-      .from("reactions")
-      .select("maskTier")
-      .eq("post_id", post.id)
-      .eq("post_type", "vision");
-
-    const rows: ReactionRow[] = reactionRows ?? [];
-
-    const newCounts = {
-      mask1: rows.filter((r) => r.maskTier === 1).length,
-      mask2: rows.filter((r) => r.maskTier === 2).length,
-      mask3: rows.filter((r) => r.maskTier === 3).length,
-      mask4: rows.filter((r) => r.maskTier === 4).length,
-      mask5: rows.filter((r) => r.maskTier === 5).length,
-      mask6: rows.filter((r) => r.maskTier === 6).length,
-    };
-
-    setLocalReactions(newCounts);
-    setLocalTotalReactions(rows.length);
-
-    const newSpirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
-    const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
-    const totalCount = rows.length;
-
-    const newPositivity = totalCount > 0 ? positiveCount / totalCount : 0.5;
-
-    let newAutoMask = 2;
-    if (newSpirit > 20) newAutoMask = 3;
-    if (newSpirit > 100) newAutoMask = 4;
-    if (newSpirit > 300) newAutoMask = 5;
-    if (newSpirit > 500) newAutoMask = 6;
-
-    setLocalSpirit(newSpirit);
-    setLocalPositivity(newPositivity);
-    setLocalMask(newAutoMask);
-
-    router.refresh();
-  }
-
-  const isPositive = localMask >= 3;
-
+  /* ⭐ COMMENT SYSTEM */
   const [commentText, setCommentText] = useState("");
   const [commentError, setCommentError] = useState("");
   const [loadingComment, setLoadingComment] = useState(false);
@@ -362,7 +305,7 @@ export default function VisionCard({
     setLoadingComment(false);
   }
 
-  /* ⭐⭐⭐ JSX RENDERING — PART 1 ⭐⭐⭐ */
+  /* ⭐ JSX RENDERING */
   return (
     <div
       data-vision-card
@@ -375,7 +318,7 @@ export default function VisionCard({
         />
       )}
 
-      {/* ⭐ HEADER */}
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-3">
         <Link
           href={`/profile/${post.creator_id}?from=vision`}
@@ -398,7 +341,7 @@ export default function VisionCard({
             </span>
           )}
 
-          {isPositive && (
+          {localMask >= 3 && (
             <span className="text-xs bg-green-700 px-2 py-1 rounded text-white">
               ✨ Uplifting
             </span>
@@ -406,7 +349,7 @@ export default function VisionCard({
         </Link>
       </div>
 
-      {/* ⭐ TITLE */}
+      {/* TITLE */}
       {isAllowed ? (
         post.title && (
           <h2 className="text-xl font-semibold mb-2 text-purple-200">
@@ -417,7 +360,7 @@ export default function VisionCard({
         <p className="text-gray-400 text-sm mb-2">This post is private.</p>
       )}
 
-      {/* ⭐ MEDIA */}
+      {/* MEDIA */}
       {isAllowed && (
         <div className="mb-4 relative">
           {safeMedia ? (
@@ -454,7 +397,7 @@ export default function VisionCard({
         </div>
       )}
 
-      {/* ⭐ METRICS */}
+      {/* METRICS */}
       {isAllowed && (
         <div className="text-gray-300 mb-3 text-sm">
           <p>SpiritScore: {localSpirit}</p>
@@ -464,38 +407,37 @@ export default function VisionCard({
         </div>
       )}
 
-      {/* ⭐ REACTIONS */}
+      {/* REACTIONS */}
       {isAllowed && (
-<ReactionBar
-  postType="vision"
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={post.reactions}
-  spiritScore={post.spirit_score}
-  positivityRatio={post.positivity_ratio}
-  onReactAction={handleReact}
-  privacy_type={post.privacy_type ?? "public"}
-  is_follower={post.is_follower ?? false}
-/>
-
+        <ReactionBar
+          postType="vision"
+          postId={post.id}
+          creatorId={post.creator_id}
+          reactions={post.reactions}
+          spiritScore={post.spirit_score}
+          positivityRatio={post.positivity_ratio}
+          onReactAction={handleReact}
+          privacy_type={post.privacy_type ?? "public"}
+          is_follower={post.is_follower ?? false}
+        />
       )}
 
-      {/* ⭐ SHARE */}
+      {/* SHARE */}
       {isAllowed && (
         <div className="mt-3">
-<VisionShareButton
-  postId={post.id}
-  title={post.title}
-  imageUrl={post.media_url}
-  creatorUsername={post.users.username}
-  privacy_type={post.privacy_type ?? "public"}
-  is_follower={post.is_follower ?? false}
-  isCreator={authUserId === post.creator_id}
-/>
+          <VisionShareButton
+            postId={post.id}
+            title={post.title}
+            imageUrl={post.media_url}
+            creatorUsername={post.users.username}
+            privacy_type={post.privacy_type ?? "public"}
+            is_follower={post.is_follower ?? false}
+            isCreator={authUserId === post.creator_id}
+          />
         </div>
       )}
 
-      {/* ⭐ DELETE */}
+      {/* DELETE */}
       {isCreator && (
         <button
           onClick={async () => {
@@ -545,7 +487,7 @@ export default function VisionCard({
         </button>
       )}
 
-      {/* ⭐ COMMENTS */}
+      {/* COMMENTS */}
       {isAllowed && post.comments && post.comments.length > 0 && (
         <div className="mt-4">
           <p className="text-gray-300 text-sm font-medium mb-2">
@@ -582,7 +524,7 @@ export default function VisionCard({
         </div>
       )}
 
-      {/* ⭐ COMMENT BOX */}
+      {/* COMMENT BOX */}
       {isAllowed && (
         <div className="mt-4 bg-gray-800 p-3 rounded-lg">
           <textarea

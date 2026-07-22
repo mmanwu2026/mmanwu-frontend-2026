@@ -42,34 +42,62 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// ⭐ Fetch event — stale-while-revalidate caching
+// ⭐ Fetch event — safe caching (avoid dynamic routes + Supabase)
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
+  // Do not touch Supabase
   if (url.origin.includes("supabase.co")) {
     return;
   }
 
+  // Let the browser handle navigations to app routes
+  if (
+    req.mode === "navigate" &&
+    (
+      url.pathname.startsWith("/vision-square") ||
+      url.pathname.startsWith("/unified") ||
+      url.pathname.startsWith("/plaza") ||
+      url.pathname.startsWith("/messenger") ||
+      url.pathname.startsWith("/call")
+    )
+  ) {
+    return;
+  }
+
+  // Only cache GET requests
   if (req.method !== "GET") {
     return;
   }
 
-  event.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const cached = await cache.match(req);
+  // Only cache static assets
+  if (
+    url.pathname.startsWith("/_next/static") ||
+    url.pathname.startsWith("/icons") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".jpg") ||
+    url.pathname.endsWith(".jpeg") ||
+    url.pathname.endsWith(".svg")
+  ) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(req);
 
-      const networkFetch = fetch(req)
-        .then((response) => {
-          const responseClone = response.clone();
-          cache.put(req, responseClone);
-          return response;
-        })
-        .catch(() => cached);
+        const networkFetch = fetch(req)
+          .then((response) => {
+            const responseClone = response.clone();
+            cache.put(req, responseClone);
+            return response;
+          })
+          .catch(() => cached);
 
-      return cached || networkFetch;
-    })
-  );
+        return cached || networkFetch;
+      })
+    );
+  }
 });
 
 // ⭐ Listen for SKIP_WAITING from UpdateBanner
@@ -153,9 +181,7 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // Try to focus an existing client with the same origin
       for (const client of clientList) {
-        // If you want strict match, you can compare client.url === new URL(url, self.location.origin).href
         if ("focus" in client) {
           client.focus();
           client.postMessage({ type: "navigate", url });
@@ -163,9 +189,7 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
 
-      // No existing window → open a new one
       return clients.openWindow(url);
     })
   );
 });
-
