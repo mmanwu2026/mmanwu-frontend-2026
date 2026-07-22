@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import { registerWebPushFallback } from "@/app/push/registerWebPushFallback";
+// import { registerWebPushFallback } from "@/app/push/registerWebPushFallback"; 
+// ⭐ Fallback temporarily disabled
 
 export default function PushInitializer() {
   const { supabase } = useSupabase();
@@ -13,7 +14,6 @@ export default function PushInitializer() {
     async function init() {
       console.log("PushInitializer → loading Supabase session");
 
-      // ⭐ Correct Supabase v2 API
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -27,7 +27,7 @@ export default function PushInitializer() {
 
         // ⭐ Strict Mode protection
         if (hasInitializedRef.current) {
-          console.log("PushInitializer → already initialized, skipping subscription");
+          console.log("PushInitializer → already initialized, skipping");
           return;
         }
         hasInitializedRef.current = true;
@@ -42,19 +42,17 @@ export default function PushInitializer() {
 
         console.log("PushInitializer → SW ready & controlling page");
 
-        // ⭐ Register fallback safely
-        console.log("PushInitializer → registering WebPush fallback for:", user.id);
-        await registerWebPushFallback(user.id, supabase);
+        // ⭐ TEMPORARILY DISABLED: prevents double push
+        console.log("PushInitializer → WebPush fallback disabled to prevent duplicate notifications");
+        // await registerWebPushFallback(user.id, supabase);
       });
 
-      // ⭐ Store subscription for cleanup
       authSubscriptionRef.current = subscription;
     }
 
     init();
 
     return () => {
-      // ⭐ Correct cleanup
       if (authSubscriptionRef.current) {
         console.log("PushInitializer → cleaning up auth subscription");
         authSubscriptionRef.current.unsubscribe();
