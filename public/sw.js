@@ -153,11 +153,19 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // Try to focus an existing client with the same origin
       for (const client of clientList) {
-        client.navigate(url);
-        return client.focus();
+        // If you want strict match, you can compare client.url === new URL(url, self.location.origin).href
+        if ("focus" in client) {
+          client.focus();
+          client.postMessage({ type: "navigate", url });
+          return;
+        }
       }
+
+      // No existing window → open a new one
       return clients.openWindow(url);
     })
   );
 });
+

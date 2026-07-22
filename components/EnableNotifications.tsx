@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useSupabase } from "../app/context/SupabaseContext";
-// import { registerWebPushFallback } from "@/app/push/registerWebPushFallback"; 
-// ⭐ Fallback disabled temporarily
+import { registerWebPushFallback } from "@/app/push/registerWebPushFallback";
 
 export default function EnableNotifications() {
   const { supabase } = useSupabase();
@@ -30,9 +29,8 @@ export default function EnableNotifications() {
         return;
       }
 
-      // ⭐ TEMPORARILY DISABLED: prevents double push
-      console.log("EnableNotifications → WebPush fallback disabled to prevent duplicate notifications");
-      // await registerWebPushFallback(user.id, supabase);
+      // ⭐ Register WebPush fallback subscription (NOT Firebase)
+      await registerWebPushFallback(user.id, supabase);
 
       // Mark enabled
       localStorage.setItem("notifications_enabled", "true");
