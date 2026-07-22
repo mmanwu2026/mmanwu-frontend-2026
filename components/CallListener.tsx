@@ -100,25 +100,9 @@ export default function CallListener() {
 
         // ⭐ Handle incoming call
         if (data.type === "incoming_call") {
-          console.log("CALL LISTENER DEBUG → incoming_call detected");
-
           const callerName = data.caller_name || "Someone";
-
-          // ⭐ Foreground → Notification API + modal
+          
           if (document.visibilityState === "visible") {
-            console.log("CALL LISTENER DEBUG → app visible → showing modal");
-
-            // Notification API fallback (foreground)
-            if (Notification.permission === "granted") {
-              try {
-                new Notification("Incoming Call", {
-                  body: `${callerName} is calling you`,
-                  icon: "/icons/call-large.png",
-                });
-              } catch (err) {
-                console.warn("CALL LISTENER DEBUG → Notification API error:", err);
-              }
-            }
 
             // Show modal + ringtone
             setIncomingCall(data);
