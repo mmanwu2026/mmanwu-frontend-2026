@@ -6,12 +6,10 @@ import { useSupabase } from "@/app/context/SupabaseContext";
 import TrendingHashtags from "./components/TrendingHashtags";
 import VisionCard from "@/app/vision-square/components/VisionCard";
 
-export default function VisionSquareIndex() {
-  const { supabase } = useSupabase();
-  const [recentPosts, setRecentPosts] = useState<VisionIndexPost[]>([]);
-  const [uid, setUid] = useState<string | null>(null);
-
-  interface VisionIndexPost {
+/* ---------------------------------------------------------
+   Move interface OUTSIDE the component
+--------------------------------------------------------- */
+interface VisionIndexPost {
   id: string;
   title: string;
   media_url: string | null;
@@ -30,6 +28,11 @@ export default function VisionSquareIndex() {
   comments: any[];
   comment_count: number;
 }
+
+export default function VisionSquareIndex() {
+  const { supabase } = useSupabase();
+  const [recentPosts, setRecentPosts] = useState<VisionIndexPost[]>([]);
+  const [uid, setUid] = useState<string | null>(null);
 
   /* --------------------------------------------- */
   /* LOAD VIEWER                                    */
@@ -138,7 +141,6 @@ export default function VisionSquareIndex() {
               };
             }) ?? [];
 
-          /* FOLLOW STATE */
           let isFollower = false;
 
           if (uid && post.creator_id !== uid) {
@@ -177,13 +179,9 @@ export default function VisionSquareIndex() {
   /* --------------------------------------------- */
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
-
       {/* Navigation */}
       <div className="mb-6 flex justify-between items-center">
-        <Link
-          href="/plaza"
-          className="text-gray-600 hover:text-purple-600 transition"
-        >
+        <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
           ← Plaza
         </Link>
 
@@ -195,17 +193,14 @@ export default function VisionSquareIndex() {
         </Link>
       </div>
 
-      {/* Header */}
       <h1 className="text-3xl font-bold mb-2">Vision Square</h1>
 
       <p className="text-gray-600 mb-8">
         Explore visual stories, trending videos, and powerful moments shared by the community.
       </p>
 
-      {/* ⭐ Trending Hashtags */}
       <TrendingHashtags />
 
-      {/* ⭐ Recent Vision Posts */}
       <h2 className="text-xl font-semibold mt-10 mb-4 text-purple-700">
         Recent Posts
       </h2>
@@ -218,7 +213,6 @@ export default function VisionSquareIndex() {
 
       {/* Main Links */}
       <div className="space-y-4 mt-10">
-
         <Link
           href="/vision-square/feed"
           className="block border border-gray-200 hover:border-purple-300 p-4 rounded-lg transition bg-white"
