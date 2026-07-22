@@ -350,55 +350,48 @@ async function sendMessage() {
     await uploadAndSend(file, "video");
   }
 
-  /* ---------------- CALL BUTTON ---------------- */
-  async function startCall() {
-    if (!otherUserId) return;
+/* ---------------- CALL BUTTON ---------------- */
+async function startCall() {
+  if (!otherUserId) return;
 
-    const session = await supabase.auth.getSession();
-    console.log("MessengerThread session:", session.data.session);
+  const session = await supabase.auth.getSession();
+  console.log("MessengerThread session:", session.data.session);
 
-    const newRoomId = crypto.randomUUID();
-    const callId = crypto.randomUUID();
+  const newRoomId = crypto.randomUUID();
+  const callId = crypto.randomUUID();
 
-    await supabase.from("call_events").insert({
-      type: "incoming_call",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      caller_name: usernames[userId] || "Unknown",
-      target_user_id: otherUserId,
-      url: `/call/${newRoomId}`,
-      status: "ringing",
-      created_at: new Date().toISOString(),
-    });
+  // ⭐ Create ONLY the incoming_call event
+  await supabase.from("call_events").insert({
+    type: "incoming_call",
+    call_id: callId,
+    room_id: newRoomId,
+    caller_id: userId,
+    caller_name: usernames[userId] || "Unknown",
+    target_user_id: otherUserId,
+    url: `/call/${newRoomId}`,
+    status: "ringing",
+    created_at: new Date().toISOString(),
+  });
 
-    await supabase.from("call_events").insert({
-      type: "call_started",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      target_user_id: otherUserId,
-      status: "started",
-      created_at: new Date().toISOString(),
-    });
+  // ⭐ Send ONLY ONE push
+  await supabase.functions.invoke("send-push", {
+    body: JSON.stringify({
+      targetUserId: otherUserId,
+      title: "Incoming Call",
+      body: `${usernames[userId] || "Someone"} is calling you…`,
+      data: {
+        event: "incoming_call",
+        room_id: newRoomId,
+        call_id: callId,
+        caller_name: usernames[userId] || "Unknown",
+        url: `/call/${newRoomId}?role=callee`,
+      },
+    }),
+  });
 
-    await supabase.functions.invoke("send-push", {
-      body: JSON.stringify({
-        targetUserId: otherUserId,
-        title: "Incoming Call",
-        body: `${usernames[userId] || "Someone"} is calling you…`,
-        data: {
-          event: "incoming_call",
-          room_id: newRoomId,
-          call_id: callId,
-          caller_name: usernames[userId] || "Unknown",
-          url: `/call/${newRoomId}?role=callee`,
-        },
-      }),
-    });
-
-    router.push(`/call/${newRoomId}?role=caller`);
-  }
+  // ⭐ Caller enters callroom
+  router.push(`/call/${newRoomId}?role=caller`);
+}
 
   /* ---------------- UI ONLY BELOW THIS LINE ---------------- */
 
