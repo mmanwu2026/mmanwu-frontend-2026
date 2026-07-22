@@ -283,8 +283,18 @@ export default function CallRoom({
           if (row.type === "offer" && role === "callee") {
             pendingOfferRef.current = row.payload;
             setCallStatus("connecting");
-            autoAnswerCallee().catch(() => {});
           }
+
+          useEffect(() => {
+  if (
+    role === "callee" &&
+    pendingOfferRef.current &&
+    !hasProcessedOfferRef.current &&
+    joined === false
+  ) {
+    autoAnswerCallee().catch(() => {});
+  }
+}, [role, joined]);
 
           if (row.type === "candidate") {
             if (!pc.remoteDescription) {
