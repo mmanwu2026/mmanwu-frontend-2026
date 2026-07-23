@@ -7,7 +7,7 @@ import AppInstallPrompt from "@/components/AppInstallPrompt";
 import PushInitializer from "@/app/PushInitializer";
 import UpdateBanner from "@/components/UpdateBanner";
 import { registerServiceWorker } from "@/app/register-sw";
-import AuthGate from "./AuthGate";
+
 
 export default function ClientRoot({ children }: { children: React.ReactNode }) {
 
@@ -38,7 +38,7 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
       <div id="modal-root"></div>
 
       <ProvidersWrapper>
-        <AuthGate>
+        
           <UpdateBanner />
           <PushInitializer />
           <AppInstallPrompt />
@@ -47,7 +47,7 @@ export default function ClientRoot({ children }: { children: React.ReactNode }) 
           <div className="pt-20">
             {children}
           </div>
-        </AuthGate>
+        
       </ProvidersWrapper>
     </>
   );
