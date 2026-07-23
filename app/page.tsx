@@ -66,10 +66,12 @@ export default function UnifiedFeedPage() {
      Initial Load
   --------------------------------------------------------- */
 useEffect(() => {
+  if (!hydrated) return;
+  if (!user) return;
   if (items.length === 0 && !loading) {
     loadMore();
   }
-}, []);
+}, [hydrated, user]);
 
   /* ---------------------------------------------------------
      Realtime Reaction Updates
