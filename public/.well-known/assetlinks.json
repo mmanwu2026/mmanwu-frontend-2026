@@ -5,5 +5,15 @@
       "namespace": "web",
       "site": "https://mmanwureactionsplaza.app"
     }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.mmanwureactionsplaza.twa",
+      "sha256_cert_fingerprints": [
+        "4E:4A:48:81:D2:1B:FC:47:8C:EF:98:31:52:F2:F2:8C:16:77:4B:FF:21:FA:48:FE:D7:A4:A4:AF:D6:DA:A5:54"
+      ]
+    }
   }
 ]
