@@ -1,4 +1,0 @@
-#Thu Jul 23 15:25:44 EDT 2026
-base.0=C\:\\Users\\iampr\\mmanwu-frontend-2026\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
-renamed.0=classes.dex
-path.0=classes.dex
