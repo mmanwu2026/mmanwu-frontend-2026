@@ -2,11 +2,7 @@
 const CACHE_NAME = "mmanplaza-v1";
 
 // ⭐ Files you want cached (optional)
-const ASSETS_TO_CACHE = [
-  "/",
-  "/favicon.ico",
-  "/manifest.json",
-];
+const ASSETS_TO_CACHE = ["/", "/favicon.ico", "/manifest.json"];
 
 // ⭐ Install event — cache assets + force immediate activation
 self.addEventListener("install", (event) => {
@@ -53,10 +49,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Let the browser handle navigations to app routes
-if (req.mode === "navigate") {
-  return;
-}
-
+  if (req.mode === "navigate") {
+    return;
+  }
 
   // Only cache GET requests
   if (req.method !== "GET") {
@@ -78,15 +73,13 @@ if (req.mode === "navigate") {
       caches.open(CACHE_NAME).then(async (cache) => {
         const cached = await cache.match(req);
 
-        const networkFetch = fetch(req)
-          .then((response) => {
-            const responseClone = response.clone();
-            cache.put(req, responseClone);
-            return response;
-          })
-          .catch(() => cached);
-
-        return cached || networkFetch;
+        try {
+          const networkResponse = await fetch(req);
+          cache.put(req, networkResponse.clone());
+          return networkResponse;
+        } catch {
+          return cached;
+        }
       })
     );
   }
@@ -137,7 +130,9 @@ self.addEventListener("push", (event) => {
       },
     };
 
-    event.waitUntil(self.registration.showNotification(title, notificationOptions));
+    event.waitUntil(
+      self.registration.showNotification(title, notificationOptions)
+    );
     return;
   }
 
@@ -151,7 +146,9 @@ self.addEventListener("push", (event) => {
       },
     };
 
-    event.waitUntil(self.registration.showNotification(data.title, notificationOptions));
+    event.waitUntil(
+      self.registration.showNotification(data.title, notificationOptions)
+    );
     return;
   }
 
@@ -172,16 +169,18 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url || "/";
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ("focus" in client) {
-          client.focus();
-          client.postMessage({ type: "navigate", url });
-          return;
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(
+      (clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client) {
+            client.focus();
+            client.postMessage({ type: "navigate", url });
+            return;
+          }
         }
-      }
 
-      return clients.openWindow(url);
-    })
+        return clients.openWindow(url);
+      }
+    )
   );
 });
