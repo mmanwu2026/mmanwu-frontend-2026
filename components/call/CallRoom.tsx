@@ -24,8 +24,6 @@ type CallEventRow = {
   target_user_id: string;
   status: string | null;
   created_at: string;
-  // ✅ add url to match DB + payload
-  url: string | null;
 };
 
 export default function CallRoom({
@@ -187,7 +185,6 @@ export default function CallRoom({
         payload: { sdp: offer.sdp, type: offer.type },
       });
 
-      // ✅ include url so any event-based routing has a valid target
       await supabase.from("call_events").insert({
         type: "call_started",
         room_id: roomId,
@@ -195,7 +192,6 @@ export default function CallRoom({
         target_user_id: userId,
         call_id: roomId,
         status: "started",
-        url: `/call/${roomId}?role=caller`,
       });
     }
   }
@@ -243,7 +239,6 @@ export default function CallRoom({
       payload: { sdp: answer.sdp, type: answer.type },
     });
 
-    // ✅ same here: give call_started a stable URL
     await supabase.from("call_events").insert({
       type: "call_started",
       room_id: roomId,
@@ -251,7 +246,6 @@ export default function CallRoom({
       target_user_id: userId,
       call_id: roomId,
       status: "started",
-      url: `/call/${roomId}?role=callee`,
     });
   }
 
@@ -498,7 +492,6 @@ export default function CallRoom({
     if (role !== "caller") return;
     if (callStatus !== "ringing" && callStatus !== "connecting") return;
 
-    // ✅ give call_cancelled a concrete URL so SW never falls back to "/"
     await supabase.from("call_events").insert({
       type: "call_cancelled",
       room_id: roomId,
@@ -506,7 +499,6 @@ export default function CallRoom({
       target_user_id: userId,
       call_id: roomId,
       status: "cancelled",
-      url: "/messenger",
     });
 
     fullTeardown();
@@ -514,18 +506,7 @@ export default function CallRoom({
   }
 
   /* ---------------- END CALL ---------------- */
-  async function endCall() {
-    // optional: if you want an explicit event for analytics/routing
-    // await supabase.from("call_events").insert({
-    //   type: "call_cancelled",
-    //   room_id: roomId,
-    //   caller_id: userId,
-    //   target_user_id: userId,
-    //   call_id: roomId,
-    //   status: "ended",
-    //   url: "/messenger",
-    // });
-
+  function endCall() {
     fullTeardown();
     router.push("/messenger");
   }
