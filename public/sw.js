@@ -1,5 +1,5 @@
 // ⭐ Version your cache
-const CACHE_NAME = "mmanplaza-v1";
+const CACHE_NAME = "mmanplaza-v2";
 
 // ⭐ Files you want cached (optional)
 const ASSETS_TO_CACHE = ["/", "/favicon.ico", "/manifest.json"];
@@ -12,6 +12,7 @@ self.addEventListener("install", (event) => {
     })
   );
 
+  // Make this SW take over as soon as it's installed
   self.skipWaiting();
 });
 
@@ -28,6 +29,8 @@ self.addEventListener("activate", (event) => {
         })
       );
 
+      // Ensure this SW becomes the active one immediately
+      self.skipWaiting();
       await self.clients.claim();
 
       const clientsList = await self.clients.matchAll();
@@ -158,7 +161,10 @@ self.addEventListener("push", (event) => {
     };
 
     event.waitUntil(
-      self.registration.showNotification(data.title || "New message", notificationOptions)
+      self.registration.showNotification(
+        data.title || "New message",
+        notificationOptions
+      )
     );
     return;
   }
