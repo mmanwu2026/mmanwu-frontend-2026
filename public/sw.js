@@ -53,18 +53,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Let the browser handle navigations to app routes
-  if (
-    req.mode === "navigate" &&
-    (
-      url.pathname.startsWith("/vision-square") ||
-      url.pathname.startsWith("/unified") ||
-      url.pathname.startsWith("/plaza") ||
-      url.pathname.startsWith("/messenger") ||
-      url.pathname.startsWith("/call")
-    )
-  ) {
-    return;
-  }
+if (req.mode === "navigate") {
+  event.respondWith(
+    caches.match("/") || fetch("/")
+  );
+  return;
+}
+
 
   // Only cache GET requests
   if (req.method !== "GET") {
