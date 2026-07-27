@@ -93,18 +93,27 @@ self.addEventListener("message", (event) => {
 });
 
 /* -----------------------------------------------------------
-   ⭐ WEBPUSH HANDLER — EXACTLY MATCHES FIREBASE PAYLOAD SHAPE
+   ⭐ WEBPUSH HANDLER — compatible with nested `data` payload
    ----------------------------------------------------------- */
 self.addEventListener("push", (event) => {
-  let data = {};
+  let raw = {};
   try {
-    data = event.data?.json() || {};
+    raw = event.data?.json() || {};
   } catch (err) {
     console.log("[SW] Push JSON parse error:", err);
   }
 
-  /* ⭐ INCOMING CALL — replicate Firebase payload structure */
-  if (data.event === "incoming_call") {
+  // Flatten nested data if present: { title, body, data: {...} }
+  const nested = raw.data || {};
+  const data = {
+    ...raw,
+    ...nested,
+  };
+
+  const evt = data.event;
+
+  /* ⭐ INCOMING CALL */
+  if (evt === "incoming_call") {
     const title =
       data.title ||
       data.caller_name ||
@@ -137,17 +146,19 @@ self.addEventListener("push", (event) => {
   }
 
   /* ⭐ DM Notification */
-  if (data.event === "dm") {
+  if (evt === "dm") {
+    const dmRoomId = data.dm_room_id;
+
     const notificationOptions = {
       body: data.body,
       icon: "/icons/badge-72.png",
       data: {
-        url: `/messenger/${data.dm_room_id}`,
+        url: dmRoomId ? `/messenger/${dmRoomId}` : "/messenger",
       },
     };
 
     event.waitUntil(
-      self.registration.showNotification(data.title, notificationOptions)
+      self.registration.showNotification(data.title || "New message", notificationOptions)
     );
     return;
   }
