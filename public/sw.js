@@ -54,9 +54,6 @@ self.addEventListener("fetch", (event) => {
 
   // Let the browser handle navigations to app routes
 if (req.mode === "navigate") {
-  event.respondWith(
-    caches.match("/") || fetch("/")
-  );
   return;
 }
 
