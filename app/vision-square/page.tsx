@@ -174,7 +174,7 @@ export default function VisionSquareIndex() {
   async function handleVisionReaction(postId: string, maskTier: number) {
     if (!uid) return;
 
-    await supabase.from("reactions").insert({
+    await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: "vision",
       user_id: uid,

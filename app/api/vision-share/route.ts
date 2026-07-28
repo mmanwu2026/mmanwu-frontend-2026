@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     }
 
     // ⭐ Insert share as a reaction
-    const { error } = await supabase.from("reactions").insert({
+    const { data, error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: postType,
       maskTier,
