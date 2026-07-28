@@ -550,18 +550,18 @@ useEffect(() => {
   /* ---------------------------------------------------------
      ⭐ Unified Vision Reaction Handler
   --------------------------------------------------------- */
-  async function handleUnifiedVisionReaction(postId: string, maskTier: number) {
-    if (!user?.id) return;
+ async function handleUnifiedVisionReaction(postId: string, maskTier: number) {
+  if (!user?.id) return;
 
-    await supabase.from("reactions").insert({
-      post_id: postId,
-      post_type: "vision",
-      user_id: user.id,
-      maskTier,
-    });
+  await supabase.rpc("apply_reaction", {
+    post_id: postId,
+    post_type: "vision",
+    user_id: user.id,
+    masktier: maskTier
+  });
 
-    await loadMore(); // refresh unified feed
-  }
+  await loadMore(); // refresh unified feed
+}
 
   /* ---------------------------------------------------------
      Hydration Guard

@@ -101,7 +101,6 @@ export default function ReactionBar({
     isCreator ||
     isFollowing === true;
 
-  // ⭐ Block reaction UI entirely
   if (!isAllowed) {
     return (
       <div className="mt-2 text-gray-500 text-sm">
@@ -110,17 +109,20 @@ export default function ReactionBar({
     );
   }
 
+  /* ---------------------------------------------------------
+     ⭐ Corrected Reaction Handler (RPC version)
+  --------------------------------------------------------- */
   async function handleReact(maskTier: number): Promise<void> {
     if (loading || !uid) return;
 
     setLoading(true);
 
-    const { error } = await supabase.from("reactions").insert({
+    // ⭐ Correct: call apply_reaction RPC
+    const { error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: postType,
       user_id: uid,
-      maskTier,
-      value: maskTier,
+      masktier: maskTier,
     });
 
     setLoading(false);

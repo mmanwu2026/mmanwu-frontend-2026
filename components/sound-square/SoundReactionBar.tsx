@@ -89,7 +89,6 @@ export default function SoundReactionBar({
     isCreator ||
     isFollowing === true;
 
-  // Block reaction UI entirely
   if (!isAllowed) {
     return (
       <div className="mt-4 text-gray-500 text-sm">
@@ -98,18 +97,20 @@ export default function SoundReactionBar({
     );
   }
 
+  /* ---------------------------------------------------------
+     ⭐ Corrected Reaction Handler (RPC version)
+  --------------------------------------------------------- */
   async function handleReact(maskTier: number) {
     if (!uid || loading) return;
 
     setLoading(true);
 
-    // Save reaction
-    const { error } = await supabase.from("reactions").insert({
+    // ⭐ Correct: call apply_reaction RPC
+    const { error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: "sound",
       user_id: uid,
-      maskTier,
-      value: maskTier,
+      masktier: maskTier,
     });
 
     setLoading(false);

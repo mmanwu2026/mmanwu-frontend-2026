@@ -23,8 +23,6 @@ interface VisionReactionBarProps {
   positivityRatio: number;
   privacy_type: "public" | "private";
   is_follower: boolean;
-
-  // ⭐ FIXED TYPE — MUST ACCEPT maskTier
   onReactAction: (maskTier: number) => void;
 }
 
@@ -72,16 +70,20 @@ export default function ReactionBar({
 
   if (!isAllowed) return null;
 
+  /* ---------------------------------------------------------
+     ⭐ Corrected Reaction Handler (RPC version)
+  --------------------------------------------------------- */
   async function handleReact(maskTier: number) {
     if (!uid || loading || !isAllowed) return;
 
     setLoading(true);
 
-    const { error } = await supabase.from("reactions").insert({
+    // ⭐ Correct: call apply_reaction RPC
+    const { error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: "vision",
       user_id: uid,
-      maskTier,
+      masktier: maskTier,
     });
 
     setLoading(false);
