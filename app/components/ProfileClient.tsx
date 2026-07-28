@@ -321,15 +321,22 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
           0
         );
 
-        const total = postReactions.length;
-        const positive = postReactions.filter((r) => r.maskTier >= 3).length;
-        const positivity_ratio = total > 0 ? positive / total : 0.5;
+        // ⭐ Corrected positivity logic
+        const total = postReactions.length; // Spirit + automask use ALL reactions
+
+        const positive = postReactions.filter((r) => r.maskTier >= 4).length;
+
+        const totalReactions = postReactions.filter((r) => r.maskTier >= 3).length;
+
+        const positivity_ratio = totalReactions > 0
+          ? positive / totalReactions
+          : 0.5;
 
         let automask = 2;
         if (spirit_score > 20) automask = 3;
         if (spirit_score > 100) automask = 4;
         if (spirit_score > 300) automask = 5;
-        if (spirit_score > 500) automask = 6;
+        if (spirit_score > 500) automask = 6
 
         const commentList =
           p.comments?.map((c: any) => ({
@@ -699,51 +706,61 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
       };
     });
 
-    /* --------------------------------------------- */
-    /* ENRICH VISION POSTS (REACTIONS → SPIRIT)       */
-    /* --------------------------------------------- */
-    const enriched: VisionPost[] = [];
+/* --------------------------------------------- */
+/* ENRICH VISION POSTS (REACTIONS → SPIRIT)       */
+/* --------------------------------------------- */
+const enriched: VisionPost[] = [];
 
-    for (const post of normalized) {
-      const { data: reactionRows } = await supabase
-        .from("reactions")
-        .select('post_id, "maskTier"')
-        .eq("post_id", post.id)
-        .eq("post_type", "vision");
+for (const post of normalized) {
+  const { data: reactionRows } = await supabase
+    .from("reactions")
+    .select('post_id, "maskTier"')
+    .eq("post_id", post.id)
+    .eq("post_type", "vision");
 
-      const rows: { maskTier: number }[] = reactionRows ?? [];
+  const rows: { maskTier: number }[] = reactionRows ?? [];
 
-      const counts = {
-        mask1: rows.filter((r) => r.maskTier === 1).length,
-        mask2: rows.filter((r) => r.maskTier === 2).length,
-        mask3: rows.filter((r) => r.maskTier === 3).length,
-        mask4: rows.filter((r) => r.maskTier === 4).length,
-        mask5: rows.filter((r) => r.maskTier === 5).length,
-        mask6: rows.filter((r) => r.maskTier === 6).length,
-      };
+  const counts = {
+    mask1: rows.filter((r) => r.maskTier === 1).length,
+    mask2: rows.filter((r) => r.maskTier === 2).length,
+    mask3: rows.filter((r) => r.maskTier === 3).length,
+    mask4: rows.filter((r) => r.maskTier === 4).length,
+    mask5: rows.filter((r) => r.maskTier === 5).length,
+    mask6: rows.filter((r) => r.maskTier === 6).length,
+  };
 
-      const total = rows.length;
-      const positiveCount = rows.filter((r) => r.maskTier >= 3).length;
-      const positivity = total > 0 ? positiveCount / total : 0.5;
+  // ⭐ Total reactions (Spirit + automask use ALL reactions)
+  const total = rows.length;
 
-      const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
+  // ⭐ True positive reactions (#4, #5, #6)
+  const positiveCount = rows.filter((r) => r.maskTier >= 4).length;
 
-      let autoMask = 2;
-      if (spirit > 20) autoMask = 3;
-      if (spirit > 100) autoMask = 4;
-      if (spirit > 300) autoMask = 5;
-      if (spirit > 500) autoMask = 6;
+  // ⭐ Total community reactions (#3, #4, #5, #6)
+  const totalReactions = rows.filter((r) => r.maskTier >= 3).length;
 
-      enriched.push({
-        ...post,
-        reactions: counts,
-        spirit_score: spirit,
-        positivity_ratio: positivity,
-        automask: autoMask,
-        total_reactions: total,
-        privacy_type: post.privacy_type,
-      });
-    }
+  // ⭐ Stable positivity ratio (0–1)
+  const positivity = totalReactions > 0
+    ? positiveCount / totalReactions
+    : 0.5;
+
+  const spirit = rows.reduce((sum, r) => sum + r.maskTier, 0);
+
+  let autoMask = 2;
+  if (spirit > 20) autoMask = 3;
+  if (spirit > 100) autoMask = 4;
+  if (spirit > 300) autoMask = 5;
+  if (spirit > 500) autoMask = 6;
+
+  enriched.push({
+    ...post,
+    reactions: counts,
+    spirit_score: spirit,
+    positivity_ratio: positivity,
+    automask: autoMask,
+    total_reactions: total,
+    privacy_type: post.privacy_type,
+  });
+}
 
     /* --------------------------------------------- */
     /* MERGE INTO STATE (DEDUPED)                     */
