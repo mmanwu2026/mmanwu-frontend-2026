@@ -73,97 +73,96 @@ useEffect(() => {
   }
 }, [hydrated, user]);
 
-  /* ---------------------------------------------------------
-     Realtime Reaction Updates
-  --------------------------------------------------------- */
-  useEffect(() => {
-    if (!supabase) return;
+/* ---------------------------------------------------------
+   Realtime Post Updates (Plaza, Vision, Sound)
+--------------------------------------------------------- */
+useEffect(() => {
+  if (!supabase) return;
 
-    const channel = supabase
-      .channel("realtime-reactions")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reactions" },
-        (payload: any) => {
-          const row = payload.new ?? payload.old;
-          if (!row) return;
+  const channel = supabase
+    .channel("realtime-posts")
 
-          const { post_id, post_type, maskTier } = row;
-          if (!post_id || !post_type || !maskTier) return;
+    // PLAZA
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "posts" },
+      (payload) => {
+        const updated = payload.new;
+        if (!updated) return;
 
-          if (!items.length) return;
+        setItems((prev) =>
+          prev.map((item) =>
+            item.square_type === "plaza" && item.post.id === updated.id
+              ? {
+                  ...item,
+                  post: {
+                    ...item.post,
+                    spirit_score: updated.spirit_score,
+                    positivity_ratio: updated.positivity_ratio,
+                    automask: updated.automask,
+                  },
+                }
+              : item
+          )
+        );
+      }
+    )
 
-          setItems((prev) =>
-            prev.map((item) => {
-              const match =
-                (post_type === "plaza" && item.square_type === "plaza") ||
-                (post_type === "sound" && item.square_type === "sound-square") ||
-                (post_type === "vision" && item.square_type === "vision-square");
+    // VISION
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "vision_posts" },
+      (payload) => {
+        const updated = payload.new;
+        if (!updated) return;
 
-              if (!match || item.post.id !== post_id) return item;
+        setItems((prev) =>
+          prev.map((item) =>
+            item.square_type === "vision-square" && item.post.id === updated.id
+              ? {
+                  ...item,
+                  post: {
+                    ...item.post,
+                    spirit_score: updated.spirit_score,
+                    positivity_ratio: updated.positivity_ratio,
+                    automask: updated.automask,
+                  },
+                }
+              : item
+          )
+        );
+      }
+    )
 
-              const reactions: ReactionCounts = {
-                ...EMPTY_REACTIONS,
-                ...(item.post.reactions ?? {}),
-              };
+    // SOUND
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "sound_posts" },
+      (payload) => {
+        const updated = payload.new;
+        if (!updated) return;
 
-              const key = `mask${maskTier}` as keyof ReactionCounts;
+        setItems((prev) =>
+          prev.map((item) =>
+            item.square_type === "sound-square" && item.post.id === updated.id
+              ? {
+                  ...item,
+                  post: {
+                    ...item.post,
+                    spirit_score: updated.spirit_score,
+                    positivity_ratio: updated.positivity_ratio,
+                    automask: updated.automask,
+                  },
+                }
+              : item
+          )
+        );
+      }
+    );
 
-              if (payload.eventType === "INSERT") {
-                reactions[key] = (reactions[key] ?? 0) + 1;
-              } else if (payload.eventType === "DELETE") {
-                reactions[key] = Math.max(0, (reactions[key] ?? 0) - 1);
-              }
-
-              const total =
-                reactions.mask1 +
-                reactions.mask2 +
-                reactions.mask3 +
-                reactions.mask4 +
-                reactions.mask5 +
-                reactions.mask6;
-
-              const spirit =
-                reactions.mask1 * 1 +
-                reactions.mask2 * 2 +
-                reactions.mask3 * 3 +
-                reactions.mask4 * 4 +
-                reactions.mask5 * 5 +
-                reactions.mask6 * 6;
-
-              const positiveCount =
-                reactions.mask3 +
-                reactions.mask4 +
-                reactions.mask5 +
-                reactions.mask6;
-
-              const positivity = total > 0 ? positiveCount / total : 0.5;
-
-              let automask = 2;
-              if (spirit > 500) automask = 6;
-              else if (spirit > 300) automask = 5;
-              else if (spirit > 100) automask = 4;
-              else if (spirit > 20) automask = 3;
-
-              return {
-                ...item,
-                post: {
-                  ...item.post,
-                  reactions,
-                  spirit_score: spirit,
-                  positivity_ratio: positivity,
-                  total_reactions: total,
-                  automask,
-                },
-              };
-            })
-          );
-        }
-      );
-
-    channel.subscribe();
-    return () => channel.unsubscribe();
-  }, [supabase, items.length]);
+  channel.subscribe();
+  return () => channel.unsubscribe();
+}, [supabase]);
 
   /* ---------------------------------------------------------
      Load More

@@ -5,7 +5,12 @@ const isDev = process.env.NODE_ENV === "development";
 const nextConfig = {
   reactStrictMode: true,
 
-  // ⭐ Only keep serverActions — remove turbo entirely
+  // ⭐ Force Turbopack to use the correct project root
+  turbopack: {
+    root: __dirname,
+  },
+
+  // ⭐ Keep serverActions only
   experimental: {
     serverActions: {
       allowedOrigins: ["*"],
@@ -14,7 +19,7 @@ const nextConfig = {
 
   async rewrites() {
     return [
-      // API rewrites (production)
+      // Production API rewrites
       {
         source: "/api/profile/:userId",
         destination:
@@ -26,7 +31,7 @@ const nextConfig = {
           "https://mmanwu-clean-production-6465.up.railway.app/api/:path*",
       },
 
-      // API rewrites (development)
+      // Development API rewrites
       ...(isDev
         ? [
             {
@@ -40,7 +45,7 @@ const nextConfig = {
           ]
         : []),
 
-      // ⭐ Ensure service worker is served raw
+      // Service worker must be served raw
       {
         source: "/sw.js",
         destination: "/sw.js",
@@ -50,7 +55,7 @@ const nextConfig = {
 
   async headers() {
     return [
-      // ⭐ Service Worker must control entire site
+      // Service Worker
       {
         source: "/sw.js",
         headers: [
@@ -64,7 +69,7 @@ const nextConfig = {
         ],
       },
 
-      // ⭐ Manifest must be served with correct MIME type
+      // Manifest
       {
         source: "/manifest.json",
         headers: [
@@ -76,13 +81,13 @@ const nextConfig = {
         ],
       },
 
-      // ⭐ Icons must not be cached aggressively
+      // Icons
       {
         source: "/icons/:path*",
         headers: [{ key: "Cache-Control", value: "no-cache" }],
       },
 
-      // ⭐ Required for Web Push + PWA trust
+      // Well-known
       {
         source: "/.well-known/:path*",
         headers: [{ key: "Cache-Control", value: "no-cache" }],
