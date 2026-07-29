@@ -586,6 +586,7 @@ export default function UnifiedFeedPage() {
                 creator={item.creator}
                 userId={user?.id ?? ""}
                 onDeleteAction={handleDelete}
+                onReactAction={() => {}}
               />
             );
           }
