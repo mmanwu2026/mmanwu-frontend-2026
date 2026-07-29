@@ -87,7 +87,7 @@ export default function VisionSquareIndex() {
     const enriched = rawPosts.map((post: any) => {
       const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
-      /* ⭐ Reaction counts by mask tier */
+      /* ⭐ Reaction counts */
       const reactions = {
         mask1: postReactions.filter((r) => r.maskTier === 1).length,
         mask2: postReactions.filter((r) => r.maskTier === 2).length,
@@ -140,29 +140,31 @@ export default function VisionSquareIndex() {
 
       const comment_count = comments.length;
 
+      /* ⭐ Return in VisionCard-compatible shape */
       return {
-        id: post.id,
-        title: post.title,
-        media_url: post.media_url,
-        creator_id: post.creator_id,
-        created_at: post.created_at,
+        post: {
+          id: post.id,
+          title: post.title,
+          media_url: post.media_url,
+          creator_id: post.creator_id,
+          created_at: post.created_at,
 
-        /* ⭐ Computed values */
-        reactions,
-        reaction_count,
-        spirit_score: spiritScore,
-        positivity_ratio: positivityRatio,
-        automask: autoMask,
+          reactions,
+          reaction_count,
+          spirit_score: spiritScore,
+          positivity_ratio: positivityRatio,
+          automask: autoMask,
 
-        privacy_type: post.privacy_type,
+          privacy_type: post.privacy_type,
 
-        users: {
-          username: post.users?.username ?? "Unknown",
-          avatar_url: post.users?.avatar_url ?? null,
+          users: {
+            username: post.users?.username ?? "Unknown",
+            avatar_url: post.users?.avatar_url ?? null,
+          },
+
+          comments,
+          comment_count,
         },
-
-        comments,
-        comment_count,
       };
     });
 
@@ -170,16 +172,13 @@ export default function VisionSquareIndex() {
     setLoading(false);
   }
 
-/* ⭐ Reaction handler */
-async function handleVisionReaction(postId: string, maskTier: number) {
-  if (!uid) return;
+  /* ⭐ Reaction handler */
+  async function handleVisionReaction(postId: string, maskTier: number) {
+    if (!uid) return;
 
-  // ⭐ DO NOT CALL RPC HERE
-  // ReactionBar already calls apply_reaction
-
-  // ⭐ ONLY refresh local UI state
-  await loadRecent();
-}
+    // ⭐ DO NOT CALL RPC HERE — ReactionBar already does
+    await loadRecent(); // refresh local UI
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
@@ -210,12 +209,12 @@ async function handleVisionReaction(postId: string, maskTier: number) {
         {loading ? (
           <p className="text-gray-500 text-sm">Loading visions…</p>
         ) : recentPosts.length > 0 ? (
-          recentPosts.map((post) => (
-            <SafeRender key={post.id}>
+          recentPosts.map((wrapper) => (
+            <SafeRender key={wrapper.post.id}>
               <VisionCard
-                post={post}
+                post={wrapper.post}
                 onReactAction={(maskTier) =>
-                  handleVisionReaction(post.id, maskTier)
+                  handleVisionReaction(wrapper.post.id, maskTier)
                 }
               />
             </SafeRender>
