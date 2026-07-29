@@ -65,104 +65,104 @@ export default function UnifiedFeedPage() {
   /* ---------------------------------------------------------
      Initial Load
   --------------------------------------------------------- */
-useEffect(() => {
-  if (!hydrated) return;
-  if (!user) return;
-  if (items.length === 0 && !loading) {
-    loadMore();
-  }
-}, [hydrated, user]);
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!user) return;
+    if (items.length === 0 && !loading) {
+      loadMore();
+    }
+  }, [hydrated, user]);
 
-/* ---------------------------------------------------------
-   Realtime Post Updates (Plaza, Vision, Sound)
---------------------------------------------------------- */
-useEffect(() => {
-  if (!supabase) return;
+  /* ---------------------------------------------------------
+     Realtime Post Updates (Plaza, Vision, Sound)
+  --------------------------------------------------------- */
+  useEffect(() => {
+    if (!supabase) return;
 
-  const channel = supabase
-    .channel("realtime-posts")
+    const channel = supabase
+      .channel("realtime-posts")
 
-    // PLAZA
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "posts" },
-      (payload) => {
-        const updated = payload.new;
-        if (!updated) return;
+      // PLAZA
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "posts" },
+        (payload) => {
+          const updated = payload.new;
+          if (!updated) return;
 
-        setItems((prev) =>
-          prev.map((item) =>
-            item.square_type === "plaza" && item.post.id === updated.id
-              ? {
-                  ...item,
-                  post: {
-                    ...item.post,
-                    spirit_score: updated.spirit_score,
-                    positivity_ratio: updated.positivity_ratio,
-                    automask: updated.automask,
-                  },
-                }
-              : item
-          )
-        );
-      }
-    )
+          setItems((prev) =>
+            prev.map((item) =>
+              item.square_type === "plaza" && item.post.id === updated.id
+                ? {
+                    ...item,
+                    post: {
+                      ...item.post,
+                      spirit_score: updated.spirit_score,
+                      positivity_ratio: updated.positivity_ratio,
+                      automask: updated.automask,
+                    },
+                  }
+                : item
+            )
+          );
+        }
+      )
 
-    // VISION
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "vision_posts" },
-      (payload) => {
-        const updated = payload.new;
-        if (!updated) return;
+      // VISION
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "vision_posts" },
+        (payload) => {
+          const updated = payload.new;
+          if (!updated) return;
 
-        setItems((prev) =>
-          prev.map((item) =>
-            item.square_type === "vision-square" && item.post.id === updated.id
-              ? {
-                  ...item,
-                  post: {
-                    ...item.post,
-                    spirit_score: updated.spirit_score,
-                    positivity_ratio: updated.positivity_ratio,
-                    automask: updated.automask,
-                  },
-                }
-              : item
-          )
-        );
-      }
-    )
+          setItems((prev) =>
+            prev.map((item) =>
+              item.square_type === "vision-square" && item.post.id === updated.id
+                ? {
+                    ...item,
+                    post: {
+                      ...item.post,
+                      spirit_score: updated.spirit_score,
+                      positivity_ratio: updated.positivity_ratio,
+                      automask: updated.automask,
+                    },
+                  }
+                : item
+            )
+          );
+        }
+      )
 
-    // SOUND
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "sound_posts" },
-      (payload) => {
-        const updated = payload.new;
-        if (!updated) return;
+      // SOUND
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "sound_posts" },
+        (payload) => {
+          const updated = payload.new;
+          if (!updated) return;
 
-        setItems((prev) =>
-          prev.map((item) =>
-            item.square_type === "sound-square" && item.post.id === updated.id
-              ? {
-                  ...item,
-                  post: {
-                    ...item.post,
-                    spirit_score: updated.spirit_score,
-                    positivity_ratio: updated.positivity_ratio,
-                    automask: updated.automask,
-                  },
-                }
-              : item
-          )
-        );
-      }
-    );
+          setItems((prev) =>
+            prev.map((item) =>
+              item.square_type === "sound-square" && item.post.id === updated.id
+                ? {
+                    ...item,
+                    post: {
+                      ...item.post,
+                      spirit_score: updated.spirit_score,
+                      positivity_ratio: updated.positivity_ratio,
+                      automask: updated.automask,
+                    },
+                  }
+                : item
+            )
+          );
+        }
+      );
 
-  channel.subscribe();
-  return () => channel.unsubscribe();
-}, [supabase]);
+    channel.subscribe();
+    return () => channel.unsubscribe();
+  }, [supabase]);
 
   /* ---------------------------------------------------------
      Load More
@@ -257,7 +257,7 @@ useEffect(() => {
       }) ?? [];
 
     /* ---------------------------------------------------------
-       VISION — ⭐ FIXED VERSION
+       VISION
     --------------------------------------------------------- */
     const vision = await supabase
       .from("vision_posts")
@@ -547,29 +547,13 @@ useEffect(() => {
   }
 
   /* ---------------------------------------------------------
-     ⭐ Unified Vision Reaction Handler
-  --------------------------------------------------------- */
- async function handleUnifiedVisionReaction(postId: string, maskTier: number) {
-  if (!user?.id) return;
-
-  await supabase.rpc("apply_reaction", {
-    post_id: postId,
-    post_type: "vision",
-    user_id: user.id,
-    masktier: maskTier
-  });
-
-  await loadMore(); // refresh unified feed
-}
-
-  /* ---------------------------------------------------------
      Hydration Guard
   --------------------------------------------------------- */
   if (!hydrated) {
     return <div style={{ background: "black", height: "100vh", width: "100vw" }} />;
   }
 
-   /* ---------------------------------------------------------
+  /* ---------------------------------------------------------
      Render
   --------------------------------------------------------- */
   return (
@@ -602,7 +586,6 @@ useEffect(() => {
                 creator={item.creator}
                 userId={user?.id ?? ""}
                 onDeleteAction={handleDelete}
-                onReactAction={() => {}}
               />
             );
           }
@@ -615,9 +598,7 @@ useEffect(() => {
                 post={item.post}
                 authUserId={user?.id ?? null}
                 is_follower={item.post.is_follower ?? false}
-                onReactAction={(maskTier) =>
-                  handleUnifiedVisionReaction(item.post.id, maskTier)
-                }
+                onReactAction={async () => {}}
               />
             );
           }
