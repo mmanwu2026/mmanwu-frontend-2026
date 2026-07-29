@@ -84,7 +84,7 @@ export default function ComposerPage() {
     router.replace("/plaza");
   }
 
- async function handleSubmit(): Promise<void> {
+async function handleSubmit(): Promise<void> {
   if (!content.trim() || loadingUser || !uid) return;
 
   // 1️⃣ Insert the post immediately (no frontend Gatekeeper)
