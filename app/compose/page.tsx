@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import GatekeeperModal from "@/app/components/GatekeeperModal";
+import GatekeeperModal, { GatekeeperOption } from "@/app/components/GatekeeperModal";
 import SpiritToast from "@/app/components/SpiritToast";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter, usePathname } from "next/navigation";
@@ -11,12 +11,6 @@ interface ModerationResult {
   post_id: string;
   auto_approve: boolean | null;
   rewrites: string[] | null;
-}
-
-interface RewriteOption {
-  label: string;
-  text: string;
-  explanation: string;
 }
 
 export default function ComposerPage() {
@@ -34,13 +28,12 @@ export default function ComposerPage() {
   const [content, setContent] = useState("");
   const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
 
-  const [gatekeeperOptions, setGatekeeperOptions] = useState<RewriteOption[] | null>(null);
+  const [gatekeeperOptions, setGatekeeperOptions] = useState<GatekeeperOption[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [cancelPolling, setCancelPolling] = useState(false);
-  const [postId, setPostId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -72,8 +65,7 @@ export default function ComposerPage() {
       return;
     }
 
-    const newPostId = insertedPost.id;
-    setPostId(newPostId);
+    const postId = insertedPost.id; // ← LOCAL VARIABLE
 
     // 2️⃣ Poll post_moderation for worker results
     let moderation: ModerationResult | null = null;
@@ -84,7 +76,7 @@ export default function ComposerPage() {
       const { data } = await supabase
         .from("post_moderation")
         .select("*")
-        .eq("post_id", newPostId)
+        .eq("post_id", postId)
         .single();
 
       moderation = data as ModerationResult;
@@ -121,10 +113,11 @@ export default function ComposerPage() {
         "Elevates the language for a more refined delivery.",
       ];
 
-      const formatted = moderation.rewrites.map((text, i) => ({
+      const formatted: GatekeeperOption[] = moderation.rewrites.map((text, i) => ({
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
+        postId, // ← attach postId to each option
       }));
 
       setGatekeeperOptions(formatted);
@@ -132,16 +125,14 @@ export default function ComposerPage() {
     }
   }
 
-  async function handleGatekeeperSelect(finalText: string): Promise<void> {
+  async function handleGatekeeperSelect(option: GatekeeperOption): Promise<void> {
     setShowGatekeeper(false);
-
-    if (!postId) return;
 
     // 5️⃣ Update original post with rewrite
     await supabase
       .from("posts")
-      .update({ content: finalText })
-      .eq("id", postId);
+      .update({ content: option.text })
+      .eq("id", option.postId);
 
     setContent("");
     router.replace("/plaza");

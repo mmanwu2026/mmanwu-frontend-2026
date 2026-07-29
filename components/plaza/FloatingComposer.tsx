@@ -2,18 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import GatekeeperModal from "@/app/components/GatekeeperModal";
+import GatekeeperModal, { GatekeeperOption } from "@/app/components/GatekeeperModal";
 import SpiritToast from "@/app/components/SpiritToast";
 
-interface GatekeeperResponse {
-  autoApprove?: boolean;
-  rewrites?: string[];
-}
-
-interface RewriteOption {
-  label: string;
-  text: string;
-  explanation: string;
+interface ModerationResult {
+  id: number;
+  post_id: string;
+  auto_approve: boolean | null;
+  rewrites: string[] | null;
 }
 
 interface FloatingComposerProps {
@@ -29,9 +25,9 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
   const [content, setContent] = useState("");
   const [expanded, setExpanded] = useState(false);
 
-  const [privacyType, setPrivacyType] = useState<"public" | "private">("public"); // ⭐ NEW
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
 
-  const [gatekeeperOptions, setGatekeeperOptions] = useState<RewriteOption[] | null>(null);
+  const [gatekeeperOptions, setGatekeeperOptions] = useState<GatekeeperOption[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -47,58 +43,58 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     loadUser();
   }, [supabase]);
 
-  async function runGatekeeper(rawText: string): Promise<GatekeeperResponse | null> {
-    try {
-      const res = await fetch("/api/gatekeeper", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: rawText }),
-      });
+  async function handleSubmit(): Promise<void> {
+    if (!content.trim() || loadingUser || !uid) return;
 
-      if (!res.ok) return null;
-      return (await res.json()) as GatekeeperResponse;
-    } catch {
-      return null;
-    }
-  }
-
-  async function publishToSupabase(finalText: string): Promise<void> {
-    if (!uid) return;
-
-    const { data: rows, error } = await supabase
+    // 1️⃣ Insert post
+    const { data: insertedPost, error } = await supabase
       .from("posts")
       .insert({
-        content: finalText,
+        content,
         creator_id: uid,
         mask: 0,
-        privacy_type: privacyType, // ⭐ NEW
+        privacy_type: privacyType,
       })
-      .select()
-      .limit(1);
+      .select("*")
+      .single();
 
-    if (error) {
+    if (error || !insertedPost) {
       console.error("Post insert error:", error);
       return;
     }
 
-    const data = rows?.[0] ?? null;
-    if (data) onPost(data);
-  }
+    const postId = insertedPost.id;
 
-  async function handleSubmit(): Promise<void> {
-    if (!content.trim() || loadingUser || !uid) return;
+    // 2️⃣ Poll moderation results
+    let moderation: ModerationResult | null = null;
 
-    const result = await runGatekeeper(content);
+    for (let i = 0; i < 12; i++) {
+      const { data } = await supabase
+        .from("post_moderation")
+        .select("*")
+        .eq("post_id", postId)
+        .single();
 
-    if (result?.autoApprove) {
-      await publishToSupabase(content);
+      moderation = data as ModerationResult;
+
+      if (moderation && moderation.auto_approve !== null) break;
+
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    if (!moderation) return;
+
+    // 3️⃣ Auto-approved → publish immediately
+    if (moderation.auto_approve) {
       setToastMessage("The spirits approve your message ✨");
       setContent("");
       setExpanded(false);
+      onPost(insertedPost);
       return;
     }
 
-    if (result?.rewrites) {
+    // 4️⃣ Harmful → show rewrites
+    if (moderation.rewrites?.length) {
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [
         "Softens the tone while keeping your message intact.",
@@ -106,10 +102,11 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
         "Elevates the language for a more refined delivery.",
       ];
 
-      const formatted: RewriteOption[] = result.rewrites.map((text, i) => ({
+      const formatted: GatekeeperOption[] = moderation.rewrites.map((text, i) => ({
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
+        postId,
       }));
 
       setGatekeeperOptions(formatted);
@@ -117,11 +114,26 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     }
   }
 
-  function handleGatekeeperSelect(finalText: string): void {
+  async function handleGatekeeperSelect(option: GatekeeperOption): Promise<void> {
     setShowGatekeeper(false);
-    publishToSupabase(finalText);
+
+    // 5️⃣ Update original post with rewrite
+    await supabase
+      .from("posts")
+      .update({ content: option.text })
+      .eq("id", option.postId);
+
     setContent("");
     setExpanded(false);
+
+    // Return updated post to parent
+    const { data } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("id", option.postId)
+      .single();
+
+    if (data) onPost(data);
   }
 
   return (
@@ -160,7 +172,6 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
             onChange={(e) => setContent(e.target.value)}
           />
 
-          {/* ⭐ NEW — Privacy Selector */}
           <select
             value={privacyType}
             onChange={(e) => setPrivacyType(e.target.value as "public" | "private")}

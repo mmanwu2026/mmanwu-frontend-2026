@@ -24,12 +24,13 @@ export default function SoundSquareUpload() {
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [privacyType, setPrivacyType] = useState<"public" | "private">("public"); // ⭐ NEW
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // ⭐ Keep rewrites as simple strings
   const [rewriteOptions, setRewriteOptions] = useState<string[]>([]);
   const [showRewriteModal, setShowRewriteModal] = useState(false);
 
@@ -160,7 +161,6 @@ export default function SoundSquareUpload() {
       return;
     }
 
-    // ⭐ INSERT WITH PRIVACY TYPE
     const { error: dbError } = await supabase.from("sound_posts").insert({
       title: finalTitle,
       audio_url: publicUrl,
@@ -169,7 +169,7 @@ export default function SoundSquareUpload() {
       spirit_score: 0,
       positivity_ratio: positivity,
       automask,
-      privacy_type: privacyType, // ⭐ NEW
+      privacy_type: privacyType,
     });
 
     if (dbError) {
@@ -239,7 +239,6 @@ export default function SoundSquareUpload() {
 
       <h1 className="text-3xl font-bold mb-6">Upload to SoundSquare</h1>
 
-      {/* Title */}
       <input
         type="text"
         placeholder="Title"
@@ -248,7 +247,6 @@ export default function SoundSquareUpload() {
         onChange={(e) => setTitle(e.target.value)}
       />
 
-      {/* ⭐ Privacy Selector */}
       <select
         value={privacyType}
         onChange={(e) => setPrivacyType(e.target.value as "public" | "private")}
@@ -258,7 +256,6 @@ export default function SoundSquareUpload() {
         <option value="private">Private (Followers Only)</option>
       </select>
 
-      {/* File Drop Zone */}
       <div
         ref={dropRef}
         onDrop={handleDrop}
