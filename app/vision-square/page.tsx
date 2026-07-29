@@ -34,7 +34,7 @@ export default function VisionSquareIndex() {
   async function loadRecent() {
     setLoading(true);
 
-    /* 1. Load posts */
+    /* ⭐ FIXED SELECT — removed is_follower */
     const { data: rawPosts, error } = await supabase
       .from("vision_posts")
       .select(`
@@ -44,7 +44,6 @@ export default function VisionSquareIndex() {
         creator_id,
         created_at,
         privacy_type,
-        is_follower,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
@@ -58,7 +57,7 @@ export default function VisionSquareIndex() {
 
     const postIds = rawPosts.map((p) => p.id);
 
-    /* 2. Load reactions */
+    /* ⭐ Reactions */
     const { data: reactionsData } = await supabase
       .from("reactions")
       .select("post_id, maskTier, value")
@@ -67,7 +66,7 @@ export default function VisionSquareIndex() {
 
     const typedReactions = (reactionsData ?? []) as ReactionRow[];
 
-    /* 3. Load comments */
+    /* ⭐ Comments */
     const { data: commentRows } = await supabase
       .from("vision_post_comments")
       .select(`
@@ -84,11 +83,10 @@ export default function VisionSquareIndex() {
       .in("post_id", postIds)
       .order("created_at", { ascending: true });
 
-    /* 4. Merge everything */
+    /* ⭐ Merge */
     const enriched = rawPosts.map((post: any) => {
       const postReactions = typedReactions.filter((r) => r.post_id === post.id);
 
-      /* ⭐ Reaction counts */
       const reactions = {
         mask1: postReactions.filter((r) => r.maskTier === 1).length,
         mask2: postReactions.filter((r) => r.maskTier === 2).length,
@@ -98,16 +96,13 @@ export default function VisionSquareIndex() {
         mask6: postReactions.filter((r) => r.maskTier === 6).length,
       };
 
-      /* ⭐ Total reactions */
       const reaction_count = postReactions.length;
 
-      /* ⭐ Spirit score */
       const spiritScore = postReactions.reduce(
         (sum, r) => sum + (r.maskTier ?? 0),
         0
       );
 
-      /* ⭐ Positivity ratio */
       const weightedPositive = postReactions
         .filter((r) => (r.value ?? 0) > 0)
         .reduce((sum, r) => sum + (r.value ?? 0), 0);
@@ -116,14 +111,12 @@ export default function VisionSquareIndex() {
       const positivityRatio =
         weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
-      /* ⭐ AutoMask */
       let autoMask = 2;
       if (spiritScore > 20) autoMask = 3;
       if (spiritScore > 100) autoMask = 4;
       if (spiritScore > 300) autoMask = 5;
       if (spiritScore > 500) autoMask = 6;
 
-      /* ⭐ Comments */
       const rawComments = (commentRows ?? []).filter(
         (c: any) => c.post_id === post.id
       );
@@ -141,7 +134,6 @@ export default function VisionSquareIndex() {
 
       const comment_count = comments.length;
 
-      /* ⭐ Return in VisionCard-compatible shape */
       return {
         post: {
           id: post.id,
@@ -157,7 +149,6 @@ export default function VisionSquareIndex() {
           automask: autoMask,
 
           privacy_type: post.privacy_type,
-          is_follower: post.is_follower ?? false,
 
           users: {
             username: post.users?.username ?? "Unknown",
@@ -177,9 +168,7 @@ export default function VisionSquareIndex() {
   /* ⭐ Reaction handler */
   async function handleVisionReaction(postId: string, maskTier: number) {
     if (!uid) return;
-
-    // ⭐ DO NOT CALL RPC HERE — ReactionBar already does
-    await loadRecent(); // refresh local UI
+    await loadRecent();
   }
 
   return (
@@ -187,7 +176,7 @@ export default function VisionSquareIndex() {
 
       {/* ⭐ RESTORED NAV LINKS */}
       <div className="mb-6 flex justify-between items-center">
-        <Link href="/feed" className="text-gray-600 hover:text-purple-600 transition">
+        <Link href="/vision-square/feed" className="text-gray-600 hover:text-purple-600 transition">
           ← Feed
         </Link>
 
