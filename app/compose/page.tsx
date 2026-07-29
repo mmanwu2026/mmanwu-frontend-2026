@@ -46,6 +46,8 @@ export default function ComposerPage() {
   }, [supabase]);
 
   async function handleSubmit(): Promise<void> {
+    setCancelPolling(false); // ⭐ RESET POLLING
+    
     if (!content.trim() || loadingUser || !uid) return;
 
     // 1️⃣ Insert post
