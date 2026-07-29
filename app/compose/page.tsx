@@ -39,6 +39,9 @@ export default function ComposerPage() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [cancelPolling, setCancelPolling] = useState(false);
+  const [postId, setPostId] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -69,21 +72,25 @@ export default function ComposerPage() {
       return;
     }
 
-    const postId = insertedPost.id;
+    const newPostId = insertedPost.id;
+    setPostId(newPostId);
 
     // 2️⃣ Poll post_moderation for worker results
     let moderation: ModerationResult | null = null;
 
     for (let i = 0; i < 12; i++) {
+      if (cancelPolling) return;
+
       const { data } = await supabase
         .from("post_moderation")
         .select("*")
-        .eq("post_id", postId)
+        .eq("post_id", newPostId)
         .single();
 
       moderation = data as ModerationResult;
 
       if (moderation && moderation.auto_approve !== null) {
+        setCancelPolling(true);
         break;
       }
 
@@ -98,6 +105,7 @@ export default function ComposerPage() {
       setContent("");
 
       setTimeout(() => {
+        setCancelPolling(true);
         router.replace("/plaza");
       }, 1800);
 
@@ -127,13 +135,13 @@ export default function ComposerPage() {
   async function handleGatekeeperSelect(finalText: string): Promise<void> {
     setShowGatekeeper(false);
 
-    // Update original post instead of inserting a new one
+    if (!postId) return;
+
+    // 5️⃣ Update original post with rewrite
     await supabase
       .from("posts")
       .update({ content: finalText })
-      .eq("creator_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(1);
+      .eq("id", postId);
 
     setContent("");
     router.replace("/plaza");
