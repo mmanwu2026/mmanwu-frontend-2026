@@ -170,19 +170,16 @@ export default function VisionSquareIndex() {
     setLoading(false);
   }
 
-  /* ⭐ Reaction handler */
-  async function handleVisionReaction(postId: string, maskTier: number) {
-    if (!uid) return;
+/* ⭐ Reaction handler */
+async function handleVisionReaction(postId: string, maskTier: number) {
+  if (!uid) return;
 
-    await supabase.rpc("apply_reaction", {
-      post_id: postId,
-      post_type: "vision",
-      user_id: uid,
-      masktier: maskTier,
-    });
+  // ⭐ DO NOT CALL RPC HERE
+  // ReactionBar already calls apply_reaction
 
-    await loadRecent(); // ⭐ refresh UI
-  }
+  // ⭐ ONLY refresh local UI state
+  await loadRecent();
+}
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
@@ -217,6 +214,9 @@ export default function VisionSquareIndex() {
             <SafeRender key={post.id}>
               <VisionCard
                 post={post}
+                onReactAction={(maskTier) =>
+                  handleVisionReaction(post.id, maskTier)
+                }
               />
             </SafeRender>
           ))
