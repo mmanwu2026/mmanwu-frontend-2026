@@ -6,9 +6,11 @@ import SpiritToast from "@/app/components/SpiritToast";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter, usePathname } from "next/navigation";
 
-interface GatekeeperResponse {
-  autoApprove?: boolean;
-  rewrites?: string[];
+interface GatekeeperJob {
+  id: string;
+  post_id: string;
+  auto_approve: boolean | null;
+  rewrites: string[] | null;
 }
 
 interface RewriteOption {
@@ -22,7 +24,6 @@ export default function ComposerPage() {
   const pathname = usePathname();
   const { supabase } = useSupabase();
 
-  // Only render on /compose
   if (!pathname || !pathname.startsWith("/compose")) {
     return null;
   }
@@ -31,8 +32,7 @@ export default function ComposerPage() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   const [content, setContent] = useState("");
-
-  const [privacyType, setPrivacyType] = useState<"public" | "private">("public"); // ⭐ NEW
+  const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
 
   const [gatekeeperOptions, setGatekeeperOptions] = useState<RewriteOption[] | null>(null);
   const [showGatekeeper, setShowGatekeeper] = useState(false);
@@ -49,54 +49,63 @@ export default function ComposerPage() {
     loadUser();
   }, [supabase]);
 
-  async function runGatekeeper(rawText: string): Promise<GatekeeperResponse | null> {
-    try {
-      const res = await fetch("/api/gatekeeper", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: rawText }),
-      });
+  async function handleSubmit(): Promise<void> {
+    if (!content.trim() || loadingUser || !uid) return;
 
-      if (!res.ok) return null;
-      return (await res.json()) as GatekeeperResponse;
-    } catch {
-      return null;
-    }
-  }
-
-  async function publishToSupabase(finalText: string): Promise<void> {
-    if (!uid) return;
-
-    const { error } = await supabase
+    // 1️⃣ Insert post
+    const { data: insertedPost, error } = await supabase
       .from("posts")
       .insert({
-        content: finalText,
+        content,
         creator_id: uid,
         mask: 0,
-        privacy_type: privacyType, // ⭐ NEW
-      });
+        privacy_type: privacyType,
+      })
+      .select("*")
+      .single();
 
-    if (error) {
+    if (error || !insertedPost) {
       console.error("Post insert error:", error);
       return;
     }
 
-    router.replace("/plaza");
-  }
+    const postId = insertedPost.id;
 
-  async function handleSubmit(): Promise<void> {
-    if (!content.trim() || loadingUser || !uid) return;
+    // 2️⃣ Poll gatekeeper_jobs (worker results)
+    let job: GatekeeperJob | null = null;
 
-    const result = await runGatekeeper(content);
+    for (let i = 0; i < 12; i++) {
+      const { data } = await supabase
+        .from("gatekeeper_jobs")
+        .select("*")
+        .eq("post_id", postId)
+        .single();
 
-    if (result?.autoApprove) {
-      await publishToSupabase(content);
+      job = data as GatekeeperJob;
+
+      if (job && job.auto_approve !== null) {
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    if (!job) return;
+
+    // 3️⃣ Auto-approved → Spirit Toast + redirect
+    if (job.auto_approve) {
       setToastMessage("The spirits approve your message ✨");
       setContent("");
+
+      setTimeout(() => {
+        router.replace("/plaza");
+      }, 1800);
+
       return;
     }
 
-    if (result?.rewrites) {
+    // 4️⃣ Harmful → show rewrites
+    if (job.rewrites?.length) {
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [
         "Softens the tone while keeping your message intact.",
@@ -104,7 +113,7 @@ export default function ComposerPage() {
         "Elevates the language for a more refined delivery.",
       ];
 
-      const formatted: RewriteOption[] = result.rewrites.map((text, i) => ({
+      const formatted = job.rewrites.map((text, i) => ({
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
@@ -115,10 +124,21 @@ export default function ComposerPage() {
     }
   }
 
-  function handleGatekeeperSelect(finalText: string): void {
+  async function handleGatekeeperSelect(finalText: string): Promise<void> {
     setShowGatekeeper(false);
-    publishToSupabase(finalText);
+
+    // Update original post instead of inserting a new one
+    await supabase
+      .from("posts")
+      .update({
+        content: finalText,
+      })
+      .eq("creator_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
     setContent("");
+    router.replace("/plaza");
   }
 
   return (
@@ -155,7 +175,6 @@ export default function ComposerPage() {
           />
         </div>
 
-        {/* ⭐ NEW — Privacy Selector */}
         <div className="px-4 pb-2">
           <select
             value={privacyType}
