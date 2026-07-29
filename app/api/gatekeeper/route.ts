@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import OpenAI from "openai";
 
-// ⭐ Gatekeeper API — SSR Compatible
 export async function POST(req: Request) {
-  // ⭐ FIX: Create OpenAI client inside handler
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
   });
@@ -19,38 +16,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1️⃣ Detect celebratory / positive posts
+    // 1️⃣ Harm Detection (NOT celebration detection)
     const detect = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "You are a classifier. Determine if the text is celebratory, grateful, proud, joyful, or uplifting. Respond ONLY with 'YES' or 'NO'.",
+            "You are a safety classifier. Determine ONLY whether the text contains harmful content such as harassment, bullying, hate, violence, threats, sexual exploitation, or malicious intent. Respond ONLY with 'YES' if harmful, or 'NO' if safe.",
         },
         { role: "user", content: text },
       ],
       max_tokens: 2,
     });
 
-    const isPositive =
+    const isHarmful =
       detect.choices[0].message.content?.trim().toUpperCase() === "YES";
 
-    if (isPositive) {
+    // 2️⃣ If SAFE → auto-approve
+    if (!isHarmful) {
       return NextResponse.json({
         autoApprove: true,
-        reason: "Celebratory or positive content",
+        reason: "Safe content (no harm detected)",
       });
     }
 
-    // 2️⃣ Generate rewrite suggestions (STRICT JSON SCHEMA)
+    // 3️⃣ If HARMFUL → rewrite
     const rewrite = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "Rewrite the user's text in 3 different creative ways. Return ONLY valid JSON.",
+            "Rewrite the user's text in 3 different creative ways that remove harmful content while preserving the user's intended meaning. Return ONLY valid JSON.",
         },
         { role: "user", content: text },
       ],
@@ -87,7 +85,6 @@ export async function POST(req: Request) {
     }
 
     if (!parsed.rewrites || parsed.rewrites.length !== 3) {
-      console.error("Gatekeeper rewrite schema mismatch:", parsed);
       return NextResponse.json({
         autoApprove: false,
         rewrites: [
