@@ -6,8 +6,8 @@ import SpiritToast from "@/app/components/SpiritToast";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter, usePathname } from "next/navigation";
 
-interface GatekeeperJob {
-  id: string;
+interface ModerationResult {
+  id: number;
   post_id: string;
   auto_approve: boolean | null;
   rewrites: string[] | null;
@@ -71,29 +71,29 @@ export default function ComposerPage() {
 
     const postId = insertedPost.id;
 
-    // 2️⃣ Poll gatekeeper_jobs (worker results)
-    let job: GatekeeperJob | null = null;
+    // 2️⃣ Poll post_moderation for worker results
+    let moderation: ModerationResult | null = null;
 
     for (let i = 0; i < 12; i++) {
       const { data } = await supabase
-        .from("gatekeeper_jobs")
+        .from("post_moderation")
         .select("*")
         .eq("post_id", postId)
         .single();
 
-      job = data as GatekeeperJob;
+      moderation = data as ModerationResult;
 
-      if (job && job.auto_approve !== null) {
+      if (moderation && moderation.auto_approve !== null) {
         break;
       }
 
       await new Promise((r) => setTimeout(r, 300));
     }
 
-    if (!job) return;
+    if (!moderation) return;
 
     // 3️⃣ Auto-approved → Spirit Toast + redirect
-    if (job.auto_approve) {
+    if (moderation.auto_approve) {
       setToastMessage("The spirits approve your message ✨");
       setContent("");
 
@@ -105,7 +105,7 @@ export default function ComposerPage() {
     }
 
     // 4️⃣ Harmful → show rewrites
-    if (job.rewrites?.length) {
+    if (moderation.rewrites?.length) {
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [
         "Softens the tone while keeping your message intact.",
@@ -113,7 +113,7 @@ export default function ComposerPage() {
         "Elevates the language for a more refined delivery.",
       ];
 
-      const formatted = job.rewrites.map((text, i) => ({
+      const formatted = moderation.rewrites.map((text, i) => ({
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
@@ -130,9 +130,7 @@ export default function ComposerPage() {
     // Update original post instead of inserting a new one
     await supabase
       .from("posts")
-      .update({
-        content: finalText,
-      })
+      .update({ content: finalText })
       .eq("creator_id", uid)
       .order("created_at", { ascending: false })
       .limit(1);
