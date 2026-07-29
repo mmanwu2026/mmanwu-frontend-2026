@@ -174,15 +174,22 @@ export default function VisionSquareIndex() {
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
 
-      {/* ⭐ RESTORED NAV LINKS */}
-      <div className="mb-6 flex justify-between items-center">
-        <Link href="/vision-square/feed" className="text-gray-600 hover:text-purple-600 transition">
-          ← Feed
-        </Link>
+      {/* ⭐ TAB NAVIGATION */}
+<div className="mb-6 flex items-center gap-3">
 
-        <Link href="/vision-square/trending" className="text-gray-600 hover:text-purple-600 transition">
-          Trending →
-        </Link>
+  <Link
+    href="/feed"
+    className="px-4 py-2 rounded-lg border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
+  >
+    Feed
+  </Link>
+
+  <Link
+    href="/vision-square/trending"
+    className="px-4 py-2 rounded-lg border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
+  >
+    Trending
+  </Link>
 
         <Link
           href="/vision-square/create"
