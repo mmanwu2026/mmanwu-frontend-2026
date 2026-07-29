@@ -174,7 +174,7 @@ export default function VisionSquareIndex() {
 <div className="mb-6 flex items-center gap-3">
 
   <Link
-    href="/feed"
+    href="/vision-square/feed"
     className="px-4 py-2 rounded-lg border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
   >
     Feed
