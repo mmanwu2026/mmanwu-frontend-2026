@@ -89,7 +89,7 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
   if (!content.trim() || loadingUser || !uid) return;
 
   // 1️⃣ Insert the post immediately (no frontend Gatekeeper)
-  const { data: rows, error } = await supabase
+  const { data: insertedPost, error } = await supabase
     .from("posts")
     .insert({
       content,
@@ -100,12 +100,10 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     .select()
     .single();
 
-  if (error || !rows) {
+  if (error || !insertedPost) {
     console.error("Post insert error:", error);
     return;
   }
-
-  const insertedPost = rows;
 
   // 2️⃣ Wait for worker to process the job
   await new Promise((r) => setTimeout(r, 2000));
