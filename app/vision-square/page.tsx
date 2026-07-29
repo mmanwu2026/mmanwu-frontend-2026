@@ -103,13 +103,9 @@ export default function VisionSquareIndex() {
         0
       );
 
-      const weightedPositive = postReactions
-        .filter((r) => (r.value ?? 0) > 0)
-        .reduce((sum, r) => sum + (r.value ?? 0), 0);
+      /* ⭐ Positivity ratio — use RPC value */
+      const positivityRatio = post.positivity_ratio ?? 0.5;
 
-      const weightedTotal = Math.abs(spiritScore);
-      const positivityRatio =
-        weightedTotal > 0 ? weightedPositive / weightedTotal : 0.5;
 
       let autoMask = 2;
       if (spiritScore > 20) autoMask = 3;
