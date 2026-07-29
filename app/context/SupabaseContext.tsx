@@ -12,7 +12,7 @@ import { createClient, type User } from "@supabase/supabase-js";
 interface SupabaseContextType {
   supabase: any;
   user: User | null;
-  hardLogout: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const SupabaseContext = createContext<SupabaseContextType | null>(null);
@@ -24,8 +24,8 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
-          persistSession: true,
-          autoRefreshToken: true, // ⭐ KEEP THIS ON
+          persistSession: true,      // ⭐ Keep user logged in
+          autoRefreshToken: true,    // ⭐ Refresh tokens automatically
         },
       }
     );
@@ -33,63 +33,23 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
 
-  // ⭐ HARD LOGOUT — clears stale session safely in Supabase v2
-  async function hardLogout() {
-    try {
-      await supabase.auth.signOut();
-
-      // ⭐ Clear browser storage
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // ⭐ Clear SW caches (prevents stale PWA state)
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        for (const key of keys) {
-          await caches.delete(key);
-        }
-      }
-
-      setUser(null);
-    } catch (err) {
-      console.error("Hard logout failed:", err);
-      setUser(null);
-    }
-  }
-
-  // ⭐ Detect zombie sessions (expired but resurrected)
-  function detectZombieSession(session: any) {
-    if (!session) return false;
-
-    const expiresAt = session.expires_at;
-    if (!expiresAt) return false;
-
-    return expiresAt * 1000 < Date.now();
+  // ⭐ Modern logout — no clearing storage, no clearing caches
+  async function logout() {
+    await supabase.auth.signOut();
+    setUser(null);
   }
 
   useEffect(() => {
+    // ⭐ Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (detectZombieSession(session)) {
-          console.warn("Zombie session detected — forcing hard logout");
-          await hardLogout();
-          return;
-        }
-
+      (_event, session) => {
         setUser(session?.user ?? null);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const session = data.session;
-
-      if (detectZombieSession(session)) {
-        console.warn("Zombie session detected on load — forcing hard logout");
-        await hardLogout();
-        return;
-      }
-
-      setUser(session?.user ?? null);
+    // ⭐ Load initial session
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
     });
 
     return () => {
@@ -98,7 +58,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   return (
-    <SupabaseContext.Provider value={{ supabase, user, hardLogout }}>
+    <SupabaseContext.Provider value={{ supabase, user, logout }}>
       {children}
     </SupabaseContext.Provider>
   );
