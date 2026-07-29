@@ -217,9 +217,6 @@ export default function VisionSquareIndex() {
             <SafeRender key={post.id}>
               <VisionCard
                 post={post}
-                onReactAction={(maskTier) =>
-                  handleVisionReaction(post.id, maskTier)
-                }
               />
             </SafeRender>
           ))
