@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     const { data, error } = await supabase.rpc("apply_reaction", {
       post_id: postId,
       post_type: postType,
-      maskTier,
+      masktier: maskTier,
       user_id: user.id,
     });
 

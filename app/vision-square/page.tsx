@@ -178,7 +178,7 @@ export default function VisionSquareIndex() {
       post_id: postId,
       post_type: "vision",
       user_id: uid,
-      maskTier,
+      masktier: maskTier,
     });
 
     await loadRecent(); // ⭐ refresh UI
