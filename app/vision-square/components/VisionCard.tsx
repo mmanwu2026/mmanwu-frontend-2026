@@ -415,7 +415,7 @@ export default function VisionCard({
           creatorId={post.creator_id}
           reactions={post.reactions}
           spiritScore={post.spirit_score}
-          positivityRatio={post.positivity_ratio}
+          positivityRatio={localPositivity}
           onReactAction={handleReact}
           privacy_type={post.privacy_type ?? "public"}
           is_follower={post.is_follower ?? false}
