@@ -85,37 +85,68 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     if (data) onPost(data);
   }
 
-  async function handleSubmit(): Promise<void> {
-    if (!content.trim() || loadingUser || !uid) return;
+ async function handleSubmit(): Promise<void> {
+  if (!content.trim() || loadingUser || !uid) return;
 
-    const result = await runGatekeeper(content);
+  // 1️⃣ Insert the post immediately (no frontend Gatekeeper)
+  const { data: rows, error } = await supabase
+    .from("posts")
+    .insert({
+      content,
+      creator_id: uid,
+      mask: 0,
+      privacy_type: privacyType,
+    })
+    .select()
+    .single();
 
-    if (result?.autoApprove) {
-      await publishToSupabase(content);
-      setToastMessage("The spirits approve your message ✨");
-      setContent("");
-      setExpanded(false);
-      return;
-    }
-
-    if (result?.rewrites) {
-      const toneLabels = ["Calm", "Direct", "Elevated"];
-      const toneExplanations = [
-        "Softens the tone while keeping your message intact.",
-        "Keeps your message firm and straightforward.",
-        "Elevates the language for a more refined delivery.",
-      ];
-
-      const formatted: RewriteOption[] = result.rewrites.map((text, i) => ({
-        label: toneLabels[i],
-        text,
-        explanation: toneExplanations[i],
-      }));
-
-      setGatekeeperOptions(formatted);
-      setShowGatekeeper(true);
-    }
+  if (error || !rows) {
+    console.error("Post insert error:", error);
+    return;
   }
+
+  const insertedPost = rows;
+
+  // 2️⃣ Wait for worker to process the job
+  await new Promise((r) => setTimeout(r, 2000));
+
+  // 3️⃣ Refetch updated post
+  const { data: updatedPost } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("id", insertedPost.id)
+    .single();
+
+  if (!updatedPost) return;
+
+  // 4️⃣ If auto-approved → Spirit Toast
+  if (updatedPost.gatekeeper_auto_approve) {
+    setToastMessage("The spirits approve your message ✨");
+    setContent("");
+    setExpanded(false);
+    onPost(updatedPost);
+    return;
+  }
+
+  // 5️⃣ If harmful → show rewrites
+  if (updatedPost.gatekeeper_rewrites?.length) {
+    const toneLabels = ["Calm", "Direct", "Elevated"];
+    const toneExplanations = [
+      "Softens the tone while keeping your message intact.",
+      "Keeps your message firm and straightforward.",
+      "Elevates the language for a more refined delivery.",
+    ];
+
+    const formatted = updatedPost.gatekeeper_rewrites.map((text, i) => ({
+      label: toneLabels[i],
+      text,
+      explanation: toneExplanations[i],
+    }));
+
+    setGatekeeperOptions(formatted);
+    setShowGatekeeper(true);
+  }
+}
 
   function handleGatekeeperSelect(finalText: string): void {
     setShowGatekeeper(false);
