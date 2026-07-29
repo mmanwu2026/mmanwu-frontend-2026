@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import GatekeeperModal, { GatekeeperOption } from "@/app/components/GatekeeperModal";
 import SpiritToast from "@/app/components/SpiritToast";
 import { useSupabase } from "@/app/context/SupabaseContext";
@@ -33,7 +33,8 @@ export default function ComposerPage() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [cancelPolling, setCancelPolling] = useState(false);
+  // ⭐ Synchronous polling control
+  const cancelPollingRef = useRef(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -46,9 +47,10 @@ export default function ComposerPage() {
   }, [supabase]);
 
   async function handleSubmit(): Promise<void> {
-    setCancelPolling(false); // ⭐ RESET POLLING
-    
     if (!content.trim() || loadingUser || !uid) return;
+
+    // ⭐ Reset polling for this new post
+    cancelPollingRef.current = false;
 
     // 1️⃣ Insert post
     const { data: insertedPost, error } = await supabase
@@ -67,13 +69,13 @@ export default function ComposerPage() {
       return;
     }
 
-    const postId = insertedPost.id; // ← LOCAL VARIABLE
+    const postId = insertedPost.id;
 
     // 2️⃣ Poll post_moderation for worker results
     let moderation: ModerationResult | null = null;
 
     for (let i = 0; i < 12; i++) {
-      if (cancelPolling) return;
+      if (cancelPollingRef.current) return;
 
       const { data } = await supabase
         .from("post_moderation")
@@ -84,7 +86,7 @@ export default function ComposerPage() {
       moderation = data as ModerationResult;
 
       if (moderation && moderation.auto_approve !== null) {
-        setCancelPolling(true);
+        cancelPollingRef.current = true;
         break;
       }
 
@@ -95,11 +97,11 @@ export default function ComposerPage() {
 
     // 3️⃣ Auto-approved → Spirit Toast + redirect
     if (moderation.auto_approve) {
+      cancelPollingRef.current = true;
       setToastMessage("The spirits approve your message ✨");
       setContent("");
 
       setTimeout(() => {
-        setCancelPolling(true);
         router.replace("/plaza");
       }, 1800);
 
@@ -108,6 +110,8 @@ export default function ComposerPage() {
 
     // 4️⃣ Harmful → show rewrites
     if (moderation.rewrites?.length) {
+      cancelPollingRef.current = true;
+
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [
         "Softens the tone while keeping your message intact.",
@@ -119,7 +123,7 @@ export default function ComposerPage() {
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
-        postId, // ← attach postId to each option
+        postId,
       }));
 
       setGatekeeperOptions(formatted);
@@ -128,6 +132,9 @@ export default function ComposerPage() {
   }
 
   async function handleGatekeeperSelect(option: GatekeeperOption): Promise<void> {
+    // ⭐ Stop polling immediately
+    cancelPollingRef.current = true;
+
     setShowGatekeeper(false);
 
     // 5️⃣ Update original post with rewrite
@@ -146,7 +153,10 @@ export default function ComposerPage() {
         <GatekeeperModal
           options={gatekeeperOptions}
           onSelect={handleGatekeeperSelect}
-          onClose={() => setShowGatekeeper(false)}
+          onClose={() => {
+            cancelPollingRef.current = true;
+            setShowGatekeeper(false);
+          }}
         />
       )}
 
