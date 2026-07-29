@@ -44,6 +44,7 @@ export default function VisionSquareIndex() {
         creator_id,
         created_at,
         privacy_type,
+        is_follower,
         users:creator_id ( username, avatar_url )
       `)
       .order("created_at", { ascending: false })
@@ -156,6 +157,7 @@ export default function VisionSquareIndex() {
           automask: autoMask,
 
           privacy_type: post.privacy_type,
+          is_follower: post.is_follower ?? false,
 
           users: {
             username: post.users?.username ?? "Unknown",
@@ -182,9 +184,15 @@ export default function VisionSquareIndex() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white text-gray-900">
+
+      {/* ⭐ RESTORED NAV LINKS */}
       <div className="mb-6 flex justify-between items-center">
-        <Link href="/plaza" className="text-gray-600 hover:text-purple-600 transition">
-          ← Plaza
+        <Link href="/feed" className="text-gray-600 hover:text-purple-600 transition">
+          ← Feed
+        </Link>
+
+        <Link href="/vision-square/trending" className="text-gray-600 hover:text-purple-600 transition">
+          Trending →
         </Link>
 
         <Link
