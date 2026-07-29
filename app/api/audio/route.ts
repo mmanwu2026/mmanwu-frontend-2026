@@ -21,7 +21,10 @@ export async function GET(req: Request) {
 
     if (error || !data?.signedUrl) {
       console.error("Signed URL error:", error);
-      return new NextResponse("Failed to generate signed URL", { status: 400 });
+      return NextResponse.json(
+        { message: "Signed URL error", error },
+        { status: 500 }
+      );
     }
 
     const audioRes = await fetch(data.signedUrl);
@@ -32,10 +35,8 @@ export async function GET(req: Request) {
       });
     }
 
-    // ⭐ CRITICAL FIX — get full ArrayBuffer, not stream
-    const buffer = await audioRes.arrayBuffer();
-
     const ext = file.split(".").pop()?.toLowerCase();
+
     let contentType = "application/octet-stream";
     if (ext === "wav") contentType = "audio/wav";
     if (ext === "mp3") contentType = "audio/mpeg";
@@ -43,10 +44,19 @@ export async function GET(req: Request) {
     if (ext === "flac") contentType = "audio/flac";
     if (ext === "m4a") contentType = "audio/mp4";
 
+    const buffer = await audioRes.arrayBuffer();
+
     return new NextResponse(buffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
+
+        // ⭐ CRITICAL FIXES
+        "Content-Length": buffer.byteLength.toString(),
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": `inline; filename="${file}"`,
+
+        // CORS
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Expose-Headers": "*",

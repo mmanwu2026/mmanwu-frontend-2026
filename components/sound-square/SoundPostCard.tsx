@@ -26,7 +26,6 @@ export default function SoundPostCard({
   const { supabase } = useSupabase();
   const router = useRouter();
 
-  // Auth
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,10 +36,6 @@ export default function SoundPostCard({
     }
     loadUser();
   }, [supabase]);
-
-  /* ---------------------------------------------------------
-     ⭐ PRIVACY ENFORCEMENT (Corrected)
-     --------------------------------------------------------- */
 
   const isCreator = uid === post.creator_id;
 
@@ -71,12 +66,9 @@ export default function SoundPostCard({
     isCreator ||
     isFollowing === true;
 
-  /* ---------------------------------------------------------
-     ⭐ Audio + Visualizer Refs
-     --------------------------------------------------------- */
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const sourceRef = useRef<HTMLAudioElement | null>(null);
   const gainRef = useRef<GainNode | null>(null);
 
   const [intensityAnalyser, setIntensityAnalyser] = useState<AnalyserNode | null>(null);
@@ -99,10 +91,7 @@ export default function SoundPostCard({
   const [isBeat, setIsBeat] = useState(false);
 
   const [renderTick, setRenderTick] = useState(0);
-
-  /* ---------------------------------------------------------
-     ⭐ BLOCK ALL PRIVATE CONTENT
-     --------------------------------------------------------- */
+  const [isReady, setIsReady] = useState(false);
 
   if (!isAllowed) {
     return (
@@ -114,77 +103,145 @@ export default function SoundPostCard({
     );
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Playback
-     --------------------------------------------------------- */
-  async function handlePlay() {
-    try {
-      if (!post.audio_url) return;
+async function handlePlay() {
+  if (!post.audio_url) return;
 
-      const path = post.audio_url.replace(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
-        ""
-      );
+  const path = post.audio_url.replace(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/sound_files/`,
+    ""
+  );
 
-      const url = `${process.env.NEXT_PUBLIC_SITE_URL}/api/audio?file=${encodeURIComponent(
-        path
-      )}`;
+  const url = `/api/audio?file=${encodeURIComponent(path)}`;
 
-      const res = await fetch(url);
-      const arrayBuffer = await res.arrayBuffer();
+  const audio = new Audio(url);
+  audio.crossOrigin = "anonymous";
 
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext();
-      }
-      const ctx = audioCtxRef.current;
-
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      setDuration(audioBuffer.duration);
-      setProgress(0);
-
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-
-      if (!gainRef.current) {
-        gainRef.current = ctx.createGain();
-        gainRef.current.gain.value = volume;
-      }
-
-      const intensityNode = ctx.createAnalyser();
-      intensityNode.fftSize = 256;
-
-      const waveformNode = ctx.createAnalyser();
-      waveformNode.fftSize = 2048;
-
-      setIntensityAnalyser(intensityNode);
-      setWaveformAnalyser(waveformNode);
-
-      source.connect(intensityNode);
-      source.connect(waveformNode);
-      source.connect(gainRef.current);
-      gainRef.current.connect(ctx.destination);
-
-      source.start(0);
-      sourceRef.current = source;
-
-      setIsPlaying(true);
-    } catch (err) {
-      console.error("Audio play error:", err);
-    }
+  if (!audioCtxRef.current) {
+    audioCtxRef.current = new AudioContext();
   }
+
+  // ⭐ CRITICAL FIX — resume audio context
+  await audioCtxRef.current.resume();
+
+  const ctx = audioCtxRef.current;
+  const src = ctx.createMediaElementSource(audio);
+
+  audio.addEventListener("loadedmetadata", () => {
+    setDuration(audio.duration);
+    setIsReady(true);
+  });
+
+  const intensityNode = ctx.createAnalyser();
+  intensityNode.fftSize = 256;
+
+  const waveformNode = ctx.createAnalyser();
+  waveformNode.fftSize = 2048;
+
+  if (!gainRef.current) {
+    gainRef.current = ctx.createGain();
+    gainRef.current.gain.value = volume;
+  }
+
+  src.connect(intensityNode);
+  src.connect(waveformNode);
+  src.connect(gainRef.current);
+  gainRef.current.connect(ctx.destination);
+
+  setIntensityAnalyser(intensityNode);
+  setWaveformAnalyser(waveformNode);
+
+  audio.addEventListener("ended", () => {
+    setIsPlaying(false);
+    setProgress(0);
+    setRenderTick((t) => t + 1);
+    setIsReady(false);
+  });
+
+  sourceRef.current = audio;
+  await audio.play();
+  setIsPlaying(true);
+}
 
   function handlePause() {
-    try {
-      sourceRef.current?.stop();
-      setIsPlaying(false);
-    } catch (err) {
-      console.error("Pause error:", err);
-    }
+    const audio = sourceRef.current;
+    if (!audio) return;
+    audio.pause();
+    setIsPlaying(false);
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Delete Post (Corrected)
-     --------------------------------------------------------- */
+  useEffect(() => {
+    let animationId: number;
+
+    function draw() {
+      const canvas = canvasRef.current;
+      const intensityNode = intensityAnalyser;
+      const waveformNode = waveformAnalyser;
+
+      if (!canvas || !intensityNode || !waveformNode) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const waveformData = new Uint8Array(waveformNode.frequencyBinCount);
+      waveformNode.getByteTimeDomainData(waveformData);
+
+      ctx.beginPath();
+      ctx.strokeStyle = "#a855f7";
+      ctx.lineWidth = 2;
+
+      const sliceWidth = width / waveformData.length;
+      let x = 0;
+
+      for (let i = 0; i < waveformData.length; i++) {
+        const v = waveformData[i] / 128.0;
+        const y = (v * height) / 2;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+      }
+
+      ctx.stroke();
+
+      const intensityData = new Uint8Array(intensityNode.frequencyBinCount);
+      intensityNode.getByteFrequencyData(intensityData);
+      const avg =
+        intensityData.reduce((sum, v) => sum + v, 0) /
+        (intensityData.length || 1);
+
+      const normalized = avg / 255;
+      setIntensity(normalized);
+      setIsBeat(normalized > 0.6);
+
+      if (sourceRef.current) {
+        setProgress(sourceRef.current.currentTime);
+      }
+
+      animationId = requestAnimationFrame(draw);
+    }
+
+    animationId = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [intensityAnalyser, waveformAnalyser, renderTick]);
+
   async function handleDelete() {
     if (!uid || uid !== post.creator_id) return;
 
@@ -212,9 +269,6 @@ export default function SoundPostCard({
     router.refresh();
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Refresh Reactions (Corrected)
-     --------------------------------------------------------- */
   const refreshReactions = async () => {
     const { data: reactionRows } = await supabase
       .from("reactions")
@@ -261,9 +315,6 @@ export default function SoundPostCard({
     router.refresh();
   };
 
-  /* ---------------------------------------------------------
-     ⭐ Submit Comment (blocked if private)
-     --------------------------------------------------------- */
   async function submitComment() {
     setCommentError("");
 
@@ -308,19 +359,14 @@ export default function SoundPostCard({
       ? post.comments![post.comments!.length - 1]
       : null;
 
-  /* ---------------------------------------------------------
-     ⭐ RENDER
-     --------------------------------------------------------- */
   return (
     <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
-      {/* Title → Post Detail */}
       <Link href={`/sound-square/post/${post.id}`}>
         <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
           {post.title}
         </h2>
       </Link>
 
-      {/* Creator → Profile */}
       <Link
         href={`/profile/${post.creator_id}`}
         className="text-gray-400 hover:text-gray-200 text-sm"
@@ -328,28 +374,26 @@ export default function SoundPostCard({
         @{post.users?.username ?? "Unknown"}
       </Link>
 
-      {/* ⭐ Sound Post Stats */}
       <div className="flex flex-row items-center justify-between text-xs text-white/70 mt-3 mb-2">
         <div>
-          <p className="font-semibold text-white">SpiritScore: {post.spirit_score}</p>
-          <p>Positivity: {Math.round(post.positivity_ratio * 100)}%</p>
-          <p>Mask: {post.automask}</p>
+          <p className="font-semibold text-white">SpiritScore: {spiritScore}</p>
+          <p>Positivity: {Math.round(positivityRatio * 100)}%</p>
+          <p>Mask: {autoMask}</p>
         </div>
 
         <div className="text-right">
           <p>
             Total Reactions:{" "}
-            {post.reactions.mask1 +
-              post.reactions.mask2 +
-              post.reactions.mask3 +
-              post.reactions.mask4 +
-              post.reactions.mask5 +
-              post.reactions.mask6}
+            {reactions.mask1 +
+              reactions.mask2 +
+              reactions.mask3 +
+              reactions.mask4 +
+              reactions.mask5 +
+              reactions.mask6}
           </p>
         </div>
       </div>
 
-      {/* Audio Player */}
       <div className="mt-4">
         <div className="flex items-center gap-3 mt-2">
           {!isPlaying ? (
@@ -368,18 +412,27 @@ export default function SoundPostCard({
             </button>
           )}
 
-          <span
-            className={`text-purple-300 text-lg no-levitate ${
-              isBeat ? "beat-active beat-color" : ""
-            }`}
-            style={{ transform: `scale(${scale})` }}
-          >
-            {MASK_EMOJI[autoMask]}
-          </span>
+          {/* ⭐ Full-width emoji animation lane */}
+<div className="relative w-full h-10 mt-2">
+  <div
+    className={`${isBeat ? "mask-bounce" : ""}`}
+    style={{
+      position: "absolute",
+      left: isReady ? `${(progress / duration) * 100}%` : "0%",
+      transform: `translateX(-50%) scale(${scale})`,
+      transition: isReady ? "left 0.05s linear" : "none",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {MASK_EMOJI[autoMask]}
+  </div>
+</div>
         </div>
 
         <div className="text-gray-400 text-sm mt-1">
-          {progress.toFixed(1)}s / {duration.toFixed(1)}s
+          {isReady
+            ? `${progress.toFixed(1)}s / ${duration.toFixed(1)}s`
+            : "Loading…"}
         </div>
 
         <div className="mt-2">
@@ -393,6 +446,9 @@ export default function SoundPostCard({
               const v = Number(e.target.value);
               setVolume(v);
               if (gainRef.current) gainRef.current.gain.value = v;
+              if (sourceRef.current && !gainRef.current) {
+                sourceRef.current.volume = v;
+              }
             }}
             className="w-full"
           />
@@ -401,15 +457,13 @@ export default function SoundPostCard({
         <canvas ref={canvasRef} className="w-full h-24 mt-3" />
       </div>
 
-{/* Reaction Bar */}
-<SoundReactionBar
-  postId={post.id}
-  creatorId={post.creator_id}
-  reactions={reactions}
-  onReactAction={refreshReactions}
-/>
+      <SoundReactionBar
+        postId={post.id}
+        creatorId={post.creator_id}
+        reactions={reactions}
+        onReactAction={refreshReactions}
+      />
 
-      {/* ⭐ Inline Latest Comment */}
       {latestComment && (
         <div className="mt-4 bg-gray-800 p-3 rounded">
           <p className="text-sm text-gray-300">
@@ -437,7 +491,6 @@ export default function SoundPostCard({
         </button>
       )}
 
-      {/* ⭐ Full Comments Modal */}
       {showCommentsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
           <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
@@ -482,7 +535,6 @@ export default function SoundPostCard({
         </div>
       )}
 
-      {/* Delete (creator only) */}
       {uid === post.creator_id && (
         <button
           onClick={handleDelete}

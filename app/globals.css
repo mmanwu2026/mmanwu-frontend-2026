@@ -361,5 +361,19 @@ body.has-update-banner .pt-20 {
 }
 
 /* ------------------------------------------------------------ */
+/* Audio Animation                                             */
+/* ------------------------------------------------------------ */
+
+.mask-bounce {
+  animation: maskBounce 0.25s ease-out;
+}
+
+@keyframes maskBounce {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+/* ------------------------------------------------------------ */
 /* END CLEANED CSS                                              */
 /* ------------------------------------------------------------ */
