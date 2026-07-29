@@ -26,11 +26,14 @@ export async function GET(req: Request) {
 
     const audioRes = await fetch(data.signedUrl);
 
-    if (!audioRes.ok || !audioRes.body) {
+    if (!audioRes.ok) {
       return new NextResponse("Failed to fetch audio file", {
         status: audioRes.status,
       });
     }
+
+    // ⭐ CRITICAL FIX — get full ArrayBuffer, not stream
+    const buffer = await audioRes.arrayBuffer();
 
     const ext = file.split(".").pop()?.toLowerCase();
     let contentType = "application/octet-stream";
@@ -40,19 +43,13 @@ export async function GET(req: Request) {
     if (ext === "flac") contentType = "audio/flac";
     if (ext === "m4a") contentType = "audio/mp4";
 
-    return new NextResponse(audioRes.body, {
+    return new NextResponse(buffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-
-        // ⭐ REQUIRED FOR WEB AUDIO API
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Expose-Headers": "*",
-
-        // ⭐ CRITICAL FIX — WITHOUT THESE, WEB AUDIO OUTPUTS ZEROES
-        "Cross-Origin-Resource-Policy": "cross-origin",
-        "Cross-Origin-Embedder-Policy": "require-corp",
       },
     });
   } catch (err) {
