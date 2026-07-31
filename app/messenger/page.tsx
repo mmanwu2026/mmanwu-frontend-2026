@@ -229,7 +229,7 @@ useEffect(() => {
           onClick={() => setSidebarOpen(true)}
           className="px-3 py-2 bg-purple-700 rounded-lg"
         >
-          Chats
+          Contacts
         </button>
       </div>
 

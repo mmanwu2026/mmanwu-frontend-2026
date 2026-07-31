@@ -203,7 +203,10 @@ export default function MessengerSidebar({
   return (
     <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto text-white">
 
-      <h2 className="text-lg mb-4">Contacts</h2>
+      <h2 className="text-lg mb-4 pointer-events-none select-none">
+        Contacts
+      </h2>
+
 
       {/* ⭐ Search */}
       <input
