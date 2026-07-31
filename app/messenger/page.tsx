@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import MessengerSidebar from "@/components/messenger/MessengerSidebar";
+import NewChatModal from "@/components/messenger/NewChatModal";
 import { useRouter } from "next/navigation";
 
 const FALLBACK_AVATAR =
@@ -22,6 +23,7 @@ export default function MessengerPage() {
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showNewChat, setShowNewChat] = useState(false);
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function MessengerPage() {
     loadUsers();
   }, [uid, supabase]);
 
-  /* ---------------- LOAD THREADS FOR RECENTS ---------------- */
+  /* ---------------- LOAD THREADS ---------------- */
   useEffect(() => {
     async function loadThreads() {
       if (!uid) return;
@@ -144,60 +146,29 @@ export default function MessengerPage() {
     loadThreads();
   }, [uid, users, supabase]);
 
-/* ---------------- LOAD RECENT CALLS ---------------- */
-useEffect(() => {
-  async function loadRecentCalls() {
-    if (!uid) return;
-
-    const { data, error } = await supabase
-      .from("call_logs")
-      .select("*")
-      .or(`caller_id.eq.${uid},receiver_id.eq.${uid}`)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (error) {
-      console.error("Error loading recent calls:", error);
-      setRecentCalls([]);
-      return;
-    }
-
-    setRecentCalls(data || []);
-  }
-
-  loadRecentCalls();
-}, [uid, supabase]);
-
-  /* ---------------- MOBILE SWIPE GESTURE ---------------- */
+  /* ---------------- LOAD RECENT CALLS ---------------- */
   useEffect(() => {
-    let startX = 0;
-    let endX = 0;
+    async function loadRecentCalls() {
+      if (!uid) return;
 
-    function handleTouchStart(e: TouchEvent) {
-      startX = e.touches[0].clientX;
+      const { data, error } = await supabase
+        .from("call_logs")
+        .select("*")
+        .or(`caller_id.eq.${uid},receiver_id.eq.${uid}`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error("Error loading recent calls:", error);
+        setRecentCalls([]);
+        return;
+      }
+
+      setRecentCalls(data || []);
     }
 
-    function handleTouchMove(e: TouchEvent) {
-      endX = e.touches[0].clientX;
-    }
-
-    function handleTouchEnd() {
-      const delta = endX - startX;
-
-      if (delta > 80) setSidebarOpen(true);
-      if (delta < -80) setSidebarOpen(false);
-    }
-
-    window.addEventListener("touchstart", handleTouchStart);
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchend", handleTouchEnd);
-
-    return () => {
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, []);
+    loadRecentCalls();
+  }, [uid, supabase]);
 
   /* ---------------- LOADING STATES ---------------- */
   if (sessionLoading || loading) {
@@ -243,22 +214,22 @@ useEffect(() => {
 
       <div className="flex flex-1 overflow-x-hidden">
 
-        {/* ⭐ Sidebar */}
-      <div
-        className={`
-          fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
-          transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-
-          overflow-y-auto
-          md:static md:translate-x-0 md:w-72 md:flex-shrink-0 md:overflow-y-auto
-        `}
-      >
-
+        {/* ⭐ Sidebar Drawer */}
+        <div
+          className={`
+            fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
+            transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+            overflow-y-auto
+            md:static md:translate-x-0 md:w-72 md:flex-shrink-0 md:overflow-y-auto
+          `}
+          onClick={(e) => e.stopPropagation()}
+        >
           <MessengerSidebar
             users={users}
-            userId={uid}
+            userId={uid as string}
             onSelect={() => setSidebarOpen(false)}
+            setShowNewChat={setShowNewChat}
           />
 
           <button
@@ -272,6 +243,15 @@ useEffect(() => {
         {/* ⭐ Main Content */}
         <div className="flex-1 overflow-y-auto p-6">
 
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => setShowNewChat(true)}
+              className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-500"
+            >
+              + New Chat
+            </button>
+          </div>
+
           {/* ⭐ Recent Conversations */}
           <h2 className="text-xl font-bold mb-4">Recent Conversations</h2>
 
@@ -280,8 +260,7 @@ useEffect(() => {
           ) : (
             threads.map((t) => {
               const profile = t.profile;
-              const avatar =
-                profile?.avatar_url || FALLBACK_AVATAR;
+              const avatar = profile?.avatar_url || FALLBACK_AVATAR;
               const name =
                 profile?.display_name || profile?.username || "Unknown User";
 
@@ -348,6 +327,18 @@ useEffect(() => {
 
         </div>
       </div>
+
+      {/* ⭐ NewChatModal — MUST BE OUTSIDE ALL SCROLL/TRANSFORM CONTAINERS */}
+      {showNewChat && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
+          <NewChatModal
+            open={showNewChat}
+            onClose={() => setShowNewChat(false)}
+            users={users}
+            userId={uid as string}
+          />
+        </div>
+      )}
     </div>
   );
 }

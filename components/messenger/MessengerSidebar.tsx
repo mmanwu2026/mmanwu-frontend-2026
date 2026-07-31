@@ -34,6 +34,13 @@ interface Thread {
   unreadCount: number;
 }
 
+interface MessengerSidebarProps {
+  users: any[];
+  userId: string;
+  onSelect?: () => void;
+  setShowNewChat: (open: boolean) => void;   // ⭐ Correct prop typing
+}
+
 const FALLBACK_AVATAR =
   "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
@@ -41,19 +48,14 @@ export default function MessengerSidebar({
   users,
   userId,
   onSelect,
-}: {
-  users: any[];
-  userId: string;
-  onSelect?: () => void;
-}) {
+  setShowNewChat,   // ⭐ Correctly received from parent
+}: MessengerSidebarProps) {
   const { supabase } = useSupabase();
   const router = useRouter();
 
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [showNewChat, setShowNewChat] = useState(false);
-
   const [search, setSearch] = useState("");
-  const [pinned, setPinned] = useState<string[]>([]); // roomIds
+  const [pinned, setPinned] = useState<string[]>([]);
 
   function getUserProfile(id: string | null) {
     if (!id) return null;
@@ -199,159 +201,158 @@ export default function MessengerSidebar({
   );
 
   /* ---------------- UI ---------------- */
+  return (
+    <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto text-white">
 
-return (
-  <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto text-white">
+      {/* ⭐ Contacts Header */}
+      <div className="mb-4">
+        <h2 className="text-lg pointer-events-none select-none">
+          Contacts
+        </h2>
+      </div>
 
-    {/* ⭐ Contacts Header — fully non-clickable */}
-    <div
-      className="mb-4"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <h2 className="text-lg pointer-events-none select-none">
-        Contacts
-      </h2>
-    </div>
+      {/* ⭐ Search */}
+      <input
+        type="text"
+        placeholder="Search conversations..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full px-3 py-2 mb-4 rounded bg-neutral-800 text-white placeholder-neutral-500"
+      />
 
-    {/* ⭐ Search */}
-    <input
-      type="text"
-      placeholder="Search conversations..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="w-full px-3 py-2 mb-4 rounded bg-neutral-800 text-white placeholder-neutral-500"
-    />
+      {/* ⭐ New Chat */}
+      <button
+        onClick={() => setShowNewChat(true)}   // ⭐ Now works
+        className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-6"
+      >
+        + New Chat
+      </button>
 
-    {/* ⭐ New Chat */}
-    <button
-      onClick={() => setShowNewChat(true)}
-      className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-6"
-    >
-      + New Chat
-    </button>
+      {/* ⭐ Pinned */}
+      {pinnedThreads.length > 0 && (
+        <>
+          <h3 className="text-sm text-neutral-400 mb-2">Pinned</h3>
+          <div className="space-y-2 mb-6">
+            {pinnedThreads.map((t) => {
+              const profile = getUserProfile(t.otherUserId);
+              const name =
+                profile?.display_name || profile?.username || "Unknown User";
+              const avatar =
+                profile?.avatar_url || FALLBACK_AVATAR;
 
-    {/* ⭐ Pinned */}
-    {pinnedThreads.length > 0 && (
-      <>
-        <h3 className="text-sm text-neutral-400 mb-2">Pinned</h3>
-        <div className="space-y-2 mb-6">
-          {pinnedThreads.map((t) => {
-            const profile = getUserProfile(t.otherUserId);
-            const name =
-              profile?.display_name || profile?.username || "Unknown User";
-            const avatar =
-              profile?.avatar_url || FALLBACK_AVATAR;
+              return (
+                <button
+                  key={t.roomId}
+                  onClick={() => {
+                    onSelect?.();
+                    router.push(`/messenger/${t.roomId}`);
+                  }}
+                  className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
+                >
+                  <img
+                    src={avatar}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <span className="font-bold">{name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
-            return (
-              <button
-                key={t.roomId}
-                onClick={() => {
-                  onSelect?.();
-                  router.push(`/messenger/${t.roomId}`);
-                }}
-                className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
-              >
-                <img
-                  src={avatar}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <span className="font-bold">{name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </>
-    )}
-
-    {/* ⭐ Favorites (followed users) */}
-    <h3 className="text-sm text-neutral-400 mb-2">Favorites</h3>
-    <div className="space-y-2 mb-6">
-      {users.map((u) => (
-        <button
-          key={u.id}
-          onClick={() => {
-            onSelect?.();
-            router.push(`/messenger/start/${u.id}`);
-          }}
-          className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
-        >
-          <img
-            src={u.avatar_url || FALLBACK_AVATAR}
-            className="w-10 h-10 rounded-full object-cover"
-          />
-          <span className="font-bold">
-            {u.display_name || u.username}
-          </span>
-        </button>
-      ))}
-    </div>
-
-    {/* ⭐ Threads */}
-    <h3 className="text-sm text-neutral-400 mb-2">Conversations</h3>
-    <div className="space-y-2">
-      {normalThreads.map((t) => {
-        const profile = getUserProfile(t.otherUserId);
-        const name =
-          profile?.display_name || profile?.username || "Unknown User";
-        const avatar =
-          profile?.avatar_url || FALLBACK_AVATAR;
-
-        return (
+      {/* ⭐ Favorites */}
+      <h3 className="text-sm text-neutral-400 mb-2">Favorites</h3>
+      <div className="space-y-2 mb-6">
+        {users.map((u) => (
           <button
-            key={t.roomId}
+            key={u.id}
             onClick={() => {
-              onSelect?.();
-              router.push(`/messenger/${t.roomId}`);
+              const existingThread =
+                pinnedThreads.find((t) => t.otherUserId === u.id) ||
+                normalThreads.find((t) => t.otherUserId === u.id);
+
+              if (existingThread) {
+                onSelect?.();
+                router.push(`/messenger/${existingThread.roomId}`);
+              } else {
+                onSelect?.();
+                router.push(`/messenger/start/${u.id}`);
+              }
             }}
             className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
           >
             <img
-              src={avatar}
+              src={u.avatar_url || FALLBACK_AVATAR}
               className="w-10 h-10 rounded-full object-cover"
             />
-
-            <div className="flex-1">
-              <div className="font-bold">{name}</div>
-              <div className="text-neutral-400 text-sm">
-                {t.lastMessage
-                  ? t.lastMessage.message_type === "text"
-                    ? t.lastMessage.content
-                    : t.lastMessage.message_type === "image"
-                    ? "Sent an image"
-                    : t.lastMessage.message_type === "audio"
-                    ? "Sent an audio clip"
-                    : t.lastMessage.message_type === "video"
-                    ? "Sent a video"
-                    : t.lastMessage.message_type
-                  : "No messages yet"}
-              </div>
-            </div>
-
-            {/* Pin button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setPinned((prev) =>
-                  prev.includes(t.roomId)
-                    ? prev.filter((id) => id !== t.roomId)
-                    : [...prev, t.roomId]
-                );
-              }}
-              className="text-neutral-400 hover:text-white"
-            >
-              📌
-            </button>
+            <span className="font-bold">
+              {u.display_name || u.username}
+            </span>
           </button>
-        );
-      })}
-    </div>
+        ))}
+      </div>
 
-    <NewChatModal
-      open={showNewChat}
-      onClose={() => setShowNewChat(false)}
-      users={users}
-      userId={userId}
-    />
-  </div>
-);
+      {/* ⭐ Threads */}
+      <h3 className="text-sm text-neutral-400 mb-2">Conversations</h3>
+      <div className="space-y-2">
+        {normalThreads.map((t) => {
+          const profile = getUserProfile(t.otherUserId);
+          const name =
+            profile?.display_name || profile?.username || "Unknown User";
+          const avatar =
+            profile?.avatar_url || FALLBACK_AVATAR;
+
+          return (
+            <button
+              key={t.roomId}
+              onClick={() => {
+                onSelect?.();
+                router.push(`/messenger/${t.roomId}`);
+              }}
+              className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
+            >
+              <img
+                src={avatar}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+
+              <div className="flex-1">
+                <div className="font-bold">{name}</div>
+                <div className="text-neutral-400 text-sm">
+                  {t.lastMessage
+                    ? t.lastMessage.message_type === "text"
+                      ? t.lastMessage.content
+                      : t.lastMessage.message_type === "image"
+                      ? "Sent an image"
+                      : t.lastMessage.message_type === "audio"
+                      ? "Sent an audio clip"
+                      : t.lastMessage.message_type === "video"
+                      ? "Sent a video"
+                      : t.lastMessage.message_type
+                    : "No messages yet"}
+                </div>
+              </div>
+
+              {/* ⭐ FIXED: no nested button */}
+              <div
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPinned((prev) =>
+                    prev.includes(t.roomId)
+                      ? prev.filter((id) => id !== t.roomId)
+                      : [...prev, t.roomId]
+                  );
+                }}
+                className="text-neutral-400 hover:text-white cursor-pointer"
+              >
+                📌
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
