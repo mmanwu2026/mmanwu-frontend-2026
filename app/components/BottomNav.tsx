@@ -66,7 +66,7 @@ export default function BottomNav() {
             isActive("/messenger") ? "text-purple-400" : "text-neutral-400"
           }`}
         />
-        <span className="text-xs">Chat</span>
+        <span className="text-xs">Contacts</span>
       </Link>
 
     </nav>

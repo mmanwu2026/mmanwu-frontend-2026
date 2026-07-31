@@ -243,9 +243,15 @@ export default function MessengerPage() {
             fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
             transition-transform duration-300 ease-in-out
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-            md:static md:translate-x-0 md:w-72 md:flex-shrink-0
+
+            /* ⭐ Mobile drawer scroll */
+            overflow-y-auto
+
+            /* ⭐ Desktop scroll */
+            md:static md:translate-x-0 md:w-72 md:flex-shrink-0 md:overflow-y-auto
           `}
         >
+
           <MessengerSidebar
             users={users}
             userId={uid}
