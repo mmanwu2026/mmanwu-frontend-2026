@@ -144,23 +144,29 @@ export default function MessengerPage() {
     loadThreads();
   }, [uid, users, supabase]);
 
-  /* ---------------- LOAD RECENT CALLS ---------------- */
-  useEffect(() => {
-    async function loadRecentCalls() {
-      if (!uid) return;
+/* ---------------- LOAD RECENT CALLS ---------------- */
+useEffect(() => {
+  async function loadRecentCalls() {
+    if (!uid) return;
 
-      const { data } = await supabase
-        .from("call_logs")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false })
-        .limit(20);
+    const { data, error } = await supabase
+      .from("call_logs")
+      .select("*")
+      .or(`caller_id.eq.${uid},receiver_id.eq.${uid}`)
+      .order("created_at", { ascending: false })
+      .limit(20);
 
-      setRecentCalls(data || []);
+    if (error) {
+      console.error("Error loading recent calls:", error);
+      setRecentCalls([]);
+      return;
     }
 
-    loadRecentCalls();
-  }, [uid, supabase]);
+    setRecentCalls(data || []);
+  }
+
+  loadRecentCalls();
+}, [uid, supabase]);
 
   /* ---------------- MOBILE SWIPE GESTURE ---------------- */
   useEffect(() => {
@@ -238,19 +244,16 @@ export default function MessengerPage() {
       <div className="flex flex-1 overflow-x-hidden">
 
         {/* ⭐ Sidebar */}
-        <div
-          className={`
-            fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
-            transition-transform duration-300 ease-in-out
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+      <div
+        className={`
+          fixed inset-y-0 left-0 w-64 bg-gray-900 z-40 transform
+          transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
 
-            /* ⭐ Mobile drawer scroll */
-            overflow-y-auto
-
-            /* ⭐ Desktop scroll */
-            md:static md:translate-x-0 md:w-72 md:flex-shrink-0 md:overflow-y-auto
-          `}
-        >
+          overflow-y-auto
+          md:static md:translate-x-0 md:w-72 md:flex-shrink-0 md:overflow-y-auto
+        `}
+      >
 
           <MessengerSidebar
             users={users}
