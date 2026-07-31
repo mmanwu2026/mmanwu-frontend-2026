@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -16,7 +19,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1️⃣ Harm Detection (NOT celebration detection)
+    // 1️⃣ Harm Detection
     const detect = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -33,7 +36,6 @@ export async function POST(req: Request) {
     const isHarmful =
       detect.choices[0].message.content?.trim().toUpperCase() === "YES";
 
-    // 2️⃣ If SAFE → auto-approve
     if (!isHarmful) {
       return NextResponse.json({
         autoApprove: true,
