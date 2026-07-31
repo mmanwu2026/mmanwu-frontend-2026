@@ -52,6 +52,9 @@ export default function MessengerSidebar({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [pinned, setPinned] = useState<string[]>([]); // roomIds
+
   function getUserProfile(id: string | null) {
     if (!id) return null;
     return users.find((u: any) => u.id === id) || null;
@@ -146,7 +149,7 @@ export default function MessengerSidebar({
     loadThreads();
   }, [userId, supabase]);
 
-  /* ---------------- PATCH 12 — Realtime new message indicator ---------------- */
+  /* ---------------- REALTIME NEW MESSAGE INDICATOR ---------------- */
   useEffect(() => {
     if (!userId) return;
 
@@ -179,37 +182,111 @@ export default function MessengerSidebar({
     };
   }, [userId, supabase]);
 
+  /* ---------------- FILTER THREADS ---------------- */
+  const filteredThreads = threads.filter((t) => {
+    const profile = getUserProfile(t.otherUserId);
+    const name =
+      profile?.display_name || profile?.username || "Unknown User";
+    return name.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const pinnedThreads = filteredThreads.filter((t) =>
+    pinned.includes(t.roomId)
+  );
+
+  const normalThreads = filteredThreads.filter(
+    (t) => !pinned.includes(t.roomId)
+  );
+
   /* ---------------- UI ---------------- */
 
-  if (!userId) {
-    return (
-      <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 text-white">
-        Loading…
-      </div>
-    );
-  }
-
   return (
-    <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto">
-      <h2 className="text-white text-lg mb-4">Chats</h2>
+    <div className="w-[260px] bg-neutral-900 border-r border-neutral-800 p-4 overflow-y-auto text-white">
 
+      <h2 className="text-lg mb-4">Contacts</h2>
+
+      {/* ⭐ Search */}
+      <input
+        type="text"
+        placeholder="Search conversations..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full px-3 py-2 mb-4 rounded bg-neutral-800 text-white placeholder-neutral-500"
+      />
+
+      {/* ⭐ New Chat */}
       <button
         onClick={() => setShowNewChat(true)}
-        className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-4"
+        className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white mb-6"
       >
         + New Chat
       </button>
 
-      <div className="space-y-2 mb-6">
-        {threads.map((t) => {
-          const profile = getUserProfile(t.otherUserId);
-          const displayName =
-            profile?.display_name ?? profile?.username ?? "Unknown User";
+      {/* ⭐ Pinned */}
+      {pinnedThreads.length > 0 && (
+        <>
+          <h3 className="text-sm text-neutral-400 mb-2">Pinned</h3>
+          <div className="space-y-2 mb-6">
+            {pinnedThreads.map((t) => {
+              const profile = getUserProfile(t.otherUserId);
+              const name =
+                profile?.display_name || profile?.username || "Unknown User";
+              const avatar =
+                profile?.avatar_url || FALLBACK_AVATAR;
 
+              return (
+                <button
+                  key={t.roomId}
+                  onClick={() => {
+                    onSelect?.();
+                    router.push(`/messenger/${t.roomId}`);
+                  }}
+                  className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
+                >
+                  <img
+                    src={avatar}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <span className="font-bold">{name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ⭐ Favorites (followed users) */}
+      <h3 className="text-sm text-neutral-400 mb-2">Favorites</h3>
+      <div className="space-y-2 mb-6">
+        {users.map((u) => (
+          <button
+            key={u.id}
+            onClick={() => {
+              onSelect?.();
+              router.push(`/messenger/start/${u.id}`);
+            }}
+            className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
+          >
+            <img
+              src={u.avatar_url || FALLBACK_AVATAR}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <span className="font-bold">
+              {u.display_name || u.username}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* ⭐ Threads */}
+      <h3 className="text-sm text-neutral-400 mb-2">Conversations</h3>
+      <div className="space-y-2">
+        {normalThreads.map((t) => {
+          const profile = getUserProfile(t.otherUserId);
+          const name =
+            profile?.display_name || profile?.username || "Unknown User";
           const avatar =
-            profile?.avatar_url && profile.avatar_url.trim() !== ""
-              ? profile.avatar_url
-              : FALLBACK_AVATAR;
+            profile?.avatar_url || FALLBACK_AVATAR;
 
           return (
             <button
@@ -218,49 +295,44 @@ export default function MessengerSidebar({
                 onSelect?.();
                 router.push(`/messenger/${t.roomId}`);
               }}
-              className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-left"
+              className="w-full px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-left flex items-center gap-3"
             >
-              <div className="flex items-center gap-3">
-                <img
-                  src={avatar}
-                  alt="avatar"
-                  className="w-10 h-10 rounded-full object-cover"
-                />
+              <img
+                src={avatar}
+                className="w-10 h-10 rounded-full object-cover"
+              />
 
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold">
-                      {t.isGroup ? "Group Chat" : displayName}
-                    </span>
-
-                    {t.unreadCount > 0 && (
-                      <span className="ml-2 px-2 py-1 text-xs bg-red-600 text-white rounded-full">
-                        {t.unreadCount}
-                      </span>
-                    )}
-
-                    {t.inCall && (
-                      <span className="ml-2 text-xs px-2 py-1 rounded bg-green-700 text-green-100">
-                        In Call
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-neutral-400 text-sm">
-                    {t.lastMessage
-                      ? t.lastMessage.message_type === "text"
-                        ? `${t.lastMessage.sender_id}: ${t.lastMessage.content}`
-                        : t.lastMessage.message_type === "image"
-                        ? `${t.lastMessage.sender_id} sent an image`
-                        : t.lastMessage.message_type === "audio"
-                        ? `${t.lastMessage.sender_id} sent an audio clip`
-                        : t.lastMessage.message_type === "video"
-                        ? `${t.lastMessage.sender_id} sent a video`
-                        : `${t.lastMessage.sender_id}: ${t.lastMessage.message_type}`
-                      : "No messages yet"}
-                  </div>
+              <div className="flex-1">
+                <div className="font-bold">{name}</div>
+                <div className="text-neutral-400 text-sm">
+                  {t.lastMessage
+                    ? t.lastMessage.message_type === "text"
+                      ? t.lastMessage.content
+                      : t.lastMessage.message_type === "image"
+                      ? "Sent an image"
+                      : t.lastMessage.message_type === "audio"
+                      ? "Sent an audio clip"
+                      : t.lastMessage.message_type === "video"
+                      ? "Sent a video"
+                      : t.lastMessage.message_type
+                    : "No messages yet"}
                 </div>
               </div>
+
+              {/* Pin button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPinned((prev) =>
+                    prev.includes(t.roomId)
+                      ? prev.filter((id) => id !== t.roomId)
+                      : [...prev, t.roomId]
+                  );
+                }}
+                className="text-neutral-400 hover:text-white"
+              >
+                📌
+              </button>
             </button>
           );
         })}

@@ -3,22 +3,23 @@
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import MessengerSidebar from "@/components/messenger/MessengerSidebar";
+import { useRouter } from "next/navigation";
 
-interface UserRow {
-  id: string;
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-}
+const FALLBACK_AVATAR =
+  "https://dnhklmhwbkfhbolskqnt.supabase.co/storage/v1/object/public/avatars/avatar-fallback-256.png";
 
 export default function MessengerPage() {
   const { supabase } = useSupabase();
+  const router = useRouter();
 
   const [uid, setUid] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
 
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [threads, setThreads] = useState<any[]>([]);
+  const [recentCalls, setRecentCalls] = useState<any[]>([]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -33,7 +34,7 @@ export default function MessengerPage() {
     loadSession();
   }, [supabase]);
 
-  /* ---------------- LOAD USERS (FOLLOWED ONLY) ---------------- */
+  /* ---------------- LOAD FOLLOWED USERS ---------------- */
   useEffect(() => {
     async function loadUsers() {
       if (!uid) {
@@ -41,47 +42,156 @@ export default function MessengerPage() {
         return;
       }
 
-      // Step A — get IDs of users you follow
-      const { data: following, error: followError } = await supabase
+      const { data: following } = await supabase
         .from("follows")
         .select("following_id")
         .eq("follower_id", uid);
 
-      if (followError) {
-        console.error("Error loading follow list:", followError);
-        setUsers([]);
-        setLoading(false);
-        return;
-      }
-
-      const ids = following?.map(f => f.following_id) ?? [];
+      const ids = following?.map((f) => f.following_id) ?? [];
 
       if (ids.length === 0) {
-        // You follow nobody yet
         setUsers([]);
         setLoading(false);
         return;
       }
 
-      // Step B — load profiles for those followed users
-      const { data: profiles, error: profileError } = await supabase
+      const { data: profiles } = await supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url")
         .in("id", ids);
 
-      if (profileError) {
-        console.error("Error loading followed profiles:", profileError);
-        setUsers([]);
-        setLoading(false);
-        return;
-      }
-
-      setUsers(profiles as UserRow[]);
+      setUsers(profiles || []);
       setLoading(false);
     }
 
     loadUsers();
   }, [uid, supabase]);
+
+  /* ---------------- LOAD THREADS FOR RECENTS ---------------- */
+  useEffect(() => {
+    async function loadThreads() {
+      if (!uid) return;
+
+      const { data: userRoomsRaw } = await supabase
+        .from("room_participants")
+        .select("room_id, user_id, last_seen")
+        .eq("user_id", uid);
+
+      const userRooms = userRoomsRaw ?? [];
+
+      if (userRooms.length === 0) {
+        setThreads([]);
+        return;
+      }
+
+      const roomIds = userRooms.map((r) => r.room_id);
+
+      const { data: roomsRaw } = await supabase
+        .from("rooms")
+        .select("id, is_group")
+        .in("id", roomIds);
+
+      const rooms = roomsRaw ?? [];
+
+      const { data: participantsRaw } = await supabase
+        .from("room_participants")
+        .select("room_id, user_id, last_seen")
+        .in("room_id", roomIds);
+
+      const participants = participantsRaw ?? [];
+
+      const { data: lastMessagesRaw } = await supabase
+        .from("messages")
+        .select("room_id, sender_id, message_type, content, created_at")
+        .in("room_id", roomIds)
+        .order("created_at", { ascending: false });
+
+      const lastMessages = lastMessagesRaw ?? [];
+
+      const lastMessageMap: Record<string, any> = {};
+      for (const msg of lastMessages) {
+        if (!lastMessageMap[msg.room_id]) {
+          lastMessageMap[msg.room_id] = msg;
+        }
+      }
+
+      const finalThreads = rooms.map((room) => {
+        const roomParticipants = participants
+          .filter((p) => p.room_id === room.id)
+          .map((p) => p.user_id);
+
+        const otherUsers = roomParticipants.filter((id) => id !== uid);
+
+        const last = lastMessageMap[room.id] || null;
+
+        const profile =
+          otherUsers.length === 1
+            ? users.find((u) => u.id === otherUsers[0])
+            : null;
+
+        return {
+          roomId: room.id,
+          isGroup: room.is_group,
+          otherUserId: otherUsers.length === 1 ? otherUsers[0] : null,
+          profile,
+          lastMessage: last,
+        };
+      });
+
+      setThreads(finalThreads);
+    }
+
+    loadThreads();
+  }, [uid, users, supabase]);
+
+  /* ---------------- LOAD RECENT CALLS ---------------- */
+  useEffect(() => {
+    async function loadRecentCalls() {
+      if (!uid) return;
+
+      const { data } = await supabase
+        .from("call_logs")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      setRecentCalls(data || []);
+    }
+
+    loadRecentCalls();
+  }, [uid, supabase]);
+
+  /* ---------------- MOBILE SWIPE GESTURE ---------------- */
+  useEffect(() => {
+    let startX = 0;
+    let endX = 0;
+
+    function handleTouchStart(e: TouchEvent) {
+      startX = e.touches[0].clientX;
+    }
+
+    function handleTouchMove(e: TouchEvent) {
+      endX = e.touches[0].clientX;
+    }
+
+    function handleTouchEnd() {
+      const delta = endX - startX;
+
+      if (delta > 80) setSidebarOpen(true);
+      if (delta < -80) setSidebarOpen(false);
+    }
+
+    window.addEventListener("touchstart", handleTouchStart);
+    window.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
 
   /* ---------------- LOADING STATES ---------------- */
   if (sessionLoading || loading) {
@@ -102,7 +212,7 @@ export default function MessengerPage() {
     );
   }
 
-  /* ---------------- MOBILE + DESKTOP LAYOUT ---------------- */
+  /* ---------------- MAIN LAYOUT ---------------- */
   return (
     <div className="h-screen flex flex-col bg-black text-white">
 
@@ -117,7 +227,7 @@ export default function MessengerPage() {
         </button>
       </div>
 
-      {/* ⭐ Backdrop for mobile drawer */}
+      {/* ⭐ Backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 md:hidden z-30"
@@ -125,7 +235,7 @@ export default function MessengerPage() {
         />
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-x-hidden">
 
         {/* ⭐ Sidebar */}
         <div
@@ -142,7 +252,6 @@ export default function MessengerPage() {
             onSelect={() => setSidebarOpen(false)}
           />
 
-          {/* Close button for mobile */}
           <button
             onClick={() => setSidebarOpen(false)}
             className="md:hidden absolute top-4 right-4 text-gray-300"
@@ -152,10 +261,82 @@ export default function MessengerPage() {
         </div>
 
         {/* ⭐ Main Content */}
-        <div className="flex-1 flex items-center justify-center text-gray-400 p-4 overflow-auto">
-          {users.length === 0
-            ? "Follow someone to start a conversation."
-            : "Select a conversation"}
+        <div className="flex-1 overflow-y-auto p-6">
+
+          {/* ⭐ Recent Conversations */}
+          <h2 className="text-xl font-bold mb-4">Recent Conversations</h2>
+
+          {threads.length === 0 ? (
+            <p className="text-neutral-500 mb-6">No recent conversations</p>
+          ) : (
+            threads.map((t) => {
+              const profile = t.profile;
+              const avatar =
+                profile?.avatar_url || FALLBACK_AVATAR;
+              const name =
+                profile?.display_name || profile?.username || "Unknown User";
+
+              const preview =
+                t.lastMessage?.message_type === "text"
+                  ? t.lastMessage.content
+                  : t.lastMessage?.message_type === "image"
+                  ? "Sent an image"
+                  : t.lastMessage?.message_type === "audio"
+                  ? "Sent an audio clip"
+                  : t.lastMessage?.message_type === "video"
+                  ? "Sent a video"
+                  : "No messages yet";
+
+              const timestamp = t.lastMessage
+                ? new Date(t.lastMessage.created_at).toLocaleString()
+                : "";
+
+              return (
+                <button
+                  key={t.roomId}
+                  onClick={() => router.push(`/messenger/${t.roomId}`)}
+                  className="flex items-center gap-4 w-full px-4 py-3 bg-neutral-800 rounded-lg mb-3 hover:bg-neutral-700 text-left"
+                >
+                  <img
+                    src={avatar}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+
+                  <div className="flex-1">
+                    <div className="font-bold">{name}</div>
+
+                    <div className="text-neutral-400 text-sm">
+                      {preview}
+                    </div>
+
+                    <div className="text-neutral-500 text-xs mt-1">
+                      {timestamp}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )}
+
+          {/* ⭐ Recent Calls */}
+          <h2 className="text-xl font-bold mt-10 mb-4">Recent Calls</h2>
+
+          {recentCalls.length === 0 ? (
+            <p className="text-neutral-500">No recent calls</p>
+          ) : (
+            recentCalls.map((call) => (
+              <div
+                key={call.id}
+                className="px-4 py-3 bg-neutral-800 rounded-lg mb-3"
+              >
+                <div className="text-sm">{call.other_user_id}</div>
+                <div className="text-xs text-neutral-400">
+                  {new Date(call.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
+
         </div>
       </div>
     </div>

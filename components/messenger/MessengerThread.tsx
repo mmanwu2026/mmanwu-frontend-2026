@@ -57,32 +57,9 @@ export default function MessengerThread({
   const subscribedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  /* ---------------- PATCH 11 — Typing Indicator State ---------------- */
   const [otherTyping, setOtherTyping] = useState(false);
 
-  /* ---------------- PATCH 8 — DM PRIVACY ENFORCEMENT ---------------- */
-  if (!dmAllowed) {
-    return (
-      <div className="flex flex-col h-full bg-neutral-950">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-40">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">
-              {usernames[otherUserId || ""] || "Conversation"}
-            </span>
-            <span className="text-xs text-neutral-400">{roomId}</span>
-          </div>
-        </div>
-
-        {/* Blocked Message */}
-        <div className="flex-1 flex items-center justify-center text-neutral-400 px-4">
-          This user is private. You must follow them to send messages.
-        </div>
-      </div>
-    );
-  }
-
-  /* ---------------- LOAD MESSAGES (now all types) ---------------- */
+  /* ---------------- LOAD MESSAGES ---------------- */
   async function loadMessages() {
     const { data } = await supabase
       .from("messages")
@@ -101,18 +78,6 @@ export default function MessengerThread({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  /* ---------------- CLEAR CHAT ---------------- */
-  async function clearChat() {
-    await supabase.from("messages").delete().eq("room_id", finalRoomId);
-    setMessages([]);
-  }
-
-  /* ---------------- DELETE MESSAGE ---------------- */
-  async function deleteMessage(messageId: string) {
-    await supabase.from("messages").delete().eq("id", messageId);
-    setMessages((prev) => prev.filter((m) => m.id !== messageId));
-  }
 
   /* ---------------- LOAD USERNAMES ---------------- */
   useEffect(() => {
@@ -146,13 +111,12 @@ export default function MessengerThread({
     loadUsernames();
   }, [messages, userId, otherUserId, supabase]);
 
-  /* ---------------- ENSURE WEBPUSH SUBSCRIPTION (AUTO-REFRESH) ---------------- */
+  /* ---------------- ENSURE WEBPUSH SUBSCRIPTION ---------------- */
   useEffect(() => {
     async function ensureWebPush() {
       const sub = await getTargetWebPushSubscription(userId, supabase);
 
       if (!sub) {
-        console.log("No WebPush subscription found → registering fallback");
         await registerWebPushFallback(userId, supabase);
       }
     }
@@ -160,7 +124,7 @@ export default function MessengerThread({
     ensureWebPush();
   }, [userId, supabase]);
 
-  /* ---------------- REALTIME MESSAGES (all types) ---------------- */
+  /* ---------------- REALTIME MESSAGES ---------------- */
   useEffect(() => {
     if (subscribedRef.current) return;
     subscribedRef.current = true;
@@ -196,7 +160,7 @@ export default function MessengerThread({
     };
   }, [finalRoomId, userId, supabase]);
 
-  /* ---------------- PATCH 11 — REALTIME TYPING EVENTS ---------------- */
+  /* ---------------- REALTIME TYPING EVENTS ---------------- */
   useEffect(() => {
     const channel = supabase
       .channel(`typing-${finalRoomId}`)
@@ -234,67 +198,90 @@ export default function MessengerThread({
     markSeen();
   }, [userId, finalRoomId, supabase]);
 
-/* ---------------- SEND TEXT MESSAGE ---------------- */
-async function sendMessage() {
-  const trimmed = newMessage.trim();
-  if (!trimmed) return;
+  /* ---------------- AFTER ALL HOOKS: DM PRIVACY BLOCK ---------------- */
+  if (!dmAllowed) {
+    return (
+      <div className="flex flex-col h-full bg-neutral-950">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">
+              {usernames[otherUserId || ""] || "Conversation"}
+            </span>
+            <span className="text-xs text-neutral-400">{roomId}</span>
+          </div>
+        </div>
 
-  // Stop typing indicator
-  await supabase.from("typing_events").insert({
-    room_id: finalRoomId,
-    user_id: userId,
-    is_typing: false,
-  });
-
-  // Save message
-  const { error } = await supabase.from("messages").insert({
-    room_id: finalRoomId,
-    sender_id: userId,
-    receiver_id: otherUserId,
-    content: trimmed,
-    message_type: "text",
-  });
-
-  if (error) {
-    console.error("sendMessage error:", error);
+        <div className="flex-1 flex items-center justify-center text-neutral-400 px-4">
+          This user is private. You must follow them to send messages.
+        </div>
+      </div>
+    );
   }
 
-  if (!otherUserId) {
-    console.warn("Cannot send DM notification: otherUserId is undefined");
+  /* ---------------- CONTINUE WITH UI BELOW THIS LINE ---------------- */
+
+  async function clearChat() {
+    await supabase.from("messages").delete().eq("room_id", finalRoomId);
+    setMessages([]);
+  }
+
+  async function deleteMessage(messageId: string) {
+    await supabase.from("messages").delete().eq("id", messageId);
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  }
+
+  async function sendMessage() {
+    const trimmed = newMessage.trim();
+    if (!trimmed) return;
+
+    await supabase.from("typing_events").insert({
+      room_id: finalRoomId,
+      user_id: userId,
+      is_typing: false,
+    });
+
+    const { error } = await supabase.from("messages").insert({
+      room_id: finalRoomId,
+      sender_id: userId,
+      receiver_id: otherUserId,
+      content: trimmed,
+      message_type: "text",
+    });
+
+    if (error) console.error("sendMessage error:", error);
+
+    if (!otherUserId) {
+      setNewMessage("");
+      return;
+    }
+
+    await supabase.from("notifications").insert({
+      user_id: otherUserId,
+      actor_id: userId,
+      event_type: "message",
+      message: trimmed,
+      dm_room_id: finalRoomId,
+    });
+
+    const safePayload = {
+      targetUserId: String(otherUserId ?? ""),
+      title: String(usernames?.[userId] ?? ""),
+      body: String(trimmed ?? ""),
+      data: {
+        event: "dm",
+        dm_room_id: String(finalRoomId ?? ""),
+        sender_id: String(userId ?? ""),
+        message: String(trimmed ?? ""),
+      },
+    };
+
+    await supabase.functions.invoke("send-push", {
+      body: JSON.stringify(safePayload),
+    });
+
     setNewMessage("");
-    return;
   }
 
-  // Save notification
-  await supabase.from("notifications").insert({
-    user_id: otherUserId,
-    actor_id: userId,
-    event_type: "message",
-    message: trimmed,
-    dm_room_id: finalRoomId,
-  });
-
-  /* ---------------- SANITIZED DM PUSH PAYLOAD ---------------- */
-  const safePayload = {
-    targetUserId: String(otherUserId ?? ""),
-    title: String(usernames?.[userId] ?? ""),
-    body: String(trimmed ?? ""),
-    data: {
-      event: "dm",
-      dm_room_id: String(finalRoomId ?? ""),
-      sender_id: String(userId ?? ""),
-      message: String(trimmed ?? ""),
-    },
-  };
-
-  await supabase.functions.invoke("send-push", {
-    body: JSON.stringify(safePayload),
-  });
-
-  setNewMessage("");
-}
-
-  /* ---------------- PATCH 14 — UPLOAD & SEND MEDIA ---------------- */
   async function uploadAndSend(file: File, type: "image" | "audio" | "video") {
     const ext = file.name.split(".").pop();
     const fileName = `${crypto.randomUUID()}.${ext}`;
@@ -350,60 +337,10 @@ async function sendMessage() {
     await uploadAndSend(file, "video");
   }
 
-  /* ---------------- CALL BUTTON ---------------- */
-  async function startCall() {
-    if (!otherUserId) return;
-
-    const session = await supabase.auth.getSession();
-    console.log("MessengerThread session:", session.data.session);
-
-    const newRoomId = crypto.randomUUID();
-    const callId = crypto.randomUUID();
-
-    await supabase.from("call_events").insert({
-      type: "incoming_call",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      caller_name: usernames[userId] || "Unknown",
-      target_user_id: otherUserId,
-      url: `/call/${newRoomId}`,
-      status: "ringing",
-      created_at: new Date().toISOString(),
-    });
-
-    await supabase.from("call_events").insert({
-      type: "call_started",
-      call_id: callId,
-      room_id: newRoomId,
-      caller_id: userId,
-      target_user_id: otherUserId,
-      status: "started",
-      created_at: new Date().toISOString(),
-    });
-
-    await supabase.functions.invoke("send-push", {
-      body: JSON.stringify({
-        targetUserId: otherUserId,
-        title: "Incoming Call",
-        body: `${usernames[userId] || "Someone"} is calling you…`,
-        data: {
-          event: "incoming_call",
-          room_id: newRoomId,
-          call_id: callId,
-          caller_name: usernames[userId] || "Unknown",
-          url: `/call/${newRoomId}?role=callee`,
-        },
-      }),
-    });
-
-    router.push(`/call/${newRoomId}?role=caller`);
-  }
-
-  /* ---------------- UI ONLY BELOW THIS LINE ---------------- */
+  /* ---------------- UI RENDER BELOW THIS LINE ---------------- */
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950">
+    <div className="bg-neutral-950">
       {/* Clear Chat Modal */}
       {confirmClear && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -431,14 +368,13 @@ async function sendMessage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-40">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">
             {usernames[otherUserId || ""] || "Conversation"}
           </span>
           <span className="text-xs text-neutral-400">{finalRoomId}</span>
 
-          {/* Typing Indicator */}
           {otherTyping && (
             <span className="text-xs text-blue-400 animate-pulse">
               Typing…
@@ -456,7 +392,7 @@ async function sendMessage() {
 
           {otherUserId && (
             <button
-              onClick={startCall}
+              onClick={() => router.push(`/call/${roomId}`)}
               className="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-500"
             >
               Call
@@ -466,7 +402,7 @@ async function sendMessage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="px-4 py-4 space-y-4">
         {messages.map((m) => {
           const isOutgoing = m.sender_id === userId;
           const isLastOutgoing =
@@ -477,9 +413,7 @@ async function sendMessage() {
           return (
             <div
               key={m.id}
-              className={`flex ${
-                isOutgoing ? "justify-end" : "justify-start"
-              }`}
+              className={`flex ${isOutgoing ? "justify-end" : "justify-start"}`}
             >
               <div
                 className={`max-w-[75%] p-3 rounded-xl relative ${
@@ -488,7 +422,6 @@ async function sendMessage() {
                     : "bg-neutral-800 text-neutral-200"
                 }`}
               >
-                {/* Delete button */}
                 {isOutgoing && (
                   <button
                     onClick={() => deleteMessage(m.id)}
@@ -498,12 +431,10 @@ async function sendMessage() {
                   </button>
                 )}
 
-                {/* Sender */}
                 <div className="text-xs font-semibold opacity-80 mb-1">
                   {usernames[m.sender_id] || m.sender_id}
                 </div>
 
-                {/* Content / Attachments */}
                 {m.message_type === "text" && (
                   <div className="text-sm leading-relaxed">{m.content}</div>
                 )}
@@ -528,10 +459,13 @@ async function sendMessage() {
                   </video>
                 )}
 
-                {/* Status */}
                 {isLastOutgoing && (
                   <div className="text-right text-xs opacity-70 mt-1">
-                    {m.seen_at ? "Seen" : m.delivered_at ? "Delivered" : "Sent"}
+                    {m.seen_at
+                      ? "Seen"
+                      : m.delivered_at
+                      ? "Delivered"
+                      : "Sent"}
                   </div>
                 )}
               </div>
@@ -544,43 +478,19 @@ async function sendMessage() {
 
       {/* Composer */}
       <div className="p-4 border-t border-neutral-800 bg-neutral-900">
-        {/* Attachment buttons */}
         <div className="flex gap-2 mb-3">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-            id="image-upload"
-          />
           <label
             htmlFor="image-upload"
             className="px-3 py-2 bg-neutral-800 text-white rounded cursor-pointer"
           >
             📷 Image
           </label>
-
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={handleAudioUpload}
-            className="hidden"
-            id="audio-upload"
-          />
           <label
             htmlFor="audio-upload"
             className="px-3 py-2 bg-neutral-800 text-white rounded cursor-pointer"
           >
             🎤 Audio
           </label>
-
-          <input
-            type="file"
-            accept="video/*"
-            onChange={handleVideoUpload}
-            className="hidden"
-            id="video-upload"
-          />
           <label
             htmlFor="video-upload"
             className="px-3 py-2 bg-neutral-800 text-white rounded cursor-pointer"
@@ -589,14 +499,34 @@ async function sendMessage() {
           </label>
         </div>
 
+        <input
+          id="image-upload"
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+        <input
+          id="audio-upload"
+          type="file"
+          accept="audio/*"
+          className="hidden"
+          onChange={handleAudioUpload}
+        />
+        <input
+          id="video-upload"
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={handleVideoUpload}
+        />
+
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={async (e) => {
               setNewMessage(e.target.value);
-
-              // Send typing event
               await supabase.from("typing_events").insert({
                 room_id: finalRoomId,
                 user_id: userId,
