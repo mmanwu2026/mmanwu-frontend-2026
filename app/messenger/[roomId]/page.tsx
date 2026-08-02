@@ -2,8 +2,10 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useSupabase } from "@/app/context/SupabaseContext";
-import { useEffect, useState } from "react";
-import MessengerThread from "@/components/messenger/MessengerThread";
+import { useEffect, useState, useRef } from "react";
+import MessengerThread, {
+  MessengerThreadHandle,
+} from "@/components/messenger/MessengerThread";
 
 export default function RoomPage() {
   const params = useParams<{ roomId: string }>();
@@ -15,8 +17,9 @@ export default function RoomPage() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [otherUserId, setOtherUserId] = useState<string | undefined>(undefined);
 
-  // ⭐ DM privacy state
   const [dmAllowed, setDmAllowed] = useState<boolean | null>(null);
+
+  const threadRef = useRef<MessengerThreadHandle | null>(null);
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -51,12 +54,11 @@ export default function RoomPage() {
     loadOther();
   }, [userId, roomId, supabase]);
 
-  /* ---------------- DM PRIVACY CHECK (FIXED) ---------------- */
+  /* ---------------- DM PRIVACY CHECK ---------------- */
   useEffect(() => {
     if (!userId || !otherUserId || !roomId) return;
 
     async function checkDmPrivacy() {
-      // 1. Load other user's profile
       const { data: profileRows } = await supabase
         .from("profiles")
         .select("privacy_type")
@@ -73,28 +75,24 @@ export default function RoomPage() {
       const isPrivate = profile.privacy_type === "private";
       const isOwner = userId === otherUserId;
 
-      // 2. If public → always allowed
       if (!isPrivate) {
         setDmAllowed(true);
         return;
       }
 
-      // 3. If private → must be APPROVED follower or owner
       const { data: followRows } = await supabase
         .from("follows")
         .select("id")
-        .eq("follower_id", userId)        // viewer
-        .eq("following_id", otherUserId)  // target
+        .eq("follower_id", userId) // viewer
+        .eq("following_id", otherUserId) // target
         .limit(1);
 
       const isFollower = !!followRows?.[0];
 
-      // ⭐ FIXED: Approved followers CAN DM private accounts
       const allowed = isOwner || isFollower;
 
       setDmAllowed(allowed);
 
-      // 4. Room locked → override
       const { data: roomRows } = await supabase
         .from("rooms")
         .select("locked")
@@ -116,56 +114,61 @@ export default function RoomPage() {
     return <div className="p-6 text-white">Loading user…</div>;
   }
 
-/* ---------------- DM ALLOWED ---------------- */
-return (
-  <div className="flex flex-col h-screen bg-black text-white">
+  /* ---------------- CALL HANDLER ---------------- */
+  function handleStartCall() {
+    threadRef.current?.startCall();
+  }
 
-    {/* Mobile Header */}
-    <div className="md:hidden flex items-center gap-3 p-4 border-b border-gray-800">
+  /* ---------------- DM ALLOWED ---------------- */
+  return (
+    <div className="flex flex-col h-screen bg-black text-white">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center gap-3 p-4 border-b border-gray-800">
+        <button
+          onClick={() => router.push("/messenger")}
+          className="px-3 py-2 bg-gray-800 rounded-lg text-sm"
+        >
+          ← Back
+        </button>
+
+        <h1 className="text-lg font-semibold">Conversation</h1>
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden md:flex items-center p-4 border-b border-gray-800">
+        <h1 className="text-xl font-bold">Conversation</h1>
+      </div>
+
+      {/* Scrollable Thread Area */}
+      <div className="flex-1 overflow-y-auto">
+        <MessengerThread
+          ref={threadRef}
+          userId={userId}
+          roomId={roomId}
+          otherUserId={otherUserId}
+          dmAllowed={dmAllowed ?? false}
+        />
+      </div>
+
+      {/* Floating Back Button */}
       <button
         onClick={() => router.push("/messenger")}
-        className="px-3 py-2 bg-gray-800 rounded-lg text-sm"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+7rem)] left-4 
+                   z-[999] px-4 py-2 bg-gray-800 rounded-full text-sm shadow-xl"
       >
-        ← Back
+        Back
       </button>
 
-      <h1 className="text-lg font-semibold">Conversation</h1>
+      {/* Floating Call Button */}
+      {otherUserId && (
+        <button
+          onClick={handleStartCall}
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 
+                     z-[999] px-4 py-2 bg-green-600 rounded-full text-sm shadow-xl"
+        >
+          Call
+        </button>
+      )}
     </div>
-
-    {/* Desktop Header */}
-    <div className="hidden md:flex items-center p-4 border-b border-gray-800">
-      <h1 className="text-xl font-bold">Conversation</h1>
-    </div>
-
-    {/* Scrollable Thread Area */}
-    <div className="flex-1 overflow-y-auto">
-      <MessengerThread
-        userId={userId}
-        roomId={roomId}
-        otherUserId={otherUserId}
-        dmAllowed={dmAllowed ?? false}
-      />
-    </div>
-
-    {/* ⭐ Floating Back Button — always visible */}
-    <button
-      onClick={() => router.push("/messenger")}
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+7rem)] left-4 
-                 z-[999] px-4 py-2 bg-gray-800 rounded-full text-sm shadow-xl"
-    >
-      Back
-    </button>
-
-    {/* ⭐ Floating Call Button — always visible */}
-    {otherUserId && (
-      <button
-        onClick={() => router.push(`/call/${roomId}`)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 
-                   z-[999] px-4 py-2 bg-green-600 rounded-full text-sm shadow-xl"
-      >
-        Call
-      </button>
-    )}
-  </div>
-);
+  );
 }

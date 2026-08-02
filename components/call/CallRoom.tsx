@@ -663,17 +663,17 @@ return (
       </div>
     )}
 
-    {/* Join Call Button */}
-    {role === "caller" && !joined && (
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-        <button
-          onClick={joinCallCaller}
-          className="px-6 py-3 bg-green-600 rounded-lg text-lg hover:bg-green-500"
-        >
-          Join Call
-        </button>
-      </div>
-    )}
+{/* Join Call Button */}
+{role === "caller" && !joined && (
+  <div className="absolute bottom-20 left-0 right-0 flex justify-center pointer-events-auto">
+    <button
+      onClick={joinCallCaller}
+      className="px-6 py-3 bg-green-600 rounded-lg text-lg hover:bg-green-500 shadow-lg"
+    >
+      Join Call
+    </button>
+  </div>
+)}
 
   </div>
 );
