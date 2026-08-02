@@ -442,7 +442,7 @@ export default function MessengerThread({
 
           {otherUserId && (
             <button
-              onClick={() => router.push(`/call/${roomId}`)}
+              onClick={startCall}
               className="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-500"
             >
               Call
