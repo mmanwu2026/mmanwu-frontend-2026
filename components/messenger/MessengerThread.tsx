@@ -20,9 +20,7 @@ async function getTargetFCMToken(userId: string, supabase: any) {
     .limit(1);
 
   if (error) return null;
-
-  const row = rows?.[0] ?? null;
-  return row?.fcm_token || null;
+  return rows?.[0]?.fcm_token || null;
 }
 
 /* ---------------- FETCH TARGET WEBPUSH SUBSCRIPTION (SAFE) ---------------- */
@@ -34,7 +32,6 @@ async function getTargetWebPushSubscription(userId: string, supabase: any) {
     .maybeSingle();
 
   if (error) return null;
-
   return row?.subscription || null;
 }
 
@@ -51,8 +48,6 @@ export type MessengerThreadHandle = {
 
 const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
   ({ userId, otherUserId, roomId, dmAllowed }, ref) => {
-    if (!roomId) return null;
-
     const { supabase } = useSupabase();
     const router = useRouter();
     const finalRoomId = roomId;
@@ -79,6 +74,7 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
     }
 
     useEffect(() => {
+      if (!finalRoomId) return;
       loadMessages();
     }, [finalRoomId]);
 
@@ -123,17 +119,14 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
     useEffect(() => {
       async function ensureWebPush() {
         const sub = await getTargetWebPushSubscription(userId, supabase);
-
-        if (!sub) {
-          await registerWebPushFallback(userId, supabase);
-        }
+        if (!sub) await registerWebPushFallback(userId, supabase);
       }
-
       ensureWebPush();
     }, [userId, supabase]);
 
     /* ---------------- REALTIME MESSAGES ---------------- */
     useEffect(() => {
+      if (!finalRoomId) return;
       if (subscribedRef.current) return;
       subscribedRef.current = true;
 
@@ -170,6 +163,8 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
 
     /* ---------------- REALTIME TYPING EVENTS ---------------- */
     useEffect(() => {
+      if (!finalRoomId) return;
+
       const channel = supabase
         .channel(`typing-${finalRoomId}`)
         .on(
@@ -193,7 +188,7 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
 
     /* ---------------- MARK SEEN ---------------- */
     useEffect(() => {
-      if (!userId) return;
+      if (!userId || !finalRoomId) return;
 
       async function markSeen() {
         await supabase
@@ -206,29 +201,9 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
       markSeen();
     }, [userId, finalRoomId, supabase]);
 
-    /* ---------------- AFTER ALL HOOKS: DM PRIVACY BLOCK ---------------- */
-    if (!dmAllowed) {
-      return (
-        <div className="flex flex-col h-full bg-neutral-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold">
-                {usernames[otherUserId || ""] || "Conversation"}
-              </span>
-              <span className="text-xs text-neutral-400">{roomId}</span>
-            </div>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center text-neutral-400 px-4">
-            This user is private. You must follow them to send messages.
-          </div>
-        </div>
-      );
-    }
-
-    /* ---------------- CONTINUE WITH UI BELOW THIS LINE ---------------- */
-
+    /* ---------------- CLEAR / DELETE / SEND ---------------- */
     async function clearChat() {
+      if (!finalRoomId) return;
       await supabase.from("messages").delete().eq("room_id", finalRoomId);
       setMessages([]);
     }
@@ -240,7 +215,7 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
 
     async function sendMessage() {
       const trimmed = newMessage.trim();
-      if (!trimmed) return;
+      if (!trimmed || !finalRoomId) return;
 
       await supabase.from("typing_events").insert({
         room_id: finalRoomId,
@@ -290,7 +265,12 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
       setNewMessage("");
     }
 
-    async function uploadAndSend(file: File, type: "image" | "audio" | "video") {
+    async function uploadAndSend(
+      file: File,
+      type: "image" | "audio" | "video"
+    ) {
+      if (!finalRoomId) return;
+
       const ext = file.name.split(".").pop();
       const fileName = `${crypto.randomUUID()}.${ext}`;
 
@@ -395,12 +375,40 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
       router.push(`/call/${newRoomId}?role=caller`);
     }
 
+    /* ---------------- EXPOSE startCall TO PARENT ---------------- */
     useImperativeHandle(ref, () => ({
       startCall,
     }));
 
-    /* ---------------- UI RENDER BELOW THIS LINE ---------------- */
+    /* ---------------- SAFE CONDITIONAL RETURNS (AFTER HOOKS) ---------------- */
+    if (!roomId) {
+      return (
+        <div className="p-4 text-white">
+          Loading conversation…
+        </div>
+      );
+    }
 
+    if (!dmAllowed) {
+      return (
+        <div className="flex flex-col h-full bg-neutral-950">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">
+                {usernames[otherUserId || ""] || "Conversation"}
+              </span>
+              <span className="text-xs text-neutral-400">{roomId}</span>
+            </div>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center text-neutral-400 px-4">
+            This user is private. You must follow them to send messages.
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------------- UI RENDER BELOW THIS LINE ---------------- */
     return (
       <div className="bg-neutral-950">
         {/* Clear Chat Modal */}
@@ -591,6 +599,7 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
               value={newMessage}
               onChange={async (e) => {
                 setNewMessage(e.target.value);
+                if (!finalRoomId) return;
                 await supabase.from("typing_events").insert({
                   room_id: finalRoomId,
                   user_id: userId,
