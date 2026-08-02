@@ -24,8 +24,8 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
-          persistSession: true,      // ⭐ Keep user logged in
-          autoRefreshToken: true,    // ⭐ Refresh tokens automatically
+          persistSession: true,
+          autoRefreshToken: true,
         },
       }
     );
@@ -33,26 +33,43 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
 
-  // ⭐ Modern logout — no clearing storage, no clearing caches
   async function logout() {
     await supabase.auth.signOut();
     setUser(null);
   }
 
   useEffect(() => {
+    let mounted = true;
+
+    async function hydrateSession() {
+      try {
+        // ⭐ CRITICAL FIX: refresh session on PWA startup
+        await supabase.auth.refreshSession();
+
+        const { data } = await supabase.auth.getSession();
+        if (mounted) {
+          setUser(data.session?.user ?? null);
+        }
+      } catch (err) {
+        console.error("Session refresh failed:", err);
+        await supabase.auth.signOut();
+        if (mounted) setUser(null);
+      }
+    }
+
+    hydrateSession();
+
     // ⭐ Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ?? null);
+        if (mounted) {
+          setUser(session?.user ?? null);
+        }
       }
     );
 
-    // ⭐ Load initial session
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [supabase]);

@@ -25,16 +25,27 @@ export default function MessengerPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
 
-  /* ---------------- LOAD USER ---------------- */
-  useEffect(() => {
-    async function loadSession() {
-      const session = await supabase.auth.getSession();
-      const user = session.data.session?.user;
+/* ---------------- LOAD USER ---------------- */
+useEffect(() => {
+  async function loadSession() {
+    try {
+      // ⭐ CRITICAL PWA FIX
+      await supabase.auth.refreshSession();
+
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+
       setUid(user?.id || null);
       setSessionLoading(false);
+    } catch (err) {
+      console.error("MessengerPage session refresh failed:", err);
+      setUid(null);
+      setSessionLoading(false);
     }
-    loadSession();
-  }, [supabase]);
+  }
+
+  loadSession();
+}, [supabase]);
 
   /* ---------------- LOAD FOLLOWED USERS ---------------- */
   useEffect(() => {

@@ -18,6 +18,13 @@ export default function MobileAuthNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
+  // ⭐ PWA FIX: refresh session on mount
+  useEffect(() => {
+    supabase.auth.refreshSession().catch(() => {
+      supabase.auth.signOut();
+    });
+  }, [supabase]);
+
   // Load avatar when user changes
   useEffect(() => {
     if (!user) {
@@ -25,7 +32,7 @@ export default function MobileAuthNav() {
       return;
     }
 
-    const { id } = user; // TS: id is non-null here
+    const { id } = user;
 
     async function loadAvatar() {
       const { data: rows } = await supabase
@@ -48,7 +55,7 @@ export default function MobileAuthNav() {
       return;
     }
 
-    const { id } = user; // TS: id is non-null here
+    const { id } = user;
 
     async function loadPending() {
       const { data } = await supabase
@@ -109,7 +116,7 @@ export default function MobileAuthNav() {
     );
   }
 
-  const { id: userId } = user; // non-null in logged-in branch
+  const { id: userId } = user;
 
   return (
     <div className={`sticky top-0 w-full z-[9999] ${theme}`}>
