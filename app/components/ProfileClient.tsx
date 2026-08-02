@@ -110,6 +110,11 @@ interface VisionPost {
 }
 
 export default function ProfileClient({ profileId }: { profileId: string }) {
+   if (!profileId) {
+    console.log("ProfileClient: profileId is undefined — skipping queries");
+    return null;
+  }
+
   const { supabase } = useSupabase();
   const router = useRouter();
 
@@ -173,8 +178,14 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   /* --------------------------------------------- */
   useEffect(() => {
     async function loadSession() {
-      const session = await supabase.auth.getSession();
-      const user = session.data.session?.user ?? null;
+      try {
+        await supabase.auth.refreshSession();
+      } catch {
+        // No refresh token — safe fallback
+      }
+
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
 
       setAuthUserId(user?.id ?? null);
       setAuthEmail(user?.email ?? null);
@@ -379,110 +390,141 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
     loadSoundPosts();
   }, [profile, authUserId, supabase]);
 
-  /* --------------------------------------------- */
-  /* LOAD FOLLOW STATE                             */
-  /* --------------------------------------------- */
-  useEffect(() => {
-    async function loadFollowState() {
-      if (!authUserId || !profile) {
-        setIsFollowing(false);
-        setHasRequested(false);
-        return;
-      }
+/* --------------------------------------------- */
+/* LOAD FOLLOW STATE                             */
+/* --------------------------------------------- */
+useEffect(() => {
+  async function loadFollowState() {
+    // ⭐ Prevent undefined IDs from firing queries
+    if (!authUserId || !profile || !profile.id) {
+      setIsFollowing(false);
+      setHasRequested(false);
+      return;
+    }
 
-      const { data: followRows } = await supabase
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", authUserId)
+      .eq("following_id", profile.id)
+      .limit(1);
+
+    const followData = followRows?.[0] ?? null;
+
+    if (followData) {
+      setIsFollowing(true);
+      setHasRequested(false);
+      return;
+    }
+
+    const { data: requestRows } = await supabase
+      .from("follow_requests")
+      .select("id")
+      .eq("requester_id", authUserId)
+      .eq("target_id", profile.id)
+      .limit(1);
+
+    setIsFollowing(false);
+    setHasRequested(!!requestRows?.[0]);
+  }
+
+  loadFollowState();
+}, [authUserId, profile?.id, supabase]);
+
+
+
+/* --------------------------------------------- */
+/* LOAD LIVE FOLLOWER/FOLLOWING COUNTS           */
+/* --------------------------------------------- */
+useEffect(() => {
+  // Capture a safe, non-null profileId for this effect run
+  const profileId = profile?.id;
+  if (!profileId) return;
+
+  async function loadCounts() {
+    // Followers = people who follow THIS profile
+    const { data: followers } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("following_id", profileId);
+
+    setFollowersCount(followers?.length || 0);
+
+    // Following = people THIS profile follows
+    const { data: following } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", profileId);
+
+    setFollowingCount(following?.length || 0);
+  }
+
+  loadCounts();
+}, [profile?.id, supabase]);
+
+/* --------------------------------------------- */
+/* FOLLOW TOGGLE                                 */
+/* --------------------------------------------- */
+async function handleFollowToggle() {
+  // ⭐ Prevent undefined IDs from firing queries
+  if (!authUserId || busy || !profile || !profile.id) return;
+
+  setBusy(true);
+
+  try {
+    if (isFollowing) {
+      await supabase
         .from("follows")
-        .select("id")
+        .delete()
         .eq("follower_id", authUserId)
-        .eq("following_id", profile.id)
-        .limit(1);
-
-      const followData = followRows?.[0] ?? null;
-
-      if (followData) {
-        setIsFollowing(true);
-        setHasRequested(false);
-        return;
-      }
-
-      const { data: requestRows } = await supabase
-        .from("follow_requests")
-        .select("id")
-        .eq("requester_id", authUserId)
-        .eq("target_id", profile.id)
-        .limit(1);
+        .eq("following_id", profile.id);
 
       setIsFollowing(false);
-      setHasRequested(!!requestRows?.[0]);
+      setHasRequested(false);
+      setFollowersCount((c) => Math.max(0, c - 1));
+      router.refresh();
+      return;
     }
 
-    if (profile) {
-      setFollowersCount(profile.followers_count);
-      setFollowingCount(profile.following_count);
-    }
-
-    loadFollowState();
-  }, [authUserId, profile, supabase]);
-
-  /* --------------------------------------------- */
-  /* FOLLOW TOGGLE                                  */
-  /* --------------------------------------------- */
-  async function handleFollowToggle() {
-    if (!authUserId || busy || !profile) return;
-    setBusy(true);
-
-    try {
-      if (isFollowing) {
-        await supabase
-          .from("follows")
-          .delete()
-          .eq("follower_id", authUserId)
-          .eq("following_id", profile.id);
-
-        setIsFollowing(false);
-        setHasRequested(false);
-        setFollowersCount((c) => Math.max(0, c - 1));
-        return;
-      }
-
-      if (profile.privacy_type === "private") {
-        await supabase.from("follow_requests").insert({
-          requester_id: authUserId,
-          target_id: profile.id,
-          status: "pending",
-        });
-
-        await supabase.from("notifications").insert({
-          user_id: profile.id,
-          actor_id: authUserId,
-          event_type: "follow_request",
-          message: "requested to follow you",
-        });
-
-        setHasRequested(true);
-        setIsFollowing(false);
-        return;
-      }
-
-      await supabase.from("follows").insert({
-        follower_id: authUserId,
-        following_id: profile.id,
+    if (profile.privacy_type === "private") {
+      await supabase.from("follow_requests").insert({
+        requester_id: authUserId,
+        target_id: profile.id,
+        status: "pending",
       });
 
       await supabase.from("notifications").insert({
         user_id: profile.id,
         actor_id: authUserId,
-        event_type: "new_follower",
-        message: "started following you",
+        event_type: "follow_request",
+        message: "requested to follow you",
       });
 
-      setIsFollowing(true);
-      setHasRequested(false);
-      setFollowersCount((c) => c + 1);
-    } finally {
-      setBusy(false);
+      setHasRequested(true);
+      setIsFollowing(false);
+      return;
     }
+
+    await supabase.from("follows").insert({
+      follower_id: authUserId,
+      following_id: profile.id,
+    });
+
+    await supabase.from("notifications").insert({
+      user_id: profile.id,
+      actor_id: authUserId,
+      event_type: "new_follower",
+      message: "started following you",
+    });
+
+    setIsFollowing(true);
+    setHasRequested(false);
+    setFollowersCount((c) => c + 1);
+    router.refresh();
+  } finally {
+    setBusy(false);
   }
+}
 
   /* --------------------------------------------- */
   /* START PRIVATE CONVERSATION                     */
@@ -796,7 +838,7 @@ for (const post of normalized) {
     function onScroll() {
       if (activeTab !== "visionposts") return;
       if (!viewerAllowed) return;
-      if (visionEndReached || visionFetchingMore) return;
+      if (visionEndReached || visionFetchingMore || visionLoading) return;
 
       const scrollPos =
         window.innerHeight + document.documentElement.scrollTop;
@@ -984,246 +1026,260 @@ for (const post of normalized) {
     );
   }
 
-  return (
-    <>
-      <div className="w-full bg-white text-gray-900 border-b border-gray-200">
-        {/* Banner */}
-        <div
-          className="h-32 w-full"
-          style={{ backgroundColor: bannerColor }}
-        />
+  const safeProfile = profile!;
 
-        {/* Avatar + Info */}
-        <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
-          {/* LEFT — Avatar + Upload + Edit */}
-          <div className="flex flex-col items-center gap-3">
-            {/* Avatar */}
-            <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
-              {isOwnProfile ? (
-                <AvatarUploader
-                  userId={profile.id}
-                  currentAvatar={profile.avatar_url}
-                />
-              ) : (
-                <img
-                  src={profile.avatar_url || FALLBACK_AVATAR}
-                  onError={(e) =>
-                    (e.currentTarget.src = FALLBACK_AVATAR)
-                  }
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
+return (
+  <>
+    <div className="w-full bg-white text-gray-900 border-b border-gray-200">
+      {/* Banner */}
+      <div
+        className="h-32 w-full"
+        style={{ backgroundColor: bannerColor }}
+      />
 
-            {isOwnProfile && (
-              <button
-                onClick={() =>
-                  document.getElementById("avatar-upload-input")?.click()
-                }
-                className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
-              >
-                Upload Avatar
-              </button>
-            )}
-
-            {isOwnProfile && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="text-xs bg-gray-800 text-white px-2 py-1 rounded hover:bg-gray-700 transition"
-              >
-                Edit Profile
-              </button>
+      {/* Avatar + Info */}
+      <div className="px-6 -mt-12 flex flex-row gap-6 items-start">
+        {/* LEFT — Avatar + Upload + Edit */}
+        <div className="flex flex-col items-center gap-3">
+          {/* Avatar */}
+          <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-md">
+            {isOwnProfile ? (
+              <AvatarUploader
+                userId={profile.id}
+                currentAvatar={profile.avatar_url}
+              />
+            ) : (
+              <img
+                src={profile.avatar_url || FALLBACK_AVATAR}
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+                className="w-full h-full object-cover"
+              />
             )}
           </div>
 
-          {/* RIGHT — Info */}
-          <div className="flex flex-col flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="mman-username-display">
-                {profile.display_name}
-              </h1>
+          {isOwnProfile && (
+            <button
+              onClick={() =>
+                document.getElementById("avatar-upload-input")?.click()
+              }
+              className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500 transition"
+            >
+              Upload Avatar
+            </button>
+          )}
 
-              {profile.verified && (
-                <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
-                  ✔
-                </span>
-              )}
+          {isOwnProfile && (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="text-xs bg-gray-800 text-white px-2 py-1 rounded hover:bg-gray-700 transition"
+            >
+              Edit Profile
+            </button>
+          )}
+        </div>
 
-              <span
-                className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
-                style={{
-                  backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
-                  color:
-                    profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
-                }}
-              >
-                Tier {profile.mask_tier}
+        {/* RIGHT — Info */}
+        <div className="flex flex-col flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="mman-username-display">
+              {profile.display_name}
+            </h1>
+
+            {profile.verified && (
+              <span className="inline-flex items-center justify-center rounded-full bg-yellow-400 text-black text-xs px-2 py-0.5 font-semibold">
+                ✔
               </span>
-            </div>
+            )}
 
-            <p className="text-gray-600 mt-2 leading-snug mman-username-handle">
-              @{profile.username}
+            <span
+              className="inline-flex items-center justify-center rounded-full text-xs px-2 py-0.5 font-semibold border border-gray-300"
+              style={{
+                backgroundColor: MASK_TIER_COLORS[profile.mask_tier],
+                color: profile.mask_tier === 1 ? "#FFFFFF" : "#000000",
+              }}
+            >
+              Tier {profile.mask_tier}
+            </span>
+          </div>
+
+          <p className="text-gray-600 mt-2 leading-snug mman-username-handle">
+            @{profile.username}
+          </p>
+
+          {viewerAllowed && profile.bio && (
+            <p className="mt-2 text-gray-700 max-w-xl leading-relaxed">
+              {profile.bio}
             </p>
+          )}
 
-            {viewerAllowed && profile.bio && (
-              <p className="mt-2 text-gray-700 max-w-xl leading-relaxed">
-                {profile.bio}
-              </p>
-            )}
+          {!viewerAllowed && (
+            <p className="mt-2 text-gray-500">
+              This profile is private.
+            </p>
+          )}
 
-            {!viewerAllowed && (
-              <p className="mt-2 text-gray-500">
-                This profile is private.
-              </p>
-            )}
+          {/* Followers / Following / Spirit / Positivity / Joined */}
+          {profile && viewerAllowed && (
+            <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
 
-            {viewerAllowed && (
-              <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
-                <div>
+              {/* Followers */}
+               <Link href={`/profile/${profile.id}/followers`}>
+                <div className="cursor-pointer hover:opacity-80">
                   <p className="text-lg font-semibold text-gray-900">
                     {followersCount}
                   </p>
                   <p className="text-xs text-gray-500">Followers</p>
                 </div>
+              </Link>
 
-                <div>
+              {/* Following */}
+               <Link href={`/profile/${profile.id}/following`}>
+                <div className="cursor-pointer hover:opacity-80">
                   <p className="text-lg font-semibold text-gray-900">
                     {followingCount}
                   </p>
                   <p className="text-xs text-gray-500">Following</p>
                 </div>
+              </Link>
 
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {headerSpirit}
-                  </p>
-                  <p className="text-xs text-gray-500">Spirit</p>
-                </div>
-
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {Math.round(headerPositivity * 100)}%
-                  </p>
-                  <p className="text-xs text-gray-500">Positivity</p>
-                </div>
-
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {new Date(profile.created_at).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs text-gray-500">Joined</p>
-                </div>
+              {/* Spirit */}
+              <div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {headerSpirit}
+                </p>
+                <p className="text-xs text-gray-500">Spirit</p>
               </div>
+
+              {/* Positivity */}
+              <div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {Math.round(headerPositivity * 100)}%
+                </p>
+                <p className="text-xs text-gray-500">Positivity</p>
+              </div>
+
+              {/* Joined */}
+              <div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {new Date(profile.created_at).toLocaleDateString()}
+                </p>
+                <p className="text-xs text-gray-500">Joined</p>
+              </div>
+
+            </div>
+          )}
+
+          {/* Follow / Message Buttons */}
+          <div className="mt-4 flex flex-row gap-3 items-center">
+            {!isOwnProfile && authUserId && (
+              <>
+                {isFollowing && (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={busy}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
+                  >
+                    Following
+                  </button>
+                )}
+
+                {!isFollowing && hasRequested && (
+                  <button
+                    disabled
+                    className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-300 text-gray-600 transition"
+                  >
+                    Requested
+                  </button>
+                )}
+
+                {!isFollowing && !hasRequested && (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={busy}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+                  >
+                    Follow
+                  </button>
+                )}
+              </>
             )}
 
-            <div className="mt-4 flex flex-row gap-3 items-center">
-              {!isOwnProfile && authUserId && (
-                <>
-                  {isFollowing && (
-                    <button
-                      onClick={handleFollowToggle}
-                      disabled={busy}
-                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
-                    >
-                      Following
-                    </button>
-                  )}
-
-                  {!isFollowing && hasRequested && (
-                    <button
-                      disabled
-                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-300 text-gray-600 transition"
-                    >
-                      Requested
-                    </button>
-                  )}
-
-                  {!isFollowing && !hasRequested && (
-                    <button
-                      onClick={handleFollowToggle}
-                      disabled={busy}
-                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
-                    >
-                      Follow
-                    </button>
-                  )}
-                </>
-              )}
-
-              {!isOwnProfile && authUserId && viewerAllowed && (
-                <button
-                  disabled={!viewerAllowed || authLoading || !authUserId}
-                  onClick={() =>
-                    viewerAllowed && startConversation(profile.id)
-                  }
-                  className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200 transition disabled:opacity-50"
-                >
-                  Message
-                </button>
-              )}
-            </div>
+            {!isOwnProfile && authUserId && viewerAllowed && (
+              <button
+                disabled={!viewerAllowed || authLoading || !authUserId}
+                onClick={() => viewerAllowed && startConversation(profile.id)}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200 transition disabled:opacity-50"
+              >
+                Message
+              </button>
+            )}
           </div>
         </div>
       </div>
+    </div>
 
-      <div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
-        <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
-          {!viewerAllowed && (
-            <p className="text-gray-500 text-center mt-2">
-              This profile is private.
-            </p>
-          )}
+    {/* MAIN CONTENT */}
+    <div className="min-h-screen bg-white text-gray-900 p-6 space-y-8">
+      {/* Tabs */}
+      <div className="flex justify-center gap-6 border-b border-gray-200 pb-2 text-sm">
+        {!viewerAllowed && (
+          <p className="text-gray-500 text-center mt-2">
+            This profile is private.
+          </p>
+        )}
 
-          {viewerAllowed && (
-            <>
-              <button
-                onClick={() => setActiveTab("posts")}
-                className={
-                  activeTab === "posts"
-                    ? "text-purple-700 font-semibold"
-                    : "text-gray-500"
-                }
-              >
-                Posts
-              </button>
+        {viewerAllowed && (
+          <>
+            <button
+              onClick={() => setActiveTab("posts")}
+              className={
+                activeTab === "posts"
+                  ? "text-purple-700 font-semibold"
+                  : "text-gray-500"
+              }
+            >
+              Posts
+            </button>
 
-              <button
-                onClick={() => setActiveTab("visionposts")}
-                className={
-                  activeTab === "visionposts"
-                    ? "text-purple-700 font-semibold"
-                    : "text-gray-500"
-                }
-              >
-                Vision Posts
-              </button>
+            <button
+              onClick={() => setActiveTab("visionposts")}
+              className={
+                activeTab === "visionposts"
+                  ? "text-purple-700 font-semibold"
+                  : "text-gray-500"
+              }
+            >
+              Vision Posts
+            </button>
 
-              <button
-                onClick={() => setActiveTab("soundposts")}
-                className={
-                  activeTab === "soundposts"
-                    ? "text-purple-700 font-semibold"
-                    : "text-gray-500"
-                }
-              >
-                Soundposts
-              </button>
+            <button
+              onClick={() => setActiveTab("soundposts")}
+              className={
+                activeTab === "soundposts"
+                  ? "text-purple-700 font-semibold"
+                  : "text-gray-500"
+              }
+            >
+              Soundposts
+            </button>
 
-              <button
-                onClick={() => setActiveTab("reactions")}
-                className={
-                  activeTab === "reactions"
-                    ? "text-purple-700 font-semibold"
-                    : "text-gray-500"
-                }
-              >
-                Reactions
-              </button>
-            </>
-          )}
-        </div>
+            <button
+              onClick={() => setActiveTab("reactions")}
+              className={
+                activeTab === "reactions"
+                  ? "text-purple-700 font-semibold"
+                  : "text-gray-500"
+              }
+            >
+              Reactions
+            </button>
+          </>
+        )}
+      </div>
 
-        {activeTab === "posts" && viewerAllowed && (
+      {/* POSTS */}
+      {activeTab === "posts" && viewerAllowed && (
+        <>
           <div className="flex justify-end mt-2">
             <button
               onClick={() => setGridMode((prev) => !prev)}
@@ -1232,10 +1288,7 @@ for (const post of normalized) {
               {gridMode ? "List View" : "Grid View"}
             </button>
           </div>
-        )}
 
-        {/* PLAZA POSTS */}
-        {viewerAllowed && activeTab === "posts" && (
           <div className={gridMode ? "grid grid-cols-2 gap-4" : "space-y-6"}>
             {posts && posts.length > 0 ? (
               posts.map((post) => {
@@ -1309,146 +1362,149 @@ for (const post of normalized) {
               <p className="text-gray-500 text-center">No posts yet…</p>
             )}
           </div>
-        )}
-
-        {!viewerAllowed && activeTab === "posts" && (
-          <p className="text-gray-500 text-center mt-6">
-            This profile is private.
-          </p>
-        )}
-
-        {/* VISION POSTS */}
-        {viewerAllowed && activeTab === "visionposts" && (
-          <div className="space-y-6">
-            {visionLoading && visionPosts.length === 0 && (
-              <p className="text-gray-500 text-center mt-6">
-                Loading visions…
-              </p>
-            )}
-
-            {!visionLoading && visionPosts.length === 0 && (
-              <p className="text-gray-500 text-center mt-6">
-                No visions yet…
-              </p>
-            )}
-
- {visionPosts.map((post) => (
-  <VisionCard
-    key={post.id}
-    post={post}
-    smallAvatar
-    authUserId={authUserId}
-    is_follower={isFollowing}
-    onReactAction={async () => {}}
-  />
-))}
-            {visionFetchingMore && (
-              <p className="text-gray-500 text-center mt-4">
-                Loading more visions…
-              </p>
-            )}
-
-            {visionEndReached && visionPosts.length > 0 && (
-              <p className="text-gray-500 text-center mt-4">
-                You’ve reached the end of this creator’s visions.
-              </p>
-            )}
-          </div>
-        )}
-
-        {!viewerAllowed && activeTab === "visionposts" && (
-          <p className="text-gray-500 text-center mt-6">
-            This profile is private.
-          </p>
-        )}
-
-        {/* SOUND POSTS */}
-        {viewerAllowed && activeTab === "soundposts" && (
-          <div className="space-y-6">
-            {soundPosts && soundPosts.length > 0 ? (
-              soundPosts.map((post) => (
-                <SoundPostCard key={post.id} post={post} isTrending={false} />
-              ))
-            ) : (
-              <p className="text-gray-500 text-center mt-6">
-                No soundposts yet…
-              </p>
-            )}
-          </div>
-        )}
-
-        {!viewerAllowed && activeTab === "soundposts" && (
-          <p className="text-gray-500 text-center mt-6">
-            This profile is private.
-          </p>
-        )}
-
-        {/* REACTIONS */}
-        {viewerAllowed && activeTab === "reactions" && (
-          <div className="space-y-4">
-            {Object.keys(reactionPostMap).length === 0 && (
-              <p className="text-gray-500 text-center mt-6">
-                Loading reactions…
-              </p>
-            )}
-
-            {Object.keys(reactionPostMap).length > 0 && (
-              <>
-                {givenReactions.length === 0 ? (
-                  <p className="text-gray-500 text-center mt-6">
-                    No reactions yet…
-                  </p>
-                ) : (
-                  givenReactions.map((r) => {
-                    const info = reactionPostMap[r.post_id];
-                    const username = info?.username ?? "unknown";
-                    const content = info?.content ?? "";
-
-                    return (
-                      <div
-                        key={r.id}
-                        className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                      >
-                        <p className="text-sm text-gray-700 mb-2">
-                          You reacted{" "}
-                          <span className="font-semibold text-purple-700">
-                            Mask {r.maskTier}
-                          </span>{" "}
-                          to{" "}
-                          <span className="font-semibold">@{username}</span>
-                        </p>
-
-                        <p className="text-gray-800 mb-2 italic">
-                          “{content.slice(0, 120)}…”
-                        </p>
-
-                        <p className="text-xs text-gray-500">
-                          {new Date(r.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    );
-                  })
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {!viewerAllowed && activeTab === "reactions" && (
-          <p className="text-gray-500 text-center mt-6">
-            This profile is private.
-          </p>
-        )}
-      </div>
-
-      {showEditModal && (
-        <Modal onClose={() => setShowEditModal(false)}>
-          <EditProfileForm
-            profile={profile}
-            onClose={() => setShowEditModal(false)}
-          />
-        </Modal>
+        </>
       )}
-    </>
-  );
+
+      {!viewerAllowed && activeTab === "posts" && (
+        <p className="text-gray-500 text-center mt-6">
+          This profile is private.
+        </p>
+      )}
+
+      {/* VISION POSTS */}
+      {viewerAllowed && activeTab === "visionposts" && (
+        <div className="space-y-6">
+          {visionLoading && visionPosts.length === 0 && (
+            <p className="text-gray-500 text-center mt-6">
+              Loading visions…
+            </p>
+          )}
+
+          {!visionLoading && visionPosts.length === 0 && (
+            <p className="text-gray-500 text-center mt-6">
+              No visions yet…
+            </p>
+          )}
+
+          {visionPosts.map((post) => (
+            <VisionCard
+              key={post.id}
+              post={post}
+              smallAvatar
+              authUserId={authUserId}
+              is_follower={isFollowing}
+              onReactAction={async () => {}}
+            />
+          ))}
+
+          {visionFetchingMore && (
+            <p className="text-gray-500 text-center mt-4">
+              Loading more visions…
+            </p>
+          )}
+
+          {visionEndReached && visionPosts.length > 0 && (
+            <p className="text-gray-500 text-center mt-4">
+              You’ve reached the end of this creator’s visions.
+            </p>
+          )}
+        </div>
+      )}
+
+      {!viewerAllowed && activeTab === "visionposts" && (
+        <p className="text-gray-500 text-center mt-6">
+          This profile is private.
+        </p>
+      )}
+
+      {/* SOUND POSTS */}
+      {viewerAllowed && activeTab === "soundposts" && (
+        <div className="space-y-6">
+          {soundPosts && soundPosts.length > 0 ? (
+            soundPosts.map((post) => (
+              <SoundPostCard key={post.id} post={post} isTrending={false} />
+            ))
+          ) : (
+            <p className="text-gray-500 text-center mt-6">
+              No soundposts yet…
+            </p>
+          )}
+        </div>
+      )}
+
+      {!viewerAllowed && activeTab === "soundposts" && (
+        <p className="text-gray-500 text-center mt-6">
+          This profile is private.
+        </p>
+      )}
+
+      {/* REACTIONS */}
+      {viewerAllowed && activeTab === "reactions" && (
+        <div className="space-y-4">
+          {Object.keys(reactionPostMap).length === 0 && (
+            <p className="text-gray-500 text-center mt-6">
+              Loading reactions…
+            </p>
+          )}
+
+          {Object.keys(reactionPostMap).length > 0 && (
+            <>
+              {givenReactions.length === 0 ? (
+                <p className="text-gray-500 text-center mt-6">
+                  No reactions yet…
+                </p>
+              ) : (
+                givenReactions.map((r) => {
+                  const info = reactionPostMap[r.post_id];
+                  const username = info?.username ?? "unknown";
+                  const content = info?.content ?? "";
+
+                  return (
+                    <div
+                      key={r.id}
+                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                    >
+                      <p className="text-sm text-gray-700 mb-2">
+                        You reacted{" "}
+                        <span className="font-semibold text-purple-700">
+                          Mask {r.maskTier}
+                        </span>{" "}
+                        to{" "}
+                        <span className="font-semibold">@{username}</span>
+                      </p>
+
+                      <p className="text-gray-800 mb-2 italic">
+                        “{content.slice(0, 120)}…”
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        {new Date(r.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {!viewerAllowed && activeTab === "reactions" && (
+        <p className="text-gray-500 text-center mt-6">
+          This profile is private.
+        </p>
+      )}
+    </div>
+
+    {/* EDIT PROFILE MODAL */}
+    {showEditModal && (
+      <Modal onClose={() => setShowEditModal(false)}>
+        <EditProfileForm
+          profile={profile}
+          onClose={() => setShowEditModal(false)}
+        />
+      </Modal>
+    )}
+  </>
+);
 }

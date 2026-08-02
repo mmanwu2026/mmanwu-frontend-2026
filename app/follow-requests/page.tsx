@@ -5,6 +5,9 @@ import TopBar from "@/components/navigation/TopBar";
 export default async function FollowRequestsPage() {
   const supabase = await createSupabaseServerClient();
 
+  // ⭐ CRITICAL FIX: refresh session for PWA / long inactivity
+  await supabase.auth.refreshSession().catch(() => {});
+
   const {
     data: { session },
   } = await supabase.auth.getSession();

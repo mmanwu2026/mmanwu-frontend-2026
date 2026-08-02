@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export async function createSupabaseServerClient() {
-  // ⭐ FIX — your Next.js version returns a Promise
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -13,8 +12,18 @@ export async function createSupabaseServerClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set() {},
-        remove() {},
+        set() {
+          // Server components cannot set cookies — ignore
+        },
+        remove() {
+          // Server components cannot remove cookies — ignore
+        },
+      },
+
+      // ⭐ CRITICAL FIX — prevents refresh token errors
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   );

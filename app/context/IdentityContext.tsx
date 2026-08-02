@@ -16,7 +16,7 @@ interface IdentityContextType {
   fetchCreator: (id: string) => Promise<CreatorProfile | null>;
 }
 
-const IdentityContext = createContext<IdentityContextType | null>(null);
+export const IdentityContext = createContext<IdentityContextType | null>(null);
 
 export function IdentityProvider({ children }: { children: React.ReactNode }) {
   const { supabase, user } = useSupabase();
