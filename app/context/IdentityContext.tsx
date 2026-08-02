@@ -22,22 +22,54 @@ export function IdentityProvider({ children }: { children: React.ReactNode }) {
   const { supabase, user } = useSupabase();
 
   const [authReady, setAuthReady] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);   // ⭐ NEW
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [creators, setCreators] = useState<Record<string, CreatorProfile>>({});
+
+  /* -------------------------------------------------------
+     FIX: BLOCK APP UNTIL SUPABASE RESTORES SESSION
+     ------------------------------------------------------- */
+  useEffect(() => {
+    let mounted = true;
+
+    async function restoreSession() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      // Supabase restored session → allow app to proceed
+      setSessionLoaded(true);
+    }
+
+    restoreSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
+
+      // Any auth change → session is now fully known
+      setSessionLoaded(true);
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   /* -------------------------------------------------------
      RLS AUTH HANDSHAKE — TS-SAFE
      ------------------------------------------------------- */
   useEffect(() => {
     async function handshake() {
-      if (!user) return;   // ⭐ TS-safe: check INSIDE async function
+      if (!sessionLoaded) return;   // ⭐ NEW: wait for session restore
+      if (!user) return;
 
       await supabase.from("profiles").select("id").limit(1);
       setAuthReady(true);
     }
 
     handshake();
-  }, [supabase, user]);
+  }, [supabase, user, sessionLoaded]);
 
   /* -------------------------------------------------------
      LOAD LOGGED-IN USER PROFILE — TS-SAFE
@@ -45,7 +77,7 @@ export function IdentityProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadProfile() {
       if (!authReady) return;
-      if (!user) return;   // ⭐ TS-safe: check INSIDE async function
+      if (!user) return;
 
       const { data } = await supabase
         .from("profiles")
@@ -80,6 +112,13 @@ export function IdentityProvider({ children }: { children: React.ReactNode }) {
     }
 
     return profile;
+  }
+
+  /* -------------------------------------------------------
+     FIX: BLOCK CHILDREN UNTIL SESSION IS READY
+     ------------------------------------------------------- */
+  if (!sessionLoaded) {
+    return <p className="text-gray-500 p-6">Loading…</p>;
   }
 
   return (
