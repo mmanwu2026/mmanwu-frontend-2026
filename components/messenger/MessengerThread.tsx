@@ -512,24 +512,75 @@ const MessengerThread = forwardRef<MessengerThreadHandle, MessengerThreadProps>(
                   )}
 
                   {m.message_type === "image" && (
-                    <img
-                      src={m.content}
-                      className="rounded-lg max-w-full mt-2"
-                      alt="attachment"
-                    />
-                  )}
+  <>
+    <img
+      src={m.content}
+      className="rounded-lg max-w-full mt-2"
+      alt="attachment"
+    />
+    <button
+      onClick={() => {
+        const link = document.createElement("a");
+        link.href = m.content;
+        const filename =
+          m.content.split("/").pop() || "image-attachment";
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }}
+      className="mt-2 text-xs underline text-neutral-200 hover:text-white"
+    >
+      Download image
+    </button>
+  </>
+)}
 
-                  {m.message_type === "audio" && (
-                    <audio controls className="mt-2 w-full">
-                      <source src={m.content} />
-                    </audio>
-                  )}
+{m.message_type === "audio" && (
+  <>
+    <audio controls className="mt-2 w-full">
+      <source src={m.content} />
+    </audio>
+    <button
+      onClick={() => {
+        const link = document.createElement("a");
+        link.href = m.content;
+        const filename =
+          m.content.split("/").pop() || "audio-attachment";
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }}
+      className="mt-2 text-xs underline text-neutral-200 hover:text-white"
+    >
+      Download audio
+    </button>
+  </>
+)}
 
-                  {m.message_type === "video" && (
-                    <video controls className="mt-2 max-w-full rounded-lg">
-                      <source src={m.content} />
-                    </video>
-                  )}
+{m.message_type === "video" && (
+  <>
+    <video controls className="mt-2 max-w-full rounded-lg">
+      <source src={m.content} />
+    </video>
+    <button
+      onClick={() => {
+        const link = document.createElement("a");
+        link.href = m.content;
+        const filename =
+          m.content.split("/").pop() || "video-attachment";
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }}
+      className="mt-2 text-xs underline text-neutral-200 hover:text-white"
+    >
+      Download video
+    </button>
+  </>
+)}
 
                   {isLastOutgoing && (
                     <div className="text-right text-xs opacity-70 mt-1">
