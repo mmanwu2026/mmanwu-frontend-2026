@@ -137,7 +137,7 @@ export default function SoundShareButton({ postId }: { postId: string }) {
             className="
               bg-neutral-900 p-6 rounded-xl w-full max-w-sm 
               border border-white/10 shadow-xl
-              animate-[fadeIn_0.3s_ease-out_forwards] opacity-0
+              opacity-100
             "
             onClick={(e) => e.stopPropagation()}
           >

@@ -318,7 +318,7 @@ export default function VisionComments({ postId }: VisionCommentsProps) {
       {error && <p className="text-red-400 text-sm mb-2">{error}</p>}
 
       {showGateModal && gateData && (
-        <div className="bg-gray-800 border border-yellow-500/40 rounded p-3 mb-3 animate-[fadeIn_0.3s_ease-out_forwards] opacity-0">
+        <div className="bg-gray-800 border border-yellow-500/40 rounded p-3 mb-3 opacity-100">
           <p className="text-yellow-300 text-sm mb-2">
             The spirits suggest a more uplifting version:
           </p>

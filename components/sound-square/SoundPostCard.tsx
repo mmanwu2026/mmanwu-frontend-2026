@@ -5,6 +5,8 @@ import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import SoundReactionBar from "@/components/sound-square/SoundReactionBar";
 import type { ReactionCounts, CardSoundPost } from "@/app/sound-square/types";
+import SoundShareButton from "@/components/sound-square/SoundShareButton";
+
 import Link from "next/link";
 
 const MASK_EMOJI: Record<number, string> = {
@@ -359,190 +361,195 @@ async function handlePlay() {
       ? post.comments![post.comments!.length - 1]
       : null;
 
-  return (
-    <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
-      <Link href={`/sound-square/post/${post.id}`}>
-        <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
-          {post.title}
-        </h2>
-      </Link>
+return (
+  <div className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6">
+    <Link href={`/sound-square/post/${post.id}`}>
+      <h2 className="text-xl font-bold text-purple-300 hover:text-purple-400 transition">
+        {post.title}
+      </h2>
+    </Link>
 
-      <Link
-        href={`/profile/${post.creator_id}`}
-        className="text-gray-400 hover:text-gray-200 text-sm"
-      >
-        @{post.users?.username ?? "Unknown"}
-      </Link>
+    <Link
+      href={`/profile/${post.creator_id}`}
+      className="text-gray-400 hover:text-gray-200 text-sm"
+    >
+      @{post.users?.username ?? "Unknown"}
+    </Link>
 
-      <div className="flex flex-row items-center justify-between text-xs text-white/70 mt-3 mb-2">
-        <div>
-          <p className="font-semibold text-white">SpiritScore: {spiritScore}</p>
-          <p>Positivity: {Math.round(positivityRatio * 100)}%</p>
-          <p>Mask: {autoMask}</p>
-        </div>
-
-        <div className="text-right">
-          <p>
-            Total Reactions:{" "}
-            {reactions.mask1 +
-              reactions.mask2 +
-              reactions.mask3 +
-              reactions.mask4 +
-              reactions.mask5 +
-              reactions.mask6}
-          </p>
-        </div>
+    <div className="flex flex-row items-center justify-between text-xs text-white/70 mt-3 mb-2">
+      <div>
+        <p className="font-semibold text-white">SpiritScore: {spiritScore}</p>
+        <p>Positivity: {Math.round(positivityRatio * 100)}%</p>
+        <p>Mask: {autoMask}</p>
       </div>
 
-      <div className="mt-4">
-        <div className="flex items-center gap-3 mt-2">
-          {!isPlaying ? (
-            <button
-              onClick={handlePlay}
-              className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
-            >
-              Play
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
-            >
-              Pause
-            </button>
-          )}
-
-          {/* ⭐ Full-width emoji animation lane */}
-<div className="relative w-full h-10 mt-2">
-  <div
-    className={`${isBeat ? "mask-bounce" : ""}`}
-    style={{
-      position: "absolute",
-      left: isReady ? `${(progress / duration) * 100}%` : "0%",
-      transform: `translateX(-50%) scale(${scale})`,
-      transition: isReady ? "left 0.05s linear" : "none",
-      whiteSpace: "nowrap",
-    }}
-  >
-    {MASK_EMOJI[autoMask]}
-  </div>
-</div>
-        </div>
-
-        <div className="text-gray-400 text-sm mt-1">
-          {isReady
-            ? `${progress.toFixed(1)}s / ${duration.toFixed(1)}s`
-            : "Loading…"}
-        </div>
-
-        <div className="mt-2">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setVolume(v);
-              if (gainRef.current) gainRef.current.gain.value = v;
-              if (sourceRef.current && !gainRef.current) {
-                sourceRef.current.volume = v;
-              }
-            }}
-            className="w-full"
-          />
-        </div>
-
-        <canvas ref={canvasRef} className="w-full h-24 mt-3" />
+      <div className="text-right">
+        <p>
+          Total Reactions:{" "}
+          {reactions.mask1 +
+            reactions.mask2 +
+            reactions.mask3 +
+            reactions.mask4 +
+            reactions.mask5 +
+            reactions.mask6}
+        </p>
       </div>
+    </div>
 
-      <SoundReactionBar
-        postId={post.id}
-        creatorId={post.creator_id}
-        reactions={reactions}
-        onReactAction={refreshReactions}
-      />
-
-      {latestComment && (
-        <div className="mt-4 bg-gray-800 p-3 rounded">
-          <p className="text-sm text-gray-300">
-            <span className="font-semibold">
-              @{latestComment.profiles?.username ?? "Unknown"}:
-            </span>{" "}
-            {latestComment.content}
-          </p>
-
+    <div className="mt-4">
+      <div className="flex items-center gap-3 mt-2">
+        {!isPlaying ? (
           <button
-            onClick={() => setShowCommentsModal(true)}
-            className="text-purple-400 hover:text-purple-300 text-sm mt-2"
+            onClick={handlePlay}
+            className="bg-purple-600 px-3 py-1 rounded hover:bg-purple-500"
           >
-            View all comments ({post.comments.length})
+            Play
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={handlePause}
+            className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
+          >
+            Pause
+          </button>
+        )}
 
-      {!latestComment && (
-        <button
-          onClick={() => setShowCommentsModal(true)}
-          className="text-gray-300 hover:text-gray-100 mt-4"
-        >
-          No comments yet — add one
-        </button>
-      )}
-
-      {showCommentsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Comments</h3>
-
-            {post.comments.map((c) => (
-              <div key={c.id} className="mb-3">
-                <p className="text-gray-300 text-sm">
-                  <span className="font-semibold">
-                    @{c.profiles?.username ?? "Unknown"}:
-                  </span>{" "}
-                  {c.content}
-                </p>
-              </div>
-            ))}
-
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 mb-2"
-              placeholder="Write a comment..."
-            />
-
-            {commentError && (
-              <p className="text-red-400 mb-2">{commentError}</p>
-            )}
-
-            <button
-              onClick={submitComment}
-              className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
-            >
-              Submit
-            </button>
-
-            <button
-              onClick={() => setShowCommentsModal(false)}
-              className="mt-4 text-gray-400 hover:text-gray-200"
-            >
-              Close
-            </button>
+        {/* ⭐ Full-width emoji animation lane */}
+        <div className="relative w-full h-10 mt-2">
+          <div
+            className={`${isBeat ? "mask-bounce" : ""}`}
+            style={{
+              position: "absolute",
+              left: isReady ? `${(progress / duration) * 100}%` : "0%",
+              transform: `translateX(-50%) scale(${scale})`,
+              transition: isReady ? "left 0.05s linear" : "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {MASK_EMOJI[autoMask]}
           </div>
         </div>
-      )}
+      </div>
 
-      {uid === post.creator_id && (
-        <button
-          onClick={handleDelete}
-          className="mt-4 text-red-400 hover:text-red-300"
-        >
-          Delete Post
-        </button>
-      )}
+      <div className="text-gray-400 text-sm mt-1">
+        {isReady
+          ? `${progress.toFixed(1)}s / ${duration.toFixed(1)}s`
+          : "Loading…"}
+      </div>
+
+      <div className="mt-2">
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={volume}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVolume(v);
+            if (gainRef.current) gainRef.current.gain.value = v;
+            if (sourceRef.current && !gainRef.current) {
+              sourceRef.current.volume = v;
+            }
+          }}
+          className="w-full"
+        />
+      </div>
+
+      <canvas ref={canvasRef} className="w-full h-24 mt-3" />
     </div>
-  );
+
+    <SoundReactionBar
+      postId={post.id}
+      creatorId={post.creator_id}
+      reactions={reactions}
+      onReactAction={refreshReactions}
+    />
+
+    {/* ⭐ ADDED: Sound Share Button */}
+    <div className="mt-4">
+      <SoundShareButton postId={post.id} />
+    </div>
+
+    {latestComment && (
+      <div className="mt-4 bg-gray-800 p-3 rounded">
+        <p className="text-sm text-gray-300">
+          <span className="font-semibold">
+            @{latestComment.profiles?.username ?? "Unknown"}:
+          </span>{" "}
+          {latestComment.content}
+        </p>
+
+        <button
+          onClick={() => setShowCommentsModal(true)}
+          className="text-purple-400 hover:text-purple-300 text-sm mt-2"
+        >
+          View all comments ({post.comments.length})
+        </button>
+      </div>
+    )}
+
+    {!latestComment && (
+      <button
+        onClick={() => setShowCommentsModal(true)}
+        className="text-gray-300 hover:text-gray-100 mt-4"
+      >
+        No comments yet — add one
+      </button>
+    )}
+
+    {showCommentsModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-6">
+        <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4">Comments</h3>
+
+          {post.comments.map((c) => (
+            <div key={c.id} className="mb-3">
+              <p className="text-gray-300 text-sm">
+                <span className="font-semibold">
+                  @{c.profiles?.username ?? "Unknown"}:
+                </span>{" "}
+                {c.content}
+              </p>
+            </div>
+          ))}
+
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="w-full p-2 rounded bg-gray-700 mb-2"
+            placeholder="Write a comment..."
+          />
+
+          {commentError && (
+            <p className="text-red-400 mb-2">{commentError}</p>
+          )}
+
+          <button
+            onClick={submitComment}
+            className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500"
+          >
+            Submit
+          </button>
+
+          <button
+            onClick={() => setShowCommentsModal(false)}
+            className="mt-4 text-gray-400 hover:text-gray-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    )}
+
+    {uid === post.creator_id && (
+      <button
+        onClick={handleDelete}
+        className="mt-4 text-red-400 hover:text-red-300"
+      >
+        Delete Post
+      </button>
+    )}
+  </div>
+);
 }

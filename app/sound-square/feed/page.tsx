@@ -299,7 +299,6 @@ export default function SoundSquareFeed() {
     <div className="min-h-screen bg-white text-gray-900 p-6">
       <TopBar />
       <FeedToggle />
-      <FloatingComposer />
 
       <h1 className="text-4xl font-bold mb-6">Sound Square Feed</h1>
 

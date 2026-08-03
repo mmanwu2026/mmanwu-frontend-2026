@@ -129,7 +129,7 @@ export default function SoundCommentList({ postId }: { postId: string }) {
           className="
             border border-white/10 p-4 rounded 
             bg-neutral-900/40 
-            animate-[fadeIn_0.4s_ease-out_forwards] opacity-0
+            opacity-100
           "
         >
           <div className="flex items-center gap-3">
