@@ -24,6 +24,8 @@ export default function VisionShareButton({
   isCreator,
 }: VisionShareButtonProps) {
   const router = useRouter();
+
+  // ⭐ ALL HOOKS MUST RUN EVERY RENDER
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -31,7 +33,7 @@ export default function VisionShareButton({
   const isAllowed =
     privacy_type === "public" || isCreator || is_follower;
 
-  // ⭐ Hide share button entirely if viewer is not allowed
+  // ⭐ SAFE CONDITIONAL RETURN (AFTER HOOKS)
   if (!isAllowed) {
     return null;
   }
@@ -173,19 +175,19 @@ export default function VisionShareButton({
             className="
               bg-neutral-900 p-6 rounded-xl w-full max-w-sm 
               border border-white/10 shadow-xl
-              animate-[fadeIn_0.3s_ease-out_forwards] opacity-0
+              opacity-100
             "
             onClick={(e) => e.stopPropagation()}
           >
-<VisionShareCard
-  postId={postId}
-  title={title}
-  imageUrl={imageUrl || ""}
-  creatorUsername={creatorUsername}
-  privacy_type={privacy_type}
-  is_follower={is_follower}
-  isCreator={isCreator}
-/>
+            <VisionShareCard
+              postId={postId}
+              title={title}
+              imageUrl={imageUrl || ""}
+              creatorUsername={creatorUsername}
+              privacy_type={privacy_type}
+              is_follower={is_follower}
+              isCreator={isCreator}
+            />
 
             <div className="grid grid-cols-2 gap-3 mt-6">
               <button

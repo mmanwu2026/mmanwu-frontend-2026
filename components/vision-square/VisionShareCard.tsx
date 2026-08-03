@@ -23,13 +23,15 @@ export default function VisionShareCard({
   isCreator,
 }: VisionShareCardProps) {
   const router = useRouter();
+
+  // ⭐ ALL HOOKS MUST RUN EVERY RENDER
   const [copied, setCopied] = useState(false);
 
   // ⭐ PRIVACY ENFORCEMENT
   const isAllowed =
     privacy_type === "public" || isCreator || is_follower;
 
-  // ⭐ Hide entire share card if viewer is not allowed
+  // ⭐ SAFE CONDITIONAL RETURN (AFTER HOOKS)
   if (!isAllowed) {
     return null;
   }
@@ -152,7 +154,7 @@ export default function VisionShareCard({
       className="
         bg-neutral-900 border border-white/10 rounded-xl p-4 
         shadow-xl max-w-sm mx-auto
-        animate-[fadeIn_0.3s_ease-out_forwards] opacity-0
+        opacity-100
       "
     >
       {/* Image */}
