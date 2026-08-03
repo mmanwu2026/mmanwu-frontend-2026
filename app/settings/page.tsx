@@ -31,28 +31,38 @@ export default function SettingsPage() {
     loadUser();
   }, [supabase]);
 
-/* ---------------- LOAD PROFILE (SAFE) ---------------- */
-async function loadProfile(id: string) {
-  const { data: rows, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", id)
-    .limit(1);
+  /* ---------------- LOAD PROFILE (SAFE) ---------------- */
+  async function loadProfile(id: string) {
+    const { data: rows, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .limit(1);
 
-  if (error) {
-    setProfile(null);
-    return;
+    if (error) {
+      setProfile(null);
+      return;
+    }
+
+    const profile = rows?.[0] ?? null;
+    setProfile(profile);
   }
-
-  const profile = rows?.[0] ?? null;
-  setProfile(profile);
-}
 
   /* ---------------- LOAD FOLLOW REQUESTS ---------------- */
   async function loadPendingRequests(id: string) {
     const { data } = await supabase
       .from("follow_requests")
-      .select("*, requester:requester_id(*)")
+      .select(`
+        id,
+        requester_id,
+        created_at,
+        requester:profiles!requester_id (
+          id,
+          username,
+          display_name,
+          avatar_url
+        )
+      `)
       .eq("target_id", id)
       .eq("status", "pending");
 
@@ -68,8 +78,8 @@ async function loadProfile(id: string) {
     await supabase
       .from("profiles")
       .update({
-        privacy_type: profile.privacy_type,   // ⭐ FIXED
-        dm_permission: profile.dm_permission, // correct
+        privacy_type: profile.privacy_type,
+        dm_permission: profile.dm_permission,
       })
       .eq("id", userId);
 
@@ -79,24 +89,54 @@ async function loadProfile(id: string) {
 
   /* ---------------- APPROVE FOLLOW REQUEST ---------------- */
   async function approveRequest(requesterId: string) {
+    if (!userId) return;
+
+    // 1. Mark request as accepted
     await supabase
       .from("follow_requests")
       .update({ status: "accepted" })
       .eq("requester_id", requesterId)
       .eq("target_id", userId);
 
-    await loadPendingRequests(userId!);
+    // 2. Insert actual follow
+    await supabase.from("follows").insert({
+      follower_id: requesterId,
+      following_id: userId,
+    });
+
+    // 3. Notify requester
+    await supabase.from("notifications").insert({
+      user_id: requesterId,
+      actor_id: userId,
+      event_type: "follow_request_accepted",
+      message: "accepted your follow request",
+    });
+
+    // 4. Refresh inbox
+    await loadPendingRequests(userId);
   }
 
   /* ---------------- REJECT FOLLOW REQUEST ---------------- */
   async function rejectRequest(requesterId: string) {
+    if (!userId) return;
+
+    // 1. Mark request as rejected
     await supabase
       .from("follow_requests")
       .update({ status: "rejected" })
       .eq("requester_id", requesterId)
       .eq("target_id", userId);
 
-    await loadPendingRequests(userId!);
+    // 2. Notify requester
+    await supabase.from("notifications").insert({
+      user_id: requesterId,
+      actor_id: userId,
+      event_type: "follow_request_rejected",
+      message: "rejected your follow request",
+    });
+
+    // 3. Refresh inbox
+    await loadPendingRequests(userId);
   }
 
   if (loading) {
@@ -116,7 +156,6 @@ async function loadProfile(id: string) {
       <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg">
         <h2 className="text-lg font-semibold mb-3">Privacy</h2>
 
-        {/* ⭐ FIXED: privacy_type instead of is_private */}
         <label className="flex items-center gap-3 mb-4">
           <input
             type="checkbox"
@@ -168,7 +207,7 @@ async function loadProfile(id: string) {
           <div className="space-y-3">
             {pendingRequests.map((req) => (
               <div
-                key={req.requester_id}
+                key={req.id}
                 className="flex items-center justify-between"
               >
                 <span>

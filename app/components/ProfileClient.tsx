@@ -137,6 +137,7 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsMap>({});
   const [isFollowing, setIsFollowing] = useState(false);
   const [hasRequested, setHasRequested] = useState(false);
+  const [theyFollowMe, setTheyFollowMe] = useState(false);
 
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -259,6 +260,16 @@ export default function ProfileClient({ profileId }: { profileId: string }) {
         .eq("follower_id", authUserId)
         .eq("following_id", profile.id)
         .limit(1);
+
+        // Do THEY follow ME?
+const { data: reverseRows } = await supabase
+  .from("follows")
+  .select("id")
+  .eq("follower_id", profile.id)
+  .eq("following_id", authUserId)
+  .limit(1);
+
+setTheyFollowMe(!!reverseRows?.[0]);
 
       const isFollowingLocal = !!followRows?.[0];
       const isCreatorLocal = authUserId === profile.id;
@@ -431,7 +442,39 @@ useEffect(() => {
   loadFollowState();
 }, [authUserId, profile?.id, supabase]);
 
+/* --------------------------------------------- */
+/* LOAD PENDING FOLLOW REQUESTS (TARGET USER)    */
+/* --------------------------------------------- */
+const [pendingRequests, setPendingRequests] = useState<
+  {
+    id: string;
+    requester_id: string;
+    created_at: string;
+    profiles?: { username: string };
+  }[]
+>([]);
 
+useEffect(() => {
+  async function loadPendingRequests() {
+    // Only load requests when viewing your own profile
+    if (!authUserId || !profile || profile.id !== authUserId) return;
+
+    const { data, error } = await supabase
+      .from("follow_requests")
+      .select("id, requester_id, created_at, profiles!requester_id(username)")
+      .eq("target_id", authUserId)
+      .eq("status", "pending");
+
+    if (error) {
+      console.error("Error loading follow requests:", error);
+      return;
+    }
+
+    setPendingRequests(data || []);
+  }
+
+  loadPendingRequests();
+}, [authUserId, profile?.id, supabase]);
 
 /* --------------------------------------------- */
 /* LOAD LIVE FOLLOWER/FOLLOWING COUNTS           */
@@ -524,6 +567,43 @@ async function handleFollowToggle() {
   } finally {
     setBusy(false);
   }
+}
+
+/* --------------------------------------------- */
+/* ACCEPT / REJECT FOLLOW REQUESTS               */
+/* --------------------------------------------- */
+async function handleAcceptRequest(req) {
+  // 1. Mark request as accepted
+  await supabase
+    .from("follow_requests")
+    .update({ status: "accepted" })
+    .eq("id", req.id);
+
+  // 2. Create actual follow
+  await supabase.from("follows").insert({
+    follower_id: req.requester_id,
+    following_id: authUserId,
+  });
+
+  // 3. Remove from inbox
+  setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+
+  // 4. Optional: notify requester
+  await supabase.from("notifications").insert({
+    user_id: req.requester_id,
+    actor_id: authUserId,
+    event_type: "follow_request_accepted",
+    message: "accepted your follow request",
+  });
+}
+
+async function handleRejectRequest(req) {
+  await supabase
+    .from("follow_requests")
+    .update({ status: "rejected" })
+    .eq("id", req.id);
+
+  setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
 }
 
   /* --------------------------------------------- */
@@ -1118,6 +1198,39 @@ return (
             </p>
           )}
 
+          {/* --------------------------------------------- */}
+{/* FOLLOW REQUEST INBOX (ONLY OWN PROFILE)       */}
+{/* --------------------------------------------- */}
+{isOwnProfile && pendingRequests.length > 0 && (
+  <div className="mt-6 bg-gray-800 p-4 rounded-lg max-w-xl">
+    <h3 className="text-white font-semibold mb-3">Follow Requests</h3>
+
+    {pendingRequests.map((req) => (
+      <div key={req.id} className="flex items-center justify-between mb-3">
+        <span className="text-gray-200 text-sm">
+          @{req.profiles?.username ?? "Unknown"}
+        </span>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleAcceptRequest(req)}
+            className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs rounded"
+          >
+            Accept
+          </button>
+
+          <button
+            onClick={() => handleRejectRequest(req)}
+            className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded"
+          >
+            Reject
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
           {/* Followers / Following / Spirit / Positivity / Joined */}
           {profile && viewerAllowed && (
             <div className="flex flex-row flex-wrap justify-between gap-y-4 mt-4 text-sm text-gray-700 max-w-xl">
@@ -1193,14 +1306,15 @@ return (
                 )}
 
                 {!isFollowing && !hasRequested && (
-                  <button
-                    onClick={handleFollowToggle}
-                    disabled={busy}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
-                  >
-                    Follow
-                  </button>
-                )}
+  <button
+    onClick={handleFollowToggle}
+    disabled={busy}
+    className="px-3 py-1.5 rounded-md text-sm font-medium 
+               bg-purple-600 text-white hover:bg-purple-500 transition"
+  >
+    {theyFollowMe ? "Follow Back" : "Follow"}
+  </button>
+)}
               </>
             )}
 
