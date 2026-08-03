@@ -50,7 +50,6 @@ export default function PlazaComments({
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  // ⭐ NEW — privacy + follow-state
   const [privacyType, setPrivacyType] = useState<"public" | "private">("public");
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
 
@@ -94,7 +93,6 @@ export default function PlazaComments({
     loadFollowState();
   }, [userId, postCreatorId, supabase]);
 
-  // Privacy enforcement
   const isCreator = userId === postCreatorId;
 
   const isAllowed =
@@ -134,14 +132,30 @@ export default function PlazaComments({
     setLoading(false);
   }
 
-  // Block comment list entirely
-  if (!isAllowed) {
-    return (
-      <p className="text-white/40 mt-6">
-        Comments are private for this post.
-      </p>
-    );
-  }
+  useEffect(() => {
+    loadUser();
+    loadComments();
+
+    const channel = supabase
+      .channel(`plaza-comments-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "plaza_post_comments",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => loadComments()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId, supabase]);
+
+  const isGatekeeper = userId === postCreatorId;
 
   async function submitComment() {
     if (!text.trim()) return;
@@ -171,7 +185,6 @@ export default function PlazaComments({
       return;
     }
 
-    // Push subscription
     const { data: rows } = await supabase
       .from("push_subscriptions")
       .select("subscription")
@@ -180,7 +193,6 @@ export default function PlazaComments({
 
     const sub = rows?.[0] ?? null;
 
-    // Notification
     await fetch("/functions/v1/create-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -194,7 +206,6 @@ export default function PlazaComments({
       }),
     });
 
-    // Push
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -248,7 +259,6 @@ export default function PlazaComments({
       return;
     }
 
-    // Push subscription
     const { data: rows } = await supabase
       .from("push_subscriptions")
       .select("subscription")
@@ -257,7 +267,6 @@ export default function PlazaComments({
 
     const sub = rows?.[0] ?? null;
 
-    // Notification
     await fetch("/functions/v1/create-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -272,7 +281,6 @@ export default function PlazaComments({
       }),
     });
 
-    // Push
     if (sub?.subscription) {
       await fetch(
         "https://dnhklmhwbkfhbolskqnt.supabase.co/functions/v1/send-push",
@@ -303,31 +311,6 @@ export default function PlazaComments({
     await supabase.from("plaza_post_comments").delete().eq("id", id);
     loadComments();
   }
-
-  useEffect(() => {
-    loadUser();
-    loadComments();
-
-    const channel = supabase
-      .channel(`plaza-comments-${postId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "plaza_post_comments",
-          filter: `post_id=eq.${postId}`,
-        },
-        () => loadComments()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [postId, supabase]);
-
-  const isGatekeeper = userId === postCreatorId;
 
   function buildCommentTree(flat: PlazaComment[]): PlazaCommentNode[] {
     const lookup: Record<string, PlazaCommentNode> = {};
@@ -432,6 +415,15 @@ export default function PlazaComments({
           <CommentNode key={child.id} node={child} depth={depth + 1} />
         ))}
       </div>
+    );
+  }
+
+  // ⭐ SAFE CONDITIONAL RETURN (AFTER ALL HOOKS)
+  if (!isAllowed) {
+    return (
+      <p className="text-white/40 mt-6">
+        Comments are private for this post.
+      </p>
     );
   }
 
