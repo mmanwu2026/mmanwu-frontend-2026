@@ -43,46 +43,31 @@ export default function ComposerPage() {
     loadUser();
   }, [supabase]);
 
-  // ⭐ NEW: Insert post only AFTER moderation
-  async function insertPost(finalContent: string) {
-    const { error } = await supabase.from("posts").insert({
-      content: finalContent,
-      creator_id: uid,
-      mask: 0,
-      privacy_type: privacyType,
-    });
-
-    if (error) {
-      console.error("Post insert error:", error);
-      return false;
-    }
-
-    return true;
-  }
-
   async function handleSubmit(): Promise<void> {
     if (!content.trim() || loadingUser || !uid) return;
 
     cancelPollingRef.current = false;
 
-    // ⭐ Step 1: Request moderation WITHOUT inserting post
-    const { data: moderationRequest, error: modReqError } = await supabase
-      .from("post_moderation_requests")
+    // ⭐ Insert raw post first (OPTION B)
+    const { data: insertedPost, error } = await supabase
+      .from("posts")
       .insert({
         content,
         creator_id: uid,
+        mask: 0,
+        privacy_type: privacyType,
       })
       .select("*")
       .single();
 
-    if (modReqError || !moderationRequest) {
-      console.error("Moderation request error:", modReqError);
+    if (error || !insertedPost) {
+      console.error("Post insert error:", error);
       return;
     }
 
-    const moderationRequestId = moderationRequest.id;
+    const postId = insertedPost.id;
 
-    // ⭐ Step 2: Poll moderation results
+    // ⭐ Poll moderation
     let moderation: ModerationResult | null = null;
 
     for (let i = 0; i < 12; i++) {
@@ -91,7 +76,7 @@ export default function ComposerPage() {
       const { data } = await supabase
         .from("post_moderation")
         .select("*")
-        .eq("request_id", moderationRequestId)
+        .eq("post_id", postId)
         .maybeSingle();
 
       moderation = data as ModerationResult;
@@ -106,11 +91,8 @@ export default function ComposerPage() {
 
     if (!moderation) return;
 
-    // ⭐ Step 3: Auto-approve → insert raw post
+    // ⭐ Auto-approved → raw post stays
     if (moderation.auto_approve) {
-      const ok = await insertPost(content);
-      if (!ok) return;
-
       setToastMessage("The spirits approve your message ✨");
       setContent("");
 
@@ -121,7 +103,7 @@ export default function ComposerPage() {
       return;
     }
 
-    // ⭐ Step 4: Gatekeeper rewrite options
+    // ⭐ Harmful → show rewrites
     if (moderation.rewrites?.length) {
       cancelPollingRef.current = true;
 
@@ -136,6 +118,7 @@ export default function ComposerPage() {
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
+        postId,
       }));
 
       setGatekeeperOptions(formatted);
@@ -143,24 +126,32 @@ export default function ComposerPage() {
     }
   }
 
-  // ⭐ NEW: Rewrite accepted → insert rewritten post
+  // ⭐ Rewrite accepted → update existing post
   async function handleGatekeeperSelect(option: GatekeeperOption): Promise<void> {
     cancelPollingRef.current = true;
     setShowGatekeeper(false);
 
-    const ok = await insertPost(option.text);
-    if (!ok) return;
+    await supabase
+      .from("posts")
+      .update({ content: option.text })
+      .eq("id", option.postId);
 
     setContent("");
     router.replace("/plaza");
   }
 
-  // ⭐ NEW: Rewrite rejected → DO NOT insert anything
-  function handleGatekeeperCancel() {
+  // ⭐ Rewrite rejected → delete raw post
+  async function handleGatekeeperCancel(postId: string) {
     cancelPollingRef.current = true;
+
+    await supabase
+      .from("posts")
+      .delete()
+      .eq("id", postId);
+
     setShowGatekeeper(false);
-    setContent(""); // optional: clear draft
-    router.back();  // exit composer
+    setContent("");
+    router.back();
   }
 
   return (
@@ -169,7 +160,7 @@ export default function ComposerPage() {
         <GatekeeperModal
           options={gatekeeperOptions}
           onSelect={handleGatekeeperSelect}
-          onClose={handleGatekeeperCancel}
+          onCancel={handleGatekeeperCancel}
         />
       )}
 
@@ -177,9 +168,8 @@ export default function ComposerPage() {
         <SpiritToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
+      {/* UI unchanged */}
       <div className="min-h-screen w-full bg-white flex flex-col pt-[env(safe-area-inset-top)]">
-
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
           <button
             onClick={() => router.back()}
@@ -206,7 +196,6 @@ export default function ComposerPage() {
           </button>
         </div>
 
-        {/* Textarea */}
         <div className="flex-1 p-4 overflow-y-auto">
           <textarea
             className="w-full min-h-[40vh] max-h-[70vh] bg-gray-50 text-gray-900 rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
