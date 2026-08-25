@@ -18,9 +18,7 @@ export default function ComposerPage() {
   const pathname = usePathname();
   const { supabase } = useSupabase();
 
-  if (!pathname || !pathname.startsWith("/compose")) {
-    return null;
-  }
+  if (!pathname || !pathname.startsWith("/compose")) return null;
 
   const [uid, setUid] = useState<string | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -45,29 +43,46 @@ export default function ComposerPage() {
     loadUser();
   }, [supabase]);
 
+  // ⭐ NEW: Insert post only AFTER moderation
+  async function insertPost(finalContent: string) {
+    const { error } = await supabase.from("posts").insert({
+      content: finalContent,
+      creator_id: uid,
+      mask: 0,
+      privacy_type: privacyType,
+    });
+
+    if (error) {
+      console.error("Post insert error:", error);
+      return false;
+    }
+
+    return true;
+  }
+
   async function handleSubmit(): Promise<void> {
     if (!content.trim() || loadingUser || !uid) return;
 
     cancelPollingRef.current = false;
 
-    const { data: insertedPost, error } = await supabase
-      .from("posts")
+    // ⭐ Step 1: Request moderation WITHOUT inserting post
+    const { data: moderationRequest, error: modReqError } = await supabase
+      .from("post_moderation_requests")
       .insert({
         content,
         creator_id: uid,
-        mask: 0,
-        privacy_type: privacyType,
       })
       .select("*")
       .single();
 
-    if (error || !insertedPost) {
-      console.error("Post insert error:", error);
+    if (modReqError || !moderationRequest) {
+      console.error("Moderation request error:", modReqError);
       return;
     }
 
-    const postId = insertedPost.id;
+    const moderationRequestId = moderationRequest.id;
 
+    // ⭐ Step 2: Poll moderation results
     let moderation: ModerationResult | null = null;
 
     for (let i = 0; i < 12; i++) {
@@ -76,7 +91,7 @@ export default function ComposerPage() {
       const { data } = await supabase
         .from("post_moderation")
         .select("*")
-        .eq("post_id", postId)
+        .eq("request_id", moderationRequestId)
         .maybeSingle();
 
       moderation = data as ModerationResult;
@@ -91,8 +106,11 @@ export default function ComposerPage() {
 
     if (!moderation) return;
 
+    // ⭐ Step 3: Auto-approve → insert raw post
     if (moderation.auto_approve) {
-      cancelPollingRef.current = true;
+      const ok = await insertPost(content);
+      if (!ok) return;
+
       setToastMessage("The spirits approve your message ✨");
       setContent("");
 
@@ -103,6 +121,7 @@ export default function ComposerPage() {
       return;
     }
 
+    // ⭐ Step 4: Gatekeeper rewrite options
     if (moderation.rewrites?.length) {
       cancelPollingRef.current = true;
 
@@ -117,7 +136,6 @@ export default function ComposerPage() {
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
-        postId,
       }));
 
       setGatekeeperOptions(formatted);
@@ -125,18 +143,24 @@ export default function ComposerPage() {
     }
   }
 
+  // ⭐ NEW: Rewrite accepted → insert rewritten post
   async function handleGatekeeperSelect(option: GatekeeperOption): Promise<void> {
     cancelPollingRef.current = true;
-
     setShowGatekeeper(false);
 
-    await supabase
-      .from("posts")
-      .update({ content: option.text })
-      .eq("id", option.postId);
+    const ok = await insertPost(option.text);
+    if (!ok) return;
 
     setContent("");
     router.replace("/plaza");
+  }
+
+  // ⭐ NEW: Rewrite rejected → DO NOT insert anything
+  function handleGatekeeperCancel() {
+    cancelPollingRef.current = true;
+    setShowGatekeeper(false);
+    setContent(""); // optional: clear draft
+    router.back();  // exit composer
   }
 
   return (
@@ -145,10 +169,7 @@ export default function ComposerPage() {
         <GatekeeperModal
           options={gatekeeperOptions}
           onSelect={handleGatekeeperSelect}
-          onClose={() => {
-            cancelPollingRef.current = true;
-            setShowGatekeeper(false);
-          }}
+          onClose={handleGatekeeperCancel}
         />
       )}
 

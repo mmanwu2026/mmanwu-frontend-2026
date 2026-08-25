@@ -7,7 +7,6 @@ export interface GatekeeperOption {
   label: string;
   text: string;
   explanation?: string;
-  postId: string;
 }
 
 interface GatekeeperModalProps {
