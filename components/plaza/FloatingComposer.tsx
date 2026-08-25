@@ -7,7 +7,7 @@ import SpiritToast from "@/app/components/SpiritToast";
 
 interface ModerationResult {
   id: number;
-  post_id: string;
+  request_id: string;
   auto_approve: boolean | null;
   rewrites: string[] | null;
 }
@@ -32,7 +32,6 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load Supabase session user
   useEffect(() => {
     async function loadUser() {
       const session = await supabase.auth.getSession();
@@ -43,14 +42,12 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     loadUser();
   }, [supabase]);
 
-  async function handleSubmit(): Promise<void> {
-    if (!content.trim() || loadingUser || !uid) return;
-
-    // 1️⃣ Insert post
-    const { data: insertedPost, error } = await supabase
+  // ⭐ Insert final post only AFTER moderation
+  async function insertPost(finalContent: string) {
+    const { data, error } = await supabase
       .from("posts")
       .insert({
-        content,
+        content: finalContent,
         creator_id: uid,
         mask: 0,
         privacy_type: privacyType,
@@ -58,22 +55,43 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
       .select("*")
       .single();
 
-    if (error || !insertedPost) {
+    if (error) {
       console.error("Post insert error:", error);
+      return null;
+    }
+
+    return data;
+  }
+
+  async function handleSubmit(): Promise<void> {
+    if (!content.trim() || loadingUser || !uid) return;
+
+    // ⭐ Step 1: Request moderation (no post inserted yet)
+    const { data: moderationRequest, error: modReqError } = await supabase
+      .from("post_moderation_requests")
+      .insert({
+        content,
+        creator_id: uid,
+      })
+      .select("*")
+      .single();
+
+    if (modReqError || !moderationRequest) {
+      console.error("Moderation request error:", modReqError);
       return;
     }
 
-    const postId = insertedPost.id;
+    const requestId = moderationRequest.id;
 
-    // 2️⃣ Poll moderation results
+    // ⭐ Step 2: Poll moderation results
     let moderation: ModerationResult | null = null;
 
     for (let i = 0; i < 12; i++) {
       const { data } = await supabase
         .from("post_moderation")
         .select("*")
-        .eq("post_id", postId)
-        .single();
+        .eq("request_id", requestId)
+        .maybeSingle();
 
       moderation = data as ModerationResult;
 
@@ -84,16 +102,20 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
 
     if (!moderation) return;
 
-    // 3️⃣ Auto-approved → publish immediately
+    // ⭐ Step 3: Auto-approved → insert raw post
     if (moderation.auto_approve) {
+      const post = await insertPost(content);
+      if (!post) return;
+
       setToastMessage("The spirits approve your message ✨");
       setContent("");
       setExpanded(false);
-      onPost(insertedPost);
+
+      onPost(post);
       return;
     }
 
-    // 4️⃣ Harmful → show rewrites
+    // ⭐ Step 4: Harmful → show rewrites
     if (moderation.rewrites?.length) {
       const toneLabels = ["Calm", "Direct", "Elevated"];
       const toneExplanations = [
@@ -106,7 +128,6 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
         label: toneLabels[i],
         text,
         explanation: toneExplanations[i],
-        postId,
       }));
 
       setGatekeeperOptions(formatted);
@@ -114,26 +135,24 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
     }
   }
 
+  // ⭐ Rewrite accepted → insert rewritten post
   async function handleGatekeeperSelect(option: GatekeeperOption): Promise<void> {
     setShowGatekeeper(false);
 
-    // 5️⃣ Update original post with rewrite
-    await supabase
-      .from("posts")
-      .update({ content: option.text })
-      .eq("id", option.postId);
+    const post = await insertPost(option.text);
+    if (!post) return;
 
     setContent("");
     setExpanded(false);
 
-    // Return updated post to parent
-    const { data } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("id", option.postId)
-      .single();
+    onPost(post);
+  }
 
-    if (data) onPost(data);
+  // ⭐ Rewrite rejected → DO NOT insert anything
+  function handleGatekeeperCancel() {
+    setShowGatekeeper(false);
+    setContent("");
+    setExpanded(false);
   }
 
   return (
@@ -142,7 +161,7 @@ export default function FloatingComposer({ onPost }: FloatingComposerProps) {
         <GatekeeperModal
           options={gatekeeperOptions}
           onSelect={handleGatekeeperSelect}
-          onClose={() => setShowGatekeeper(false)}
+          onClose={handleGatekeeperCancel}
         />
       )}
 
