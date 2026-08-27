@@ -10,6 +10,8 @@
 
 html, body {
   padding-top: env(safe-area-inset-top);
+  color: #111;
+  pointer-events: auto;
 }
 
 /* ------------------------------------------------------------ */
@@ -27,7 +29,7 @@ html, body {
 .aura-mask-1 { --aura-color: #7C3AED; }
 .aura-mask-2 { --aura-color: #DC2626; }
 .aura-mask-3 { --aura-color: #22C55E; }
-.aura-mask-4 { --aura-color: #FACC15; }
+.aura-mask-4 { --auraura-color: #FACC15; }
 .aura-mask-5 { --aura-color: #3B82F6; }
 .aura-mask-6 { --aura-color: #F97316; }
 
@@ -174,15 +176,6 @@ html, body {
   0% { transform: translateY(0) scale(0.9); opacity: 0.25; }
   50% { transform: translateY(-18px) scale(1); opacity: 0.35; }
   100% { transform: translateY(-36px) scale(0.9); opacity: 0.25; }
-}
-
-/* ------------------------------------------------------------ */
-/* 10. GLOBAL LIGHT THEME                                       */
-/* ------------------------------------------------------------ */
-
-html, body {
-  color: #111;
-  pointer-events: auto;
 }
 
 /* ------------------------------------------------------------ */
