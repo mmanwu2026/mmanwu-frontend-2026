@@ -43,15 +43,29 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
     async function hydrateSession() {
       try {
-        // ⭐ CRITICAL FIX: refresh session on PWA startup
-        await supabase.auth.refreshSession();
-
         const { data } = await supabase.auth.getSession();
-        if (mounted) {
-          setUser(data.session?.user ?? null);
+
+        // If there is a session, validate it
+        if (data.session?.user) {
+          const { data: userData, error: userError } =
+            await supabase.auth.getUser();
+
+          if (userError || !userData?.user) {
+            // Stale or invalid session → force logout
+            await supabase.auth.signOut();
+            if (mounted) setUser(null);
+            return;
+          }
+
+          // Valid session
+          if (mounted) setUser(data.session.user);
+          return;
         }
+
+        // No session
+        if (mounted) setUser(null);
       } catch (err) {
-        console.error("Session refresh failed:", err);
+        console.error("Session hydration failed:", err);
         await supabase.auth.signOut();
         if (mounted) setUser(null);
       }
@@ -59,14 +73,13 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
     hydrateSession();
 
-    // ⭐ Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (mounted) {
-          setUser(session?.user ?? null);
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        setUser(session?.user ?? null);
       }
-    );
+    });
 
     return () => {
       mounted = false;

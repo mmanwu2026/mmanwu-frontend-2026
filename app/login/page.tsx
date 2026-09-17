@@ -1,18 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSupabase } from "@/app/context/SupabaseContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const { supabase } = useSupabase(); // ⭐ FIXED
+  const { supabase } = useSupabase();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Safety: if already logged in, go home
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkExistingSession() {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+
+      if (data.session?.user) {
+        router.push("/");
+      }
+    }
+
+    checkExistingSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase, router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -22,6 +42,9 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMsg("");
 
+    // Critical: clear any stale session before login
+    await supabase.auth.signOut();
+
     const result = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -29,7 +52,7 @@ export default function LoginPage() {
 
     console.log("LOGIN RESULT:", result);
 
-    const { error } = result;
+    const { error, data } = result;
 
     if (error) {
       if (error.message.includes("Invalid login credentials")) {
@@ -41,10 +64,25 @@ export default function LoginPage() {
       return;
     }
 
+    // If no session returned, fail gracefully
+    if (!data.session?.user) {
+      setErrorMsg("Login failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Timeout guard: prevent infinite spinner
+    const timeout = setTimeout(() => {
+      setLoading(false);
+      setErrorMsg("Login timed out. Please try again.");
+    }, 10000);
+
+    // Small delay for iOS/PWA installability, then navigate
     await new Promise((resolve) => setTimeout(resolve, 250));
 
-// ⭐ Redirect to homepage first so iOS can evaluate PWA installability
-router.push("/");
+    clearTimeout(timeout);
+    setLoading(false);
+    router.push("/");
   }
 
   return (
