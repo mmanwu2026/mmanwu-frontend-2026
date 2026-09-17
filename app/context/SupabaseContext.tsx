@@ -38,54 +38,53 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
-  useEffect(() => {
-    let mounted = true;
+useEffect(() => {
+  let mounted = true;
 
-    async function hydrateSession() {
-      try {
-        const { data } = await supabase.auth.getSession();
+  async function hydrateSession() {
+    try {
+      const { data } = await supabase.auth.getSession();
 
-        // If there is a session, validate it
-        if (data.session?.user) {
-          const { data: userData, error: userError } =
-            await supabase.auth.getUser();
+      if (data.session?.user) {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
 
-          if (userError || !userData?.user) {
-            // Stale or invalid session → force logout
-            await supabase.auth.signOut();
-            if (mounted) setUser(null);
-            return;
-          }
-
-          // Valid session
-          if (mounted) setUser(data.session.user);
+        if (userError || !userData?.user) {
+          await supabase.auth.signOut();
+          if (mounted) setUser(null);
           return;
         }
 
-        // No session
-        if (mounted) setUser(null);
-      } catch (err) {
-        console.error("Session hydration failed:", err);
-        await supabase.auth.signOut();
-        if (mounted) setUser(null);
+        if (mounted) setUser(data.session.user);
+        return;
       }
+
+      if (mounted) setUser(null);
+    } catch (err) {
+      console.error("Session hydration failed:", err);
+      await supabase.auth.signOut();
+      if (mounted) setUser(null);
+    }
+  }
+
+  hydrateSession();
+
+  // ⭐ CRITICAL FIX FOR iOS WEBVIEW
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (mounted) {
+      setUser(session?.user ?? null);
     }
 
-    hydrateSession();
+    // iOS WebView needs a full reload on ANY auth change
+    if (typeof window !== "undefined" && window.navigator.userAgent.includes("iPhone")) {
+      window.location.reload();
+    }
+  });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setUser(session?.user ?? null);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, [supabase]);
 
   return (
     <SupabaseContext.Provider value={{ supabase, user, logout }}>
