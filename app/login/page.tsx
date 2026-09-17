@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Safety: if already logged in, go home
+  // If already logged in, redirect home
   useEffect(() => {
     let mounted = true;
 
@@ -28,7 +28,6 @@ export default function LoginPage() {
     }
 
     checkExistingSession();
-
     return () => {
       mounted = false;
     };
@@ -36,15 +35,12 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-
     if (loading) return;
 
     setLoading(true);
     setErrorMsg("");
 
-    // Critical: clear any stale session before login
-    await supabase.auth.signOut();
-
+    // Perform login
     const result = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -64,23 +60,22 @@ export default function LoginPage() {
       return;
     }
 
-    // If no session returned, fail gracefully
     if (!data.session?.user) {
       setErrorMsg("Login failed. Please try again.");
       setLoading(false);
       return;
     }
 
-    // Timeout guard: prevent infinite spinner
-    const timeout = setTimeout(() => {
-      setLoading(false);
-      setErrorMsg("Login timed out. Please try again.");
-    }, 10000);
-
-    // Small delay for iOS/PWA installability, then navigate
+    // Delay for iOS PWA installability
     await new Promise((resolve) => setTimeout(resolve, 250));
 
-    clearTimeout(timeout);
+    // ⭐ CRITICAL FIX FOR iOS WEBVIEW
+    if (typeof window !== "undefined" && window.navigator.userAgent.includes("iPhone")) {
+      window.location.reload(); // Forces React tree + session hydration
+      return;
+    }
+
+    // Normal PWA navigation
     setLoading(false);
     router.push("/");
   }

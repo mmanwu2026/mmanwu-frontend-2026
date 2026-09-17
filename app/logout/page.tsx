@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 export default function LogoutPage() {
-  // Create a Supabase client using your environment variables
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -16,7 +15,7 @@ export default function LogoutPage() {
         // 1. Supabase logout
         await supabase.auth.signOut();
 
-        // 2. Clear all storage
+        // 2. Clear browser storage
         localStorage.clear();
         sessionStorage.clear();
 
@@ -26,7 +25,7 @@ export default function LogoutPage() {
           if (db.name) indexedDB.deleteDatabase(db.name);
         }
 
-        // 4. Unregister all service workers
+        // 4. Unregister service workers
         if (navigator.serviceWorker) {
           const regs = await navigator.serviceWorker.getRegistrations();
           for (const reg of regs) {
@@ -42,7 +41,13 @@ export default function LogoutPage() {
           }
         }
 
-        // 6. Hard reload
+        // ⭐ CRITICAL FIX FOR iOS WEBVIEW
+        if (typeof window !== "undefined" && window.navigator.userAgent.includes("iPhone")) {
+          window.location.reload(); // Forces React tree + session hydration
+          return;
+        }
+
+        // Normal PWA redirect
         window.location.href = "/";
       } catch (err) {
         console.error("Logout error:", err);
